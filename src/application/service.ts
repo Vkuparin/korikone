@@ -6,6 +6,7 @@ import {
   type BasketLine,
   type Journal,
   type Review,
+  type StoreContext,
 } from "../domain/model";
 import { requirements, match } from "../domain/planner";
 import { ProviderRegistry } from "../stores/provider";
@@ -22,6 +23,14 @@ export class Service {
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
+  storeResults: StoreContext[] = [];
+  storeLogin = "notStarted";
+  controller: AbortController | null = null;
+  async setLanguage(input: unknown) {
+    this.state.language = z.enum(["fi", "en"]).parse(input);
+    await this.db.set("state", this.state);
+    return this.snapshot();
+  }
   constructor(private db: Storage) {
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
@@ -46,6 +55,8 @@ export class Service {
       basket: this.basket,
       journal: this.journal,
       review: this.review,
+      storeResults: this.storeResults,
+      storeLogin: this.storeLogin,
     };
   }
   async save(input: unknown) {
@@ -109,6 +120,7 @@ export class Service {
   }
   async prepare() {
     if (this.busy) throw new Error("busy");
+    if (this.journal?.status === "partial") throw new Error("recoverFirst");
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
@@ -117,7 +129,10 @@ export class Service {
     );
     return this.snapshot();
   }
-  async execute(id: unknown) {
+  async execute(input: unknown) {
+    const { id, acknowledged } = z
+      .object({ id: z.string(), acknowledged: z.boolean() })
+      .parse(input);
     if (this.busy) throw new Error("busy");
     if (
       typeof id !== "string" ||
@@ -126,7 +141,14 @@ export class Service {
       this.review.revision !== this.state.revision
     )
       throw new Error("reviewRequired");
+    if (
+      (this.review.total > this.state.household.budget ||
+        this.review.context.providerId === "k-ruoka") &&
+      !acknowledged
+    )
+      throw new Error("acknowledgeReview");
     this.busy = true;
+    this.controller = new AbortController();
     try {
       const provider = this.registry.get(this.review.context.providerId);
       const journal: Journal = {
@@ -137,19 +159,27 @@ export class Service {
         error: null,
       };
       this.review = null;
+      this.journal = journal;
       await this.db.set("journal", journal);
       // Each journal write must finish before the next retailer operation.
-      this.journal = await transfer(provider, journal, async (j) => {
-        await this.db.set("journal", j);
-        if (provider instanceof DemoProvider)
-          await this.db.set(provider.id, [...provider.carts]);
-      });
+      this.journal = await transfer(
+        provider,
+        journal,
+        async (j) => {
+          this.journal = j;
+          await this.db.set("journal", j);
+          if (provider instanceof DemoProvider)
+            await this.db.set(provider.id, [...provider.carts]);
+        },
+        this.controller.signal,
+      );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
         await this.db.set(provider.id, [...provider.carts]);
       return this.snapshot();
     } finally {
       this.busy = false;
+      this.controller = null;
     }
   }
   async recover() {

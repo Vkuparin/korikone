@@ -32,11 +32,17 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
         .locator("article")
         .filter({ has: page.locator(".warning") })
         .first();
-      if (await article.count())
+      const missing = page
+        .locator("article")
+        .filter({ has: page.locator(".warning") });
+      const count = await missing.count();
+      if (count) {
         await article
           .getByRole("button", { name: "Choose this product" })
           .first()
           .click();
+        await expect(missing).toHaveCount(count - 1);
+      }
     }
     await page.getByText("Demo", { exact: true }).click();
     await page
@@ -63,7 +69,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Cart updated and verified" }),
     ).toBeVisible();
-    await page.screenshot({ path: "test-results/basket.png", fullPage: true });
+    await page.screenshot({ path: "test-results/basket.png" });
     expect(
       await page.evaluate(() => ({
         node: typeof (window as any).require,
@@ -79,7 +85,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(page.getByLabel("Language", { exact: true })).toHaveValue(
       "en",
     );
-    await page.screenshot({ path: "test-results/week.png", fullPage: true });
+    await page.screenshot({ path: "test-results/week.png" });
   } finally {
     await app.close();
   }

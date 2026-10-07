@@ -1,4 +1,32 @@
 export const en = {
+  recoverFirst:
+    "An interrupted transfer needs review before starting another transfer.",
+  acknowledgeReview:
+    "Confirm the review, dietary suitability and any budget overrun before transferring.",
+  confirmRealReview:
+    "I checked product suitability, pack sizes and the displayed total, including any budget overrun. Fees and unreported deposits are still unknown.",
+  confirmBudget: "I accept the displayed budget overrun.",
+  cancelled: "Transfer stopped. Changes already made remain in the cart.",
+  liveStore: "K-Ruoka · Real store · Checkout is always manual",
+  openStoreCart: "Open store cart",
+  searchStores: "Find a K-Ruoka branch",
+  search: "Search",
+  loginStore: "Sign in to K-Ruoka",
+  checkLogin: "Check sign-in",
+  signedIn: "Signed in",
+  waitingLogin:
+    "Complete sign-in in the store window, then check sign-in here.",
+  loginFailed: "Sign-in failed. Try again.",
+  notConnected: "Not connected",
+  chromeRequired: "Install Google Chrome to connect to K-Ruoka.",
+  workerMissing: "The store component is missing. Reinstall the application.",
+  workerIncompatible:
+    "The store component is incompatible. Update the application.",
+  storeUnavailable:
+    "The store could not complete the request. Check sign-in and try again.",
+  closeStoreWindow: "Close the store window before connecting again.",
+  unsupportedCart:
+    "The cart contains unsupported product identifiers. Review it in the store.",
   week: "Week",
   recipes: "Recipes",
   staples: "Regular items",
@@ -46,8 +74,8 @@ export const en = {
   packs: "Packs",
   required: "Needed",
   bought: "Bought",
-  total: "Goods and deposits",
-  fees: "Delivery and service fees are unknown.",
+  total: "Estimated goods subtotal",
+  fees: "Delivery, service fees and unreported deposits are unknown.",
   unresolved: "Choose a product for each ingredient before continuing.",
   prepare: "Review cart changes",
   transfer: "Transfer to cart",
@@ -73,7 +101,7 @@ export const en = {
   aiStatus:
     "ChatGPT integration is being investigated. Manual planning is available.",
   realStatus:
-    "Real K-Ruoka integration is in development. This build uses demo stores.",
+    "Uses a separate Chrome profile on this device. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
   ordered: "I completed the purchase",
   unsupported: "This provider does not support this operation.",
   invalidQuantity:
@@ -101,6 +129,31 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  recoverFirst: "Keskeytynyt siirto on tarkistettava ennen uutta siirtoa.",
+  acknowledgeReview:
+    "Vahvista tuotteiden sopivuus, korin tarkistus ja mahdollinen budjetin ylitys.",
+  confirmRealReview:
+    "Tarkistin tuotteiden sopivuuden, pakkauskoot ja summan, myös mahdollisen budjetin ylityksen. Maksut ja ilmoittamattomat pantit eivät ole tiedossa.",
+  confirmBudget: "Hyväksyn näytetyn budjetin ylityksen.",
+  cancelled: "Siirto pysäytettiin. Jo tehdyt muutokset säilyvät korissa.",
+  liveStore: "K-Ruoka · Oikea kauppa · Viimeistelet tilauksen itse",
+  openStoreCart: "Avaa kaupan ostoskori",
+  searchStores: "Etsi K-Ruoka-kauppa",
+  search: "Etsi",
+  loginStore: "Kirjaudu K-Ruokaan",
+  checkLogin: "Tarkista kirjautuminen",
+  signedIn: "Kirjautunut",
+  waitingLogin: "Kirjaudu kaupan ikkunassa ja tarkista kirjautuminen tästä.",
+  loginFailed: "Kirjautuminen epäonnistui. Yritä uudelleen.",
+  notConnected: "Ei yhdistetty",
+  chromeRequired: "Asenna Google Chrome K-Ruoka-yhteyttä varten.",
+  workerMissing: "Kaupan yhteysosa puuttuu. Asenna sovellus uudelleen.",
+  workerIncompatible: "Kaupan yhteysosa ei ole yhteensopiva. Päivitä sovellus.",
+  storeUnavailable:
+    "Kaupan pyyntö epäonnistui. Tarkista kirjautuminen ja yritä uudelleen.",
+  closeStoreWindow: "Sulje kaupan ikkuna ennen uutta yhteyttä.",
+  unsupportedCart:
+    "Korissa on tuotetunnisteita, joita ei tueta. Tarkista kori kaupassa.",
   week: "Viikko",
   recipes: "Reseptit",
   staples: "Vakiotuotteet",
@@ -148,8 +201,8 @@ export const fi: Record<Key, string> = {
   packs: "Pakkaukset",
   required: "Tarvitaan",
   bought: "Ostetaan",
-  total: "Tuotteet ja pantit",
-  fees: "Toimitus- ja palvelumaksut eivät ole tiedossa.",
+  total: "Tuotteiden arvioitu välisumma",
+  fees: "Toimitus- ja palvelumaksut sekä ilmoittamattomat pantit eivät ole tiedossa.",
   unresolved: "Valitse tuote jokaiselle ainekselle ennen jatkamista.",
   prepare: "Tarkista korin muutokset",
   transfer: "Siirrä ostoskoriin",
@@ -174,7 +227,7 @@ export const fi: Record<Key, string> = {
   localData: "Reseptit ja suunnitelmat säilyvät tällä laitteella.",
   aiStatus: "ChatGPT-yhteyttä selvitetään. Voit suunnitella ateriat käsin.",
   realStatus:
-    "K-Ruoka-yhteys on kehitteillä. Tämä versio käyttää esimerkkikauppoja.",
+    "Käyttää erillistä Chrome-profiilia tällä laitteella. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
   ordered: "Olen tehnyt ostoksen",
   unsupported: "Kauppa ei tue tätä toimintoa.",
   invalidQuantity:

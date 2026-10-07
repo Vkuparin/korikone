@@ -83,6 +83,7 @@ export async function createReview(
     targets,
     createdAt: new Date().toISOString(),
     total: targets.reduce((sum, t) => sum + t.price, 0),
+    quotes: structuredClone(lines),
   };
 }
 const locks = new Set<string>();
@@ -106,6 +107,27 @@ export async function transfer(
   const expected = structuredClone(review.baseline);
   const record = () => persist(structuredClone(journal));
   try {
+    for (const line of review.quotes) {
+      const p = line.product!;
+      if (!review.targets.some((t) => t.productId === p.id)) continue;
+      const fresh = (
+        await provider.searchProducts(
+          review.context,
+          line.requirement.name,
+          line.requirement.id,
+        )
+      ).find((candidate) => candidate.id === p.id);
+      if (
+        !fresh ||
+        fresh.price !== p.price ||
+        fresh.deposit !== p.deposit ||
+        fresh.packAmount !== p.packAmount ||
+        fresh.nativeUnit !== p.nativeUnit ||
+        fresh.increment !== p.increment ||
+        fresh.available !== true
+      )
+        throw new Error("priceChanged");
+    }
     if (
       fingerprint(await provider.getCart(review.context)) !==
       fingerprint(expected)
@@ -172,11 +194,36 @@ export async function resumeReview(
       before:
         baseline.lines.find((l) => l.productId === t.productId)?.quantity ?? 0,
     }));
+  const quotes = structuredClone(journal.review.quotes);
+  for (const line of quotes) {
+    const target = targets.find((t) => t.productId === line.product?.id);
+    if (!target) continue;
+    const fresh = (
+      await provider.searchProducts(
+        journal.review.context,
+        line.requirement.name,
+        line.requirement.id,
+      )
+    ).find((p) => p.id === target.productId);
+    if (
+      !fresh ||
+      fresh.price === null ||
+      fresh.available !== true ||
+      fresh.packAmount !== line.product!.packAmount ||
+      fresh.nativeUnit !== target.unit
+    )
+      throw new Error("priceChanged");
+    line.product = fresh;
+    target.price =
+      (target.quantity - target.before) * (fresh.price + fresh.deposit);
+  }
   return {
     ...journal.review,
     id: crypto.randomUUID(),
     baseline,
     targets,
+    quotes,
+    total: targets.reduce((sum, t) => sum + t.price, 0),
     createdAt: new Date().toISOString(),
   };
 }

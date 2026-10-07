@@ -5,7 +5,7 @@ await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  external: ["electron"],
+  external: ["electron", "@modelcontextprotocol/sdk/*"],
   target: "node24",
 });
 await build({

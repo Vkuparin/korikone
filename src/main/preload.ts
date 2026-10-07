@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 const methods = [
   "load",
   "save",
+  "setLanguage",
+  "cancelTransfer",
   "buildBasket",
   "accept",
   "prepare",
@@ -11,6 +13,11 @@ const methods = [
   "exportList",
   "exportData",
   "importData",
+  "searchStores",
+  "loginStore",
+  "checkStoreLogin",
+  "cancelStoreLogin",
+  "openStoreCart",
 ] as const;
 contextBridge.exposeInMainWorld(
   "korikone",

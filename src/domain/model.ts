@@ -97,6 +97,7 @@ export type Review = {
   targets: Target[];
   createdAt: string;
   total: number;
+  quotes: BasketLine[];
 };
 export type Journal = {
   review: Review;

@@ -27,12 +27,16 @@ function App() {
     basket: [],
     review: null,
     journal: null,
+    storeResults: [],
+    storeLogin: "notStarted",
   });
   const [page, setPage] = useState<Key>("week");
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Recipe | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
+  useEffect(() => setAcknowledged(false), [snapshot.review?.id]);
   const state = snapshot.state;
   const t = (key: Key) => (state.language === "fi" ? fi : en)[key];
   const money = (cents: number) =>
@@ -76,6 +80,14 @@ function App() {
     }
   }
   const save = (next: AppState) => call("save", next);
+  async function changeLanguage(language: "fi" | "en") {
+    setSnapshot((current) => ({
+      ...current,
+      state: { ...current.state, language },
+    }));
+    const result = await window.korikone.setLanguage(language);
+    if (!result.ok) setError(result.error ?? "storageFailed");
+  }
   useEffect(() => {
     void call("load").then(() => setLoaded(true));
   }, []);
@@ -112,17 +124,16 @@ function App() {
           <select
             aria-label={t("language")}
             value={state.language}
-            disabled={busy}
-            onChange={(e) =>
-              void save({ ...state, language: e.target.value as "fi" | "en" })
-            }
+            onChange={(e) => void changeLanguage(e.target.value as "fi" | "en")}
           >
             <option value="fi">Suomi</option>
             <option value="en">English</option>
           </select>,
         )}
       </header>
-      <div className="demo">{t("demo")}</div>
+      <div className="demo">
+        {t(state.context.providerId === "k-ruoka" ? "liveStore" : "demo")}
+      </div>
       {error && (
         <div role="alert" className="error">
           {t(error in en ? (error as Key) : "operationFailed")}
@@ -131,6 +142,12 @@ function App() {
       {busy && (
         <div role="status" className="progress">
           {t("working")}
+          <button
+            className="text"
+            onClick={() => void window.korikone.cancelTransfer()}
+          >
+            {t("cancel")}
+          </button>
         </div>
       )}
       {!state.onboarded ? (
@@ -581,6 +598,16 @@ function App() {
                       )}
                     </h2>
                     <p>{snapshot.journal.review.context.storeName}</p>
+                    {snapshot.journal.status === "verified" &&
+                      snapshot.journal.review.context.providerId ===
+                        "k-ruoka" && (
+                        <button
+                          disabled={busy}
+                          onClick={() => void call("openStoreCart")}
+                        >
+                          {t("openStoreCart")}
+                        </button>
+                      )}
                     <p>
                       {t("verifiedLines")}: {snapshot.journal.verified.length} /{" "}
                       {snapshot.journal.review.targets.length}
@@ -614,9 +641,43 @@ function App() {
                       </div>
                     ))}
                     <p>{t("retained")}</p>
+                    <p>
+                      {t("total")}: {money(snapshot.review.total)} ·{" "}
+                      {t("budget")}: {money(state.household.budget)}
+                    </p>
+                    {(snapshot.review.context.providerId === "k-ruoka" ||
+                      snapshot.review.total > state.household.budget) && (
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={acknowledged}
+                          onChange={(e) => setAcknowledged(e.target.checked)}
+                        />
+                        {t(
+                          snapshot.review.context.providerId === "k-ruoka"
+                            ? "confirmRealReview"
+                            : "confirmBudget",
+                        )}
+                      </label>
+                    )}
+                    {state.household.exclusions && (
+                      <p>
+                        {t("exclusions")}: {state.household.exclusions}
+                      </p>
+                    )}
                     <button
-                      disabled={busy}
-                      onClick={() => void call("execute", snapshot.review!.id)}
+                      disabled={
+                        busy ||
+                        ((snapshot.review.context.providerId === "k-ruoka" ||
+                          snapshot.review.total > state.household.budget) &&
+                          !acknowledged)
+                      }
+                      onClick={() =>
+                        void call("execute", {
+                          id: snapshot.review!.id,
+                          acknowledged,
+                        })
+                      }
                     >
                       {t("transfer")}
                     </button>
@@ -655,6 +716,9 @@ function App() {
                           {line.candidates.map((p) => (
                             <div className="candidate" key={p.id}>
                               <span>{p.name}</span>
+                              <small>
+                                {p.packAmount} {p.unit}
+                              </small>
                               <strong>
                                 {p.price === null
                                   ? t("unknown")
@@ -790,6 +854,11 @@ function App() {
                     >
                       <option value="demo-k">K-Ruoka (demo)</option>
                       <option value="demo-s">S-kaupat (demo)</option>
+                      {state.context.providerId === "k-ruoka" && (
+                        <option value="k-ruoka">
+                          {state.context.storeName}
+                        </option>
+                      )}
                     </select>,
                   )}
                   {field(
@@ -811,7 +880,72 @@ function App() {
                       <option value="delivery">{t("delivery")}</option>
                     </select>,
                   )}
+                  <h2>K-Ruoka</h2>
                   <p>{t("realStatus")}</p>
+                  <form
+                    className="inline"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void call(
+                        "searchStores",
+                        String(new FormData(e.currentTarget).get("query")),
+                      );
+                    }}
+                  >
+                    <label>
+                      {t("searchStores")}
+                      <input
+                        name="query"
+                        minLength={2}
+                        required
+                        placeholder="Helsinki"
+                      />
+                    </label>
+                    <button disabled={busy}>{t("search")}</button>
+                  </form>
+                  {snapshot.storeResults.map((store) => (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      key={store.storeId}
+                      onClick={() => void save({ ...state, context: store })}
+                    >
+                      {store.storeName}
+                    </button>
+                  ))}
+                  <div className="actions">
+                    <button
+                      disabled={busy}
+                      onClick={() => void call("loginStore")}
+                    >
+                      {t("loginStore")}
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void call("checkStoreLogin")}
+                    >
+                      {t("checkLogin")}
+                    </button>
+                    <button
+                      className="text"
+                      disabled={busy}
+                      onClick={() => void call("cancelStoreLogin")}
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                  <p role="status">
+                    {t(
+                      snapshot.storeLogin === "signedIn"
+                        ? "signedIn"
+                        : snapshot.storeLogin === "waiting"
+                          ? "waitingLogin"
+                          : snapshot.storeLogin === "failed"
+                            ? "loginFailed"
+                            : "notConnected",
+                    )}
+                  </p>
                   <p>{t("aiStatus")}</p>
                 </section>
                 <section className="card">

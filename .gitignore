@@ -12,3 +12,6 @@ coverage/
 *.pem
 *.key
 .runtime/
+vendor/k-ruoka/*.exe
+vendor/k-ruoka/*.zip
+vendor/k-ruoka/unpacked/
