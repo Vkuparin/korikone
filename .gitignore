@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+.research/
+test-results/
+playwright-report/
+coverage/
+*.log
+.env*
+*.sqlite*
+*.db*
+*.pem
+*.key
+.runtime/

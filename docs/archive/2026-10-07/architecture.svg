@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52606d"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="24" y="38" font-size="24" font-weight="700" fill="#1f2933">Korikone: one weekly grocery run</text>
+  <text x="24" y="62" font-size="14" fill="#52606d">Follow the numbers. Each row shows who does the work at that step.</text>
+
+  <!-- Lanes -->
+  <rect x="16" y="80" width="1248" height="110" fill="#eef7ee"/>
+  <rect x="16" y="190" width="1248" height="110" fill="#f5eefc"/>
+  <rect x="16" y="300" width="1248" height="200" fill="#eaf3fc"/>
+  <rect x="16" y="500" width="1248" height="110" fill="#fff4e5"/>
+
+  <!-- Lane labels -->
+  <g font-size="15" font-weight="700">
+    <text x="30" y="130" fill="#2e7d32">You</text>
+    <text x="30" y="240" fill="#6b3fa0">AI agent</text>
+    <text x="30" y="350" fill="#1e5fa8">Korikone</text>
+    <text x="30" y="550" fill="#b45f06">Store</text>
+  </g>
+  <g font-size="11" fill="#52606d">
+    <text x="30" y="147">decide and pay</text>
+    <text x="30" y="257">the only LLM</text>
+    <text x="30" y="274">in the loop</text>
+    <text x="30" y="367">plain code,</text>
+    <text x="30" y="384">no LLM</text>
+    <text x="30" y="567">website</text>
+  </g>
+
+  <!-- Arrows (drawn first so boxes sit on top) -->
+  <g stroke="#52606d" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
+    <!-- 1 -> 2 -->
+    <path d="M230,170 L230,208"/>
+    <!-- 2 -> 3 -->
+    <path d="M315,245 L420,245 L420,318"/>
+    <!-- data -> 3 -->
+    <path d="M420,415 L420,392"/>
+    <!-- data -> 4 -->
+    <path d="M505,450 L565,450 L565,392"/>
+    <!-- 3 -> 4 -->
+    <path d="M505,355 L523,355"/>
+    <!-- 4 -> 5 -->
+    <path d="M695,355 L713,355"/>
+    <!-- 5 -> 6 -->
+    <path d="M885,355 L903,355"/>
+    <!-- 5 -> cart -->
+    <path d="M800,390 L800,518"/>
+    <!-- cart -> 6 (read back) -->
+    <path d="M885,555 L990,555 L990,392"/>
+    <!-- 6 -> 7 -->
+    <path d="M990,320 L990,282"/>
+    <!-- 7 -> 8 -->
+    <path d="M1075,245 L1140,245 L1140,172"/>
+  </g>
+  <!-- two-way arrows -->
+  <g stroke="#52606d" stroke-width="1.8" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)">
+    <!-- 4 <-> agent pick -->
+    <path d="M610,318 L610,282"/>
+    <!-- 4 <-> price search -->
+    <path d="M655,392 L655,518"/>
+  </g>
+  <!-- you -> checkout -->
+  <path d="M1215,170 L1215,517" stroke="#2e7d32" stroke-width="3" fill="none" marker-end="url(#arrowGreen)"/>
+
+  <!-- Arrow labels -->
+  <g font-size="11" fill="#52606d">
+    <text x="663" y="462">prices</text>
+    <text x="808" y="462">add items</text>
+    <text x="998" y="462">read cart back</text>
+  </g>
+  <g font-size="12" font-weight="700" fill="#2e7d32" text-anchor="end">
+    <text x="1205" y="345">only you</text>
+    <text x="1205" y="362">can order</text>
+  </g>
+  <g font-size="11" fill="#b42318" text-anchor="end">
+    <text x="1205" y="386">no checkout code</text>
+    <text x="1205" y="401">exists in Korikone</text>
+  </g>
+
+  <!-- Boxes: You -->
+  <g stroke="#2e7d32" stroke-width="1.6" fill="#ffffff">
+    <rect x="145" y="100" width="170" height="70" rx="8"/>
+    <rect x="1095" y="100" width="170" height="70" rx="8"/>
+  </g>
+  <!-- Boxes: Agent -->
+  <g stroke="#6b3fa0" stroke-width="1.6" fill="#ffffff">
+    <rect x="145" y="210" width="170" height="70" rx="8"/>
+    <rect x="525" y="210" width="170" height="70" rx="8"/>
+    <rect x="905" y="210" width="170" height="70" rx="8"/>
+  </g>
+  <!-- Boxes: Korikone -->
+  <g stroke="#1e5fa8" stroke-width="1.6" fill="#ffffff">
+    <rect x="335" y="320" width="170" height="70" rx="8"/>
+    <rect x="525" y="320" width="170" height="70" rx="8"/>
+    <rect x="715" y="320" width="170" height="70" rx="8"/>
+    <rect x="905" y="320" width="170" height="70" rx="8"/>
+  </g>
+  <!-- Household data -->
+  <rect x="145" y="415" width="360" height="70" rx="8" fill="#ffffff" stroke="#1e5fa8" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <!-- Boxes: Store -->
+  <g stroke="#b45f06" stroke-width="1.6" fill="#ffffff">
+    <rect x="525" y="520" width="170" height="70" rx="8"/>
+    <rect x="715" y="520" width="170" height="70" rx="8"/>
+    <rect x="1095" y="520" width="170" height="70" rx="8"/>
+  </g>
+
+  <!-- Box titles -->
+  <g font-size="14" font-weight="700" fill="#1f2933" text-anchor="middle">
+    <text x="230" y="131">1. Weekly menu</text>
+    <text x="1180" y="131">8. Review and pay</text>
+
+    <text x="230" y="241">2. Write week file</text>
+    <text x="610" y="241">Pick new products</text>
+    <text x="990" y="241">7. Show review</text>
+
+    <text x="420" y="351">3. Build shopping list</text>
+    <text x="610" y="351">4. Match products</text>
+    <text x="800" y="351">5. Fill cart</text>
+    <text x="990" y="351">6. Verify and diff</text>
+
+    <text x="325" y="440">Household data</text>
+
+    <text x="610" y="551">Product search</text>
+    <text x="800" y="551">Cart</text>
+    <text x="1180" y="551">Checkout</text>
+  </g>
+
+  <!-- Box subtitles -->
+  <g font-size="11.5" fill="#52606d" text-anchor="middle">
+    <text x="230" y="150">meals, skips, extras</text>
+    <text x="1180" y="150">you click the order button</text>
+
+    <text x="230" y="260">asks about unknown dishes</text>
+    <text x="610" y="260">only if no known product</text>
+    <text x="990" y="260">total, changes, questions</text>
+
+    <text x="420" y="370">recipes + staples due</text>
+    <text x="610" y="370">known products first</text>
+    <text x="800" y="370">add and adjust only</text>
+    <text x="990" y="370">cart vs plan vs last week</text>
+
+    <text x="325" y="461">recipes · staples · known products</text>
+    <text x="325" y="476">order history · price log</text>
+
+    <text x="610" y="570">read-only</text>
+    <text x="800" y="570">your logged-in browser profile</text>
+    <text x="1180" y="570">payment, delivery slot</text>
+  </g>
+
+  <!-- Footer: principles -->
+  <line x1="16" y1="632" x2="1264" y2="632" stroke="#cbd2d9" stroke-width="1"/>
+  <text x="24" y="658" font-size="14" font-weight="700" fill="#1f2933">Three rules that keep it safe and cheap</text>
+  <g font-size="13" fill="#1f2933">
+    <circle cx="32" cy="682" r="5" fill="#6b3fa0"/>
+    <text x="46" y="687">The LLM only interprets your menu and chooses between candidates for products it has not seen before.</text>
+    <circle cx="32" cy="708" r="5" fill="#1e5fa8"/>
+    <text x="46" y="713">Quantities, product lookup, cart filling and verification are ordinary code, so the same input gives the same basket.</text>
+    <circle cx="32" cy="734" r="5" fill="#2e7d32"/>
+    <text x="46" y="739">Nothing is ordered until you open the cart and check out yourself.</text>
+  </g>
+</svg>
