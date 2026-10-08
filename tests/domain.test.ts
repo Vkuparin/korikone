@@ -96,6 +96,21 @@ describe("reviewed cart transfers", () => {
     expect(journal.error).toBe("priceChanged");
     expect(provider.writes).toBe(0);
   });
+  it("rejects a changed pack unit before approval, transfer and recovery", async () => {
+    const { provider, journal, state } = await setup();
+    const search = provider.searchProducts.bind(provider);
+    provider.searchProducts = async (...args) =>
+      (await search(...args)).map((p) => ({ ...p, unit: "ml" }));
+    await expect(
+      createReview(provider, state.context, 0, journal.review.quotes),
+    ).rejects.toThrow("priceChanged");
+    await transfer(provider, journal, () => {});
+    expect(journal.error).toBe("priceChanged");
+    expect(provider.writes).toBe(0);
+    await expect(resumeReview(provider, journal)).rejects.toThrow(
+      "priceChanged",
+    );
+  });
   it("stops on cancellation without starting a write", async () => {
     const { provider, journal } = await setup();
     const controller = new AbortController();

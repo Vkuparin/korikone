@@ -47,6 +47,7 @@ export async function createReview(
       fresh.price !== p.price ||
       fresh.deposit !== p.deposit ||
       fresh.packAmount !== p.packAmount ||
+      fresh.unit !== p.unit ||
       fresh.nativeUnit !== p.nativeUnit ||
       fresh.increment !== p.increment
     )
@@ -123,6 +124,7 @@ export async function transfer(
         fresh.price !== p.price ||
         fresh.deposit !== p.deposit ||
         fresh.packAmount !== p.packAmount ||
+        fresh.unit !== p.unit ||
         fresh.nativeUnit !== p.nativeUnit ||
         fresh.increment !== p.increment ||
         fresh.available !== true
@@ -211,6 +213,7 @@ export async function resumeReview(
       fresh.price === null ||
       fresh.available !== true ||
       fresh.packAmount !== line.product!.packAmount ||
+      fresh.unit !== line.product!.unit ||
       fresh.nativeUnit !== target.unit
     )
       throw new Error("priceChanged");
