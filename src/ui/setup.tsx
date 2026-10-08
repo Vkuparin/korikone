@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
+import { isLive } from "../stores/provider";
 
 export function Setup({
   snapshot,
@@ -31,7 +32,7 @@ export function Setup({
       {step === 0 ? (
         <section className="card form">
           <p>{t("setupStoreInfo")}</p>
-          {state.context.providerId !== "k-ruoka" ? (
+          {!isLive(state.context.providerId) ? (
             <>
               <form
                 className="inline"

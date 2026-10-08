@@ -64,4 +64,6 @@ The alternate proposal allows automatic cart mutation before review and puts sev
 
 Build the independent S-kaupat project's S0 comparison, select the browser approach, then release its minimum reliable client/MCP integration with packaging and compatibility information. Korikone UI prototyping and the ChatGPT proof can proceed independently. Full store integration consumes the resulting pinned release.
 
+Reached 8 October 2026: s-kaupat-mcp v1.0.0 is released with a managed browser session, and Korikone consumes it. The next milestone is observed live acceptance of both chains, then the household pilot. See [S-kaupat integration](s-kaupat-mcp-plan.md).
+
 These decisions are based on document and platform review. No live retailer experiment, extension prototype or framework benchmark has been performed as part of this review.

@@ -4,11 +4,13 @@ Revised 8 October 2026. Implements [design.md](design.md) and [ux.md](ux.md). Th
 
 ## Dependency order
 
+Status, 8 October 2026: the prerequisite is done. [s-kaupat-mcp](s-kaupat-mcp-plan.md) v1.0.0 is released and Korikone has a pinned S-kaupat adapter with offline contract tests. The next work is observed live acceptance for both chains (stages 3 and 4), then the consumer pilot. The original sequencing follows.
+
 Build and release [s-kaupat-mcp as a separate project](s-kaupat-mcp-plan.md) first. Its S0 phase compares managed-session and minimal-extension access before committing to either implementation. The [decision record](plan-review.md) explains this revision. In parallel with that dependency only if useful, prototype Korikone's UI and verify ChatGPT sign-in. Start the full application after the S-kaupat cart gate passes. This sequencing avoids building a polished promise around an unproven retailer integration.
 
 | Stage | Usable result | Depends on |
 |---|---|---|
-| Prerequisite S0-S3 | Independently packaged S-kaupat MCP with verified cart behavior | Its own repository and acceptance tests |
+| Prerequisite S0-S3 (done) | Independently packaged S-kaupat MCP with verified list behavior (no server-side cart exists) | Released as s-kaupat-mcp v1.0.0 |
 | 0. Product and technical proofs | Tested sign-in, UI flow and dependency decisions | Can precede prerequisite completion |
 | 1. Application foundation | Installable app with manual planning and demo stores | Prerequisite release and stage 0 decisions |
 | 2. Assisted planning | ChatGPT produces editable, validated meal drafts | Stage 1 |

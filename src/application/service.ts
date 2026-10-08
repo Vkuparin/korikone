@@ -9,7 +9,7 @@ import {
   type StoreContext,
 } from "../domain/model";
 import { requirements, match } from "../domain/planner";
-import { ProviderRegistry } from "../stores/provider";
+import { ProviderRegistry, isLive } from "../stores/provider";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
@@ -29,7 +29,7 @@ export class Service {
   draft: MealDraft | null = null;
   draftRevision: number | null = null;
   storeResults: StoreContext[] = [];
-  storeLogin = "notStarted";
+  storeLogins: Record<string, string> = {};
   controller: AbortController | null = null;
   private stateWrites: Promise<void> = Promise.resolve();
   private writeState<T>(operation: () => Promise<T>): Promise<T> {
@@ -74,7 +74,8 @@ export class Service {
       journal: this.journal,
       review: this.review,
       storeResults: this.storeResults,
-      storeLogin: this.storeLogin,
+      storeLogin:
+        this.storeLogins[this.state.context.providerId] ?? "notStarted",
       ai: this.ai,
       draft: this.draft,
     };
@@ -208,7 +209,7 @@ export class Service {
       throw new Error("reviewRequired");
     if (
       (this.review.total > this.state.household.budget ||
-        this.review.context.providerId === "k-ruoka") &&
+        isLive(this.review.context.providerId)) &&
       !acknowledged
     )
       throw new Error("acknowledgeReview");
