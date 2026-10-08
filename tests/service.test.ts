@@ -137,3 +137,25 @@ test("omitting a basket line skips it and rematches the rest", async () => {
   ).toBe(false);
   await expect(service.omit("missing:g")).rejects.toThrow("unresolved");
 });
+
+test("a new week keeps the old plan for reuse without duplicates", async () => {
+  const service = new Service(memory());
+  await service.init();
+  await expect(service.reuseWeek()).rejects.toThrow("noEarlierWeek");
+  await service.save({
+    ...service.state,
+    meals: [
+      { id: "a", day: 0, recipeId: "pasta", servings: 4, leftovers: false },
+    ],
+  });
+  await service.newWeek();
+  expect(service.state.meals).toEqual([]);
+  expect(service.state.history).toHaveLength(1);
+  await service.reuseWeek();
+  expect(service.state.meals).toMatchObject([
+    { day: 0, recipeId: "pasta", servings: 4 },
+  ]);
+  expect(service.state.meals[0].id).not.toBe("a");
+  await service.newWeek();
+  expect(service.state.history).toHaveLength(1);
+});

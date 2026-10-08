@@ -117,6 +117,36 @@ export class Service {
     this.draftRevision = null;
     return { ...result, draft: null };
   }
+  /** Keeps the current meals as the latest earlier week, skipping an identical copy. */
+  private archived(state: AppState, at = new Date().toISOString()) {
+    if (!state.meals.length) return state.history;
+    const plan = (meals: AppState["meals"]) =>
+      JSON.stringify(meals.map(({ id: _id, ...rest }) => rest));
+    if (state.history[0] && plan(state.history[0].meals) === plan(state.meals))
+      return state.history;
+    return [{ savedAt: at, meals: state.meals }, ...state.history].slice(0, 12);
+  }
+  async newWeek() {
+    if (this.busy) throw new Error("busy");
+    return this.save({
+      ...this.state,
+      history: this.archived(this.state),
+      meals: [],
+      skipped: [],
+    });
+  }
+  async reuseWeek() {
+    if (this.busy) throw new Error("busy");
+    const last = this.state.history[0];
+    if (!last) throw new Error("noEarlierWeek");
+    const meals = last.meals.filter((m) =>
+      this.state.recipes.some((r) => r.id === m.recipeId),
+    );
+    return this.save({
+      ...this.state,
+      meals: meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
+    });
+  }
   async confirmPurchase() {
     if (this.busy || this.journal?.status !== "verified")
       throw new Error("reviewRequired");
@@ -129,6 +159,7 @@ export class Service {
     );
     const next = {
       ...this.state,
+      history: this.archived(this.state, order.confirmedAt),
       staples: this.state.staples.map((item) =>
         purchased.has(item.id)
           ? { ...item, lastPurchased: order.confirmedAt }

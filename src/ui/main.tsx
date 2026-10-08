@@ -265,14 +265,34 @@ function App() {
                     <div className="eyebrow">VIIKKO / WEEK</div>
                     <h1>{t("welcome")}</h1>
                   </div>
-                  <button
-                    disabled={busy}
-                    onClick={async () => {
-                      if (await call("buildBasket")) setPage("basket");
-                    }}
-                  >
-                    {t("buildBasket")}
-                  </button>
+                  <div className="actions">
+                    {!!state.history.length && (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => void call("reuseWeek")}
+                      >
+                        {t("reuseWeek")}
+                      </button>
+                    )}
+                    {!!state.meals.length && (
+                      <button
+                        className="text"
+                        disabled={busy}
+                        onClick={() => void call("newWeek")}
+                      >
+                        {t("newWeek")}
+                      </button>
+                    )}
+                    <button
+                      disabled={busy}
+                      onClick={async () => {
+                        if (await call("buildBasket")) setPage("basket");
+                      }}
+                    >
+                      {t("buildBasket")}
+                    </button>
+                  </div>
                 </div>
                 <section className="card">
                   <h2>{t("assistedPlanning")}</h2>
@@ -520,7 +540,21 @@ function App() {
                         </span>
                         <small>
                           {r.sources
-                            .map((s) => (s === "staple" ? t("staple") : s))
+                            .map((s) => {
+                              if (s !== "staple") return s;
+                              const last = state.staples.find(
+                                (item) => item.id === r.id,
+                              )?.lastPurchased;
+                              return `${t("staple")} · ${t("lastPurchased")}: ${
+                                last
+                                  ? new Date(last).toLocaleDateString(
+                                      state.language === "fi"
+                                        ? "fi-FI"
+                                        : "en-FI",
+                                    )
+                                  : t("noDate")
+                              }`;
+                            })
                             .join(", ")}
                         </small>
                         <button

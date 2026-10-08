@@ -214,6 +214,9 @@ export const en = {
   needsAttention: "Items needing a decision",
   goods: "Goods",
   deposits: "Known deposits",
+  reuseWeek: "Use last week",
+  newWeek: "Start a new week",
+  noEarlierWeek: "There is no earlier week to reuse yet.",
   reviewTitle: "Review the exact cart changes",
 } as const;
 export type Key = keyof typeof en;
@@ -426,5 +429,8 @@ export const fi: Record<Key, string> = {
   needsAttention: "Päätöstä vaativat tuotteet",
   goods: "Tuotteet",
   deposits: "Tiedossa olevat pantit",
+  reuseWeek: "Käytä viime viikkoa",
+  newWeek: "Aloita uusi viikko",
+  noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
   reviewTitle: "Tarkista ostoskorin muutokset",
 };

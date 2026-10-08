@@ -27,6 +27,8 @@ const methods = [
   "generate",
   "approveDraft",
   "confirmPurchase",
+  "newWeek",
+  "reuseWeek",
 ] as const;
 contextBridge.exposeInMainWorld(
   "korikone",

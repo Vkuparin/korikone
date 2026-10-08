@@ -50,6 +50,13 @@ export const stateSchema = z.object({
   context: contextSchema,
   revision: z.number().int().nonnegative(),
   accepted: z.record(z.string(), z.array(z.string())),
+  // Earlier weeks, newest first, for "use last week".
+  history: z
+    .array(
+      z.object({ savedAt: z.string(), meals: z.array(mealSchema).max(100) }),
+    )
+    .max(12)
+    .default([]),
 });
 export type AppState = z.infer<typeof stateSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
@@ -183,5 +190,6 @@ export function initialState(): AppState {
     },
     revision: 0,
     accepted: {},
+    history: [],
   };
 }

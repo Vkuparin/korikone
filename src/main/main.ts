@@ -169,6 +169,8 @@ else
       },
       approveDraft: () => service.approveDraft(),
       confirmPurchase: () => service.confirmPurchase(),
+      newWeek: () => service.newWeek(),
+      reuseWeek: () => service.reuseWeek(),
       buildBasket: () => service.buildBasket(),
       accept: (input) => service.accept(input),
       omit: (input) => service.omit(input),
