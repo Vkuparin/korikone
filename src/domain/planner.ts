@@ -30,13 +30,26 @@ export function requirements(state: AppState, now = new Date()): Requirement[] {
   }
   return [...result.values()];
 }
+/** Comma- or line-separated words such as "sianliha, pähkinä". */
+export function exclusionTerms(text: string): string[] {
+  return text
+    .split(/[,;\n]/)
+    .map((t) => t.trim().toLocaleLowerCase("fi"))
+    .filter((t) => t.length >= 3);
+}
 export function match(
   requirement: Requirement,
   products: Product[],
   accepted: string[],
+  exclusions: string[] = [],
 ): BasketLine {
-  const candidates = products.filter(
+  const matching = products.filter(
     (p) => p.ingredientId === requirement.id && p.unit === requirement.unit,
+  );
+  // A hard requirement: excluded products never reach ranking or acceptance.
+  const candidates = matching.filter(
+    (p) =>
+      !exclusions.some((term) => p.name.toLocaleLowerCase("fi").includes(term)),
   );
   const eligible = candidates.filter(
     (p) =>
@@ -72,6 +85,7 @@ export function match(
     packs,
     total: product ? cost(product) : null,
     candidates,
+    excluded: matching.length - candidates.length,
   };
 }
 export function shoppingList(state: AppState): string {

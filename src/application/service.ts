@@ -8,7 +8,7 @@ import {
   type Review,
   type StoreContext,
 } from "../domain/model";
-import { requirements, match } from "../domain/planner";
+import { requirements, match, exclusionTerms } from "../domain/planner";
 import { ProviderRegistry, isLive } from "../stores/provider";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
@@ -186,7 +186,14 @@ export class Service {
         this.state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
         ] ?? [];
-      result.push(match(requirement, products, accepted));
+      result.push(
+        match(
+          requirement,
+          products,
+          accepted,
+          exclusionTerms(this.state.household.exclusions),
+        ),
+      );
     }
     this.basket = result;
     return this.snapshot();

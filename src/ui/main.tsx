@@ -1045,6 +1045,11 @@ function App() {
                                 </div>
                               ))}
                             </div>
+                            {!!line.excluded && (
+                              <p className="muted">
+                                {t("excludedProducts")}: {line.excluded}
+                              </p>
+                            )}
                             <button
                               className="text"
                               disabled={busy}
@@ -1174,6 +1179,7 @@ function App() {
                       defaultValue={state.household.exclusions}
                     />,
                   )}
+                  <p className="muted">{t("exclusionsHelp")}</p>
                   <button disabled={busy}>{t("save")}</button>
                 </form>
                 <section className="card form">

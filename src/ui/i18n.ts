@@ -219,6 +219,9 @@ export const en = {
   noEarlierWeek: "There is no earlier week to reuse yet.",
   logoutStore: "Sign out or switch account",
   diagnostics: "Save a diagnostic report (no personal data)",
+  excludedProducts: "Hidden by your exclusions",
+  exclusionsHelp:
+    "Separate words with commas. Products whose name contains one are never chosen. Ingredient and allergen data is not checked, so read product labels.",
   reviewTitle: "Review the exact cart changes",
 } as const;
 export type Key = keyof typeof en;
@@ -436,5 +439,8 @@ export const fi: Record<Key, string> = {
   noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
   logoutStore: "Kirjaudu ulos tai vaihda tiliä",
   diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",
+  excludedProducts: "Piilotettu rajoitustesi vuoksi",
+  exclusionsHelp:
+    "Erota sanat pilkuilla. Tuotteita, joiden nimessä sana esiintyy, ei koskaan valita. Ainesosa- ja allergeenitietoja ei tarkisteta, joten lue tuotteiden merkinnät.",
   reviewTitle: "Tarkista ostoskorin muutokset",
 };

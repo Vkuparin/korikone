@@ -84,6 +84,8 @@ export type BasketLine = {
   packs: number;
   total: number | null;
   candidates: Product[];
+  /** Products hidden because their name contains a household exclusion. */
+  excluded?: number;
 };
 export type CartLine = {
   productId: string;
