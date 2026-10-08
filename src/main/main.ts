@@ -19,6 +19,7 @@ import { KRuokaWorker, findChrome } from "../stores/worker";
 import { SKaupatProvider, sKaupatWorker } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
+import { diagnostics } from "../application/diagnostics";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -245,6 +246,14 @@ else
         service.storeLogins["k-ruoka"] = "notStarted";
         return service.snapshot();
       },
+      logoutStore: async () => {
+        // K-Ruoka's pinned worker has no sign-out tool.
+        if (service.busy || service.state.context.providerId !== "s-kaupat")
+          throw new Error("unsupported");
+        await sWorker.call("log_out", {});
+        service.storeLogins["s-kaupat"] = "notStarted";
+        return service.snapshot();
+      },
       openStoreCart: async () => {
         const providerId = service.journal?.review.context.providerId;
         if (
@@ -276,6 +285,34 @@ else
             JSON.stringify(service.state, null, 2),
             "utf8",
           );
+        return service.snapshot();
+      },
+      exportDiagnostics: async () => {
+        const report = JSON.stringify(
+          diagnostics(service.snapshot(), {
+            app: app.getVersion(),
+            electron: process.versions.electron,
+            platform: `${process.platform} ${process.arch}`,
+            packaged: String(app.isPackaged),
+          }),
+          null,
+          2,
+        );
+        // Show exactly what will be saved before writing it anywhere.
+        const fi = service.state.language === "fi";
+        const { response } = await dialog.showMessageBox(window, {
+          type: "info",
+          message: fi ? "Vianetsintätiedot" : "Diagnostic report",
+          detail: report,
+          buttons: fi ? ["Tallenna…", "Peruuta"] : ["Save…", "Cancel"],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (response !== 0) return service.snapshot();
+        const { filePath } = await dialog.showSaveDialog(window, {
+          defaultPath: "korikone-diagnostics.json",
+        });
+        if (filePath) await writeFile(filePath, report, "utf8");
         return service.snapshot();
       },
       importData: async () => {

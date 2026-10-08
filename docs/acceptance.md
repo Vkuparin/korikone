@@ -15,6 +15,8 @@ Evidence recorded on 8 October 2026. Scope is defined in [prototype-scope.md](pr
 | Basket review details | Lines needing a decision come first; each shows the reason for its product, unit price, deposit, surplus and an "already have this" action; summary separates goods, known deposits and unknown fees. Service test covers omitting a line | Done (automated) |
 | Reuse a week | "Start a new week" keeps up to 12 earlier plans; "Use last week" restores the latest with fresh meal IDs; purchase confirmation also saves the week. Service test covers reuse and duplicate suppression | Done (automated) |
 | Staple reason | The shopping list shows when each regular item was last bought | Done |
+| Store sign-out | S-kaupat settings offer "Sign out or switch account" (`log_out`); the pinned K-Ruoka worker has no sign-out tool | Done for S-kaupat; live check pending |
+| Diagnostic export | Settings preview a report of counts, states and versions, then save it; a service test checks that recipes, products, account IDs and e-mail are absent | Done (automated) |
 | S-kaupat release adopted | s-kaupat-mcp v1.1.0 `.cjs` pinned by SHA-256; runtime checks version, tools and schema version; ordering tools excluded; reviews bound to the server's stable `accountId` | Done |
 | S-kaupat adapter contract | Offline test runs the pinned release in demo mode: store search, login, stock-checked prices, reviewed transfer to the Korikone list and readback | Done |
 | Real S-kaupat login, list transfer and site handoff | Requires the owner's login, a small observed transfer with exact before/after list quantities, and *Lisää kaikki ostoskoriin* from the `open_site` window | Pending |

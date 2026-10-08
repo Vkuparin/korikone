@@ -1285,6 +1285,16 @@ function App() {
                     >
                       {t("cancel")}
                     </button>
+                    {state.context.providerId === "s-kaupat" &&
+                      snapshot.storeLogin === "signedIn" && (
+                        <button
+                          className="text"
+                          disabled={busy}
+                          onClick={() => void call("logoutStore")}
+                        >
+                          {t("logoutStore")}
+                        </button>
+                      )}
                   </div>
                   <p role="status">
                     {t(
@@ -1365,6 +1375,12 @@ function App() {
                       onClick={() => void call("importData")}
                     >
                       {t("restore")}
+                    </button>
+                    <button
+                      className="text"
+                      onClick={() => void call("exportDiagnostics")}
+                    >
+                      {t("diagnostics")}
                     </button>
                   </div>
                 </details>

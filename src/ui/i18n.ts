@@ -217,6 +217,8 @@ export const en = {
   reuseWeek: "Use last week",
   newWeek: "Start a new week",
   noEarlierWeek: "There is no earlier week to reuse yet.",
+  logoutStore: "Sign out or switch account",
+  diagnostics: "Save a diagnostic report (no personal data)",
   reviewTitle: "Review the exact cart changes",
 } as const;
 export type Key = keyof typeof en;
@@ -432,5 +434,7 @@ export const fi: Record<Key, string> = {
   reuseWeek: "Käytä viime viikkoa",
   newWeek: "Aloita uusi viikko",
   noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
+  logoutStore: "Kirjaudu ulos tai vaihda tiliä",
+  diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",
   reviewTitle: "Tarkista ostoskorin muutokset",
 };

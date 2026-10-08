@@ -1,6 +1,7 @@
 import { test, expect } from "vitest";
 import { Service } from "../src/application/service";
 import { DemoProvider } from "../src/stores/demo";
+import { diagnostics } from "../src/application/diagnostics";
 function memory() {
   const entries = new Map<string, unknown>();
   return {
@@ -158,4 +159,26 @@ test("a new week keeps the old plan for reuse without duplicates", async () => {
   expect(service.state.meals[0].id).not.toBe("a");
   await service.newWeek();
   expect(service.state.history).toHaveLength(1);
+});
+
+test("diagnostics leave out recipes, products and account details", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const report = JSON.stringify(
+    diagnostics(
+      {
+        ...service.snapshot(),
+        ai: { state: "connected", email: "a@b.fi", error: null, models: [] },
+      },
+      { app: "test" },
+    ),
+  );
+  for (const secret of [
+    "Tomaattipasta",
+    "Pasta 500 g",
+    "demo-household",
+    "a@b.fi",
+  ])
+    expect(report).not.toContain(secret);
+  expect(JSON.parse(report).counts.recipes).toBe(3);
 });
