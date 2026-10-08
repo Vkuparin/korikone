@@ -78,7 +78,10 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Cart updated and verified" }),
     ).toBeVisible();
-    await page.screenshot({ path: "test-results/basket.png" });
+    // Visual capture is covered by the source build. A packaged hidden window
+    // may not produce compositor frames even when DOM interaction works.
+    if (!process.env.KORIKONE_EXECUTABLE)
+      await page.screenshot({ path: "test-results/basket.png" });
     expect(
       await page.evaluate(() => ({
         node: typeof (window as any).require,

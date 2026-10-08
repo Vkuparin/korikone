@@ -15,7 +15,7 @@ npm run build
 npm start
 ```
 
-Use **Kokeile esimerkkiä** to try the demo. Language selection is in the header. Settings contains branch search and account connections. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
+Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection is in the header. ChatGPT model selection is automatic, preferring a small model from the current account catalogue; overrides are under advanced settings. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
 
 ## Build and check
 
@@ -31,9 +31,9 @@ The unsigned Windows installer is written to `release/`. The worker download is 
 ## Current limits
 
 - This is a prototype, not the two-retailer consumer release.
-- K-Ruoka live catalogue reads passed. Account login, cart writes and same-profile checkout handoff still need observed acceptance testing.
+- K-Ruoka live catalogue reads passed, and the owner confirmed login. Cart writes and same-profile checkout handoff still need observed acceptance testing.
 - K-Ruoka weighted pricing and ambiguous pack sizes remain unresolved. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapter cannot certify dietary suitability from its catalogue data.
-- ChatGPT uses the documented local-app authorization flow, Windows-protected credentials and explicit data-sharing consent. Live account sign-in and inference remain unverified. The prototype retains one registration per app profile. Manual planning works without it.
+- ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The draft action explains which data is sent. The owner confirmed sign-in and a meal draft. Automatic model selection has offline coverage; its live check remains outstanding. The prototype retains one registration per app profile. Manual planning works without it.
 - The installer is unsigned; clean-machine and household usability checks remain outstanding.
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
