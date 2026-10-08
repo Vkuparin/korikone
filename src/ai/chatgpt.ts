@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
+import { chooseModel } from "./models";
 import type { Storage } from "../application/service";
 import {
   authorization,
@@ -315,11 +316,11 @@ export class ChatGPT {
   }
   async generate(model: string, input: string) {
     if (this.request) throw new Error("busy");
-    if (!this.publicState.models.some((m) => m.slug === model))
-      throw new Error("modelsUnavailable");
     const controller = new AbortController();
     this.request = controller;
     try {
+      model = chooseModel(await this.models(), model);
+      controller.signal.throwIfAborted();
       const token = await this.access();
       const response = await fetch(`${resource}/responses`, {
         method: "POST",

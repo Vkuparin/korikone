@@ -1,4 +1,27 @@
 export const en = {
+  dataManagement: "Backups and data",
+  setupStart: "Set up my shopping",
+  setupProgress: "Getting started",
+  setupStore: "Where do you shop?",
+  setupStoreInfo:
+    "Connect K-Ruoka to review products and send your shopping list to its cart. Search by town or store name. You can also plan without connecting a store.",
+  setupLoginInfo:
+    "Sign in in the browser that opens. Korikone will check the connection automatically when you finish.",
+  setupAI: "Get help planning meals",
+  setupAIInfo:
+    "Connect ChatGPT to describe what you want to cook. Korikone chooses a suitable small model automatically. You can always plan manually.",
+  setupNext: "Continue",
+  setupLater: "Skip for now",
+  setupBack: "Back",
+  setupFinish: "Plan my week",
+  duplicateStaple:
+    "This regular item already exists. Edit the existing item instead.",
+  advancedSettings: "Advanced settings",
+  automaticModel: "Automatic (small model preferred)",
+  automaticModelInfo:
+    "Korikone checks the models available to your account before each request and prefers a small model. If names are unfamiliar, it uses the first model in the account catalogue.",
+  modelUnavailable:
+    "The selected model is no longer available. Choose Automatic in advanced settings.",
   account: "Account",
   assistedPlanning: "Plan with ChatGPT",
   mealRequest: "What would you like to cook?",
@@ -8,7 +31,7 @@ export const en = {
   draftReview: "Review the meal draft",
   approveDraft: "Approve recipes and replace this week",
   aiConsent:
-    "Send this request, saved recipes and household preferences to OpenAI using the displayed ChatGPT account.",
+    "Draft a week sends this request, saved recipes and household preferences to OpenAI using the account shown above.",
   aiConnectionInfo:
     "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. This prototype retains one account registration per local profile.",
   waitingAI: "Complete authorization in your browser.",
@@ -166,6 +189,28 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  dataManagement: "Varmuuskopiot ja tiedot",
+  setupStart: "Ota käyttöön",
+  setupProgress: "Aloitetaan",
+  setupStore: "Missä teet ruokaostokset?",
+  setupStoreInfo:
+    "Yhdistä K-Ruoka, niin voit tarkistaa tuotteet ja siirtää ostoslistan kaupan koriin. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
+  setupLoginInfo:
+    "Kirjaudu avautuvassa selaimessa. Korikone tarkistaa yhteyden automaattisesti, kun olet valmis.",
+  setupAI: "Apua aterioiden suunnitteluun",
+  setupAIInfo:
+    "Yhdistä ChatGPT ja kerro, mitä haluaisit valmistaa. Korikone valitsee sopivan pienen mallin automaattisesti. Voit aina suunnitella myös itse.",
+  setupNext: "Jatka",
+  setupLater: "Ohita toistaiseksi",
+  setupBack: "Takaisin",
+  setupFinish: "Suunnittele viikko",
+  duplicateStaple: "Tämä vakiotuote on jo olemassa. Muokkaa nykyistä tuotetta.",
+  advancedSettings: "Lisäasetukset",
+  automaticModel: "Automaattinen (ensisijaisesti pieni malli)",
+  automaticModelInfo:
+    "Korikone tarkistaa tilisi mallit ennen jokaista pyyntöä ja suosii pientä mallia. Jos nimet ovat tuntemattomia, käytetään tilin malliluettelon ensimmäistä mallia.",
+  modelUnavailable:
+    "Valittu malli ei ole enää käytettävissä. Valitse lisäasetuksista Automaattinen.",
   account: "Tili",
   assistedPlanning: "Suunnittele ChatGPT:n kanssa",
   mealRequest: "Mitä haluaisit valmistaa?",
@@ -175,7 +220,7 @@ export const fi: Record<Key, string> = {
   draftReview: "Tarkista aterialuonnos",
   approveDraft: "Hyväksy reseptit ja korvaa tämä viikko",
   aiConsent:
-    "Lähetä pyyntö, tallennetut reseptit ja kotitalouden toiveet OpenAI:lle näytetyllä ChatGPT-tilillä.",
+    "Luonnostele viikko lähettää pyynnön, tallennetut reseptit ja kotitalouden toiveet OpenAI:lle yllä näkyvällä ChatGPT-tilillä.",
   aiConnectionInfo:
     "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Prototyyppi säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
   waitingAI: "Viimeistele valtuutus selaimessa.",

@@ -14,6 +14,10 @@ Confirmed with the project owner on 8 October 2026.
 
 This scope overrides the prerequisite ordering for this prototype. It does not claim the complete two-retailer consumer release, signed distribution, clean-machine acceptance, household pilot or live account checks before they have actually been performed.
 
-## Acceptance evidence
+## UX direction confirmed on 8 October 2026
+
+Use good defaults and automate setup details. Model discovery and selection must happen automatically, preferring a small available model without pinning a model name or version. Keep model overrides and technical settings under advanced settings. First launch must guide the user through optional store and ChatGPT connections. Apply this approach throughout the app: keep everyday actions visible, hide infrequent controls, and preserve manual planning when a connection is skipped or unavailable.
+
+## Verification
 
 Track implementation, automated checks, packaged-app checks and live-account checks separately. A mock contract test cannot establish live retailer behavior. A build cannot establish clean-machine installation. Record outstanding acceptance work explicitly.

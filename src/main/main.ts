@@ -107,7 +107,7 @@ else
         const request = z
           .object({
             prompt: z.string().min(1).max(10000),
-            model: z.string(),
+            model: z.string().default("auto"),
             consent: z.literal(true),
           })
           .parse(input);

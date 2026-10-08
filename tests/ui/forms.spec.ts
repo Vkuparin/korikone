@@ -35,6 +35,7 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Peruna · 125 g")).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByText("Advanced settings", { exact: true }).click();
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
     await expect(page.locator(".context")).toContainText("S-kaupat");
     await page.getByRole("button", { name: "Week", exact: true }).click();
@@ -51,6 +52,14 @@ test("unsaved recipe quantities survive language switching and saved data surviv
       "Testikeitto",
     );
     await expect(restarted.locator(".context")).toContainText("S-kaupat");
+    await restarted
+      .getByRole("button", { name: "Regular items", exact: true })
+      .click();
+    await restarted.getByRole("button", { name: "Edit", exact: true }).click();
+    await restarted.getByLabel("Amount", { exact: true }).fill("750");
+    await restarted.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(restarted.locator("article")).toHaveCount(1);
+    await expect(restarted.locator("article")).toContainText("750 g");
   } finally {
     await app.close();
   }

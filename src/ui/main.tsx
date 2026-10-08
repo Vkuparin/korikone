@@ -11,6 +11,7 @@ import {
 import { requirements } from "../domain/planner";
 import { en, fi, type Key } from "./i18n";
 import "./style.css";
+import { Setup } from "./setup";
 declare global {
   interface Window {
     korikone: Record<
@@ -37,9 +38,13 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Recipe | null>(null);
+  const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   useEffect(() => setAcknowledged(false), [snapshot.review?.id]);
   const state = snapshot.state;
+  const editingStaple = state.staples.find(
+    (item) => item.id === editingStapleId,
+  );
   const t = (key: Key) => (state.language === "fi" ? fi : en)[key];
   const money = (cents: number) =>
     new Intl.NumberFormat(state.language === "fi" ? "fi-FI" : "en-FI", {
@@ -164,7 +169,15 @@ function App() {
           </button>
         </div>
       )}
-      {!state.onboarded ? (
+      {state.onboarded && !state.setupComplete ? (
+        <Setup
+          snapshot={snapshot}
+          t={t}
+          busy={busy}
+          call={call}
+          finish={() => save({ ...state, setupComplete: true })}
+        />
+      ) : !state.onboarded ? (
         <main className="welcome">
           <div className="eyebrow">KORIKONE / 01</div>
           <h1>{t("welcome")}</h1>
@@ -173,9 +186,19 @@ function App() {
             <button
               disabled={busy}
               onClick={() =>
+                void save({ ...state, onboarded: true, setupComplete: false })
+              }
+            >
+              {t("setupStart")}
+            </button>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
                 void save({
                   ...state,
                   onboarded: true,
+                  setupComplete: true,
                   meals: [
                     {
                       id: crypto.randomUUID(),
@@ -200,7 +223,9 @@ function App() {
             <button
               className="secondary"
               disabled={busy}
-              onClick={() => void save({ ...state, onboarded: true })}
+              onClick={() =>
+                void save({ ...state, onboarded: true, setupComplete: true })
+              }
             >
               {t("manual")}
             </button>
@@ -252,8 +277,8 @@ function App() {
                         const data = new FormData(e.currentTarget);
                         void call("generate", {
                           prompt: String(data.get("prompt")),
-                          model: String(data.get("model")),
-                          consent: data.get("consent") === "on",
+                          model: String(data.get("model") ?? "auto"),
+                          consent: true,
                         });
                       }}
                     >
@@ -262,10 +287,22 @@ function App() {
                         {t("mealRequest")}
                         <textarea name="prompt" required maxLength={10000} />
                       </label>
-                      <div className="inline">
+                      <details
+                        onToggle={(event) => {
+                          if (
+                            event.currentTarget.open &&
+                            !snapshot.ai.models.length &&
+                            !busy
+                          )
+                            void call("modelsAI");
+                        }}
+                      >
+                        <summary>{t("advancedSettings")}</summary>
+                        <p>{t("automaticModelInfo")}</p>
                         <label>
                           {t("model")}
-                          <select name="model" required>
+                          <select name="model" defaultValue="auto">
+                            <option value="auto">{t("automaticModel")}</option>
                             {snapshot.ai.models.map((model) => (
                               <option key={model.slug} value={model.slug}>
                                 {model.name}
@@ -281,17 +318,23 @@ function App() {
                         >
                           {t("loadModels")}
                         </button>
-                      </div>
-                      <label className="check">
-                        <input name="consent" type="checkbox" required />
-                        {t("aiConsent")}
-                      </label>
-                      <button disabled={busy || !snapshot.ai.models.length}>
-                        {t("generate")}
-                      </button>
+                      </details>
+                      <p className="muted">{t("aiConsent")}</p>
+                      <button disabled={busy}>{t("generate")}</button>
                     </form>
                   ) : (
-                    <p>{t("aiStatus")}</p>
+                    <>
+                      <p>{t("aiStatus")}</p>
+                      <button
+                        disabled={busy || snapshot.ai.state === "waiting"}
+                        onClick={() => void call("signInAI")}
+                      >
+                        Continue with ChatGPT
+                      </button>
+                      {snapshot.ai.state === "waiting" && (
+                        <p role="status">{t("waitingAI")}</p>
+                      )}
+                    </>
                   )}
                   {snapshot.draft && (
                     <div className="draft">
@@ -606,6 +649,13 @@ function App() {
                     </label>
                     <button
                       className="text"
+                      disabled={busy}
+                      onClick={() => setEditingStapleId(s.id)}
+                    >
+                      {t("edit")}
+                    </button>
+                    <button
+                      className="text"
                       onClick={() =>
                         void save({
                           ...state,
@@ -620,44 +670,72 @@ function App() {
                   </article>
                 ))}
                 <form
+                  key={editingStaple?.id ?? "new-staple"}
                   className="card inline"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     const form = new FormData(e.currentTarget);
                     try {
                       const name = String(form.get("name"));
                       const unit = String(form.get("unit")) as Unit;
-                      void save({
-                        ...state,
-                        staples: [
-                          ...state.staples,
-                          {
-                            id: name.toLocaleLowerCase("fi"),
-                            name,
-                            unit,
-                            amount: parseAmount(
-                              String(form.get("amount")),
-                              unit,
-                            ),
-                            everyDays: Number(form.get("days")),
-                            lastPurchased: null,
-                            enabled: true,
-                          },
-                        ],
-                      });
+                      const item = {
+                        id:
+                          editingStaple?.id ??
+                          name.trim().toLocaleLowerCase("fi"),
+                        name,
+                        unit,
+                        amount: parseAmount(String(form.get("amount")), unit),
+                        everyDays: Number(form.get("days")),
+                        lastPurchased: editingStaple?.lastPurchased ?? null,
+                        enabled: editingStaple?.enabled ?? true,
+                      };
+                      if (
+                        !editingStaple &&
+                        state.staples.some((s) => s.id === item.id)
+                      ) {
+                        setError("duplicateStaple");
+                        return;
+                      }
+                      if (
+                        await save({
+                          ...state,
+                          staples: editingStaple
+                            ? state.staples.map((s) =>
+                                s.id === item.id ? item : s,
+                              )
+                            : [...state.staples, item],
+                        })
+                      )
+                        setEditingStapleId(null);
                     } catch {
                       setError("invalidQuantity");
                     }
                   }}
                 >
-                  {field(t("name"), <input name="name" required />)}
+                  {field(
+                    t("name"),
+                    <input
+                      name="name"
+                      defaultValue={editingStaple?.name ?? ""}
+                      required
+                    />,
+                  )}
                   {field(
                     t("amount"),
-                    <input name="amount" inputMode="decimal" required />,
+                    <input
+                      name="amount"
+                      inputMode="decimal"
+                      defaultValue={editingStaple?.amount ?? ""}
+                      required
+                    />,
                   )}
                   {field(
                     t("unit"),
-                    <select name="unit">
+                    <select
+                      name="unit"
+                      aria-label={t("unit")}
+                      defaultValue={editingStaple?.unit ?? "g"}
+                    >
                       <option>g</option>
                       <option>ml</option>
                       <option>pcs</option>
@@ -670,11 +748,22 @@ function App() {
                       type="number"
                       min="1"
                       max="365"
-                      defaultValue="7"
+                      defaultValue={editingStaple?.everyDays ?? 7}
                       required
                     />,
                   )}
-                  <button>{t("newStaple")}</button>
+                  <button disabled={busy}>
+                    {t(editingStaple ? "save" : "newStaple")}
+                  </button>
+                  {editingStaple && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => setEditingStapleId(null)}
+                    >
+                      {t("cancel")}
+                    </button>
+                  )}
                 </form>
               </>
             )}
@@ -967,50 +1056,54 @@ function App() {
                   <button disabled={busy}>{t("save")}</button>
                 </form>
                 <section className="card form">
-                  {field(
-                    t("store"),
-                    <select
-                      aria-label={t("store")}
-                      value={state.context.providerId}
-                      onChange={(e) =>
-                        void save({
-                          ...state,
-                          context: {
-                            ...state.context,
-                            providerId: e.target.value,
-                            storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
-                          },
-                        })
-                      }
-                    >
-                      <option value="demo-k">K-Ruoka (demo)</option>
-                      <option value="demo-s">S-kaupat (demo)</option>
-                      {state.context.providerId === "k-ruoka" && (
-                        <option value="k-ruoka">
-                          {state.context.storeName}
-                        </option>
-                      )}
-                    </select>,
-                  )}
-                  {field(
-                    t("pickup") + " / " + t("delivery"),
-                    <select
-                      value={state.context.fulfillment}
-                      onChange={(e) =>
-                        void save({
-                          ...state,
-                          context: {
-                            ...state.context,
-                            fulfillment: e.target.value as
-                              "pickup" | "delivery",
-                          },
-                        })
-                      }
-                    >
-                      <option value="pickup">{t("pickup")}</option>
-                      <option value="delivery">{t("delivery")}</option>
-                    </select>,
-                  )}
+                  <details>
+                    <summary>{t("advancedSettings")}</summary>
+                    {field(
+                      t("store"),
+                      <select
+                        aria-label={t("store")}
+                        value={state.context.providerId}
+                        onChange={(e) =>
+                          void save({
+                            ...state,
+                            context: {
+                              ...state.context,
+                              providerId: e.target.value,
+                              storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
+                            },
+                          })
+                        }
+                      >
+                        <option value="demo-k">K-Ruoka (demo)</option>
+                        <option value="demo-s">S-kaupat (demo)</option>
+                        {state.context.providerId === "k-ruoka" && (
+                          <option value="k-ruoka">
+                            {state.context.storeName}
+                          </option>
+                        )}
+                      </select>,
+                    )}
+                    {field(
+                      t("pickup") + " / " + t("delivery"),
+                      <select
+                        value={state.context.fulfillment}
+                        disabled={state.context.providerId === "k-ruoka"}
+                        onChange={(e) =>
+                          void save({
+                            ...state,
+                            context: {
+                              ...state.context,
+                              fulfillment: e.target.value as
+                                "pickup" | "delivery",
+                            },
+                          })
+                        }
+                      >
+                        <option value="pickup">{t("pickup")}</option>
+                        <option value="delivery">{t("delivery")}</option>
+                      </select>,
+                    )}
+                  </details>
                   <h2>K-Ruoka</h2>
                   <p>{t("realStatus")}</p>
                   <form
@@ -1130,7 +1223,8 @@ function App() {
                     )}
                   </div>
                 </section>
-                <section className="card">
+                <details className="card">
+                  <summary>{t("dataManagement")}</summary>
                   <p>{t("localData")}</p>
                   <div className="actions">
                     <button
@@ -1146,7 +1240,7 @@ function App() {
                       {t("restore")}
                     </button>
                   </div>
-                </section>
+                </details>
               </>
             )}
           </main>

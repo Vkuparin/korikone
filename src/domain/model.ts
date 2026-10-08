@@ -37,6 +37,7 @@ export const stateSchema = z.object({
   version: z.literal(1),
   language: z.enum(["fi", "en"]),
   onboarded: z.boolean(),
+  setupComplete: z.boolean().default(true),
   household: z.object({
     servings: z.number().int().min(1).max(100),
     budget: z.number().int().min(0).max(1_000_000),
@@ -126,6 +127,7 @@ export function initialState(): AppState {
     version: 1,
     language: "fi",
     onboarded: false,
+    setupComplete: false,
     household: { servings: 4, budget: 12000, exclusions: "" },
     recipes: [
       {
