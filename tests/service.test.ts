@@ -29,6 +29,41 @@ test("language-only changes preserve the approval and quantities", async () => {
   expect(service.review).toEqual(review);
   expect(service.state.revision).toBe(revision);
 });
+
+test("failed saves preserve saved state and existing approval", async () => {
+  const storage = memory();
+  const service = new Service(storage);
+  await ready(service);
+  const before = structuredClone(service.snapshot());
+  storage.set = async () => {
+    throw new Error("storageFailed");
+  };
+  await expect(
+    service.save({
+      ...service.state,
+      household: { ...service.state.household, servings: 2 },
+    }),
+  ).rejects.toThrow("storageFailed");
+  expect(service.snapshot()).toEqual(before);
+  await expect(service.setLanguage("en")).rejects.toThrow("storageFailed");
+  expect(service.snapshot()).toEqual(before);
+});
+
+test("a language change during a save retains both edits in storage", async () => {
+  const storage = memory();
+  const service = new Service(storage);
+  await service.init();
+  await Promise.all([
+    service.save({
+      ...service.state,
+      household: { ...service.state.household, servings: 2 },
+    }),
+    service.setLanguage("en"),
+  ]);
+  expect(service.state.language).toBe("en");
+  expect(service.state.household.servings).toBe(2);
+  expect(await storage.get("state")).toEqual(service.state);
+});
 test("store switching preserves meals and invalidates review without writing carts", async () => {
   const service = new Service(memory());
   await ready(service);

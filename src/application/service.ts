@@ -31,10 +31,23 @@ export class Service {
   storeResults: StoreContext[] = [];
   storeLogin = "notStarted";
   controller: AbortController | null = null;
+  private stateWrites: Promise<void> = Promise.resolve();
+  private writeState<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.stateWrites.then(operation);
+    this.stateWrites = result.then(
+      () => {},
+      () => {},
+    );
+    return result;
+  }
   async setLanguage(input: unknown) {
-    this.state.language = z.enum(["fi", "en"]).parse(input);
-    await this.db.set("state", this.state);
-    return this.snapshot();
+    const language = z.enum(["fi", "en"]).parse(input);
+    return this.writeState(async () => {
+      const next = { ...this.state, language };
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
   }
   constructor(private db: Storage) {
     this.registry.register(new DemoProvider("demo-k"));
@@ -67,23 +80,29 @@ export class Service {
     };
   }
   async save(input: unknown) {
-    if (this.busy) throw new Error("busy");
-    const next = stateSchema.parse(input);
-    if (next.revision !== this.state.revision) throw new Error("draftStale");
-    next.language = this.state.language;
-    for (const meal of next.meals)
-      if (!next.recipes.some((r) => r.id === meal.recipeId))
-        throw new Error("missingRecipe");
-    const oldWithoutLanguage = { ...this.state, language: next.language };
-    const changed = JSON.stringify(oldWithoutLanguage) !== JSON.stringify(next);
-    if (changed) {
-      next.revision = this.state.revision + 1;
-      this.basket = [];
-      this.review = null;
-    }
-    await this.db.set("state", next);
-    this.state = next;
-    return this.snapshot();
+    return this.writeState(async () => {
+      if (this.busy) throw new Error("busy");
+      const next = stateSchema.parse(input);
+      this.registry.get(next.context.providerId);
+      if (next.revision !== this.state.revision) throw new Error("draftStale");
+      next.language = this.state.language;
+      for (const meal of next.meals)
+        if (!next.recipes.some((r) => r.id === meal.recipeId))
+          throw new Error("missingRecipe");
+      const oldWithoutLanguage = { ...this.state, language: next.language };
+      const changed =
+        JSON.stringify(oldWithoutLanguage) !== JSON.stringify(next);
+      if (changed) {
+        next.revision = this.state.revision + 1;
+      }
+      await this.db.set("state", next);
+      this.state = next;
+      if (changed) {
+        this.basket = [];
+        this.review = null;
+      }
+      return this.snapshot();
+    });
   }
   async approveDraft() {
     if (!this.draft || this.draftRevision !== this.state.revision)
@@ -153,12 +172,15 @@ export class Service {
     )
       throw new Error("unresolved");
     const context = this.state.context;
-    this.state.accepted[
-      `${context.providerId}:${context.storeId}:${ingredientId}`
-    ] = [productId];
-    this.state.revision++;
-    this.review = null;
-    await this.db.set("state", this.state);
+    await this.save({
+      ...this.state,
+      accepted: {
+        ...this.state.accepted,
+        [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
+          productId,
+        ],
+      },
+    });
     return this.buildBasket();
   }
   async prepare() {

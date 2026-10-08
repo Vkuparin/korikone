@@ -97,7 +97,8 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(page.getByLabel("Language", { exact: true })).toHaveValue(
       "en",
     );
-    await page.screenshot({ path: "test-results/week.png" });
+    if (!process.env.KORIKONE_EXECUTABLE)
+      await page.screenshot({ path: "test-results/week.png" });
   } finally {
     await app.close();
   }
