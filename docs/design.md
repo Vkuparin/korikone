@@ -86,7 +86,7 @@ apps/desktop/src/
 fixtures/                Synthetic and sanitized provider responses
 ```
 
-The tree starts with modules in one application workspace. Extract shared packages only when reuse or independent testing warrants it. These are not separately deployed services. The separate `s-kaupat-mcp` repository owns its retailer client, thin MCP server, fixtures, packaging and releases. Its v1.0.0 release is pinned by Korikone and run as a stdio worker with Electron's Node.js, just as Korikone runs the K-Ruoka server. Neither server knows about recipes or meal planning. See the [separate-project plan](s-kaupat-mcp-plan.md).
+The tree starts with modules in one application workspace. Extract shared packages only when reuse or independent testing warrants it. These are not separately deployed services. The separate `s-kaupat-mcp` repository owns its retailer client, thin MCP server, fixtures, packaging and releases. Its release (currently v1.1.0) is pinned by Korikone and run as a stdio worker with Electron's Node.js, just as Korikone runs the K-Ruoka server. Neither server knows about recipes or meal planning. See the [separate-project plan](s-kaupat-mcp-plan.md).
 
 The renderer has no Node integration, shell access or generic tool execution. Main-process IPC validates requests and exposes named application operations. Store workers receive only the session access they need. Managed browser profiles, tokens and the SQLite database live in OS application-data directories outside the repository. If an extension is selected, grocery sessions remain in the chosen browser profile; the bridge binds commands to a verified account, branch and tab without exporting cookies.
 

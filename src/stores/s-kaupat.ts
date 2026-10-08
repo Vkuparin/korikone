@@ -5,10 +5,10 @@ import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
 
 /** Pinned s-kaupat-mcp release. Update together with scripts/prepare-worker.mjs. */
-export const S_KAUPAT_VERSION = "1.0.0";
+export const S_KAUPAT_VERSION = "1.1.0";
 export const S_KAUPAT_SCHEMA = "1.0";
 export const S_KAUPAT_CHECKSUM =
-  "887d21f9c55878bb52fe257700ad35fc43a64a17105aad0ef2db588025705bb6";
+  "49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade";
 /** S-kaupat has no server-side cart. Korikone transfers to this shopping list on the account. */
 export const S_KAUPAT_LIST = "Korikone";
 // Checkout, payment, delivery and list deletion tools are deliberately absent.
@@ -199,9 +199,11 @@ export class SKaupatProvider implements StoreProvider {
   }
   private async read(context: StoreContext) {
     const login = z
-      .object({ status: z.string(), displayName: z.string().nullable() })
+      .object({ status: z.string(), accountId: z.string().nullish() })
       .parse(await this.call("login_status", {}));
     if (login.status !== "logged_in") throw new Error("loginRequired");
+    // An opaque, stable hash of the S-kaupat user ID (since server 1.1.0).
+    if (!login.accountId) throw new Error("workerIncompatible");
     const lists = z
       .object({ lists: z.array(listSchema) })
       .parse(
@@ -215,8 +217,7 @@ export class SKaupatProvider implements StoreProvider {
       new Set(list.items.map((i) => i.productId)).size !== list.items.length
     )
       throw new Error("unsupportedCart");
-    // S-kaupat exposes no opaque account ID; the first name is the best available binding.
-    return { account: `s-kaupat:${login.displayName ?? "account"}`, list };
+    return { account: `s-kaupat:${login.accountId}`, list };
   }
   async getCart(context: StoreContext): Promise<Cart> {
     const { account, list } = await this.read(context);

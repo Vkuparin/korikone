@@ -2,7 +2,7 @@
 
 A local Windows desktop application for planning meals and reviewing grocery baskets.
 
-Korikone is moving from a prototype to the real product. It has editable recipes, weekly planning, Finnish and English, two demo stores, and live adapters for both chains: K-Ruoka through `k-ruoka-mcp` and S-kaupat through the released [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) v1.0.0. Checkout is always manual.
+Korikone is moving from a prototype to the real product. It has editable recipes, weekly planning, Finnish and English, two demo stores, and live adapters for both chains: K-Ruoka through `k-ruoka-mcp` and S-kaupat through the released [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) (pinned to v1.1.0). Checkout is always manual.
 
 ## Run from source
 

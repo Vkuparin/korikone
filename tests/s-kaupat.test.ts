@@ -73,10 +73,17 @@ test("requires a login and a single Korikone list", async () => {
   const list = { id: "l", name: "Korikone", items: [] };
   const twoLists = new SKaupatProvider(async (name) =>
     name === "login_status"
-      ? { status: "logged_in", displayName: "Testi" }
+      ? { status: "logged_in", displayName: "Testi", accountId: "sk_1" }
       : { lists: [list, { ...list, id: "m" }] },
   );
   await expect(twoLists.getCart(context)).rejects.toThrow("unsupportedCart");
+  const noAccountId = new SKaupatProvider(async () => ({
+    status: "logged_in",
+    displayName: "Testi",
+  }));
+  await expect(noAccountId.getCart(context)).rejects.toThrow(
+    "workerIncompatible",
+  );
 });
 test("writes absolute quantities without substitutes and reports uncertainty", async () => {
   const calls: [string, Record<string, unknown>][] = [];
@@ -84,7 +91,7 @@ test("writes absolute quantities without substitutes and reports uncertainty", a
   const provider = new SKaupatProvider(async (name, args) => {
     calls.push([name, args]);
     if (name === "login_status")
-      return { status: "logged_in", displayName: "Testi" };
+      return { status: "logged_in", displayName: "Testi", accountId: "sk_1" };
     if (name === "get_shopping_lists")
       return {
         lists: [
@@ -107,7 +114,7 @@ test("writes absolute quantities without substitutes and reports uncertainty", a
   });
   const target = {
     productId: "1",
-    accountId: "s-kaupat:Testi",
+    accountId: "s-kaupat:sk_1",
     name: "Maito",
     quantity: 4,
     before: 2,
@@ -131,7 +138,7 @@ test("writes absolute quantities without substitutes and reports uncertainty", a
     provider.setQuantity(context, { ...target, before: 1 }),
   ).rejects.toThrow("cartChanged");
   await expect(
-    provider.setQuantity(context, { ...target, accountId: "s-kaupat:Other" }),
+    provider.setQuantity(context, { ...target, accountId: "s-kaupat:sk_2" }),
   ).rejects.toThrow("accountChanged");
   await expect(
     provider.setQuantity(context, { ...target, quantity: 100 }),
@@ -181,6 +188,7 @@ test("transfers a reviewed basket to the pinned server's shopping list", async (
     () => {},
   );
   expect(journal).toMatchObject({ status: "verified", error: null });
+  expect(review.baseline.accountId).toMatch(/^s-kaupat:sk_/);
   expect((await provider.getCart(store)).lines).toEqual([
     { productId: milk.id, name: milk.name, quantity: 2, unit: "kpl" },
   ]);

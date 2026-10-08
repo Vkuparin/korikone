@@ -1,15 +1,15 @@
 # S-kaupat integration: s-kaupat-mcp
 
-Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project is released as **v1.0.0** and Korikone now consumes it. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
+Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.1.0**, which adds a stable account ID. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
 
 ## What was released
 
 | Item | Value |
 |---|---|
-| Release | `v1.0.0`, source commit `44021a5220e080e9a61acbe2701014c09d2ddcdf` |
+| Release | `v1.1.0`, source commit `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad` |
 | License | Apache-2.0; bundling and redistribution are permitted |
-| Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `887d21f9c55878bb52fe257700ad35fc43a64a17105aad0ef2db588025705bb6` |
-| Schema description | `tools.json`, SHA-256 `463963f34ad19f23387d18b083e9a590a69622569a9910fed8ae3e8e6be53f40` |
+| Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade` |
+| Schema description | `tools.json`, SHA-256 `e5e221f56b30a3b90515797c514792b7852fff73af1e16ac4f62d457a6fd46da` |
 | Protocol | stdio MCP; every result carries `schemaVersion: "1.0"`, fixed for all of 1.x |
 | Compatibility promise | Semantic versioning: tool names, inputs, result fields, error codes and settings are stable within 1.x |
 | Errors | `isError` results with a stable `code`, an `action`, `retryable` and Finnish/English `userMessage` |
@@ -39,7 +39,7 @@ Code: [`src/stores/s-kaupat.ts`](../src/stores/s-kaupat.ts), generic worker in [
 - **Store search.** The store picker searches K-Ruoka and S-kaupat together. Stores without online ordering are hidden. Choosing an S-kaupat store also calls `select_store`, so the server's site instructions name the same store; Korikone still passes the store ID explicitly on every call.
 - **Products.** `search_products` supplies prices and pack labels. Only per-item, non-approximate prices with a recognisable pack size are priced; weighed goods and unclear packs stay unresolved, as with K-Ruoka. Search results never report stock, so Korikone asks `check_basket` for the same products and treats only `ok` as available. Deposits come from `depositPrice`.
 - **Cart transfer.** Korikone's cart for S-kaupat is the single shopping list named **Korikone** on the account. A missing list is an empty cart; it is created by the first approved write. Two lists with that name stop the transfer. Writes use `add_to_shopping_list` with `allowSubstitutes: false` and absolute quantities. Any result other than `added`, `updated` or `unchanged` stops the transfer; `uncertain` becomes `writeUncertain`, and the usual journal and readback rules apply.
-- **Account binding.** The server exposes no opaque account ID, only the account holder's first name. Korikone binds a review to that name and to the list contents. Two accounts with the same first name and identical Korikone lists cannot be told apart; an opaque account ID in a later 1.x release would close this gap.
+- **Account binding.** Since 1.1.0, `login_status` returns `accountId`, a stable one-way hash of the S-kaupat user ID that is the same on any device and across logins. Korikone binds each review and every write to it, so an account switch stops a transfer with `accountChanged`. A logged-in answer without `accountId` is treated as an incompatible server.
 - **Handoff.** After a verified transfer, *Open store cart* calls `open_site` and tells the user to open the Korikone list, press *Lisää kaikki ostoskoriin*, choose the store and time, and finish there.
 - **Errors.** Server codes map to Korikone message keys (`loginRequired`, `browserRequired`, `storeBusy`, `chooseStore`, `productUnavailable`, `writeUncertain` and others). Unknown codes fall back to `storeUnavailable`.
 

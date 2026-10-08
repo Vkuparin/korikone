@@ -16,14 +16,14 @@ Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`
 
 ## S-kaupat
 
-Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.0.0`, source revision `44021a5220e080e9a61acbe2701014c09d2ddcdf`.
+Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.1.0`, source revision `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`.
 
-- `s-kaupat-mcp.cjs` SHA-256: `887d21f9c55878bb52fe257700ad35fc43a64a17105aad0ef2db588025705bb6`; `tools.json` SHA-256: `463963f34ad19f23387d18b083e9a590a69622569a9910fed8ae3e8e6be53f40`; both match the release's `SHA256SUMS`.
-- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.0.0`, the required tool names and `schemaVersion` `1.0` on each result.
+- `s-kaupat-mcp.cjs` SHA-256: `49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade`; `tools.json` SHA-256: `e5e221f56b30a3b90515797c514792b7852fff73af1e16ac4f62d457a6fd46da`; both match the release's `SHA256SUMS`.
+- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.1.0`, the required tool names and `schemaVersion` `1.0` on each result.
 - The `.cjs` (about 5 MB) was chosen over the 110 MB standalone exe because Electron already contains Node.js; Korikone runs it with `ELECTRON_RUN_AS_NODE`.
 - The server uses its own Edge or Chrome profile under Korikone's data folder and keeps the refresh token in Windows Credential Manager, shared with other apps using s-kaupat-mcp on the same PC.
 - `SKAUPAT_ORDERING=false`, and the adapter allows only catalogue, login, shopping-list and site-handoff tools. No order, payment, list deletion or delivery-slot command is exposed.
-- S-kaupat has no server-side cart; transfers go to the account shopping list "Korikone". Search results do not report stock, so the adapter uses `check_basket`. There is no opaque account ID; the adapter binds to the account holder's first name and list contents.
+- S-kaupat has no server-side cart; transfers go to the account shopping list "Korikone". Search results do not report stock, so the adapter uses `check_basket`. Reviews are bound to the server's `accountId` (added in 1.1.0), a stable one-way hash of the S-kaupat user ID.
 - Live login, list transfer and handoff in Korikone remain acceptance checks. Details are in [S-kaupat integration](s-kaupat-mcp-plan.md).
 
 ## ChatGPT
