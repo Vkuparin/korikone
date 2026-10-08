@@ -16,10 +16,10 @@ Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`
 
 ## ChatGPT
 
-The official DevKit examined at `0a36fefeb913055c8c7a1a29b63d82b96b2e841a` uses the Sign-in with ChatGPT DevKit Noncommercial License 1.0. Korikone does not copy or bundle it. Investigate an independently authored implementation of the documented local-app protocol to preserve the project's Apache-2.0 licensing. Official sign-in and inference have not yet been tested in Korikone.
+The official DevKit examined at `0a36fefeb913055c8c7a1a29b63d82b96b2e841a` uses the Sign-in with ChatGPT DevKit Noncommercial License 1.0. Korikone does not copy or bundle it. Its independently authored implementation uses the documented local-app protocol: loopback authorization, PKCE, state and nonce checks, verified identity tokens, encrypted local credentials, serialized refresh, model discovery and completed-response streaming. Offline tests cover callback rejection, cancellation, incomplete output and draft validation. Live authorization and inference remain acceptance checks.
 
 ## Release status
 
-The first Windows NSIS installer build succeeded. It is an unsigned development prototype, not a signed consumer release. Live login, live cart mutation, clean-machine installation and household usability sessions remain unverified.
+The Windows NSIS installer build succeeded. It is an unsigned development prototype. On 8 October 2026, the owner selected a real K-Ruoka store, signed in and reported that the app's login check succeeded. Live cart mutation, checkout continuity, clean-machine installation and household usability sessions remain unverified. The owner also reported one unexpected app exit after store selection; its cause is under investigation.
 
 Live read-only catalogue smoke passed on 8 October 2026: the adapter found Ruoholahti and normalized 20 pasta search results from that branch. No account login or cart mutation was performed.

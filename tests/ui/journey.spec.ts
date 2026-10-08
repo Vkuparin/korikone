@@ -11,9 +11,17 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
       ),
     ),
     KORIKONE_TEST_DATA: data,
+    KORIKONE_TEST_HIDDEN: "1",
   };
   delete env.ELECTRON_RUN_AS_NODE;
-  let app = await electron.launch({ args: ["."], env });
+  const launchOptions = {
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  };
+  let app = await electron.launch(launchOptions);
   try {
     let page = await app.firstWindow();
     await expect(
@@ -27,6 +35,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await page
       .getByRole("button", { name: "Review products", exact: true })
       .click();
+    await expect(page.locator("article")).toHaveCount(6);
     for (let i = 0; i < 6; i++) {
       const article = page
         .locator("article")
@@ -77,7 +86,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
       })),
     ).toEqual({ node: "undefined", process: "undefined" });
     await app.close();
-    app = await electron.launch({ args: ["."], env });
+    app = await electron.launch(launchOptions);
     page = await app.firstWindow();
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),

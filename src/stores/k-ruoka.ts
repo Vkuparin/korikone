@@ -153,6 +153,8 @@ export class KRuokaProvider implements StoreProvider {
       throw new Error("unitMismatch");
     const data = await this.read(context);
     const item = data.items.find((i) => i.ean === target.productId);
+    if (!target.accountId || data.account !== target.accountId)
+      throw new Error("accountChanged");
     if ((item?.amount ?? 0) !== target.before) throw new Error("cartChanged");
     if (item && item.unit !== target.unit) throw new Error("unitMismatch");
     if (item)

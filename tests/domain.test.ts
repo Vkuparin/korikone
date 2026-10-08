@@ -89,6 +89,21 @@ async function setup() {
   return { state, provider, line, review, journal };
 }
 describe("reviewed cart transfers", () => {
+  it("rejects price changes after approval before any write", async () => {
+    const { provider, journal } = await setup();
+    provider.priceChange = true;
+    await transfer(provider, journal, () => {});
+    expect(journal.error).toBe("priceChanged");
+    expect(provider.writes).toBe(0);
+  });
+  it("stops on cancellation without starting a write", async () => {
+    const { provider, journal } = await setup();
+    const controller = new AbortController();
+    controller.abort();
+    await transfer(provider, journal, () => {}, controller.signal);
+    expect(journal.error).toBe("cancelled");
+    expect(provider.writes).toBe(0);
+  });
   it("adds to the baseline, retains unrelated items, and waits for durable intent", async () => {
     const { provider, journal, state } = await setup();
     let persisted = false;

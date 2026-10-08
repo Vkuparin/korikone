@@ -60,6 +60,7 @@ export async function createReview(
       previous.price += line.total!;
     } else
       targets.push({
+        accountId: baseline.accountId,
         productId: p.id,
         name: p.name,
         unit: p.nativeUnit,

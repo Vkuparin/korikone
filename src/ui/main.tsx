@@ -29,6 +29,8 @@ function App() {
     journal: null,
     storeResults: [],
     storeLogin: "notStarted",
+    ai: { state: "disconnected", email: "", error: null, models: [] },
+    draft: null,
   });
   const [page, setPage] = useState<Key>("week");
   const [loaded, setLoaded] = useState(false);
@@ -94,6 +96,15 @@ function App() {
   useEffect(() => {
     document.documentElement.lang = state.language;
   }, [state.language]);
+  useEffect(() => {
+    if (snapshot.ai.state !== "waiting") return;
+    const timer = setInterval(() => {
+      void window.korikone.load().then((result) => {
+        if (result.ok) setSnapshot(result.value);
+      });
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [snapshot.ai.state]);
   const field = (label: string, control: React.ReactNode) => (
     <label>
       {label}
@@ -144,7 +155,10 @@ function App() {
           {t("working")}
           <button
             className="text"
-            onClick={() => void window.korikone.cancelTransfer()}
+            onClick={() => {
+              void window.korikone.cancelTransfer();
+              void window.korikone.cancelAI();
+            }}
           >
             {t("cancel")}
           </button>
@@ -228,6 +242,94 @@ function App() {
                     {t("buildBasket")}
                   </button>
                 </div>
+                <section className="card">
+                  <h2>{t("assistedPlanning")}</h2>
+                  {snapshot.ai.state === "connected" ? (
+                    <form
+                      className="form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const data = new FormData(e.currentTarget);
+                        void call("generate", {
+                          prompt: String(data.get("prompt")),
+                          model: String(data.get("model")),
+                          consent: data.get("consent") === "on",
+                        });
+                      }}
+                    >
+                      <p>{snapshot.ai.email}</p>
+                      <label>
+                        {t("mealRequest")}
+                        <textarea name="prompt" required maxLength={10000} />
+                      </label>
+                      <div className="inline">
+                        <label>
+                          {t("model")}
+                          <select name="model" required>
+                            {snapshot.ai.models.map((model) => (
+                              <option key={model.slug} value={model.slug}>
+                                {model.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => void call("modelsAI")}
+                        >
+                          {t("loadModels")}
+                        </button>
+                      </div>
+                      <label className="check">
+                        <input name="consent" type="checkbox" required />
+                        {t("aiConsent")}
+                      </label>
+                      <button disabled={busy || !snapshot.ai.models.length}>
+                        {t("generate")}
+                      </button>
+                    </form>
+                  ) : (
+                    <p>{t("aiStatus")}</p>
+                  )}
+                  {snapshot.draft && (
+                    <div className="draft">
+                      <h3>{t("draftReview")}</h3>
+                      <p>{snapshot.draft.notes}</p>
+                      {snapshot.draft.meals.map((meal, i) => (
+                        <p key={i}>
+                          {days[meal.day]} ·{" "}
+                          {
+                            [...state.recipes, ...snapshot.draft!.recipes].find(
+                              (r) => r.id === meal.recipeId,
+                            )?.name
+                          }{" "}
+                          · {meal.servings} {t("servings").toLowerCase()}
+                        </p>
+                      ))}
+                      {snapshot.draft.recipes.map((recipe) => (
+                        <details key={recipe.id} open>
+                          <summary>{recipe.name}</summary>
+                          <ul>
+                            {recipe.ingredients.map((item, i) => (
+                              <li key={i}>
+                                {item.name}: {item.amount} {item.unit}
+                              </li>
+                            ))}
+                          </ul>
+                          <p>{recipe.instructions}</p>
+                        </details>
+                      ))}
+                      <button
+                        disabled={busy}
+                        onClick={() => void call("approveDraft")}
+                      >
+                        {t("approveDraft")}
+                      </button>
+                    </div>
+                  )}
+                </section>
                 <div className="columns">
                   <section>
                     <form
@@ -252,7 +354,7 @@ function App() {
                     >
                       {field(
                         t("recipe"),
-                        <select name="recipe">
+                        <select name="recipe" aria-label={t("recipe")}>
                           {state.recipes.map((r) => (
                             <option key={r.id} value={r.id}>
                               {r.name}
@@ -598,6 +700,15 @@ function App() {
                       )}
                     </h2>
                     <p>{snapshot.journal.review.context.storeName}</p>
+                    {snapshot.journal.status === "verified" && (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => void call("confirmPurchase")}
+                      >
+                        {t("ordered")}
+                      </button>
+                    )}
                     {snapshot.journal.status === "verified" &&
                       snapshot.journal.review.context.providerId ===
                         "k-ruoka" && (
@@ -631,6 +742,11 @@ function App() {
                   <section className="card">
                     <h2>{t("reviewTitle")}</h2>
                     <p>{snapshot.review.context.storeName}</p>
+                    {snapshot.review.context.providerId === "k-ruoka" && (
+                      <p>
+                        {t("account")}: {snapshot.review.baseline.accountId}
+                      </p>
+                    )}
                     {snapshot.review.targets.map((target) => (
                       <div className="cart-row" key={target.productId}>
                         <strong>{target.name}</strong>
@@ -641,6 +757,20 @@ function App() {
                       </div>
                     ))}
                     <p>{t("retained")}</p>
+                    <ul>
+                      {snapshot.review.baseline.lines
+                        .filter(
+                          (line) =>
+                            !snapshot.review!.targets.some(
+                              (target) => target.productId === line.productId,
+                            ),
+                        )
+                        .map((line) => (
+                          <li key={line.productId}>
+                            {line.name} · {line.quantity} {line.unit}
+                          </li>
+                        ))}
+                    </ul>
                     <p>
                       {t("total")}: {money(snapshot.review.total)} ·{" "}
                       {t("budget")}: {money(state.household.budget)}
@@ -840,6 +970,7 @@ function App() {
                   {field(
                     t("store"),
                     <select
+                      aria-label={t("store")}
                       value={state.context.providerId}
                       onChange={(e) =>
                         void save({
@@ -946,7 +1077,58 @@ function App() {
                             : "notConnected",
                     )}
                   </p>
-                  <p>{t("aiStatus")}</p>
+                  <h2>ChatGPT</h2>
+                  <p>{t("aiConnectionInfo")}</p>
+                  <p role="status">
+                    {t(
+                      snapshot.ai.state === "connected"
+                        ? "signedIn"
+                        : snapshot.ai.state === "waiting"
+                          ? "waitingAI"
+                          : snapshot.ai.state === "permissionMissing"
+                            ? "permissionMissing"
+                            : "notConnected",
+                    )}
+                    {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
+                  </p>
+                  {snapshot.ai.error && (
+                    <p role="alert">
+                      {t(
+                        snapshot.ai.error in en
+                          ? (snapshot.ai.error as Key)
+                          : "authFailed",
+                      )}
+                    </p>
+                  )}
+                  <div className="actions">
+                    <button
+                      disabled={busy || snapshot.ai.state === "waiting"}
+                      onClick={() => void call("signInAI")}
+                    >
+                      Continue with ChatGPT
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void call("signOutAI")}
+                    >
+                      {t("signOut")}
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => void call("usageAI")}
+                    >
+                      {t("manageUsage")}
+                    </button>
+                    {snapshot.ai.state === "waiting" && (
+                      <button
+                        className="text"
+                        onClick={() => void call("cancelAI")}
+                      >
+                        {t("cancel")}
+                      </button>
+                    )}
+                  </div>
                 </section>
                 <section className="card">
                   <p>{t("localData")}</p>

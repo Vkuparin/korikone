@@ -12,6 +12,8 @@ import { requirements, match } from "../domain/planner";
 import { ProviderRegistry } from "../stores/provider";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
+import type { AIStatus } from "../ai/chatgpt";
+import type { MealDraft } from "../ai/draft";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -23,6 +25,9 @@ export class Service {
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
+  ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
+  draft: MealDraft | null = null;
+  draftRevision: number | null = null;
   storeResults: StoreContext[] = [];
   storeLogin = "notStarted";
   controller: AbortController | null = null;
@@ -57,11 +62,15 @@ export class Service {
       review: this.review,
       storeResults: this.storeResults,
       storeLogin: this.storeLogin,
+      ai: this.ai,
+      draft: this.draft,
     };
   }
   async save(input: unknown) {
     if (this.busy) throw new Error("busy");
     const next = stateSchema.parse(input);
+    if (next.revision !== this.state.revision) throw new Error("draftStale");
+    next.language = this.state.language;
     for (const meal of next.meals)
       if (!next.recipes.some((r) => r.id === meal.recipeId))
         throw new Error("missingRecipe");
@@ -74,6 +83,40 @@ export class Service {
     }
     await this.db.set("state", next);
     this.state = next;
+    return this.snapshot();
+  }
+  async approveDraft() {
+    if (!this.draft || this.draftRevision !== this.state.revision)
+      throw new Error("draftStale");
+    const result = await this.save({
+      ...this.state,
+      recipes: [...this.state.recipes, ...this.draft.recipes],
+      meals: this.draft.meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
+    });
+    this.draft = null;
+    this.draftRevision = null;
+    return { ...result, draft: null };
+  }
+  async confirmPurchase() {
+    if (this.busy || this.journal?.status !== "verified")
+      throw new Error("reviewRequired");
+    const run = this.journal.review.id;
+    const order = (await this.db.get(`ordered-${run}`)) ?? {
+      confirmedAt: new Date().toISOString(),
+    };
+    const purchased = new Set(
+      this.journal.review.quotes.map((line) => line.requirement.id),
+    );
+    const next = {
+      ...this.state,
+      staples: this.state.staples.map((item) =>
+        purchased.has(item.id)
+          ? { ...item, lastPurchased: order.confirmedAt }
+          : item,
+      ),
+    };
+    await this.db.set(`ordered-${run}`, order);
+    await this.save(next);
     return this.snapshot();
   }
   async buildBasket() {

@@ -18,6 +18,14 @@ const methods = [
   "checkStoreLogin",
   "cancelStoreLogin",
   "openStoreCart",
+  "signInAI",
+  "cancelAI",
+  "signOutAI",
+  "modelsAI",
+  "usageAI",
+  "generate",
+  "approveDraft",
+  "confirmPurchase",
 ] as const;
 contextBridge.exposeInMainWorld(
   "korikone",

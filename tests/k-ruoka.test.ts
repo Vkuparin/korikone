@@ -74,6 +74,7 @@ test("writes absolute quantity using cart item ID and explicit native unit", asy
   });
   await provider.setQuantity(context, {
     productId: "123",
+    accountId: "synthetic",
     name: "Pasta",
     quantity: 4,
     before: 2,
@@ -87,6 +88,7 @@ test("writes absolute quantity using cart item ID and explicit native unit", asy
   await expect(
     provider.setQuantity(context, {
       productId: "123",
+      accountId: "synthetic",
       name: "Pasta",
       quantity: 4,
       before: 1,
@@ -108,6 +110,7 @@ test("new cart lines prohibit substitutions", async () => {
   });
   await provider.setQuantity(context, {
     productId: "123",
+    accountId: "synthetic",
     name: "Pasta",
     quantity: 1,
     before: 0,

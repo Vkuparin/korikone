@@ -1,4 +1,11 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  safeStorage,
+  shell,
+} from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
@@ -9,6 +16,8 @@ import { stateSchema } from "../domain/model";
 import { z } from "zod";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
+import { ChatGPT } from "../ai/chatgpt";
+import { draftPrompt, validateDraft } from "../ai/draft";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -16,6 +25,24 @@ else
   app.whenReady().then(async () => {
     const db = new Database(join(app.getPath("userData"), "korikone.sqlite"));
     const service = new Service(db);
+    const ai = new ChatGPT(
+      db,
+      {
+        encrypt: (text) => {
+          if (!safeStorage.isEncryptionAvailable())
+            throw new Error("credentialUnavailable");
+          return safeStorage.encryptString(text).toString("base64");
+        },
+        decrypt: (text) => {
+          if (!safeStorage.isEncryptionAvailable())
+            throw new Error("credentialUnavailable");
+          return safeStorage.decryptString(Buffer.from(text, "base64"));
+        },
+      },
+      (url) => shell.openExternal(url),
+    );
+    await ai.init();
+    service.ai = ai.status();
     const worker = new KRuokaWorker(
       join(
         app.isPackaged ? process.resourcesPath : app.getAppPath(),
@@ -30,12 +57,14 @@ else
     await service.init();
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
+      show: process.env.KORIKONE_TEST_HIDDEN !== "1",
       width: 1280,
       height: 900,
       minWidth: 680,
       minHeight: 600,
       backgroundColor: "#f5f4ef",
       webPreferences: {
+        backgroundThrottling: process.env.KORIKONE_TEST_HIDDEN !== "1",
         preload: fileURLToPath(new URL("./preload.cjs", import.meta.url)),
         contextIsolation: true,
         nodeIntegration: false,
@@ -52,6 +81,47 @@ else
         service.controller?.abort();
         return service.snapshot();
       },
+      signInAI: async () => {
+        await ai.signIn();
+        return service.snapshot();
+      },
+      cancelAI: async () => {
+        ai.cancel();
+        ai.cancelRequest();
+        return service.snapshot();
+      },
+      signOutAI: async () => {
+        await ai.signOut();
+        service.draft = null;
+        return service.snapshot();
+      },
+      modelsAI: async () => {
+        await ai.models();
+        return service.snapshot();
+      },
+      usageAI: async () => {
+        await shell.openExternal("https://chatgpt.com/settings/usage");
+        return service.snapshot();
+      },
+      generate: async (input) => {
+        const request = z
+          .object({
+            prompt: z.string().min(1).max(10000),
+            model: z.string(),
+            consent: z.literal(true),
+          })
+          .parse(input);
+        const revision = service.state.revision;
+        const text = await ai.generate(
+          request.model,
+          draftPrompt(request.prompt, service.state),
+        );
+        service.draft = validateDraft(text, service.state);
+        service.draftRevision = revision;
+        return service.snapshot();
+      },
+      approveDraft: () => service.approveDraft(),
+      confirmPurchase: () => service.confirmPurchase(),
       buildBasket: () => service.buildBasket(),
       accept: (input) => service.accept(input),
       prepare: () => service.prepare(),
@@ -79,6 +149,12 @@ else
           .object({ state: z.string() })
           .parse(await worker.call("login_status", {}));
         service.storeLogin = result.state;
+        if (result.state === "notStarted") {
+          const auth = z
+            .object({ loggedIn: z.boolean() })
+            .parse(await worker.call("auth_status", {}));
+          service.storeLogin = auth.loggedIn ? "signedIn" : "notStarted";
+        }
         return service.snapshot();
       },
       cancelStoreLogin: async () => {
@@ -126,7 +202,7 @@ else
             JSON.parse(await readFile(filePaths[0], "utf8")),
           );
           await db.set(`backup-${Date.now()}`, service.state);
-          return service.save(next);
+          return service.save({ ...next, revision: service.state.revision });
         }
         return service.snapshot();
       },
@@ -143,12 +219,18 @@ else
           if (
             name === "setLanguage" ||
             name === "cancelTransfer" ||
+            name === "cancelAI" ||
             name === "load"
-          )
-            return { ok: true, value: await handler(input) };
+          ) {
+            const value = (await handler(input)) as object;
+            service.ai = ai.status();
+            return { ok: true, value: { ...value, ai: service.ai } };
+          }
           const pending = queue.then(() => handler(input));
           queue = pending.catch(() => {});
-          return { ok: true, value: await pending };
+          const value = (await pending) as object;
+          service.ai = ai.status();
+          return { ok: true, value: { ...value, ai: service.ai } };
         } catch (error) {
           return {
             ok: false,
@@ -165,6 +247,8 @@ else
       if (closing) return;
       event.preventDefault();
       closing = true;
+      ai.cancel();
+      ai.cancelRequest();
       void worker
         .close()
         .finally(() => db.close())

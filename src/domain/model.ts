@@ -88,7 +88,11 @@ export type Cart = {
   context: StoreContext;
   lines: CartLine[];
 };
-export type Target = CartLine & { before: number; price: number };
+export type Target = CartLine & {
+  before: number;
+  price: number;
+  accountId?: string;
+};
 export type Review = {
   id: string;
   revision: number;

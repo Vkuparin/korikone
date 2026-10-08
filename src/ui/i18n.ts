@@ -1,4 +1,41 @@
 export const en = {
+  account: "Account",
+  assistedPlanning: "Plan with ChatGPT",
+  mealRequest: "What would you like to cook?",
+  model: "Model",
+  loadModels: "Load available models",
+  generate: "Draft a week",
+  draftReview: "Review the meal draft",
+  approveDraft: "Approve recipes and replace this week",
+  aiConsent:
+    "Send this request, saved recipes and household preferences to OpenAI using the displayed ChatGPT account.",
+  aiConnectionInfo:
+    "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. This prototype retains one account registration per local profile.",
+  waitingAI: "Complete authorization in your browser.",
+  signOut: "Sign out",
+  manageUsage: "Manage ChatGPT usage",
+  permissionMissing:
+    "ChatGPT plan-use permission is missing. Reconnect and enable it, or continue manually.",
+  permissionDenied:
+    "Authorization was declined. Manual planning remains available.",
+  invalidCallback: "Sign-in could not be verified. Start a new attempt.",
+  authFailed: "ChatGPT sign-in failed. Try again or continue manually.",
+  authTimeout: "The sign-in attempt expired. Try again.",
+  credentialUnavailable:
+    "Windows credential encryption is unavailable. Sign in again when it is available.",
+  modelsUnavailable:
+    "The model catalogue is unavailable. Reconnect or try again.",
+  usageLimit:
+    "ChatGPT usage is unavailable or exhausted. Manage usage or continue manually.",
+  aiFailed:
+    "ChatGPT could not complete the request. Your saved plan is unchanged.",
+  incompleteDraft: "The response was interrupted. No changes were applied.",
+  invalidDraft:
+    "The generated draft did not pass validation. Try again or plan manually.",
+  draftStale:
+    "Your plan changed after this draft was created. Generate a fresh draft.",
+  revocationUnconfirmed:
+    "Signed out locally. Remote revocation was not confirmed; disconnect the app in ChatGPT settings.",
   recoverFirst:
     "An interrupted transfer needs review before starting another transfer.",
   acknowledgeReview:
@@ -99,7 +136,7 @@ export const en = {
   restore: "Restore backup",
   localData: "Recipes and plans stay on this device.",
   aiStatus:
-    "ChatGPT integration is being investigated. Manual planning is available.",
+    "Connect ChatGPT in Settings for meal drafts. You can also add meals manually below.",
   realStatus:
     "Uses a separate Chrome profile on this device. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
   ordered: "I completed the purchase",
@@ -129,6 +166,41 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  account: "Tili",
+  assistedPlanning: "Suunnittele ChatGPT:n kanssa",
+  mealRequest: "Mitä haluaisit valmistaa?",
+  model: "Malli",
+  loadModels: "Hae käytettävissä olevat mallit",
+  generate: "Luonnostele viikko",
+  draftReview: "Tarkista aterialuonnos",
+  approveDraft: "Hyväksy reseptit ja korvaa tämä viikko",
+  aiConsent:
+    "Lähetä pyyntö, tallennetut reseptit ja kotitalouden toiveet OpenAI:lle näytetyllä ChatGPT-tilillä.",
+  aiConnectionInfo:
+    "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Prototyyppi säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
+  waitingAI: "Viimeistele valtuutus selaimessa.",
+  signOut: "Kirjaudu ulos",
+  manageUsage: "Hallitse ChatGPT:n käyttöä",
+  permissionMissing:
+    "Lupa ChatGPT-tilauksen käyttöön puuttuu. Yhdistä uudelleen ja salli käyttö tai jatka käsin.",
+  permissionDenied: "Valtuutus hylättiin. Voit jatkaa suunnittelua käsin.",
+  invalidCallback: "Kirjautumista ei voitu varmistaa. Aloita uudelleen.",
+  authFailed:
+    "ChatGPT-kirjautuminen epäonnistui. Yritä uudelleen tai jatka käsin.",
+  authTimeout: "Kirjautumisyritys vanheni. Yritä uudelleen.",
+  credentialUnavailable:
+    "Windowsin tunnistetietojen salaus ei ole käytettävissä. Kirjaudu uudelleen sen palauduttua.",
+  modelsUnavailable:
+    "Malliluetteloa ei saada. Yhdistä uudelleen tai yritä myöhemmin.",
+  usageLimit:
+    "ChatGPT:n käyttöraja on täynnä tai käyttö ei ole saatavilla. Hallitse käyttöä tai jatka käsin.",
+  aiFailed: "ChatGPT-pyyntö epäonnistui. Tallennettu suunnitelma säilyi.",
+  incompleteDraft: "Vastaus keskeytyi. Muutoksia ei tehty.",
+  invalidDraft:
+    "Luonnos ei läpäissyt tarkistusta. Yritä uudelleen tai suunnittele käsin.",
+  draftStale: "Suunnitelma muuttui luonnoksen jälkeen. Luo uusi luonnos.",
+  revocationUnconfirmed:
+    "Kirjauduit ulos paikallisesti. Palvelimen valtuutuksen perumista ei varmistettu; poista sovelluksen yhteys ChatGPT:n asetuksista.",
   recoverFirst: "Keskeytynyt siirto on tarkistettava ennen uutta siirtoa.",
   acknowledgeReview:
     "Vahvista tuotteiden sopivuus, korin tarkistus ja mahdollinen budjetin ylitys.",
@@ -225,7 +297,8 @@ export const fi: Record<Key, string> = {
   backup: "Vie varmuuskopio",
   restore: "Palauta varmuuskopio",
   localData: "Reseptit ja suunnitelmat säilyvät tällä laitteella.",
-  aiStatus: "ChatGPT-yhteyttä selvitetään. Voit suunnitella ateriat käsin.",
+  aiStatus:
+    "Yhdistä ChatGPT asetuksissa aterialuonnoksia varten. Voit myös lisätä ateriat käsin alta.",
   realStatus:
     "Käyttää erillistä Chrome-profiilia tällä laitteella. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
   ordered: "Olen tehnyt ostoksen",
