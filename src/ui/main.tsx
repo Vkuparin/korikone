@@ -52,6 +52,10 @@ function App() {
       style: "currency",
       currency: "EUR",
     }).format(cents / 100);
+  const unitPrice = (cents: number, amount: number, unit: Unit) =>
+    unit === "pcs"
+      ? `${money(cents / amount)} / ${t("perPiece")}`
+      : `${money(Math.round((cents * 1000) / amount))} / ${unit === "g" ? "kg" : "l"}`;
   const days =
     state.language === "fi"
       ? [
@@ -912,66 +916,141 @@ function App() {
                 ) : (
                   <>
                     {!snapshot.basket.length && <p>{t("noRequirements")}</p>}
-                    {snapshot.basket.map((line) => (
-                      <article
-                        className="card"
-                        key={`${line.requirement.id}:${line.requirement.unit}`}
-                      >
-                        <div className="section-heading">
-                          <div>
-                            <h2>{line.requirement.name}</h2>
-                            <p>
-                              {t("required")}: {line.requirement.amount}{" "}
-                              {line.requirement.unit}
-                            </p>
-                          </div>
-                          <strong>
-                            {line.total === null ? "—" : money(line.total)}
-                          </strong>
-                        </div>
-                        {line.product ? (
-                          <p>
-                            {line.product.name} · {line.packs}{" "}
-                            {t("packs").toLowerCase()} · {t("bought")}:{" "}
-                            {line.packs * line.product.packAmount}{" "}
-                            {line.product.unit}
-                          </p>
-                        ) : (
-                          <p className="warning">{t("unresolved")}</p>
-                        )}
-                        <div className="candidates">
-                          {line.candidates.map((p) => (
-                            <div className="candidate" key={p.id}>
-                              <span>{p.name}</span>
-                              <small>
-                                {p.packAmount} {p.unit}
-                              </small>
+                    {[...snapshot.basket]
+                      .sort((a, b) => Number(!!a.product) - Number(!!b.product))
+                      .map((line) => {
+                        const key = `${line.requirement.id}:${line.requirement.unit}`;
+                        const bought = line.product
+                          ? line.packs * line.product.packAmount
+                          : 0;
+                        return (
+                          <article
+                            className={`card${line.product ? "" : " attention"}`}
+                            key={key}
+                          >
+                            <div className="section-heading">
+                              <div>
+                                <h2>{line.requirement.name}</h2>
+                                <p>
+                                  {t("required")}: {line.requirement.amount}{" "}
+                                  {line.requirement.unit}
+                                </p>
+                              </div>
                               <strong>
-                                {p.price === null
-                                  ? t("unknown")
-                                  : money(p.price)}
+                                {line.total === null ? "—" : money(line.total)}
                               </strong>
-                              <button
-                                className="secondary"
-                                disabled={
-                                  busy || !p.available || p.price === null
-                                }
-                                onClick={() =>
-                                  void call("accept", {
-                                    ingredientId: line.requirement.id,
-                                    productId: p.id,
-                                  })
-                                }
-                              >
-                                {p.available ? t("choose") : t("unavailable")}
-                              </button>
                             </div>
-                          ))}
-                        </div>
-                      </article>
-                    ))}
+                            {line.product ? (
+                              <>
+                                <p>
+                                  {line.product.name} · {line.packs}{" "}
+                                  {t("packs").toLowerCase()} · {t("bought")}:{" "}
+                                  {bought} {line.product.unit}
+                                  {bought > line.requirement.amount &&
+                                    ` · ${t("surplus")}: ${bought - line.requirement.amount} ${line.product.unit}`}
+                                </p>
+                                <p className="muted">
+                                  {t(
+                                    line.candidates.filter(
+                                      (p) => p.available && p.price !== null,
+                                    ).length > 1
+                                      ? "reasonCheapest"
+                                      : "reasonAccepted",
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="warning" role="status">
+                                {t(
+                                  line.candidates.length
+                                    ? "unresolved"
+                                    : "noCandidates",
+                                )}
+                              </p>
+                            )}
+                            <div className="candidates">
+                              {line.candidates.map((p) => (
+                                <div className="candidate" key={p.id}>
+                                  <span>{p.name}</span>
+                                  <small>
+                                    {p.packAmount} {p.unit}
+                                    {p.price !== null &&
+                                      p.packAmount > 0 &&
+                                      ` · ${unitPrice(p.price, p.packAmount, p.unit)}`}
+                                    {p.deposit > 0 &&
+                                      ` · ${t("deposit")} ${money(p.deposit)}`}
+                                  </small>
+                                  <strong>
+                                    {p.price === null
+                                      ? t("unknown")
+                                      : money(p.price)}
+                                  </strong>
+                                  <button
+                                    className="secondary"
+                                    disabled={
+                                      busy ||
+                                      !p.available ||
+                                      p.price === null ||
+                                      p.id === line.product?.id
+                                    }
+                                    onClick={() =>
+                                      void call("accept", {
+                                        ingredientId: line.requirement.id,
+                                        productId: p.id,
+                                      })
+                                    }
+                                  >
+                                    {p.id === line.product?.id
+                                      ? t("chosen")
+                                      : p.available
+                                        ? t("choose")
+                                        : p.available === false
+                                          ? t("unavailable")
+                                          : t("stockUnknown")}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <button
+                              className="text"
+                              disabled={busy}
+                              onClick={() => void call("omit", key)}
+                            >
+                              {t("alreadyHave")}
+                            </button>
+                          </article>
+                        );
+                      })}
                     {!!snapshot.basket.length && (
                       <section className="card summary">
+                        {snapshot.basket.some((l) => !l.product) && (
+                          <p className="warning" role="status">
+                            {t("needsAttention")}:{" "}
+                            {snapshot.basket.filter((l) => !l.product).length}
+                          </p>
+                        )}
+                        <p>
+                          {t("goods")}:{" "}
+                          {money(
+                            snapshot.basket.reduce(
+                              (s, l) =>
+                                s +
+                                (l.product ? l.packs * l.product.price! : 0),
+                              0,
+                            ),
+                          )}
+                        </p>
+                        <p>
+                          {t("deposits")}:{" "}
+                          {money(
+                            snapshot.basket.reduce(
+                              (s, l) =>
+                                s +
+                                (l.product ? l.packs * l.product.deposit : 0),
+                              0,
+                            ),
+                          )}
+                        </p>
                         <h2>
                           {t("total")}:{" "}
                           {money(

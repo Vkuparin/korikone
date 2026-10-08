@@ -117,3 +117,23 @@ test("restart retains partial operations and reconciles successful timeout write
   await resumed.execute({ id: resumed.review!.id, acknowledged: false });
   expect(resumed.journal?.status).toBe("verified");
 });
+
+test("omitting a basket line skips it and rematches the rest", async () => {
+  const service = new Service(memory());
+  await service.init();
+  await service.buildBasket();
+  const key = "coffee:g";
+  expect(
+    service.basket.some(
+      (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+    ),
+  ).toBe(true);
+  await service.omit(key);
+  expect(service.state.skipped).toContain(key);
+  expect(
+    service.basket.some(
+      (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+    ),
+  ).toBe(false);
+  await expect(service.omit("missing:g")).rejects.toThrow("unresolved");
+});

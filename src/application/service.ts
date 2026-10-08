@@ -184,6 +184,19 @@ export class Service {
     });
     return this.buildBasket();
   }
+  /** "Already have this" from the basket: skip the requirement and rematch. */
+  async omit(input: unknown) {
+    if (this.busy) throw new Error("busy");
+    const key = z.string().min(1).max(200).parse(input);
+    if (
+      !this.basket.some(
+        (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+      )
+    )
+      throw new Error("unresolved");
+    await this.save({ ...this.state, skipped: [...this.state.skipped, key] });
+    return this.buildBasket();
+  }
   async prepare() {
     if (this.busy) throw new Error("busy");
     if (this.journal?.status === "partial") throw new Error("recoverFirst");

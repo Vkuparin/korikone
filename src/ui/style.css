@@ -364,3 +364,6 @@ summary {
     scroll-behavior: auto !important;
   }
 }
+.card.attention {
+  border-left: 4px solid #a8551b;
+}

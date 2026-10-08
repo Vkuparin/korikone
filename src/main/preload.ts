@@ -6,6 +6,7 @@ const methods = [
   "cancelTransfer",
   "buildBasket",
   "accept",
+  "omit",
   "prepare",
   "execute",
   "recover",

@@ -12,6 +12,7 @@ Evidence recorded on 8 October 2026. Scope is defined in [prototype-scope.md](pr
 | Save failure handling | Tests keep saved state and approvals unchanged after failed writes; dead worker rejects subsequent requests | Done |
 | Real K-Ruoka catalogue | Pinned worker smoke found a branch and normalized 20 pasta results | Done |
 | Real K-Ruoka login | Owner selected Easton and reported successful sign-in verification | Done |
+| Basket review details | Lines needing a decision come first; each shows the reason for its product, unit price, deposit, surplus and an "already have this" action; summary separates goods, known deposits and unknown fees. Service test covers omitting a line | Done (automated) |
 | S-kaupat release adopted | s-kaupat-mcp v1.1.0 `.cjs` pinned by SHA-256; runtime checks version, tools and schema version; ordering tools excluded; reviews bound to the server's stable `accountId` | Done |
 | S-kaupat adapter contract | Offline test runs the pinned release in demo mode: store search, login, stock-checked prices, reviewed transfer to the Korikone list and readback | Done |
 | Real S-kaupat login, list transfer and site handoff | Requires the owner's login, a small observed transfer with exact before/after list quantities, and *Lisää kaikki ostoskoriin* from the `open_site` window | Pending |

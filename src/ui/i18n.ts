@@ -201,6 +201,19 @@ export const en = {
     "A product is not sold in this store. Choose another product.",
   writeUncertain:
     "The store did not confirm the change. Check the list before continuing.",
+  surplus: "Left over",
+  reasonAccepted: "Your accepted product for this ingredient.",
+  reasonCheapest:
+    "Cheapest of your accepted products for the amount needed, counting whole packs.",
+  noCandidates:
+    "No matching product was found in this store. Mark it as already at home or buy it elsewhere.",
+  chosen: "Chosen",
+  stockUnknown: "Stock unknown",
+  deposit: "deposit",
+  perPiece: "pc",
+  needsAttention: "Items needing a decision",
+  goods: "Goods",
+  deposits: "Known deposits",
   reviewTitle: "Review the exact cart changes",
 } as const;
 export type Key = keyof typeof en;
@@ -400,5 +413,18 @@ export const fi: Record<Key, string> = {
   productUnavailable: "Tuotetta ei myydä tässä kaupassa. Valitse toinen tuote.",
   writeUncertain:
     "Kauppa ei vahvistanut muutosta. Tarkista lista ennen jatkamista.",
+  surplus: "Yli jää",
+  reasonAccepted: "Tälle ainekselle hyväksymäsi tuote.",
+  reasonCheapest:
+    "Halvin hyväksymistäsi tuotteista tarvittavalle määrälle kokonaisina pakkauksina.",
+  noCandidates:
+    "Kaupasta ei löytynyt sopivaa tuotetta. Merkitse se jo kotona olevaksi tai osta muualta.",
+  chosen: "Valittu",
+  stockUnknown: "Saatavuus ei tiedossa",
+  deposit: "pantti",
+  perPiece: "kpl",
+  needsAttention: "Päätöstä vaativat tuotteet",
+  goods: "Tuotteet",
+  deposits: "Tiedossa olevat pantit",
   reviewTitle: "Tarkista ostoskorin muutokset",
 };
