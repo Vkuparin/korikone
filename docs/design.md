@@ -2,7 +2,9 @@
 
 Revised 8 October 2026. This replaces the CLI-first, single-store design. The [original documents](archive/2026-10-07/design.md) are retained for context.
 
-Korikone turns a household's meal plan into a reviewed grocery basket at K-Ruoka or S-kaupat. People use an installed app, connect ChatGPT, choose their store, and approve the products before anything changes in their store cart. They complete checkout themselves.
+Status update, 8 October 2026: the separate s-kaupat-mcp project is released (v1.0.0) and Korikone consumes it. Korikone is now a product in progress rather than a prototype. The S-kaupat feasibility questions below are answered in [S-kaupat integration](s-kaupat-mcp-plan.md); where this document still describes them as open, that page records the outcome.
+
+Korikone turns a household's meal plan into a reviewed grocery basket at K-Ruoka or S-kaupat. People use an installed app, connect ChatGPT, choose their store, and approve the products before anything changes in their store cart (for S-kaupat, which has no server-side cart, the account shopping list "Korikone"). They complete checkout themselves.
 
 ## Product decisions
 
@@ -10,10 +12,10 @@ Korikone turns a household's meal plan into a reviewed grocery basket at K-Ruoka
 |---|---|
 | Local desktop app, Windows first | Keeps sign-in and grocery sessions on the user's device and makes the current ChatGPT integration practical. No terminal, Docker, API key, or MCP configuration in onboarding. |
 | Electron, React and TypeScript as the working default | Keep one main application language and avoid a planned framework rewrite. Reconsider Tauri only if a complete packaged prototype demonstrates a worthwhile benefit. |
-| One user-facing installation as the target | Compare a dedicated browser session with a minimal extension during S-kaupat feasibility. Require an extension only if it demonstrably improves login, recovery and checkout handoff. |
+| One user-facing installation as the target | Decided: S-kaupat uses a managed browser session owned by s-kaupat-mcp (its own minimised Edge/Chrome window and profile). No extension is needed. |
 | ChatGPT for assistance; deterministic code for shopping | AI interprets meal requests and drafts recipes. Code calculates quantities, prices and cart changes. |
 | Both chains in the first complete release | Retailer and branch are explicit choices. A release with only catalogue access for S-kaupat must say so and remains a preview. |
-| Reuse K-Ruoka integration conditionally; build s-kaupat-mcp as a separate project first | Reuse depends on packaging, license and behavior checks. S-kaupat cart access is an early feasibility gate. |
+| Reuse K-Ruoka integration conditionally; build s-kaupat-mcp as a separate project first | Reuse depends on packaging, license and behavior checks. s-kaupat-mcp v1.0.0 is released under Apache-2.0 and pinned by checksum. S-kaupat has no server-side cart, so its transfer target is an account shopping list. |
 | Finnish by default, English selectable immediately | Language can change on any screen without reloading or losing work. |
 | Structured screens with an optional conversation panel | A weekly planner and a readable basket are easier to inspect and correct than a chat transcript. |
 | One local household per app profile | No cloud backend, shared household accounts or device sync in v1. Data is never keyed only by email. |
@@ -84,7 +86,7 @@ apps/desktop/src/
 fixtures/                Synthetic and sanitized provider responses
 ```
 
-The tree starts with modules in one application workspace. Extract shared packages only when reuse or independent testing warrants it. These are not separately deployed services. The separate `s-kaupat-mcp` repository owns its retailer client, thin MCP server, fixtures, packaging and releases. Build and validate its first usable release before Korikone store integration. Korikone consumes its pinned stdio release just as it consumes the K-Ruoka server. Neither server knows about recipes or meal planning. See the [separate-project plan](s-kaupat-mcp-plan.md).
+The tree starts with modules in one application workspace. Extract shared packages only when reuse or independent testing warrants it. These are not separately deployed services. The separate `s-kaupat-mcp` repository owns its retailer client, thin MCP server, fixtures, packaging and releases. Its v1.0.0 release is pinned by Korikone and run as a stdio worker with Electron's Node.js, just as Korikone runs the K-Ruoka server. Neither server knows about recipes or meal planning. See the [separate-project plan](s-kaupat-mcp-plan.md).
 
 The renderer has no Node integration, shell access or generic tool execution. Main-process IPC validates requests and exposes named application operations. Store workers receive only the session access they need. Managed browser profiles, tokens and the SQLite database live in OS application-data directories outside the repository. If an extension is selected, grocery sessions remain in the chosen browser profile; the bridge binds commands to a verified account, branch and tab without exporting cookies.
 
@@ -92,7 +94,7 @@ The application coordinates reads and writes. AI can propose recipes or rank a b
 
 ## Browser access and checkout continuity
 
-Before committing the S-kaupat client to a browser implementation, compare a dedicated managed session with a minimal extension using the shopper's normal browser session. The desktop shell and browser approach are independent decisions. Keep the same MCP and domain contracts for either approach; select one initial S-kaupat implementation rather than shipping both.
+Outcome: s-kaupat-mcp chose a managed session. It runs its own Edge or Chrome profile in a minimised window, because S-kaupat answers only requests from its own website, and hands the logged-in window to the user with `open_site`. The original comparison criteria follow for reference. Before committing the S-kaupat client to a browser implementation, compare a dedicated managed session with a minimal extension using the shopper's normal browser session. The desktop shell and browser approach are independent decisions. Keep the same MCP and domain contracts for either approach; select one initial S-kaupat implementation rather than shipping both.
 
 The comparison must cover installation on a clean machine, first and returning login, account/branch selection, cart writes, browser restart, interrupted operations and opening the same cart for manual checkout. Record required user interventions and recovery outcomes. A smaller download alone is not enough to justify an extra setup step. See the [S0 experiment](s-kaupat-mcp-plan.md).
 
@@ -194,6 +196,8 @@ External edits can still race with a provider that has no conditional-write API.
 
 Workflow states: `draft`, `planning`, `needs_review`, `ready`, `transferring`, `partially_transferred`, `verified`, `ordered`. Failed AI generation preserves the previous draft. A transfer is `verified` only when readback agrees with approved targets and retained baseline items. It is `ordered` only after purchase confirmation.
 
+For S-kaupat, the "cart" in this section is the single account shopping list named "Korikone". The site, not the API, moves a list into the cart, so the user presses *Lisää kaikki ostoskoriin* after the handoff. The same diff, approval, journal and readback rules apply to the list. s-kaupat-mcp also offers order placement and payment; Korikone disables them in the server settings and never allowlists those tools.
+
 Neither the domain contract nor the app tool registry includes bulk cart clearing or checkout. The automated browser worker allows only login, catalogue and cart operations. The selected browser approach must provide a human-controlled store window or tab for checkout; automation detaches before handing control over. Proving that this uses the same authenticated cart is a release gate.
 
 ## Data and privacy
@@ -210,5 +214,5 @@ Keep the deployment small, but retain migrations, CI, packaging, signed release 
 
 Store access remains unofficial until a retailer provides an agreement or supported interface. Stop on a challenge or access denial and offer manual shopping-list mode. A provider outage must not prevent recipe editing or export. Do not add challenge bypassing to meet a release date.
 
-Open gates: current ChatGPT eligibility and DevKit redistribution; licenses and clean-machine packaging for upstream code; S-kaupat authenticated cart feasibility; delivery-slot effects on prices; weighted-item behavior; same-session checkout handoff; supported OS list. The [implementation plan](implementation-plan.md) turns these into explicit tests before release.
+Open gates: current ChatGPT eligibility and DevKit redistribution; clean-machine packaging for upstream code; observed S-kaupat list transfer and site handoff; delivery-slot effects on prices; weighted-item behavior; same-session checkout handoff; supported OS list. The S-kaupat cart-feasibility gate closed with the s-kaupat-mcp release: there is no server-side cart, and the reviewed transfer writes to an account shopping list instead. The [implementation plan](implementation-plan.md) turns these into explicit tests before release.
 

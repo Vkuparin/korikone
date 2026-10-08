@@ -1,6 +1,6 @@
 # Store integration decisions
 
-Research date: 8 October 2026. This is a documentation and limited source review, not a live integration test or security audit. No retailer account was accessed and no cart was changed. Branch URLs are research references, not pinned dependencies. Pin and record exact revisions before adoption.
+Research date: 8 October 2026. Update: s-kaupat-mcp v1.0.0 is released and adopted; see [S-kaupat integration](s-kaupat-mcp-plan.md) for the pinned artifact, adoption-gate results and Korikone's adapter. The rest of this page is the original research. It is a documentation and limited source review, not a live integration test or security audit. No retailer account was accessed and no cart was changed. Branch URLs are research references, not pinned dependencies. Pin and record exact revisions before adoption.
 
 ## Recommendation
 

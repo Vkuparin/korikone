@@ -16,6 +16,7 @@ import { stateSchema } from "../domain/model";
 import { z } from "zod";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
+import { SKaupatProvider, sKaupatWorker } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
 if (process.env.KORIKONE_TEST_DATA)
@@ -54,6 +55,40 @@ else
     service.registry.register(
       new KRuokaProvider((name, args) => worker.call(name, args)),
     );
+    const sWorker = sKaupatWorker({
+      script: join(
+        app.isPackaged ? process.resourcesPath : app.getAppPath(),
+        "vendor/s-kaupat/s-kaupat-mcp.cjs",
+      ),
+      dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+    });
+    const sKaupat = new SKaupatProvider((name, args) =>
+      sWorker.call(name, args),
+    );
+    service.registry.register(sKaupat);
+    // start_login waits for the user, so it runs beside the serialized operations.
+    let sLogin: Promise<void> | null = null;
+    let sLoginRun = 0;
+    const loginSKaupat = () => {
+      if (sLogin) return;
+      const run = ++sLoginRun;
+      service.storeLogins["s-kaupat"] = "waiting";
+      sLogin = sWorker
+        .call("start_login", { timeoutSeconds: 300 }, 330000)
+        .then((result) => {
+          const { status } = z.object({ status: z.string() }).parse(result);
+          return status === "logged_in"
+            ? "signedIn"
+            : status === "cancelled"
+              ? "notStarted"
+              : "failed";
+        })
+        .catch(() => "failed")
+        .then((state) => {
+          if (run === sLoginRun) service.storeLogins["s-kaupat"] = state;
+          sLogin = null;
+        });
+    };
     await service.init();
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
@@ -75,7 +110,19 @@ else
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => service.snapshot(),
-      save: (input) => service.save(input),
+      save: async (input) => {
+        const before = service.state.context;
+        const result = await service.save(input);
+        const context = service.state.context;
+        if (
+          context.providerId === "s-kaupat" &&
+          (before.providerId !== context.providerId ||
+            before.storeId !== context.storeId)
+        )
+          // Best effort: Korikone always passes the store explicitly.
+          await sKaupat.selectStore(context).catch(() => {});
+        return result;
+      },
       setLanguage: (input) => service.setLanguage(input),
       cancelTransfer: async () => {
         service.controller?.abort();
@@ -130,46 +177,82 @@ else
       scenario: (input) => service.scenario(input),
       searchStores: async (input) => {
         if (service.busy) throw new Error("busy");
-        service.storeResults = await service.registry
-          .get("k-ruoka")
-          .searchStores(z.string().min(2).max(150).parse(input));
+        const query = z.string().min(2).max(150).parse(input);
+        const results = await Promise.allSettled(
+          ["k-ruoka", "s-kaupat"].map((id) =>
+            service.registry.get(id).searchStores(query),
+          ),
+        );
+        const found = results.flatMap((r) =>
+          r.status === "fulfilled" ? r.value : [],
+        );
+        const failed = results.find((r) => r.status === "rejected");
+        if (!found.length && failed) throw failed.reason;
+        service.storeResults = found;
         return service.snapshot();
       },
       loginStore: async () => {
         if (service.busy) throw new Error("busy");
+        if (service.state.context.providerId === "s-kaupat") {
+          loginSKaupat();
+          return service.snapshot();
+        }
         const result = z
           .object({ state: z.string() })
           .parse(await worker.call("start_login", {}));
-        service.storeLogin = result.state;
+        service.storeLogins["k-ruoka"] = result.state;
         return service.snapshot();
       },
       checkStoreLogin: async () => {
         if (service.busy) throw new Error("busy");
+        if (service.state.context.providerId === "s-kaupat") {
+          if (!sLogin) {
+            const { status } = z
+              .object({ status: z.string() })
+              .parse(await sWorker.call("login_status", {}));
+            service.storeLogins["s-kaupat"] =
+              status === "logged_in" ? "signedIn" : "notStarted";
+          }
+          return service.snapshot();
+        }
         const result = z
           .object({ state: z.string() })
           .parse(await worker.call("login_status", {}));
-        service.storeLogin = result.state;
+        service.storeLogins["k-ruoka"] = result.state;
         if (result.state === "notStarted") {
           const auth = z
             .object({ loggedIn: z.boolean() })
             .parse(await worker.call("auth_status", {}));
-          service.storeLogin = auth.loggedIn ? "signedIn" : "notStarted";
+          service.storeLogins["k-ruoka"] = auth.loggedIn
+            ? "signedIn"
+            : "notStarted";
         }
         return service.snapshot();
       },
       cancelStoreLogin: async () => {
+        if (service.state.context.providerId === "s-kaupat") {
+          // Stopping the server closes its login window; the next call restarts it.
+          sLoginRun++;
+          sLogin = null;
+          await sWorker.close();
+          service.storeLogins["s-kaupat"] = "notStarted";
+          return service.snapshot();
+        }
         await worker.call("cancel_login", {});
-        service.storeLogin = "notStarted";
+        service.storeLogins["k-ruoka"] = "notStarted";
         return service.snapshot();
       },
       openStoreCart: async () => {
+        const providerId = service.journal?.review.context.providerId;
         if (
           service.busy ||
           service.journal?.status !== "verified" ||
-          service.journal.review.context.providerId !== "k-ruoka"
+          (providerId !== "k-ruoka" && providerId !== "s-kaupat")
         )
           throw new Error("reviewRequired");
-        await worker.handoff();
+        if (providerId === "s-kaupat")
+          await sWorker.call("open_site", { applyChoice: false });
+        else await worker.handoff();
         return service.snapshot();
       },
       exportList: async () => {
@@ -249,8 +332,7 @@ else
       closing = true;
       ai.cancel();
       ai.cancelRequest();
-      void worker
-        .close()
+      void Promise.allSettled([worker.close(), sWorker.close()])
         .finally(() => db.close())
         .finally(() => app.quit());
     });

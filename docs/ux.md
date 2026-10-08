@@ -41,7 +41,7 @@ The Finnish copy elsewhere in this specification is the default-language example
 
 ## Installation and browser continuity
 
-Target one user-facing app installation with bundled dependencies. S-kaupat feasibility decides whether a minimal extension earns its extra setup step. If required, guide installation and enablement with a clear ready state and recoverable missing/disabled/incompatible states. Users must not configure MCP, load unpacked extensions, select technical profile directories or copy cookies.
+Target one user-facing app installation with bundled dependencies. S-kaupat feasibility chose a managed browser session, so no extension is needed: S-kaupat shows a small login window once and otherwise works from a minimised window. After a transfer, the S-kaupat handoff tells the user to open the "Korikone" list and press *Lisää kaikki ostoskoriin*. The original extension guidance follows in case a later decision revisits it. If required, guide installation and enablement with a clear ready state and recoverable missing/disabled/incompatible states. Users must not configure MCP, load unpacked extensions, select technical profile directories or copy cookies.
 
 The user should log into the retailer normally and reach the same verified cart for checkout. Test first use, return visits, browser restart and expired sessions. A second login or a separate browser window may be acceptable only if the tested flow is understandable and reliable. Do not assume default-browser session reuse. No extension side panel is planned for v1.
 

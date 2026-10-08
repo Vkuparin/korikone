@@ -11,6 +11,10 @@ export interface StoreProvider {
   getCart(context: StoreContext): Promise<Cart>;
   setQuantity(context: StoreContext, target: Target): Promise<void>;
 }
+/** Real retailers; every other provider is sample data. */
+export const liveProviders = ["k-ruoka", "s-kaupat"];
+export const isLive = (providerId: string) =>
+  liveProviders.includes(providerId);
 export class ProviderRegistry {
   private providers = new Map<string, StoreProvider>();
   register(provider: StoreProvider) {

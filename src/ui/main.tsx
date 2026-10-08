@@ -12,6 +12,7 @@ import { requirements } from "../domain/planner";
 import { en, fi, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
+import { isLive } from "../stores/provider";
 declare global {
   interface Window {
     korikone: Record<
@@ -148,7 +149,9 @@ function App() {
         )}
       </header>
       <div className="demo">
-        {t(state.context.providerId === "k-ruoka" ? "liveStore" : "demo")}
+        {isLive(state.context.providerId)
+          ? `${state.context.storeName} · ${t("liveStore")}`
+          : t("demo")}
       </div>
       {error && (
         <div role="alert" className="error">
@@ -799,8 +802,7 @@ function App() {
                       </button>
                     )}
                     {snapshot.journal.status === "verified" &&
-                      snapshot.journal.review.context.providerId ===
-                        "k-ruoka" && (
+                      isLive(snapshot.journal.review.context.providerId) && (
                         <button
                           disabled={busy}
                           onClick={() => void call("openStoreCart")}
@@ -808,6 +810,9 @@ function App() {
                           {t("openStoreCart")}
                         </button>
                       )}
+                    {snapshot.journal.status === "verified" &&
+                      snapshot.journal.review.context.providerId ===
+                        "s-kaupat" && <p>{t("sKaupatHandoff")}</p>}
                     <p>
                       {t("verifiedLines")}: {snapshot.journal.verified.length} /{" "}
                       {snapshot.journal.review.targets.length}
@@ -831,10 +836,13 @@ function App() {
                   <section className="card">
                     <h2>{t("reviewTitle")}</h2>
                     <p>{snapshot.review.context.storeName}</p>
-                    {snapshot.review.context.providerId === "k-ruoka" && (
+                    {isLive(snapshot.review.context.providerId) && (
                       <p>
                         {t("account")}: {snapshot.review.baseline.accountId}
                       </p>
+                    )}
+                    {snapshot.review.context.providerId === "s-kaupat" && (
+                      <p>{t("sKaupatListInfo")}</p>
                     )}
                     {snapshot.review.targets.map((target) => (
                       <div className="cart-row" key={target.productId}>
@@ -864,7 +872,7 @@ function App() {
                       {t("total")}: {money(snapshot.review.total)} ·{" "}
                       {t("budget")}: {money(state.household.budget)}
                     </p>
-                    {(snapshot.review.context.providerId === "k-ruoka" ||
+                    {(isLive(snapshot.review.context.providerId) ||
                       snapshot.review.total > state.household.budget) && (
                       <label className="check">
                         <input
@@ -873,7 +881,7 @@ function App() {
                           onChange={(e) => setAcknowledged(e.target.checked)}
                         />
                         {t(
-                          snapshot.review.context.providerId === "k-ruoka"
+                          isLive(snapshot.review.context.providerId)
                             ? "confirmRealReview"
                             : "confirmBudget",
                         )}
@@ -887,7 +895,7 @@ function App() {
                     <button
                       disabled={
                         busy ||
-                        ((snapshot.review.context.providerId === "k-ruoka" ||
+                        ((isLive(snapshot.review.context.providerId) ||
                           snapshot.review.total > state.household.budget) &&
                           !acknowledged)
                       }
@@ -1076,8 +1084,8 @@ function App() {
                       >
                         <option value="demo-k">K-Ruoka (demo)</option>
                         <option value="demo-s">S-kaupat (demo)</option>
-                        {state.context.providerId === "k-ruoka" && (
-                          <option value="k-ruoka">
+                        {isLive(state.context.providerId) && (
+                          <option value={state.context.providerId}>
                             {state.context.storeName}
                           </option>
                         )}
@@ -1087,7 +1095,7 @@ function App() {
                       t("pickup") + " / " + t("delivery"),
                       <select
                         value={state.context.fulfillment}
-                        disabled={state.context.providerId === "k-ruoka"}
+                        disabled={isLive(state.context.providerId)}
                         onChange={(e) =>
                           void save({
                             ...state,
@@ -1104,8 +1112,14 @@ function App() {
                       </select>,
                     )}
                   </details>
-                  <h2>K-Ruoka</h2>
-                  <p>{t("realStatus")}</p>
+                  <h2>{t("storeConnection")}</h2>
+                  {isLive(state.context.providerId) && (
+                    <p>
+                      <strong>{state.context.storeName}</strong>
+                    </p>
+                  )}
+                  <p>K-Ruoka: {t("realStatus")}</p>
+                  <p>S-kaupat: {t("sKaupatStatus")}</p>
                   <form
                     className="inline"
                     onSubmit={(e) => {

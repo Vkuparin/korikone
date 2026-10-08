@@ -14,6 +14,18 @@ Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`
 - Products expose normal prices and availability but lack structured pack sizes, deposits and dietary attributes. Pack labels are parsed conservatively. Weighted prices and ambiguous pack labels remain unresolved. Product acceptance must include checking the pack label and dietary suitability. Prices are estimates, with fees and any unreported deposits unresolved until store checkout.
 - Same-profile checkout handoff closes the worker and launches Chrome against that profile. Live account continuity remains an acceptance check; it is not established by the protocol test.
 
+## S-kaupat
+
+Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.0.0`, source revision `44021a5220e080e9a61acbe2701014c09d2ddcdf`.
+
+- `s-kaupat-mcp.cjs` SHA-256: `887d21f9c55878bb52fe257700ad35fc43a64a17105aad0ef2db588025705bb6`; `tools.json` SHA-256: `463963f34ad19f23387d18b083e9a590a69622569a9910fed8ae3e8e6be53f40`; both match the release's `SHA256SUMS`.
+- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.0.0`, the required tool names and `schemaVersion` `1.0` on each result.
+- The `.cjs` (about 5 MB) was chosen over the 110 MB standalone exe because Electron already contains Node.js; Korikone runs it with `ELECTRON_RUN_AS_NODE`.
+- The server uses its own Edge or Chrome profile under Korikone's data folder and keeps the refresh token in Windows Credential Manager, shared with other apps using s-kaupat-mcp on the same PC.
+- `SKAUPAT_ORDERING=false`, and the adapter allows only catalogue, login, shopping-list and site-handoff tools. No order, payment, list deletion or delivery-slot command is exposed.
+- S-kaupat has no server-side cart; transfers go to the account shopping list "Korikone". Search results do not report stock, so the adapter uses `check_basket`. There is no opaque account ID; the adapter binds to the account holder's first name and list contents.
+- Live login, list transfer and handoff in Korikone remain acceptance checks. Details are in [S-kaupat integration](s-kaupat-mcp-plan.md).
+
 ## ChatGPT
 
 The official DevKit examined at `0a36fefeb913055c8c7a1a29b63d82b96b2e841a` uses the Sign-in with ChatGPT DevKit Noncommercial License 1.0. Korikone does not copy or bundle it. Its independently authored implementation uses the documented local-app protocol: loopback authorization, PKCE, state and nonce checks, verified identity tokens, encrypted local credentials, serialized refresh, model discovery and completed-response streaming. Offline tests cover callback rejection, cancellation, incomplete output and draft validation. On 8 October 2026, the owner reported successful authorization and completion of the requested meal-draft test. Restart, automatic model selection and sign-out remain live acceptance checks.

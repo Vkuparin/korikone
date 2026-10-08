@@ -2,6 +2,7 @@ Korikone third-party notices
 
 Korikone source is Apache-2.0. Dependencies retain their own licenses.
 K-Ruoka worker licensing is in resources/vendor/k-ruoka/LICENSE.
+The S-kaupat worker (s-kaupat-mcp, Apache-2.0) is in resources/vendor/s-kaupat/LICENSE; its bundled dependencies are listed in its source repository, https://github.com/Vkuparin/s-kaupat-mcp.
 Electron and Chromium notices accompany the packaged runtime.
 
 ========================================================================
