@@ -17,6 +17,8 @@ Status values: **Planned**, **In progress**, **Done**, **Dropped** (with the rea
 
 - The store comparison (F2) runs when the shopper asks for it, not after every list change. It doubles catalogue requests, and S-kaupat requests go through a browser window.
 - Korikone may suggest recurring items from past purchases (F6). A suggestion becomes a recurring item only when the shopper accepts it. This replaces the earlier rule that no purchase frequency is inferred, once F6 lands.
+- Agreed 9 October 2026 with the UX proposals: a live transfer is approved with one labelled confirm button that names the store, product count and total. A separate acknowledgement remains only when the total is over budget or a price rose since it was quoted (U1). This replaces the earlier checkbox on every live transfer.
+- Agreed 9 October 2026: the retailer sites open inside Korikone, one private session per chain, and Korikone's own catalogue and cart calls use that session (U3). A chain that refuses the embedded browser keeps its external window. Korikone still never fills in or presses anything on checkout or payment pages. ChatGPT sign-in stays in the default browser.
 - Out of scope for 1.0: automatic checkout or payment (permanent), cloud sync and shared household accounts, a browser extension, nutrition goals, other chains, a mobile app.
 
 ## Milestones
@@ -25,10 +27,11 @@ Status values: **Planned**, **In progress**, **Done**, **Dropped** (with the rea
 | --- | --- | --- |
 | 0.2.x | Finish the alpha | A |
 | 0.3.0 | Both chains at once | F1, F2, F3 |
-| 0.4.0 | Complete prices | F4, F5 |
-| 0.5.0 | Learn from purchases | F6, F7, F8 |
-| 0.6.0 | Plan the week | F9, F10, F11 |
-| 0.7.0 | Take it to the store | F12, F13 |
+| 0.4.0 | Smooth flow | U1, U2, U7 |
+| 0.5.0 | Stores inside the app | U3, U4, U6 |
+| 0.6.0 | Complete prices | F4, F5 |
+| 0.7.0 | Learn from purchases | F6, F7, F8, U5 |
+| 0.8.0 | Plan the week and take it along | F9, F10, F11, F12, F13 |
 | 0.9.0 | Beta and feature freeze | F14 |
 | 1.0.0 | Stable | All gates in [pre-release.md](pre-release.md) met, no open blocker bugs |
 
@@ -77,11 +80,80 @@ Before F3, fees were shown as unknown. s-kaupat-mcp has a read-only delivery opt
 | F3.1 | Spike: what each worker reports about fees without choosing a slot. Record findings in [integrations.md](integrations.md) | | Done: S-kaupat reports pickup fees per store and per time without a login or a choice; delivery needs the home address; the K-Ruoka worker reports no fees |
 | F3.2 | If F3.1 finds usable data: allow only the read-only fee tool, show the fee or fee range by the total and in the comparison. Otherwise mark F3 Dropped with the reason | F3.1, F2.3 | Done: S-kaupat allows only `get_delivery_options`; the pickup fee range shows under the total and as a comparison row, "not known" for delivery and K-Ruoka. Live check pending |
 
-## 0.4.0: Complete prices
+## 0.4.0: Smooth flow
+
+From the UX review of 9 October 2026, done on a development-mode build. Today a transfer takes four clicks, three long scrolls, a checkbox and a page switch, and the same basket appears three times: the list, the review and the basket details.
+
+### U1. Transfer from the list in one click
+
+The total and a "Siirrä S-kauppaan · 25,39 €" button stay pinned at the bottom of the list column, which scrolls on its own. Pressing it opens a confirmation panel on the same page that shows only what needs attention: rows without a product, products whose price or pack changed since they were quoted, cheaper alternatives and anything over budget. When nothing needs attention it says so in one line and the confirm button has focus. The full before and after list is under "Näytä kaikki rivit". Nothing is written to the store until confirm is pressed.
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U1.1 | Pinned total and transfer bar; the list column scrolls independently of the note column | | Planned |
+| U1.2 | Confirmation panel on the list page with attention items only, built on the existing review and journal code | U1.1 | Planned |
+| U1.3 | Replace the checkbox with the labelled confirm button; keep an explicit acknowledgement only when over budget or a price rose since quoting. Update [design.md](design.md) and [ux.md](ux.md) | U1.2 | Planned |
+| U1.4 | Show the transfer result in the same panel: verified count, what was left out, next step | U1.2 | Planned |
+| U1.5 | Move the F2 comparison into the pinned bar, for example "K-Ruoka 2,10 € halvempi · Vertaa", opening the existing panel | U1.1 | Planned |
+
+### U2. One basket view instead of three
+
+The Ostoskori page leaves the navigation. Its decision details (why a product was chosen, unit price, surplus, alternatives) open from the row on the list. Vakiotuotteet moves under Asetukset or into "Unohtuiko jotain?".
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U2.1 | Row detail drawer with the basket details from today's Ostoskori page | | Planned |
+| U2.2 | Remove the Ostoskori page and its "Tarkista korin muutokset" button; recovery of an interrupted transfer moves into the U1 panel | U1.2, U2.1 | Planned |
+| U2.3 | Quieter rows: quantity and price always visible; home, remove and alternatives on hover, focus or in the drawer, reachable by keyboard | U2.1 | Planned |
+| U2.4 | Navigation without Ostoskori; Vakiotuotteet under Asetukset or in "Unohtuiko jotain?"; desktop tests updated | U2.2 | Planned |
+
+### U7. Readable text
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U7.1 | Raise secondary text (hints, store name, "Korissa nyt", help lines) to WCAG AA contrast, 4.5:1, in Finnish and English. This covers colour for F14.4 | | Planned |
+
+## 0.5.0: Stores inside the app
+
+The S-kaupat and K-Ruoka sites open inside Korikone in a "Kauppa" view with a tab per chain. Signing in happens there once per chain. After a transfer the tab opens on the K-Ruoka cart or the S-kaupat Korikone list, and checkout happens in the same window. Korikone's searches and cart writes run in that same session, so the shopper sees exactly the account and cart Korikone changed. No Edge, Chrome or default-browser window opens for shopping.
+
+Start with the spikes. If a chain refuses Electron's built-in Chromium, or its login needs a provider that refuses embedded windows, that chain keeps today's external window and the result is recorded here.
+
+### U3. Store sessions inside Korikone
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U3.1 | Spike: S-kaupat site, login and the API calls s-kaupat-mcp makes, inside an Electron view with its own persistent session. Check bot protection, login providers and bank redirects at checkout. Record in [integrations.md](integrations.md) | | Planned |
+| U3.2 | Spike: the same for K-Ruoka, and whether k-ruoka-mcp can use a host page upstream or a small Korikone K-Ruoka client is simpler. Record in [integrations.md](integrations.md) and [dependency-decisions.md](dependency-decisions.md) | | Planned |
+| U3.3 | s-kaupat-mcp: a mode where the host app provides the browser page for API calls. It stays usable on its own with its own browser. Release and pin it like 1.2.0 | U3.1 | Planned |
+| U3.4 | Store view: a tab per chain, private persistent sessions (`persist:s-kaupat`, `persist:k-ruoka`), new windows and payment redirects kept in the tab, no preload or Korikone access from store pages | U3.1 | Planned |
+| U3.5 | Sign-in through the store tab in setup and Asetukset; remove the external login windows | U3.3, U3.4 | Planned |
+| U3.6 | "Avaa kaupan ostoskori" opens the store tab on the cart or Korikone list | U3.4 | Planned |
+| U3.7 | K-Ruoka through the store session (upstream change or Korikone client), with contract tests and fixtures | U3.2, U3.4 | Planned |
+| U3.8 | Development mode: a local fixture site in the store view, so tests never load a real store | U3.4 | Planned |
+
+### U4. S-kaupat list to cart without extra clicks
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U4.1 | Spike: can the site's own "Lisää kaikki ostoskoriin" be triggered reliably in the store tab and the cart read back? Cart only, never checkout | U3.5 | Planned |
+| U4.2 | If yes: add it as the last step of the approved transfer, with readback, then show the cart. Otherwise open the tab on the list with the button in view | U4.1 | Planned |
+
+### U6. Shorter setup
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U6.1 | One setup screen: store by postcode or town, sign in in the store tab, optional ChatGPT sign-in, done. Smaller headings so the actions are visible without scrolling | U3.5 | Planned |
+| U6.2 | Offer the second chain later, from the list or Asetukset when a comparison would help, not during first setup | U6.1 | Planned |
+| U6.3 | Fixture UI test from first launch to first list | U6.1 | Planned |
+
+## 0.6.0: Complete prices
 
 ### F4. Prices for weighed goods and unclear packs
 
 Today products sold by the kilo, or with an unreadable pack label, stay unresolved on both chains, so most real baskets have an incomplete total. After F4, weighed products get an approximate price from the kilo price and the needed amount, marked as approximate. An unclear pack can be confirmed once and Korikone remembers it for that product.
+
+F4.1 and F4.3 use the in-app store sessions from U3 where a chain has one.
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
@@ -100,7 +172,7 @@ Today products sold by the kilo, or with an unreadable pack label, stay unresolv
 | F5.3 | Badges for "cheaper than usual" and for offers the worker reports | F5.1, F5.2 | Planned |
 | F5.4 | Price changes since the last verified transfer, shown in the review | F5.1 | Planned |
 
-## 0.5.0: Learn from purchases
+## 0.7.0: Learn from purchases
 
 ### F6. Order history and recurring-item suggestions
 
@@ -127,7 +199,16 @@ The original design seeded staple cadence from order history. s-kaupat-mcp has r
 | F8.1 | Weekly totals from verified transfers and imported orders, labelled so a transfer is never presented as a purchase | F6.1 | Planned |
 | F8.2 | A simple history chart against the weekly budget, in Finnish and English | F8.1 | Planned |
 
-## 0.6.0: Plan the week
+### U5. Purchases recorded without "Olen tehnyt tilauksen"
+
+After checkout Korikone notices the order and updates recurring items itself. The button stays as a fallback.
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| U5.1 | Detect a completed order in the store tab (the order confirmation page) without reading payment details, and match it to the transfer | U3.4 | Planned |
+| U5.2 | Use imported order history (F6.1) as a second source; fixtures for both and for no match | U5.1, F6.1 | Planned |
+
+## 0.8.0: Plan the week and take it along
 
 ### F9. Saved, editable meal calendar
 
@@ -157,8 +238,6 @@ The original goal of planning meals around offers. "Ideas from offers" suggests 
 | F11.1 | Collect current offers for the active store | F5.2 | Planned |
 | F11.2 | Send offers to ChatGPT as untrusted data and show suggestion cards that add to the note | F11.1 | Planned |
 | F11.3 | AI fixtures for suggestions, no offers and failures | F11.2 | Planned |
-
-## 0.7.0: Take it to the store
 
 ### F12. List to phone by QR code
 
