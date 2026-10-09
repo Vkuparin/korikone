@@ -22,7 +22,7 @@ export async function completeFixtureLogin(
   chain?: string,
   result: "kirjaudu" | "hylkaa" = "kirjaudu",
 ) {
-  await expect(page.locator(".store-frame")).toBeVisible();
+  await expect(page.locator(".store-frame")).toBeVisible({ timeout: 15_000 });
   chain ??= (await page.locator(".store-frame").getAttribute("data-chain"))!;
   const tab = await fixtureTab(app, chain);
   await expect

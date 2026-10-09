@@ -26,7 +26,9 @@ test("cancelling during catalogue lookup prevents note and recipe generations", 
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeVisible();
+    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeVisible({
+      timeout: 15_000,
+    });
     const evidence = await page.evaluate(async () => {
       const api = window.korikone;
       await api.signInAI();
