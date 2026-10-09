@@ -37,6 +37,7 @@ export class Service {
   developmentScenario = "success";
   developmentRequests = 0;
   developmentModel: string | null = null;
+  developmentModelCatalogueRequests = 0;
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
@@ -133,6 +134,7 @@ export class Service {
       developmentScenario: this.developmentScenario,
       developmentRequests: this.developmentRequests,
       developmentModel: this.developmentModel,
+      developmentModelCatalogueRequests: this.developmentModelCatalogueRequests,
       developmentCatalogueRequests: this.developmentMode
         ? this.registry
             .all()

@@ -32,6 +32,7 @@ function App() {
     developmentScenario: "success",
     developmentRequests: 0,
     developmentModel: null,
+    developmentModelCatalogueRequests: 0,
     developmentCatalogueRequests: 0,
     state: initialState(),
     basket: [],
@@ -613,6 +614,7 @@ function App() {
                         {[
                           "success",
                           "delayedSuccess",
+                          "delayedModels",
                           "invalidOnce",
                           "invalidDraft",
                           "usageLimit",

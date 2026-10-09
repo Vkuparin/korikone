@@ -137,6 +137,22 @@ else
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     let generationRun = 0;
+    let modelLookup: AbortController | null = null;
+    const requestModel = async (run: number) => {
+      const preference = service.state.aiModel;
+      const controller = new AbortController();
+      modelLookup = controller;
+      try {
+        const models = await ai.models(controller.signal);
+        if (run !== generationRun) throw new Error("aiCancelled");
+        return chooseModel(models, preference);
+      } catch (error) {
+        if (run !== generationRun) throw new Error("aiCancelled");
+        throw error;
+      } finally {
+        if (modelLookup === controller) modelLookup = null;
+      }
+    };
     const handoff = async () => {
       try {
         await handlers.openStoreCart(undefined);
@@ -171,6 +187,9 @@ else
       };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => {
+        service.developmentModelCatalogueRequests = development
+          ? fixtureAI.catalogueRequests
+          : 0;
         service.developmentModel = development ? fixtureAI.lastModel : null;
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
         return service.snapshot();
@@ -233,6 +252,7 @@ else
       },
       cancelAI: async () => {
         generationRun++;
+        modelLookup?.abort();
         service.recipeDraft = null;
         service.draft = null;
         service.draftRevision = null;
@@ -264,8 +284,8 @@ else
           })
           .parse(input);
         const revision = service.state.revision;
-        const model = chooseModel(await ai.models(), service.state.aiModel);
         const run = ++generationRun;
+        const model = await requestModel(run);
         service.draft = null;
         service.draftRevision = null;
         service.recipeDraft = null;
@@ -287,8 +307,8 @@ else
             consent: z.literal(true),
           })
           .parse(input);
-        const model = chooseModel(await ai.models(), service.state.aiModel);
         const run = ++generationRun;
+        const model = await requestModel(run);
         service.recipeDraft = null;
         service.recipeDraft = await generateValidated(
           generateAI(model, run),

@@ -3,6 +3,73 @@ import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+test("cancelling during catalogue lookup prevents note and recipe generations", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(
+    join(tmpdir(), "korikone-model-cancel-"),
+  );
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
+      .click();
+    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeVisible();
+    const evidence = await page.evaluate(async () => {
+      const api = window.korikone;
+      await api.signInAI();
+      const before = (await api.load()).value;
+      const results = [];
+      for (const method of ["generate", "importRecipe"]) {
+        for (const lookup of [1, 2]) {
+          await api.developmentScenario("delayedModels");
+          const pending = api[method]({
+            prompt: "Pasta",
+            text: "Pasta",
+            consent: true,
+          });
+          const deadline = Date.now() + 10000;
+          while (
+            (await api.load()).value.developmentModelCatalogueRequests < lookup
+          ) {
+            if (Date.now() > deadline)
+              throw new Error("Catalogue lookup did not start");
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          await api.cancelAI();
+          results.push(await pending);
+        }
+      }
+      return { before, results, after: (await api.load()).value };
+    });
+    expect(evidence.results).toEqual([
+      { ok: false, error: "aiCancelled" },
+      { ok: false, error: "aiCancelled" },
+      { ok: false, error: "aiCancelled" },
+      { ok: false, error: "aiCancelled" },
+    ]);
+    expect(evidence.after.developmentRequests).toBe(0);
+    expect(evidence.after.state).toEqual(evidence.before.state);
+    expect(evidence.after.basket).toEqual(evidence.before.basket);
+    expect(evidence.after.draft).toBeNull();
+    expect(evidence.after.recipeDraft).toBeNull();
+  } finally {
+    await app.close();
+  }
+});
+
 test("model selectors save one preference without submitting the note and retain it after restart", async () => {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(

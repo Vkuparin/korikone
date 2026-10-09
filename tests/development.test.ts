@@ -61,7 +61,7 @@ test("AI fixtures cover valid responses and failure cases without a network requ
     expect(draft.meals.every((m) => m.servings === 2)).toBe(true);
     expect(draft.items[0].name).toBe("Kahvi");
     for (const scenario of aiScenarios.filter(
-      (s) => s !== "success" && s !== "delayedSuccess",
+      (s) => s !== "success" && s !== "delayedSuccess" && s !== "delayedModels",
     )) {
       ai.setScenario(scenario);
       if (scenario === "invalidOnce" || scenario === "invalidDraft") {

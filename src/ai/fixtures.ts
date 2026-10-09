@@ -7,6 +7,7 @@ import { mealFixtures } from "./meal-fixtures";
 export const aiScenarios = [
   "success",
   "delayedSuccess",
+  "delayedModels",
   "invalidOnce",
   "invalidDraft",
   "usageLimit",
@@ -25,6 +26,7 @@ export class FixtureAI {
   private signedIn = false;
   private calls = 0;
   lastModel: string | null = null;
+  catalogueRequests = 0;
   get requestCount() {
     return this.calls;
   }
@@ -65,14 +67,18 @@ export class FixtureAI {
   cancelRequest() {
     this.request?.abort();
   }
-  async models() {
+  async models(signal?: AbortSignal) {
     if (!this.signedIn) throw new Error("notConnected");
+    this.catalogueRequests++;
+    if (this.scenario === "delayedModels")
+      await delay(2500, undefined, { signal });
     if (this.scenario === "modelsFailed") throw new Error("modelsUnavailable");
     return this.catalogue;
   }
   setScenario(scenario: (typeof aiScenarios)[number]) {
     this.scenario = scenario;
     this.calls = 0;
+    this.catalogueRequests = 0;
     this.lastModel = null;
   }
   async generate(model: string, input: string) {
@@ -86,7 +92,7 @@ export class FixtureAI {
     }
   }
   private async respond(model: string, input: string, signal: AbortSignal) {
-    this.lastModel = chooseModel(await this.models(), model);
+    this.lastModel = chooseModel(await this.models(signal), model);
     signal.throwIfAborted();
     this.calls++;
     if (
@@ -99,6 +105,7 @@ export class FixtureAI {
     if (
       this.scenario !== "success" &&
       this.scenario !== "delayedSuccess" &&
+      this.scenario !== "delayedModels" &&
       this.scenario !== "invalidOnce" &&
       !["noSmallModel", "removedModel"].includes(this.scenario)
     )
