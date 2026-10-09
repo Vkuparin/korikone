@@ -14,6 +14,7 @@ import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { shoppingList } from "../domain/planner";
+import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
 import { z } from "zod";
 import { KRuokaProvider } from "../stores/k-ruoka";
@@ -379,6 +380,10 @@ else
       },
       copyList: async () => {
         clipboard.writeText(shoppingList(service.state));
+        return service.snapshot();
+      },
+      copyWeek: async () => {
+        clipboard.writeText(calendarText(service.state));
         return service.snapshot();
       },
       importReceipt: async () => {

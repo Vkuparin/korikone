@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import type { AppState } from "../domain/model";
 import {
   calendarDays,
+  calendarMeals,
+  calendarText,
   moveCalendarMeal,
   planCalendar,
   type MealCalendar,
@@ -11,20 +13,17 @@ export function MealCalendarView({
   state,
   busy,
   save,
+  copy,
 }: {
   state: AppState;
   busy: boolean;
   save: (state: AppState) => Promise<boolean>;
+  copy: () => Promise<boolean>;
 }) {
   const fi = state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
   const days = calendarDays();
-  const meals = state.meals.filter((meal) => {
-    const recipe = state.recipes.find((r) => r.id === meal.recipeId);
-    return (
-      !meal.leftovers && recipe && (!recipe.kind || recipe.kind === "meal")
-    );
-  });
+  const meals = calendarMeals(state);
   const dateLabel = (date: string) =>
     new Date(`${date}T12:00:00`).toLocaleDateString(fi ? "fi-FI" : "en-FI", {
       weekday: "long",
@@ -33,6 +32,9 @@ export function MealCalendarView({
     });
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const weekText = calendarText(state);
+  useEffect(() => setCopied(false), [weekText]);
   const pendingFocus = useRef<string | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const locked = busy || saving;
@@ -129,20 +131,33 @@ export function MealCalendarView({
           "Drag a meal onto a day or move it with the arrow keys. Delete removes its date. Changes are saved automatically.",
         )}
       </p>
-      <button
-        disabled={locked || !meals.length}
-        onClick={() =>
-          void persist(
-            planCalendar(
-              state.calendar,
-              meals.map((m) => m.id),
-              days,
-            ),
-          )
-        }
-      >
-        {tr("Luonnostele viikko", "Plan the week")}
-      </button>
+      <div className="actions">
+        <button
+          disabled={locked || !meals.length}
+          onClick={() =>
+            void persist(
+              planCalendar(
+                state.calendar,
+                meals.map((m) => m.id),
+                days,
+              ),
+            )
+          }
+        >
+          {tr("Luonnostele viikko", "Plan the week")}
+        </button>
+        <button
+          className="secondary"
+          disabled={locked}
+          onClick={async () => {
+            if (await copy()) setCopied(true);
+          }}
+        >
+          {copied
+            ? tr("Viikko kopioitu", "Week copied")
+            : tr("Kopioi viikko", "Copy week")}
+        </button>
+      </div>
       {!meals.length && (
         <p>
           {tr(

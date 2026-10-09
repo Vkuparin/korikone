@@ -4,6 +4,7 @@ const methods = [
   "setDevelopmentMode",
   "developmentScenario",
   "copyList",
+  "copyWeek",
   "importReceipt",
   "save",
   "setLanguage",

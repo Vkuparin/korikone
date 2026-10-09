@@ -1,9 +1,95 @@
 import { expect, test } from "vitest";
 import {
   calendarDays,
+  calendarText,
   moveCalendarMeal,
   planCalendar,
 } from "../src/domain/calendar";
+import { initialState } from "../src/domain/model";
+
+test("week text includes seven dated lines, meals and leftovers in Finnish and English", () => {
+  const state = initialState();
+  state.meals = [
+    {
+      id: "pasta-meal",
+      recipeId: "pasta",
+      day: 0,
+      servings: 4,
+      leftovers: false,
+    },
+    {
+      id: "soup-meal",
+      recipeId: "soup",
+      day: 0,
+      servings: 4,
+      leftovers: false,
+    },
+  ];
+  state.calendar = {
+    "2026-10-09": { mealIds: ["soup-meal", "pasta-meal"], leftovers: true },
+    "2026-10-10": { mealIds: [], leftovers: true },
+  };
+  const before = structuredClone(state);
+  const now = new Date(2026, 9, 9);
+  const fi = calendarText(state, now).split("\n");
+  expect(fi).toHaveLength(7);
+  expect(fi[0]).toBe(
+    "perjantai 2026-10-09: Tomaattipasta, Peruna-porkkanakeitto, Tähteitä",
+  );
+  expect(fi[1]).toBe("lauantai 2026-10-10: Tähteitä");
+  expect(fi[2]).toBe("sunnuntai 2026-10-11: Vapaa");
+  expect(fi[6]).toBe("torstai 2026-10-15: Vapaa");
+  expect(state).toEqual(before);
+  state.language = "en";
+  const en = calendarText(state, now).split("\n");
+  expect(en[0]).toBe(
+    "Friday 2026-10-09: Tomaattipasta, Peruna-porkkanakeitto, Leftovers",
+  );
+  expect(en[1]).toBe("Saturday 2026-10-10: Leftovers");
+  expect(en[2]).toBe("Sunday 2026-10-11: Open");
+  expect(en[6]).toBe("Thursday 2026-10-15: Open");
+});
+
+test("week text omits removed, unscheduled, ready and leftovers meals and old dates", () => {
+  const state = initialState();
+  state.recipes.push({
+    ...state.recipes[0],
+    id: "ready",
+    name: "Ready food",
+    kind: "ready",
+  });
+  state.meals = [
+    {
+      id: "unscheduled",
+      recipeId: "pasta",
+      day: 0,
+      servings: 4,
+      leftovers: false,
+    },
+    { id: "leftovers", recipeId: "soup", day: 0, servings: 4, leftovers: true },
+    { id: "ready", recipeId: "ready", day: 0, servings: 4, leftovers: false },
+    {
+      id: "missing-recipe",
+      recipeId: "missing",
+      day: 0,
+      servings: 4,
+      leftovers: false,
+    },
+  ];
+  state.calendar = {
+    "2026-10-08": { mealIds: ["unscheduled"], leftovers: true },
+    "2026-10-09": {
+      mealIds: ["removed", "leftovers", "ready", "missing-recipe"],
+      leftovers: false,
+    },
+  };
+  const text = calendarText(state, new Date(2026, 9, 9));
+  expect(text.split("\n")).toHaveLength(7);
+  expect(text).not.toMatch(
+    /2026-10-08|Tomaattipasta|Peruna-porkkanakeitto|Ready food|Tähteitä/,
+  );
+  expect(text.split("\n").every((line) => line.endsWith(": Vapaa"))).toBe(true);
+});
 
 test("calendar shows seven local dates across month, year and clock changes", () => {
   expect(calendarDays(new Date(2026, 11, 29, 23))).toEqual([

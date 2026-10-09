@@ -20,6 +20,8 @@ Show household size, date and branch as compact context. Explain the AI data flo
 
 Saved recipes are behind “Lisää valmiita reseptejä.” Pick a recipe and portions, then add its ingredients. No weekday is required. Remove a meal from its card. “Viikkosuunnitelma” is a separate optional view with seven days from today and only cooked meals already on the list. Drag a meal onto a day, or focus it and use arrow keys to move one day at a time. Delete returns it to “Ei päivää”. “Luonnostele viikko” distributes current meals across the seven days. A day can be marked “Tähteitä”. Each change is saved automatically and keeps the shopping list and its quoted total unchanged.
 
+“Kopioi viikko” copies one plain-text line per visible day: the day name in the selected language, ISO date, scheduled meal names and any leftovers flag. Empty days say “Vapaa” or “Open”. Unscheduled meals and removed meal references are omitted. The button confirms copying with “Viikko kopioitu” or “Week copied”; it resets when the exported text changes. Copying does not alter the calendar or shopping list.
+
 ## Shopping rows
 
 The list stays on the right on desktop and moves below the note in narrow windows. Use compact category headings and rows. No hidden tail of the list.

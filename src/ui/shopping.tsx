@@ -315,7 +315,14 @@ export function ShoppingWorkspace({
       </section>
     );
   if (view === "schedule")
-    return <MealCalendarView state={state} busy={busy} save={save} />;
+    return (
+      <MealCalendarView
+        state={state}
+        busy={busy}
+        save={save}
+        copy={() => call("copyWeek")}
+      />
+    );
   return (
     <div className="shopping-workspace">
       <section className="planning-pane">
