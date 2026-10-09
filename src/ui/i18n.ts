@@ -241,6 +241,14 @@ export const en = {
   newWeek: "Start a new week",
   noEarlierWeek: "There is no earlier week to reuse yet.",
   logoutStore: "Sign out or switch account",
+  chainsTitle: "Store chains",
+  chainsHelp:
+    "Both chains can stay signed in. Lists and transfers use the active store; switching keeps the other chain's store and sign-in.",
+  activeStore: "Active",
+  noStoreChosen: "No store chosen",
+  useThisStore: "Use this store",
+  signInChain: "Sign in",
+  otherChain: "The other chain",
   diagnostics: "Save a diagnostic report (no personal data)",
   excludedProducts: "Hidden by your exclusions",
   exclusionsHelp:
@@ -475,6 +483,14 @@ export const fi: Record<Key, string> = {
   newWeek: "Aloita uusi viikko",
   noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
   logoutStore: "Kirjaudu ulos tai vaihda tiliä",
+  chainsTitle: "Kauppaketjut",
+  chainsHelp:
+    "Molemmat ketjut voivat pysyä kirjautuneina. Lista ja siirrot käyttävät aktiivista kauppaa; vaihtaminen säilyttää toisen ketjun kaupan ja kirjautumisen.",
+  activeStore: "Käytössä",
+  noStoreChosen: "Kauppaa ei ole valittu",
+  useThisStore: "Käytä tätä kauppaa",
+  signInChain: "Kirjaudu sisään",
+  otherChain: "Toinen kauppaketju",
   diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",
   excludedProducts: "Piilotettu rajoitustesi vuoksi",
   exclusionsHelp:

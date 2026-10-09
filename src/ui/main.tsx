@@ -12,6 +12,7 @@ import { ShoppingWorkspace } from "./shopping";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
+import { Chains } from "./chains";
 import { isLive } from "../stores/provider";
 declare global {
   interface Window {
@@ -34,6 +35,7 @@ function App() {
     journal: null,
     storeResults: [],
     storeLogin: "notStarted",
+    storeLogins: {},
     ai: { state: "disconnected", email: "", error: null, models: [] },
     draft: null,
   });
@@ -111,20 +113,33 @@ function App() {
     }, 1500);
     return () => clearInterval(timer);
   }, [snapshot.ai.state]);
+  // Either chain may be waiting for its login window, not only the active one.
+  const waitingChain =
+    snapshot.storeLogin === "waiting"
+      ? null
+      : Object.entries(snapshot.storeLogins).find(
+          ([, login]) => login === "waiting",
+        )?.[0];
+  const waiting = snapshot.storeLogin === "waiting" || !!waitingChain;
   useEffect(() => {
-    if (snapshot.storeLogin !== "waiting" || busy) return;
+    if (!waiting || busy) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const check = async () => {
       try {
-        const result = await window.korikone.checkStoreLogin();
+        const result = await window.korikone.checkStoreLogin(
+          waitingChain ?? undefined,
+        );
         if (stopped) return;
         if (!result.ok) {
           setError(result.error ?? "storeUnavailable");
           return;
         }
         setSnapshot(result.value);
-        if (result.value.storeLogin === "waiting")
+        if (
+          Object.values(result.value.storeLogins).includes("waiting") ||
+          result.value.storeLogin === "waiting"
+        )
           timer = setTimeout(check, 2500);
       } catch {
         if (!stopped) setError("storeUnavailable");
@@ -135,7 +150,7 @@ function App() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [snapshot.storeLogin, busy]);
+  }, [waiting, waitingChain, busy]);
   const field = (label: string, control: React.ReactNode) => (
     <label>
       {label}
@@ -1055,6 +1070,9 @@ function App() {
                       <strong>{state.context.storeName}</strong>
                     </p>
                   )}
+                  <h3>{t("chainsTitle")}</h3>
+                  <p className="muted">{t("chainsHelp")}</p>
+                  <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
                   <p>K-Ruoka: {t("realStatus")}</p>
                   <p>S-kaupat: {t("sKaupatStatus")}</p>
                   <form
@@ -1088,49 +1106,6 @@ function App() {
                       {store.storeName}
                     </button>
                   ))}
-                  <div className="actions">
-                    <button
-                      disabled={busy}
-                      onClick={() => void call("loginStore")}
-                    >
-                      {t("loginStore")}
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void call("checkStoreLogin")}
-                    >
-                      {t("checkLogin")}
-                    </button>
-                    <button
-                      className="text"
-                      disabled={busy}
-                      onClick={() => void call("cancelStoreLogin")}
-                    >
-                      {t("cancel")}
-                    </button>
-                    {state.context.providerId === "s-kaupat" &&
-                      snapshot.storeLogin === "signedIn" && (
-                        <button
-                          className="text"
-                          disabled={busy}
-                          onClick={() => void call("logoutStore")}
-                        >
-                          {t("logoutStore")}
-                        </button>
-                      )}
-                  </div>
-                  <p role="status">
-                    {t(
-                      snapshot.storeLogin === "signedIn"
-                        ? "signedIn"
-                        : snapshot.storeLogin === "waiting"
-                          ? "waitingLogin"
-                          : snapshot.storeLogin === "failed"
-                            ? "loginFailed"
-                            : "notConnected",
-                    )}
-                  </p>
                   <h2>ChatGPT</h2>
                   <p>{t("aiConnectionInfo")}</p>
                   <p role="status">

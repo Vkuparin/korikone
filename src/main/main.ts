@@ -103,6 +103,11 @@ else
           sLogin = null;
         });
     };
+    // Sign-in actions name a chain, so either chain can be signed in while the other is active.
+    const chainOf = (input: unknown) =>
+      input === undefined || input === null
+        ? service.state.context.providerId
+        : z.enum(["k-ruoka", "s-kaupat"]).parse(input);
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
@@ -278,13 +283,14 @@ else
         service.storeResults = found;
         return service.snapshot();
       },
-      loginStore: async () => {
+      loginStore: async (input) => {
+        const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) {
-          service.storeLogins[service.state.context.providerId] = "signedIn";
+          service.storeLogins[chain] = "signedIn";
           return service.snapshot();
         }
-        if (service.state.context.providerId === "s-kaupat") {
+        if (chain === "s-kaupat") {
           loginSKaupat();
           return service.snapshot();
         }
@@ -294,10 +300,11 @@ else
         service.storeLogins["k-ruoka"] = result.state;
         return service.snapshot();
       },
-      checkStoreLogin: async () => {
+      checkStoreLogin: async (input) => {
+        const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) return service.snapshot();
-        if (service.state.context.providerId === "s-kaupat") {
+        if (chain === "s-kaupat") {
           if (!sLogin)
             service.storeLogins["s-kaupat"] = (await sSession.signedIn())
               ? "signedIn"
@@ -318,12 +325,13 @@ else
         }
         return service.snapshot();
       },
-      cancelStoreLogin: async () => {
+      cancelStoreLogin: async (input) => {
+        const chain = chainOf(input);
         if (development) {
-          service.storeLogins[service.state.context.providerId] = "notStarted";
+          service.storeLogins[chain] = "notStarted";
           return service.snapshot();
         }
-        if (service.state.context.providerId === "s-kaupat") {
+        if (chain === "s-kaupat") {
           // Stopping the server closes its login window; the next call restarts it.
           sLoginRun++;
           sLogin = null;
@@ -335,13 +343,14 @@ else
         service.storeLogins["k-ruoka"] = "notStarted";
         return service.snapshot();
       },
-      logoutStore: async () => {
+      logoutStore: async (input) => {
+        const chain = chainOf(input);
         if (development) {
-          service.storeLogins[service.state.context.providerId] = "notStarted";
+          service.storeLogins[chain] = "notStarted";
           return service.snapshot();
         }
         // K-Ruoka's pinned worker has no sign-out tool.
-        if (service.busy || service.state.context.providerId !== "s-kaupat")
+        if (service.busy || chain !== "s-kaupat")
           throw new Error("unsupported");
         await sSession.logout();
         service.storeLogins["s-kaupat"] = "notStarted";

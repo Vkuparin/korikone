@@ -92,6 +92,7 @@ export class Service {
       storeResults: this.storeResults,
       storeLogin:
         this.storeLogins[this.state.context.providerId] ?? "notStarted",
+      storeLogins: { ...this.storeLogins },
       ai: this.ai,
       draft: this.draft,
     };
