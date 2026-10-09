@@ -196,7 +196,7 @@ The original design seeded staple cadence from order history. s-kaupat-mcp has r
 
 | ID | Task, and done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| F7.1 | A pure function in `src/domain/` that compares the current review with the latest verified transfer in `listHistory`: new products, dropped products, quantity changes, and price changes when F5.1 has them. Done when unit tests cover each case, an empty history and a changed store | Simple | | Planned |
+| F7.1 | A pure function in `src/domain/` that compares the current review with the latest verified transfer in `listHistory`: new products, dropped products, quantity changes, and price changes when F5.1 has them. Done when unit tests cover each case, an empty history and a changed store | Simple | | In progress (Roadmap coder, Sonnet) |
 | F7.2 | Show the changes in the confirm panel under "Muutokset edelliseen", collapsed when there are none. Done when `tests/ui/confirm.spec.ts` covers a second transfer with one new, one dropped and one changed product | Simple | F7.1 | Planned |
 
 ### F8. Spending against budget
