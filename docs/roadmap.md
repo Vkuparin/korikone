@@ -64,7 +64,7 @@ Shown only when both chains are signed in and have a store chosen. A "Compare st
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
 | F2.1 | Price the list against a chain that is not active, read-only: no saved state, review or journal changes. Reuse saved product choices per chain; other rows use the normal automatic rules | F1.1 | Planned |
-| F2.2 | Comparison rules in domain code: common rows, totals, missing rows, largest differences. Unit tests with partial coverage, ties and one chain pricing nothing | | Planned |
+| F2.2 | Comparison rules in domain code: common rows, totals, missing rows, largest differences. Unit tests with partial coverage, ties and one chain pricing nothing | | Done: `compareBaskets` in `src/domain/compare.ts`, tests in `tests/compare.test.ts` |
 | F2.3 | Comparison panel in Finnish and English, visible only when both chains qualify, with "Use this store" | F2.1, F2.2 | Planned |
 | F2.4 | Development fixtures where the chains differ in price and in which items they carry. Focused UI test for compare, cancel and switch | F2.3 | Planned |
 
