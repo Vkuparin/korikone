@@ -1,15 +1,15 @@
 # S-kaupat integration: s-kaupat-mcp
 
-Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.1.0**, which adds a stable account ID. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
+Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.2.0**: 1.1.0 added a stable account ID and 1.2.0 a login per data folder. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
 
 ## What was released
 
 | Item | Value |
 |---|---|
-| Release | `v1.1.0`, source commit `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad` |
+| Release | `v1.2.0`, source commit `0cf3228449a0e47b359d77978b6dcd151bfdd737` |
 | License | Apache-2.0; bundling and redistribution are permitted |
-| Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade` |
-| Schema description | `tools.json`, SHA-256 `e5e221f56b30a3b90515797c514792b7852fff73af1e16ac4f62d457a6fd46da` |
+| Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a` |
+| Schema description | `tools.json`, SHA-256 `a45d418363b3439cee9ddc1919ab2437d377db3e0395883c7f931c72b92461c4` |
 | Protocol | stdio MCP; every result carries `schemaVersion: "1.0"`, fixed for all of 1.x |
 | Compatibility promise | Semantic versioning: tool names, inputs, result fields, error codes and settings are stable within 1.x |
 | Errors | `isError` results with a stable `code`, an `action`, `retryable` and Finnish/English `userMessage` |
@@ -54,7 +54,7 @@ Observed on the owner's PC on 9 October 2026, live store search, product search 
 Not yet observed in Korikone on the owner's PC:
 
 - Store search, login and a priced basket from the packaged app (observed from a development build on 9 October 2026).
-- `open_site` handoff: it opened a session that was not logged in ([#3](https://github.com/Vkuparin/korikone/issues/3)). Cause, from reading the v1.1.0 release: on Windows the server keeps its refresh token in Credential Manager under one name for the whole PC, but the site's own login lives in the browser profile inside each data folder (`login-browser`), and `start_login` returns at once when a token exists. A new or reset data folder, or a token saved by another s-kaupat-mcp client on the same PC, therefore gives working API calls and a signed-out site window. Korikone now treats S-kaupat as signed in only after `start_login` has shown its window in this data folder for the same account (`alreadyLoggedIn: false`), and remembers that account. With only a shared token, *Sign in to store* calls `log_out` and then `start_login`, which also signs out other s-kaupat-mcp clients on the PC; *Open store cart* refuses with a sign-in prompt instead of opening a signed-out window. The window is still the server's own Edge or Chrome window, not one inside Korikone. Fixture tests cover this; it has not been observed live. Still to observe: the signed-in window after this change, *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
+- `open_site` handoff: it opened a session that was not logged in ([#3](https://github.com/Vkuparin/korikone/issues/3)). Cause, from reading the v1.1.0 release: on Windows the server keeps its refresh token in Credential Manager under one name for the whole PC, but the site's own login lives in the browser profile inside each data folder (`login-browser`), and `start_login` returns at once when a token exists. A new or reset data folder, or a token saved by another s-kaupat-mcp client on the same PC, therefore gives working API calls and a signed-out site window. Korikone now treats S-kaupat as signed in only after `start_login` has shown its window in this data folder for the same account (`alreadyLoggedIn: false`), and remembers that account. Since s-kaupat-mcp 1.2.0 Korikone also runs the server with `SKAUPAT_LOGIN_SCOPE=data-dir`, which keeps the token in a Credential Manager entry of this data folder's own, so other apps' logins are never found or signed out here; *Open store cart* refuses with a sign-in prompt instead of opening a signed-out window. The window is still the server's own Edge or Chrome window, not one inside Korikone. Fixture tests cover this; it has not been observed live. Still to observe: the signed-in window after this change, *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
 - Combined onboarding with K-Ruoka, which uses Chrome while S-kaupat prefers Edge.
 
 ## Earlier prerequisite plan (summary)

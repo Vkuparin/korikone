@@ -4,11 +4,11 @@ import type { StoreProvider } from "./provider";
 import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
 
-/** Pinned s-kaupat-mcp release. Update together with scripts/prepare-worker.mjs. */
-export const S_KAUPAT_VERSION = "1.1.0";
+/** Pinned s-kaupat-mcp release. Update together with scripts/prepare-s-kaupat.mjs. */
+export const S_KAUPAT_VERSION = "1.2.0";
 export const S_KAUPAT_SCHEMA = "1.0";
 export const S_KAUPAT_CHECKSUM =
-  "49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade";
+  "17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a";
 /** S-kaupat has no server-side cart. Korikone transfers to this shopping list on the account. */
 export const S_KAUPAT_LIST = "Korikone";
 // Checkout, payment, delivery and list deletion tools are deliberately absent.
@@ -65,7 +65,13 @@ export function sKaupatWorker(options: {
     command: options.node ?? process.execPath,
     script: options.script,
     args: ["--data-dir", options.dataDir, ...(options.demo ? ["--demo"] : [])],
-    env: { ELECTRON_RUN_AS_NODE: "1", SKAUPAT_ORDERING: "false" },
+    env: {
+      ELECTRON_RUN_AS_NODE: "1",
+      SKAUPAT_ORDERING: "false",
+      // Since 1.2.0: the login belongs to this data folder, like the store window's own login,
+      // so signing in or out here never touches other apps on the PC.
+      SKAUPAT_LOGIN_SCOPE: "data-dir",
+    },
     checksum: S_KAUPAT_CHECKSUM,
     version: S_KAUPAT_VERSION,
     schemaVersion: S_KAUPAT_SCHEMA,
@@ -302,10 +308,10 @@ const accountSchema = z.object({
 });
 /**
  * Sign-in as the shopper sees it: the store window Korikone opens must be signed in too.
- * The server keeps its login token PC-wide, but the site session lives in this data folder's
- * browser profile. A token alone (another app, an earlier installation) would let transfers
- * work and then open the store signed out, so a login counts only once the server's login
- * window has completed here for the same account.
+ * The site session lives in this data folder's browser profile. Korikone runs the server with
+ * a login of its own for this folder (SKAUPAT_LOGIN_SCOPE), so a token normally means the window
+ * signed in here too. A login still counts only once the server's login window has completed here
+ * for the same account, which also covers a folder restored without its browser profile.
  */
 export class SKaupatSession {
   constructor(
