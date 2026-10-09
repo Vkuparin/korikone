@@ -229,10 +229,10 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
     await expect(list).not.toContainText("pcs");
     await expect(page.locator("body")).not.toContainText("MakaronI");
     await list
-      .getByRole("button", { name: "Siirrä S-kauppojen listalle" })
+      .getByRole("button", { name: /^Siirrä ja avaa S-kaupat-lista/ })
       .click();
-    const panel = list.getByRole("region", { name: "Siirron vahvistus" });
-    await expect(panel).toContainText("Tili: Testi");
+    const panel = list.getByRole("region", { name: "Siirron tulos" });
+    await expect(panel).toContainText("Ostoskori päivitetty ja tarkistettu");
     await expect(panel).not.toContainText("demo-household");
   } finally {
     await app.close();

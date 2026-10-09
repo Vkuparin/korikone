@@ -6,7 +6,7 @@ The current source includes explicitly requested note interpretation, automatic 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The current version is **0.2.0-alpha.2**, intended for early testing. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The latest published pre-release is **0.2.0-alpha.3**; this source prepares **0.4.0**. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -19,7 +19,7 @@ npm run build
 npm start
 ```
 
-Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. ChatGPT model selection is automatic, preferring a small model from the current account catalogue. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
+Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
 
 The store search includes both chains. S-kaupat uses the pinned v1.2.0 worker with its own Edge or Chrome profile and authenticated site handoff.
 
@@ -66,3 +66,7 @@ See [dependency decisions](docs/dependency-decisions.md) for versions and eviden
 See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [roadmap to 1.0.0](docs/roadmap.md).
 
 Licensed under Apache-2.0. Copyright 2026 Vkuparin.
+
+## 0.4.0 transfer flow
+
+The pinned button shows the basket or list destination, product count and quoted total. One press approves the displayed batch, checks it, transfers it and opens the retailer destination after verification. Missing products, existing quantities and budget overruns require a decision; changed prices or packs require a refreshed quote. Reopening a verified batch never adds it again. If opening fails, use the open-only retry. S-kaupat still opens the Korikone account list; add it to the basket on the retailer site. Checkout and payment remain manual.

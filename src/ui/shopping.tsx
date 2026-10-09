@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
+import { ModelSelector } from "./model";
 import { relevant, requirements } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
@@ -46,6 +47,7 @@ export function ShoppingWorkspace({
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   // The list row whose details are open.
   const [opened, setOpened] = useState<string | null>(null);
   // The list column is as tall as the window below its current top, so the total and
@@ -387,6 +389,7 @@ export function ShoppingWorkspace({
             </button>
           </div>
         </div>
+        <ModelSelector snapshot={snapshot} busy={busy} call={call} />
         {note !== state.note && (
           <p id="note-unapplied" className="muted" role="status">
             {tr(
@@ -1176,24 +1179,48 @@ export function ShoppingWorkspace({
               disabled={busy || !rows.length || missing.length === rows.length}
               onClick={async () => {
                 // An interrupted transfer is shown for recovery instead of a new review.
-                if (
-                  snapshot.journal?.status === "partial" ||
-                  (await call("prepare", { allowMissing: true }))
-                )
-                  setConfirming(true);
+                setTransferring(true);
+                try {
+                  if (
+                    snapshot.journal?.status === "partial" ||
+                    (await call("transferDisplayed", {
+                      revision: state.revision,
+                      quotedAt: snapshot.quotedAt,
+                      batchKey: snapshot.transferBatchKey,
+                    }))
+                  )
+                    setConfirming(true);
+                } finally {
+                  setTransferring(false);
+                }
               }}
             >
+              {transferring && (
+                <span role="status">
+                  {tr(
+                    "Tarkistetaan ja siirretään…",
+                    "Checking and transferring…",
+                  )}{" "}
+                </span>
+              )}
               {state.context.providerId === "s-kaupat" ? (
-                tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+                tr(
+                  "Siirrä ja avaa S-kaupat-lista",
+                  "Transfer and open S-kaupat list",
+                )
               ) : (
                 <>
-                  {tr("Siirrä", "Transfer to")}{" "}
+                  {tr("Siirrä ja avaa", "Transfer and open")}{" "}
                   {state.context.providerId === "k-ruoka"
                     ? "K-Ruoan"
                     : tr("kaupan", "store")}{" "}
-                  {tr("ostoskoriin", "cart")}
+                  {tr("ostoskori", "basket")}
                 </>
               )}
+              <span>
+                {" "}
+                · {rows.length - missing.length} {tr("tuotetta", "products")}
+              </span>
               {total > 0 && (
                 <span className="transfer-total"> · {money(total)}</span>
               )}

@@ -9,6 +9,33 @@ import { initialState, stateSchema } from "../src/domain/model";
 import { Service } from "../src/application/service";
 
 const workerURL = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
+test("model preference migrates and survives SQLite and backup restore", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-model-backup-"));
+  const path = join(directory, "saved.sqlite");
+  let database = new Database(path, workerURL);
+  try {
+    const { aiModel: _aiModel, ...legacy } = initialState();
+    await database.set("state", legacy);
+    const service = new Service(database);
+    await service.init();
+    expect(service.state.aiModel).toBe("auto");
+    await service.setAIModel("fixture-large");
+    const backup = JSON.stringify(service.state);
+    await database.close();
+    database = new Database(path, workerURL);
+    const restarted = new Service(database);
+    await restarted.init();
+    expect(restarted.state.aiModel).toBe("fixture-large");
+    await restarted.setAIModel("auto");
+    await restarted.save({
+      ...stateSchema.parse(JSON.parse(backup)),
+      revision: restarted.state.revision,
+    });
+    expect(restarted.state.aiModel).toBe("fixture-large");
+  } finally {
+    await database.close();
+  }
+});
 
 test("calendar defaults to empty when an older profile or backup loads", async () => {
   const directory = await mkdtemp(join(tmpdir(), "korikone-calendar-legacy-"));

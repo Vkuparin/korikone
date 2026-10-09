@@ -1,7 +1,7 @@
 export type AvailableModel = { slug: string; name: string };
 
 // Use the live account catalogue, never a pinned model identifier. Preserve
-// server order within a size tier and when the catalogue uses unfamiliar names.
+// server order within a size tier. Names imply size, not verified prices.
 export function chooseModel(
   models: AvailableModel[],
   override = "auto",
@@ -17,5 +17,6 @@ export function chooseModel(
       `${model.slug} ${model.name}`,
     ),
   );
-  return (small ?? models[0]).slug;
+  if (!small) throw new Error("modelSelectionRequired");
+  return small.slug;
 }

@@ -71,8 +71,18 @@ test("AI fixtures cover valid responses and failure cases without a network requ
           expect(
             validateDraft(await ai.generate("auto", prompt), state).meals,
           ).toHaveLength(3);
+      } else if (scenario === "removedModel") {
+        expect(
+          validateDraft(await ai.generate("auto", prompt), state).meals,
+        ).toHaveLength(3);
       } else
-        await expect(ai.generate("auto", prompt)).rejects.toThrow(scenario);
+        await expect(ai.generate("auto", prompt)).rejects.toThrow(
+          scenario === "noSmallModel"
+            ? "modelSelectionRequired"
+            : scenario === "emptyModels" || scenario === "modelsFailed"
+              ? "modelsUnavailable"
+              : scenario,
+        );
     }
     await ai.signOut();
     expect(ai.status().state).toBe("disconnected");

@@ -14,6 +14,7 @@ import "./style.css";
 import { Setup } from "./setup";
 import { Chains } from "./chains";
 import { ShoppingContext } from "./context";
+import { ModelSelector } from "./model";
 import { isLive } from "../stores/provider";
 declare global {
   interface Window {
@@ -30,12 +31,17 @@ function App() {
     developmentMode: false,
     developmentScenario: "success",
     developmentRequests: 0,
+    developmentModel: null,
     developmentCatalogueRequests: 0,
     state: initialState(),
     basket: [],
     quotedAt: null,
     pricingError: null,
     review: null,
+    transferException: null,
+    handoffError: null,
+    transferBatchKey: "",
+    developmentHandoffs: [],
     journal: null,
     storeResults: [],
     contextOptions: null,
@@ -612,6 +618,11 @@ function App() {
                           "usageLimit",
                           "incompleteDraft",
                           "aiFailed",
+                          "noSmallModel",
+                          "removedModel",
+                          "emptyModels",
+                          "modelsFailed",
+                          "handoffFailed",
                         ].map((value) => (
                           <option key={value} value={value}>
                             {value}
@@ -620,6 +631,70 @@ function App() {
                       </select>
                     </label>
                   )}
+                </section>
+                <section className="card">
+                  <h2>
+                    {state.language === "fi"
+                      ? "ChatGPT ja tekoäly"
+                      : "ChatGPT and AI"}
+                  </h2>
+                  <p>{t("aiConnectionInfo")}</p>
+                  <p role="status">
+                    {t(
+                      snapshot.ai.state === "connected"
+                        ? "signedIn"
+                        : snapshot.ai.state === "waiting"
+                          ? "waitingAI"
+                          : snapshot.ai.state === "permissionMissing"
+                            ? "permissionMissing"
+                            : "notConnected",
+                    )}
+                    {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
+                  </p>
+                  {snapshot.ai.error && (
+                    <p role="alert">
+                      {t(
+                        snapshot.ai.error in en
+                          ? (snapshot.ai.error as Key)
+                          : "authFailed",
+                      )}
+                    </p>
+                  )}
+                  <div className="actions">
+                    <button
+                      disabled={busy || snapshot.ai.state === "waiting"}
+                      onClick={() => void call("signInAI")}
+                    >
+                      Continue with ChatGPT
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void call("signOutAI")}
+                    >
+                      {t("signOut")}
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => void call("usageAI")}
+                    >
+                      {t("manageUsage")}
+                    </button>
+                    {snapshot.ai.state === "waiting" && (
+                      <button
+                        className="text"
+                        onClick={() => void call("cancelAI")}
+                      >
+                        {t("cancel")}
+                      </button>
+                    )}
+                  </div>
+                  <ModelSelector snapshot={snapshot} busy={busy} call={call} />
+                  <p className="muted">
+                    {state.language === "fi"
+                      ? "Automaattinen suosii tilillä saatavilla olevaa pientä mallia käytön vähentämiseksi. Mallin nimi kertoo kokoluokasta, mutta ei tarkkaa hintaa. Jos sopivaa pientä mallia ei löydy, valitse malli itse."
+                      : "Automatic prefers a small model available to your account to reduce usage. Model names indicate size, but do not establish exact prices. If no suitable small model is available, choose a model yourself."}
+                  </p>
                 </section>
                 <form
                   className="card form"
@@ -760,58 +835,6 @@ function App() {
                       {store.storeName}
                     </button>
                   ))}
-                  <h2>ChatGPT</h2>
-                  <p>{t("aiConnectionInfo")}</p>
-                  <p role="status">
-                    {t(
-                      snapshot.ai.state === "connected"
-                        ? "signedIn"
-                        : snapshot.ai.state === "waiting"
-                          ? "waitingAI"
-                          : snapshot.ai.state === "permissionMissing"
-                            ? "permissionMissing"
-                            : "notConnected",
-                    )}
-                    {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
-                  </p>
-                  {snapshot.ai.error && (
-                    <p role="alert">
-                      {t(
-                        snapshot.ai.error in en
-                          ? (snapshot.ai.error as Key)
-                          : "authFailed",
-                      )}
-                    </p>
-                  )}
-                  <div className="actions">
-                    <button
-                      disabled={busy || snapshot.ai.state === "waiting"}
-                      onClick={() => void call("signInAI")}
-                    >
-                      Continue with ChatGPT
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void call("signOutAI")}
-                    >
-                      {t("signOut")}
-                    </button>
-                    <button
-                      className="secondary"
-                      onClick={() => void call("usageAI")}
-                    >
-                      {t("manageUsage")}
-                    </button>
-                    {snapshot.ai.state === "waiting" && (
-                      <button
-                        className="text"
-                        onClick={() => void call("cancelAI")}
-                      >
-                        {t("cancel")}
-                      </button>
-                    )}
-                  </div>
                 </section>
                 <section className="card form">
                   <h2>

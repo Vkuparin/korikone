@@ -33,27 +33,25 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
     const list = page.getByRole("complementary");
-    // Rows without a product are resolved from their details.
-    const needing = list.locator(".grocery-row", {
-      hasText: "Needs a product",
-    });
-    for (let i = 0; i < 6 && (await needing.count()); i++) {
-      const count = await needing.count();
-      const row = needing.first();
-      await row.locator(".row-name").click();
-      await row
-        .getByRole("button", { name: /^Choose this product: / })
-        .and(page.locator(":enabled"))
-        .first()
-        .click();
-      await expect(needing).toHaveCount(count - 1);
-    }
+    // The meals render before pricing finishes. Wait for all quoted rows rather
+    // than treating transient "Needs a product" labels as manual choices.
+    await expect(list.locator(".grocery-row")).toHaveCount(6);
+    await expect(list.locator(".grocery-row .row-name")).toHaveCount(6);
+    await expect(
+      list.locator(".grocery-row", { hasText: "Needs a product" }),
+    ).toHaveCount(0);
+    // The unavailable 1 kg carrot pack must use the available alternative.
+    await expect(
+      list.getByRole("button", { name: "Porkkana 500 g", exact: true }),
+    ).toBeVisible();
     await list.getByText("Demo", { exact: true }).click();
     await list
       .getByRole("button", { name: "Demo: interrupt next transfer" })
       .click();
     const bar = list.getByRole("region", { name: "Total and transfer" });
-    await bar.getByRole("button", { name: /^Transfer to store cart/ }).click();
+    await bar
+      .getByRole("button", { name: /^Transfer and open store basket/ })
+      .click();
     const panel = bar.getByRole("region", { name: "Transfer confirmation" });
     await expect(panel).toContainText(
       "Already in the cart: Pasta 500 g 1 → 2 kpl",
@@ -61,6 +59,11 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await panel.getByRole("button", { name: /^Confirm: / }).click();
     const result = bar.getByRole("region", { name: "Transfer result" });
     await expect(result.getByRole("status")).toHaveText("Transfer interrupted");
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentHandoffs,
+      ),
+    ).toEqual([]);
     await result
       .getByRole("button", { name: "Check cart and review remaining changes" })
       .click();
@@ -68,6 +71,11 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(result.getByRole("status")).toHaveText(
       "Cart updated and verified",
     );
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentHandoffs,
+      ),
+    ).toHaveLength(1);
     // Visual capture is covered by the source build. A packaged hidden window
     // may not produce compositor frames even when DOM interaction works.
     if (!process.env.KORIKONE_EXECUTABLE)

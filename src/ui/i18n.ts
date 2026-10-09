@@ -8,6 +8,8 @@ export function packCount(count: number, language: string): string {
   return `${count} ${count === 1 ? "pack" : "packs"}`;
 }
 export const en = {
+  modelSelectionRequired:
+    "Automatic could not identify a suitable small model. Choose an available AI model.",
   developmentMode: "Development mode",
   developmentModeInfo:
     "Use local ChatGPT and store fixtures. No ChatGPT usage or retailer requests. Development data is saved separately; switching modes opens that mode's profile.",
@@ -257,6 +259,8 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  modelSelectionRequired:
+    "Automaattinen ei löytänyt sopivaa pientä mallia. Valitse saatavilla oleva AI-malli.",
   developmentMode: "Kehitystila",
   developmentModeInfo:
     "Käytä paikallisia ChatGPT- ja kauppatestiaineistoja. ChatGPT-käyttöä ei kulu eikä kauppoihin lähetetä pyyntöjä. Kehitystilan tiedot tallennetaan erikseen; tilan vaihtaminen avaa kyseisen tilan profiilin.",

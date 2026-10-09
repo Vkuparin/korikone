@@ -12,7 +12,13 @@ test("the transfer is confirmed and reported in the list column", async () => {
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-confirm-"));
   env.KORIKONE_TEST_HIDDEN = "1";
-  const app = await electron.launch({ args: ["."], env });
+  const app = await electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
   try {
     const page = await app.firstWindow();
     await page
@@ -40,7 +46,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
     );
     const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
     const transfer = bar.getByRole("button", {
-      name: /^Siirrä S-kauppojen listalle/,
+      name: /^Siirrä ja avaa S-kaupat-lista/,
     });
     const panel = bar.getByRole("region", { name: "Siirron vahvistus" });
     const confirm = panel.getByRole("button", {
@@ -77,23 +83,25 @@ test("the transfer is confirmed and reported in the list column", async () => {
       ),
     ).toBeNull();
 
-    // Nothing to look at: one line, and the confirm button has focus.
+    // The initial click approves a normal batch and opens the destination.
     await setBudget("1000");
     await transfer.click();
-    await expect(panel).toContainText("Ei huomautettavaa.");
-    await expect(panel).toContainText("Tili: Testi");
-    await expect(confirm).toBeFocused();
-    await panel.getByText("Näytä kaikki rivit").click();
-    await expect(panel).toContainText("Myllyn Paras Makaroni 400g: 0 → 1");
-    await confirm.click();
-
     const result = bar.getByRole("region", { name: "Siirron tulos" });
+    await expect(result.getByRole("status")).toHaveText(
+      "Ostoskori päivitetty ja tarkistettu",
+    );
+    await expect(panel).toHaveCount(0);
+    const evidence = await page.evaluate(
+      async () => (await window.korikone.load()).value,
+    );
+    expect(evidence.developmentHandoffs).toEqual(["s-kaupat:list"]);
+
     await expect(result.getByRole("status")).toHaveText(
       "Ostoskori päivitetty ja tarkistettu",
     );
     await expect(result).toContainText("7 / 7");
     await expect(
-      result.getByRole("button", { name: "Avaa kaupan ostoskori" }),
+      result.getByRole("button", { name: "Avaa S-kaupat-lista uudelleen" }),
     ).toBeVisible();
     await result.getByRole("button", { name: "Sulje" }).click();
     await expect(result).toHaveCount(0);

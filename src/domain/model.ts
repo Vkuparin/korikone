@@ -74,6 +74,7 @@ export const stateSchema = z
     productPreference: z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
+    aiModel: z.string().min(1).max(200).default("auto"),
     receiptText: z.string().max(50000).default(""),
     listHistory: z
       .array(
@@ -171,6 +172,7 @@ export type Review = {
   unresolved?: Requirement[];
 };
 export type Journal = {
+  batchKey?: string;
   review: Review;
   status: "ready" | "transferring" | "partial" | "verified";
   verified: string[];

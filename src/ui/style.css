@@ -1170,3 +1170,24 @@ body:has(.app-main) > #root > .progress {
   padding: 0;
   color: #776439;
 }
+.model-control {
+  margin: 8px 0;
+  min-width: 0;
+  color: #526657;
+}
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.model-selector span {
+  white-space: nowrap;
+}
+.model-selector select {
+  width: 260px;
+  max-width: 70%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}

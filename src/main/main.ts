@@ -13,6 +13,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
+import { chooseModel } from "../ai/models";
 import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
@@ -136,6 +137,18 @@ else
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     let generationRun = 0;
+    const handoff = async () => {
+      try {
+        await handlers.openStoreCart(undefined);
+        service.handoffError = null;
+      } catch (error) {
+        service.handoffError =
+          error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+            ? error.message
+            : "operationFailed";
+      }
+      return service.snapshot();
+    };
     const generateAI =
       (model: string, run: number) => async (prompt: string) => {
         try {
@@ -150,6 +163,7 @@ else
             throw new Error("aiCancelled");
           throw error;
         } finally {
+          service.developmentModel = development ? fixtureAI.lastModel : null;
           service.developmentRequests = development
             ? fixtureAI.requestCount
             : 0;
@@ -157,6 +171,7 @@ else
       };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => {
+        service.developmentModel = development ? fixtureAI.lastModel : null;
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
         return service.snapshot();
       },
@@ -207,6 +222,7 @@ else
         });
       },
       setLanguage: (input) => service.setLanguage(input),
+      setAIModel: (input) => service.setAIModel(input),
       cancelTransfer: async () => {
         service.controller?.abort();
         return service.snapshot();
@@ -248,12 +264,13 @@ else
           })
           .parse(input);
         const revision = service.state.revision;
+        const model = chooseModel(await ai.models(), service.state.aiModel);
         const run = ++generationRun;
         service.draft = null;
         service.draftRevision = null;
         service.recipeDraft = null;
         service.draft = await generateValidated(
-          generateAI(request.model, run),
+          generateAI(model, run),
           draftPrompt(request.prompt, service.state),
           (text) => validateDraft(text, service.state),
           " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
@@ -270,10 +287,11 @@ else
             consent: z.literal(true),
           })
           .parse(input);
+        const model = chooseModel(await ai.models(), service.state.aiModel);
         const run = ++generationRun;
         service.recipeDraft = null;
         service.recipeDraft = await generateValidated(
-          generateAI(request.model, run),
+          generateAI(model, run),
           recipePrompt(request.text, service.state),
           (text) => validateRecipe(text, service.state),
           " The previous response failed validation. Return one complete recipe object with positive integer g, ml or pcs quantities, servings from 1 to 100, and at least one ingredient. Return JSON only.",
@@ -293,7 +311,21 @@ else
       accept: (input) => service.accept(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),
-      execute: (input) => service.execute(input),
+      transferDisplayed: async (input) => {
+        const result = await service.transferDisplayed(input);
+        if (
+          result.journal?.status === "verified" &&
+          !result.review &&
+          !result.transferException
+        )
+          return handoff();
+        return result;
+      },
+      execute: async (input) => {
+        const result = await service.execute(input);
+        if (result.journal?.status === "verified") return handoff();
+        return result;
+      },
       recover: () => service.recover(),
       scenario: (input) => service.scenario(input),
       searchStores: async (input) => {
@@ -390,10 +422,25 @@ else
         if (
           service.busy ||
           service.journal?.status !== "verified" ||
-          (providerId !== "k-ruoka" && providerId !== "s-kaupat")
+          !providerId
         )
           throw new Error("reviewRequired");
-        if (development) return service.snapshot();
+        const currentCart = await service.registry
+          .get(providerId)
+          .getCart(service.journal.review.context);
+        if (currentCart.accountId !== service.journal.review.baseline.accountId)
+          throw new Error("accountChanged");
+        if (development || providerId.startsWith("demo-")) {
+          if (service.developmentScenario === "handoffFailed")
+            throw new Error("operationFailed");
+          service.developmentHandoffs.push(
+            providerId === "s-kaupat"
+              ? "s-kaupat:list"
+              : `${providerId}:basket`,
+          );
+          service.handoffError = null;
+          return service.snapshot();
+        }
         if (providerId === "s-kaupat") {
           // A token without a login in this folder's window would open the store signed out.
           if (!(await sSession.signedIn())) {
@@ -403,6 +450,7 @@ else
           await sWorker.call("open_site", { applyChoice: false });
         } else
           await shell.openExternal("https://www.k-ruoka.fi/kauppa/ostoskori");
+        service.handoffError = null;
         return service.snapshot();
       },
       copyList: async () => {

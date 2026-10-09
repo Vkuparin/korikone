@@ -1,11 +1,16 @@
 # Release notes
 
-## Unreleased
+## 0.4.0 — release candidate, 9 October 2026
+
+- Transfer and open the destination with one approval of the displayed batch. Only exceptions ask for another decision. Verified batches stay protected against duplicate additions after refresh and restart; failed storefront opening offers an open-only retry.
+- Change the AI model below the note or in the separate ChatGPT Settings card. Both selectors save one preference for future note and recipe requests. Automatic prefers a recognized small model and requires a manual choice when none is identified.
+- Apply shopping notes only with Update list or Ctrl+Enter. Returning to the view and restarting retain compatible last quoted prices without AI or catalogue requests.
+- Change the planning store and supported pickup/delivery choice from the shopping header, preserving the note and groceries.
 
 - Manual grocery additions accept decimal kg/l amounts and merge matching names and units into existing recipe rows. Added quantities also increase an explicit row override. Invalid amounts preserve the list and input.
 - The total and the transfer button, which now shows the total, stay at the bottom of the shopping list while the list scrolls on its own. The list notes, fee and export buttons sit above them.
 - *Vertaa kauppoja* moved into the pinned bar. After a comparison the bar shows the result, for example "K-Ruoka 2,10 € halvempi · Vertaa", which opens the full comparison until the list changes.
-- Transfer from the list: the pinned button opens a confirmation panel in the list column that shows only what needs attention (missing products, products already in the cart, cheaper options for the same ingredient, a budget overrun). The confirm button names the product count, chain and total and is the approval; the checkbox remains only when the total is over budget. The result and the next step, or the recovery of an interrupted transfer, show in the same panel.
+- Transfer exceptions and results stay in the list column. Missing products, existing quantities and budget overruns require a decision; changed prices or packs require a refreshed quote and new approval. Cheaper alternatives remain on the shopping rows.
 - Clicking a product name on the list opens its details under the row: needed and bought amounts, what is left over, why the product was chosen, unit prices and deposits, and the other products with *Valitse tuote*.
 - The Ostoskori page is gone. Its details are on the list rows, the transfer is confirmed in the list column, and an interrupted transfer is shown in the total bar with a *Tarkista* button that leads to recovery.
 - Quieter list rows: the home and remove buttons appear on hover or keyboard focus, and alternatives moved into the row details. A row shows only "Edullisempi vaihtoehto" with the saving. At live stores a look-alike, such as chicken mince for mince, is no longer offered as a cheaper option.

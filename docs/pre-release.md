@@ -8,7 +8,7 @@ Agreed direction on 9 October 2026: move from prototype to pre-release while kee
 
 Keep the current note-driven shopping workspace, optional ChatGPT connection, manual recipes, local data and backup, Finnish and English, PDF/TXT/CSV receipt import, and reviewed K-Ruoka cart and S-kaupat account-list transfers. Preserve the pinned retailer workers and transfer recovery. Include the latest product-matching and Finnish-label fixes.
 
-This stage covers release versioning, packaging, automated checks, packaged-app smoke tests and release notes. It does not add features or change the storage location, application ID or backup format. Export a backup from Settings before upgrading an existing profile.
+The 0.4.0 candidate includes the accepted smooth-flow roadmap work: U1, U2, U7, U8, U9, U10 and U11, plus the completed two-chain comparison and fee work. Release preparation covers versioning, packaging, automated checks, packaged-app smoke tests and release notes. The storage location and application ID stay the same; older profiles receive default model preferences. Export a backup from Settings before upgrading an existing profile. The candidate remains a pre-release until the owner acceptance checks are recorded.
 
 ## Release checks
 

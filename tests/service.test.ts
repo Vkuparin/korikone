@@ -11,6 +11,140 @@ function memory() {
     },
   };
 }
+test("displayed transfer writes once and remains protected after restart", async () => {
+  const storage = memory();
+  const service = new Service(storage);
+  await ready(service);
+  const approval = {
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  };
+  await service.transferDisplayed(approval);
+  expect(service.journal?.status).toBe("verified");
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const writes = provider.writes;
+  await service.transferDisplayed(approval);
+  expect(provider.writes).toBe(writes);
+  const restarted = new Service(storage);
+  await restarted.init();
+  await restarted.transferDisplayed({
+    revision: restarted.state.revision,
+    quotedAt: restarted.quotedAt,
+    batchKey: restarted.snapshot().transferBatchKey,
+  });
+  expect((restarted.registry.get("demo-k") as DemoProvider).writes).toBe(0);
+});
+test("displayed transfer stops for budget, changed prices and stale approval", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const approval = {
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  };
+  service.state.household.budget = 0;
+  await service.transferDisplayed(approval);
+  expect(service.transferException).toBe("acknowledgeReview");
+  expect(service.review).not.toBeNull();
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  expect(provider.writes).toBe(0);
+  service.state.household.budget = 12000;
+  provider.priceChange = true;
+  await service.transferDisplayed(approval);
+  expect(service.transferException).toBe("priceChanged");
+  expect(provider.writes).toBe(0);
+  await expect(
+    service.transferDisplayed({ ...approval, revision: 999 }),
+  ).rejects.toThrow("draftStale");
+});
+test("concurrent displayed approvals cannot add duplicate quantities", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const approval = {
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  };
+  const outcomes = await Promise.allSettled([
+    service.transferDisplayed(approval),
+    service.transferDisplayed(approval),
+  ]);
+  expect(outcomes.map((outcome) => outcome.status)).toEqual([
+    "fulfilled",
+    "rejected",
+  ]);
+  expect(service.journal?.status).toBe("verified");
+  expect((service.registry.get("demo-k") as DemoProvider).writes).toBe(
+    service.journal!.review.targets.length,
+  );
+});
+test("existing quantities and missing rows require an exception decision before writes", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const cart = await provider.getCart(service.state.context);
+  const product = service.basket[0].product!;
+  cart.lines.push({
+    productId: product.id,
+    name: product.name,
+    quantity: 2,
+    unit: product.nativeUnit,
+  });
+  provider.carts.set(JSON.stringify(service.state.context), cart);
+  const approval = {
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  };
+  await service.transferDisplayed(approval);
+  expect(service.transferException).toBe("acknowledgeReview");
+  expect(service.review!.targets[0].before).toBe(2);
+  expect(provider.writes).toBe(0);
+  await service.save({
+    ...service.state,
+    extras: [{ id: "unknown", name: "Unknown food", amount: 1, unit: "pcs" }],
+  });
+  await service.buildBasket();
+  await service.transferDisplayed({
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  });
+  expect(service.review!.unresolved!.map((line) => line.id)).toContain(
+    "unknown",
+  );
+  expect(provider.writes).toBe(0);
+});
+test("changed packs and account changes cannot substitute the approved batch", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const search = provider.searchProducts.bind(provider);
+  provider.searchProducts = async (...args) =>
+    (await search(...args)).map((product) => ({
+      ...product,
+      packAmount: product.packAmount * 2,
+    }));
+  const approval = {
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+  };
+  await service.transferDisplayed(approval);
+  expect(service.review).toBeNull();
+  expect(service.transferException).toBe("priceChanged");
+  expect(provider.writes).toBe(0);
+  provider.searchProducts = search;
+  await service.transferDisplayed(approval);
+  const cart = await provider.getCart(service.state.context);
+  cart.accountId = "different-account";
+  provider.carts.set(JSON.stringify(service.state.context), cart);
+  await expect(service.transferDisplayed(approval)).rejects.toThrow(
+    "accountChanged",
+  );
+  expect(provider.writes).toBe(service.journal!.review.targets.length);
+});
 async function ready(service: Service) {
   await service.init();
   await service.buildBasket();
@@ -21,6 +155,21 @@ async function ready(service: Service) {
     });
   await service.prepare();
 }
+test("model-only preference preserves quote and review across persistence", async () => {
+  const storage = memory();
+  const service = new Service(storage);
+  await ready(service);
+  const before = structuredClone(service.snapshot());
+  await service.setAIModel("fixture-large");
+  expect(service.state.revision).toBe(before.state.revision);
+  expect(service.review).toEqual(before.review);
+  expect(service.basket).toEqual(before.basket);
+  expect(service.quotedAt).toEqual(before.quotedAt);
+  const restarted = new Service(storage);
+  await restarted.init();
+  expect(restarted.state.aiModel).toBe("fixture-large");
+  expect(restarted.basket).toEqual(before.basket);
+});
 test("language-only changes preserve the approval and quantities", async () => {
   const service = new Service(memory());
   await ready(service);

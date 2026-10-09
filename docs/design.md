@@ -48,7 +48,7 @@ Cancel is available beside the note while generation runs. It aborts the request
 
 Keep the saved list and quote stable through note edits, view return and restart. Check this separately from the button and shortcut updates using the [U8 owner-check steps](testing.md#explicit-update-owner-check-u83); record owner observations in acceptance rather than inferring them from fixture results.
 
-The app discovers a suitable available model automatically. OAuth, credentials, streaming completion checks and usage errors stay in the local AI provider. The renderer never receives tokens. There is no automatic paid API fallback.
+The saved `aiModel` preference defaults to `auto` for older profiles and survives backup restore. Shared selectors below the note and in a separate ChatGPT Settings card edit it through `setAIModel`; preference changes preserve the note, quote, revision and review. Each explicit note or recipe request resolves one model before validation retries. Automatic recognizes small tiers from catalogue names; the catalogue exposes no comparable price metadata. If no small tier is identified, it requires an explicit selection. An unavailable saved choice remains visible and causes an actionable error without generation. OAuth, credentials, streaming completion checks and usage errors stay in the local AI provider. The renderer never receives tokens. There is no automatic paid API fallback.
 
 ## Product selection and transfer
 
@@ -58,12 +58,12 @@ Alternatives are chosen in the row details. When a cheaper product for the same 
 
 Transfer flow:
 
-1. Read the current cart and refresh selected product quotes.
-2. Show a confirmation panel in the list column with only what needs attention: unresolved ingredients excluded from this batch, products already in the cart, cheaper alternatives for the same ingredient, and a budget overrun. Exact before/after quantities and retained unrelated items are under "Näytä kaikki rivit". A changed price or pack stops the review before this step, so the list is re-quoted first.
-3. Apply the batch when the shopper presses the confirm button, which names the product count, chain and total. That press is the approval. A separate acknowledgement is required only when the total is over the weekly budget. Keep revision, account, store, price and quantity checks.
+1. The pinned transfer-and-open button names the destination, product count and quoted total. Its initial click approves that displayed batch, bound to its quote time, revision, context, products and quantities. Read the current cart and validate selected product quotes without substituting another batch.
+2. Only exceptions require a confirmation panel: missing products, existing quantities and a budget overrun. Exact before/after quantities and retained unrelated items are under "Näytä kaikki rivit". A changed price or pack stops the flow and offers an explicit refresh before another approval. Cheaper alternatives stay on the shopping rows.
+3. Apply an unchanged batch automatically. For exceptions, the confirm button approves the displayed changes; a separate checkbox accepts a budget overrun. Keep revision, account, store, price and quantity checks.
 4. Journal each operation and read back the cart. A failure stops the batch and offers reconciliation; never blindly repeat an uncertain write.
 5. Show verified and unresolved items in the same panel, with the next step. Save verified runs to local transfer history so they can be reused.
-6. For K-Ruoka, open the cart URL in the default browser. S-kaupat retains its authenticated `open_site` handoff and list-to-cart instructions. The user may need to sign into the same retailer account there. The app does not copy browser cookies or claim session continuity.
+6. Automatically open the destination only after verification: K-Ruoka's basket in the default browser, or S-kaupat's authenticated Korikone list. A failed opening preserves the verified result and offers an open-only retry. The journal's `batchKey` prevents repeating the same approved batch across view return, refresh and restart. Reopening is safe; adding the same list again requires the explicit repeat action and exception approval. S-kaupat's "Lisää kaikki ostoskoriin" and checkout stay manual. The app does not copy browser cookies or claim K-Ruoka browser session continuity.
 
 Unsupported weighted prices and ambiguous pack labels remain unresolved. A partial batch may transfer the available products only after the review lists what is excluded. It must not imply the complete list was transferred. Fees and unreported deposits remain outside the estimate.
 

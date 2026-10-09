@@ -36,6 +36,7 @@ export class Service {
   developmentMode = false;
   developmentScenario = "success";
   developmentRequests = 0;
+  developmentModel: string | null = null;
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
@@ -44,6 +45,10 @@ export class Service {
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
+  private transferPending = false;
+  transferException: string | null = null;
+  handoffError: string | null = null;
+  developmentHandoffs: string[] = [];
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
   recipeDraft: Recipe | null = null;
@@ -85,6 +90,15 @@ export class Service {
       return this.snapshot();
     });
   }
+  async setAIModel(input: unknown) {
+    const aiModel = z.string().min(1).max(200).parse(input);
+    return this.writeState(async () => {
+      const next = { ...this.state, aiModel };
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
+  }
   constructor(private db: Storage) {
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
@@ -118,6 +132,7 @@ export class Service {
       developmentMode: this.developmentMode,
       developmentScenario: this.developmentScenario,
       developmentRequests: this.developmentRequests,
+      developmentModel: this.developmentModel,
       developmentCatalogueRequests: this.developmentMode
         ? this.registry
             .all()
@@ -136,6 +151,10 @@ export class Service {
       pricingError: this.pricingError,
       journal: this.journal,
       review: this.review,
+      transferException: this.transferException,
+      handoffError: this.handoffError,
+      transferBatchKey: this.batchKey(),
+      developmentHandoffs: this.developmentHandoffs,
       storeResults: this.storeResults,
       contextOptions: this.contextOptions,
       storeLogin:
@@ -150,7 +169,7 @@ export class Service {
   }
   async save(input: unknown) {
     return this.writeState(async () => {
-      if (this.busy) throw new Error("busy");
+      if (this.busy || this.transferPending) throw new Error("busy");
       const next = stateSchema.parse(input);
       this.registry.get(next.context.providerId);
       if (next.revision !== this.state.revision) throw new Error("draftStale");
@@ -163,6 +182,7 @@ export class Service {
         ...this.state,
         language: next.language,
         calendar: next.calendar,
+        aiModel: next.aiModel,
       };
       const changed =
         JSON.stringify(previousShoppingState) !== JSON.stringify(next);
@@ -363,7 +383,8 @@ export class Service {
     return this.snapshot();
   }
   async buildBasket() {
-    if (this.busy) throw new Error("busy");
+    if (this.busy || this.transferPending) throw new Error("busy");
+    this.transferException = null;
     this.review = null;
     const context = this.state.context;
     const key = pricingKey(this.state);
@@ -588,6 +609,93 @@ export class Service {
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
   }
+  /** The initial click approves exactly the quoted batch, never a newly priced substitute. */
+  private batchKey() {
+    return JSON.stringify({
+      context: this.state.context,
+      lines: this.basket.map((line) => [
+        line.requirement,
+        line.product && [
+          line.product.id,
+          line.product.price,
+          line.product.deposit,
+          line.product.packAmount,
+          line.product.unit,
+          line.product.nativeUnit,
+          line.product.increment,
+        ],
+        line.packs,
+        line.total,
+      ]),
+    });
+  }
+  async transferDisplayed(input: unknown) {
+    const { revision, quotedAt, batchKey } = z
+      .object({
+        revision: z.number().int(),
+        quotedAt: z.string(),
+        batchKey: z.string(),
+      })
+      .parse(input);
+    if (this.busy || this.transferPending) throw new Error("busy");
+    if (
+      revision !== this.state.revision ||
+      quotedAt !== this.quotedAt ||
+      batchKey !== this.batchKey()
+    )
+      throw new Error("draftStale");
+    this.transferPending = true;
+    this.transferException = null;
+    this.review = null;
+    try {
+      if (this.journal?.status === "partial") {
+        this.transferException = "recoverFirst";
+        return this.snapshot();
+      }
+      if (
+        this.journal?.status === "verified" &&
+        this.journal.batchKey === this.batchKey()
+      ) {
+        const cart = await this.registry
+          .get(this.state.context.providerId)
+          .getCart(this.state.context);
+        if (cart.accountId !== this.journal.review.baseline.accountId)
+          throw new Error("accountChanged");
+        return this.snapshot();
+      }
+      try {
+        await this.prepare({ allowMissing: true });
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !["priceChanged", "unresolved"].includes(error.message)
+        )
+          throw error;
+        this.transferException = error.message;
+        return this.snapshot();
+      }
+      if (
+        revision !== this.state.revision ||
+        quotedAt !== this.quotedAt ||
+        batchKey !== this.batchKey()
+      ) {
+        this.review = null;
+        throw new Error("draftStale");
+      }
+      const review = this.review!;
+      if (
+        review.unresolved?.length ||
+        review.total > this.state.household.budget ||
+        review.targets.some((target) => target.before > 0)
+      ) {
+        this.transferException = "acknowledgeReview";
+        return this.snapshot();
+      }
+      return await this.execute({ id: review.id, acknowledged: false });
+    } finally {
+      this.transferPending = false;
+    }
+  }
   async execute(input: unknown) {
     const { id, acknowledged } = z
       .object({ id: z.string(), acknowledged: z.boolean() })
@@ -609,6 +717,10 @@ export class Service {
     try {
       const provider = this.registry.get(this.review.context.providerId);
       const journal: Journal = {
+        batchKey:
+          this.journal?.status === "partial"
+            ? this.journal.batchKey
+            : this.batchKey(),
         review: this.review,
         status: "ready",
         verified: [],
