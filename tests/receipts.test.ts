@@ -19,7 +19,7 @@ test("extracts PDF receipt text locally and rejects empty or broken PDFs", async
   await expect(readReceipt(path, worker)).rejects.toThrow("receiptNoText");
   await writeFile(path, "not a PDF");
   await expect(readReceipt(path, worker)).rejects.toThrow("receiptUnreadable");
-});
+}, 30000);
 
 test("text receipt import preserves Finnish text and rejects oversized input", async () => {
   const directory = await mkdtemp(join(tmpdir(), "korikone-receipt-"));

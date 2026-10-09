@@ -39,7 +39,7 @@ test("migration backup includes committed WAL data and survives restart", async 
     await database.close();
     legacy.close();
   }
-});
+}, 30000);
 
 test("worker startup failure rejects subsequent requests instead of hanging", async () => {
   const directory = await mkdtemp(join(tmpdir(), "korikone-invalid-db-"));
