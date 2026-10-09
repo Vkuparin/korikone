@@ -14,6 +14,14 @@ Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`
 - Products expose normal prices and availability but lack structured pack sizes, deposits and dietary attributes. Pack labels are parsed conservatively. Weighted prices and ambiguous pack labels remain unresolved. Product acceptance must include checking the pack label and dietary suitability. Prices are estimates, with fees and any unreported deposits unresolved until store checkout.
 - Same-profile checkout handoff closes the worker and launches Chrome against that profile. Live account continuity remains an acceptance check; it is not established by the protocol test.
 
+Decision for U3.7 (U3.2 spike, 9 October 2026): replace the worker with a Korikone K-Ruoka client in `src/stores/` that calls the site's API from the `persist:k-ruoka` store tab, rather than asking upstream for a host-page mode.
+
+- The API is four same-origin calls (product search, store search, cart read, cart write) authenticated only by the HttpOnly `session` cookie that the store tab already holds, so a page-context `fetch` is enough ([integrations.md](integrations.md#k-ruoka-inside-an-electron-view-u32-9-october-2026)).
+- k-ruoka-mcp is a third-party Rust binary that launches and drives its own Chrome over the DevTools protocol. A host-page mode would need an upstream change and either an open debugging port in Korikone or a new bridge protocol.
+- The client returns the same tool-shaped results, so `KRuokaProvider` and its review binding stay unchanged.
+- It must keep the worker's safeguards: the build-number header with a retry on 409, at least 500 ms between calls, a null account treated as signed out, item IDs validated before a write, and rollback of an unknown EAN.
+- The worker stays pinned until the client passes `tests/k-ruoka.test.ts` and the owner has checked one cart write from the view.
+
 ## S-kaupat
 
 Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.2.0`, source revision `0cf3228449a0e47b359d77978b6dcd151bfdd737` (previously `v1.1.0`, `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`).
