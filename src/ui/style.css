@@ -630,9 +630,14 @@ body:has(.app-main) .demo {
 }
 .shopping-panel {
   background: white;
-  padding: 22px 18px;
+  padding: 22px 18px 0;
   border-radius: 10px;
   min-width: 0;
+  /* The list scrolls on its own; the total and transfer bar stay at its bottom. */
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 .list-menu {
   position: relative;
@@ -762,10 +767,22 @@ body:has(.app-main) .demo {
   width: 100%;
   margin-top: 3px;
 }
-.shopping-total {
+.list-footer {
   border-top: 1px solid #e6ece6;
   margin-top: 25px;
-  padding-top: 20px;
+  padding-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+.shopping-total {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 16px -18px 0;
+  padding: 12px 18px 16px;
+  background: white;
+  border-top: 1px solid #e6ece6;
+  box-shadow: 0 -8px 12px -12px rgba(0, 0, 0, 0.3);
 }
 .shopping-total > div:first-child {
   display: flex;
@@ -776,16 +793,16 @@ body:has(.app-main) .demo {
 .shopping-total strong {
   font-size: 23px;
 }
-.shopping-total small {
+.list-footer small {
   font-size: 10px;
   color: #7a897e;
 }
-.shopping-total .warning {
+.list-footer .warning {
   font-size: 11px;
 }
 .transfer-button {
   width: 100%;
-  margin-top: 14px;
+  margin-top: 10px;
   font-size: 12px;
 }
 .list-exports {
@@ -854,6 +871,9 @@ body:has(.app-main) .demo {
   }
   .shopping-panel {
     margin-top: 12px;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
   body:has(.app-main) header {
     width: 140px;

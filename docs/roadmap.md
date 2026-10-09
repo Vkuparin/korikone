@@ -90,7 +90,7 @@ The total and a "Siirrä S-kauppaan · 25,39 €" button stay pinned at the bott
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| U1.1 | Pinned total and transfer bar; the list column scrolls independently of the note column | | Planned |
+| U1.1 | Pinned total and transfer bar; the list column scrolls independently of the note column | | Done: the list column is sticky and fits the window, the total and "Siirrä … · total" bar stays at its bottom; `tests/ui/pinned.spec.ts` |
 | U1.2 | Confirmation panel on the list page with attention items only, built on the existing review and journal code | U1.1 | Planned |
 | U1.3 | Replace the checkbox with the labelled confirm button; keep an explicit acknowledgement only when over budget or a price rose since quoting. Update [design.md](design.md) and [ux.md](ux.md) | U1.2 | Planned |
 | U1.4 | Show the transfer result in the same panel: verified count, what was left out, next step | U1.2 | Planned |

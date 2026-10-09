@@ -39,6 +39,28 @@ export function ShoppingWorkspace({
   const currentNote = useRef(note);
   const attempted = useRef(state.note);
   const quoted = useRef(-1);
+  const panel = useRef<HTMLElement>(null);
+  // The list column is as tall as the window below its current top, so the total and
+  // transfer bar at its bottom stays in view however far the page is scrolled.
+  useEffect(() => {
+    const fit = () => {
+      const el = panel.current;
+      if (!el) return;
+      if (getComputedStyle(el).position !== "sticky") {
+        el.style.maxHeight = "";
+        return;
+      }
+      const top = Math.max(el.getBoundingClientRect().top, 12);
+      el.style.maxHeight = `${window.innerHeight - top - 12}px`;
+    };
+    fit();
+    window.addEventListener("scroll", fit, { passive: true });
+    window.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("scroll", fit);
+      window.removeEventListener("resize", fit);
+    };
+  }, []);
   const active = useRef(true);
   const running = useRef(false);
   const savedNote = useRef(state.note);
@@ -679,7 +701,7 @@ export function ShoppingWorkspace({
           </section>
         )}
       </section>
-      <aside className="shopping-panel">
+      <aside className="shopping-panel" ref={panel}>
         <div className="section-heading compact">
           <h2>
             {tr("Ostoslista", "Shopping list")}{" "}
@@ -1033,11 +1055,7 @@ export function ShoppingWorkspace({
               })}
           </section>
         ))}
-        <div className="shopping-total">
-          <div>
-            <span>{tr("Arvio yhteensä", "Estimated total")}</span>
-            <strong>{money(total)}</strong>
-          </div>
+        <div className="list-footer">
           {state.skipped.length > 0 && (
             <small>
               {state.skipped.length}{" "}
@@ -1070,25 +1088,6 @@ export function ShoppingWorkspace({
               money={money}
             />
           )}
-          <button
-            className="transfer-button"
-            disabled={busy || !rows.length || missing.length === rows.length}
-            onClick={async () => {
-              if (await call("prepare", { allowMissing: true })) review();
-            }}
-          >
-            {state.context.providerId === "s-kaupat" ? (
-              tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
-            ) : (
-              <>
-                {tr("Siirrä", "Transfer to")}{" "}
-                {state.context.providerId === "k-ruoka"
-                  ? "K-Ruoan"
-                  : tr("kaupan", "store")}{" "}
-                {tr("ostoskoriin", "cart")}
-              </>
-            )}
-          </button>
           {state.context.providerId === "s-kaupat" && (
             <p className="input-notice">
               {tr(
@@ -1126,6 +1125,39 @@ export function ShoppingWorkspace({
               "Check the fee and any unreported deposits at the store.",
             )}
           </small>
+        </div>
+        {/* Stays at the bottom of the list column while the rows scroll. */}
+        <div
+          className="shopping-total"
+          role="region"
+          aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
+        >
+          <div>
+            <span>{tr("Arvio yhteensä", "Estimated total")}</span>
+            <strong>{money(total)}</strong>
+          </div>
+          <button
+            className="transfer-button"
+            disabled={busy || !rows.length || missing.length === rows.length}
+            onClick={async () => {
+              if (await call("prepare", { allowMissing: true })) review();
+            }}
+          >
+            {state.context.providerId === "s-kaupat" ? (
+              tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+            ) : (
+              <>
+                {tr("Siirrä", "Transfer to")}{" "}
+                {state.context.providerId === "k-ruoka"
+                  ? "K-Ruoan"
+                  : tr("kaupan", "store")}{" "}
+                {tr("ostoskoriin", "cart")}
+              </>
+            )}
+            {total > 0 && (
+              <span className="transfer-total"> · {money(total)}</span>
+            )}
+          </button>
         </div>
       </aside>
     </div>
