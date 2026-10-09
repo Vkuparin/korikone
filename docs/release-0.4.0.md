@@ -1,6 +1,6 @@
 # Korikone 0.4.0 release candidate
 
-Prepared on 9 October 2026. This is an unsigned Windows x64 pre-release candidate. Publication waits for the U10 and U11 owner observations recorded in [acceptance.md](acceptance.md).
+Prepared on 9 October 2026 from implementation commit `48d594c`. This is an unsigned Windows x64 pre-release candidate. Publication waits for the U10 and U11 owner observations recorded in [acceptance.md](acceptance.md).
 
 ## Changes
 
