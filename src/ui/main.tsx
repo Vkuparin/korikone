@@ -699,6 +699,17 @@ function App() {
                   </label>
                   <p>{t("developmentModeInfo")}</p>
                   {snapshot.developmentMode && (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void save({ ...state, setupComplete: false })
+                      }
+                    >
+                      {t("restartSetup")}
+                    </button>
+                  )}
+                  {snapshot.developmentMode && (
                     <label>
                       {t("developmentScenario")}
                       <select

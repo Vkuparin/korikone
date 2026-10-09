@@ -51,6 +51,18 @@ test("guided setup allows manual planning and remembers completion", async () =>
     await expect(
       page.getByText("Lisää valmiita reseptejä", { exact: true }),
     ).toBeVisible();
+    // Development mode can show the setup screen again without a fresh data folder.
+    await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Näytä aloitusnäyttö uudelleen" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toBeHidden();
     await app.close();
     app = await electron.launch({ args: ["."], env });
     await expect(

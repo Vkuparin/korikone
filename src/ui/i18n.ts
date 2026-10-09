@@ -34,6 +34,7 @@ export const en = {
   setupAIInfo:
     "Connect ChatGPT to describe what you want to cook. Korikone chooses a suitable small model automatically. You can always plan manually.",
   setupDone: "Done",
+  restartSetup: "Show the setup screen again",
   setupBackToSetup: "Back to setup",
   duplicateStaple:
     "This regular item already exists. Edit the existing item instead.",
@@ -289,6 +290,7 @@ export const fi: Record<Key, string> = {
   setupAIInfo:
     "Yhdistä ChatGPT ja kerro, mitä haluaisit valmistaa. Korikone valitsee sopivan pienen mallin automaattisesti. Voit aina suunnitella myös itse.",
   setupDone: "Valmis",
+  restartSetup: "Näytä aloitusnäyttö uudelleen",
   setupBackToSetup: "Takaisin aloitukseen",
   duplicateStaple: "Tämä vakiotuote on jo olemassa. Muokkaa nykyistä tuotetta.",
   advancedSettings: "Lisäasetukset",
