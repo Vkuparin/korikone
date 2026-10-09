@@ -40,6 +40,7 @@ function App() {
     comparison: null,
     pickupFee: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
+    update: null,
     draft: null,
   });
   const [page, setPage] = useState<Key>("week");
@@ -238,6 +239,16 @@ function App() {
           ? `${state.context.storeName} · ${t("liveStore")}`
           : t("demo")}
       </div>
+      {snapshot.update && (
+        <div className="update-banner" role="status">
+          {t("updateAvailable")}: {snapshot.update.version}{" "}
+          <button className="text" onClick={() => void call("openRelease")}>
+            {state.language === "fi"
+              ? "Avaa julkaisusivu"
+              : "Open release page"}
+          </button>
+        </div>
+      )}
       {error && (
         <div role="alert" className="error">
           {t(error in en ? (error as Key) : "operationFailed")}

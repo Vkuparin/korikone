@@ -11,6 +11,7 @@ const methods = [
   "buildBasket",
   "compareStores",
   "recordError",
+  "openRelease",
   "accept",
   "setPackSize",
   "omit",

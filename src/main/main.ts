@@ -6,6 +6,7 @@ import {
   safeStorage,
   shell,
   clipboard,
+  net,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -26,6 +27,7 @@ import {
 import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
 import { readReceipt } from "../receipts/read";
+import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
 import { StoreViews } from "./store-view";
 import {
@@ -130,6 +132,25 @@ else
       input === undefined || input === null
         ? service.state.context.providerId
         : z.enum(["k-ruoka", "s-kaupat"]).parse(input);
+    // At most one network check a day; development mode never reaches GitHub and shows a fixture release.
+    const fixtureUpdate = {
+      version: "99.0.0",
+      url: "https://github.com/Vkuparin/korikone/releases/tag/v99.0.0",
+    };
+    const checkUpdate = async () => {
+      const found = development
+        ? fixtureUpdate
+        : await checkForUpdate(app.getVersion(), db, async (url) => {
+            const response = await net.fetch(url, {
+              headers: { Accept: "application/vnd.github+json" },
+              signal: AbortSignal.timeout(5000),
+            });
+            if (!response.ok) throw new Error("updateCheckFailed");
+            return response.json();
+          });
+      service.update = found;
+    };
+    let updateChecked: Promise<void> | null = null;
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
@@ -165,6 +186,12 @@ else
     let generationRun = 0;
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => {
+        updateChecked ??= checkUpdate().catch(() => {});
+        // A saved answer is instant; a daily network check may finish after the first snapshot.
+        await Promise.race([
+          updateChecked,
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
         return service.snapshot();
       },
@@ -187,6 +214,7 @@ else
         await db.set("development-mode", enabled);
         development = enabled;
         service = next;
+        updateChecked = null;
         ai = enabled ? fixtureAI : liveAI;
         service.developmentScenario = fixtureAI.scenario;
         service.developmentRequests = enabled ? fixtureAI.requestCount : 0;
@@ -238,6 +266,12 @@ else
       },
       modelsAI: async () => {
         await ai.models();
+        return service.snapshot();
+      },
+      openRelease: async () => {
+        // Only the release page the update check found, and never in development mode.
+        if (service.update && !development)
+          await shell.openExternal(service.update.url);
         return service.snapshot();
       },
       usageAI: async () => {

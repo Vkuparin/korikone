@@ -56,6 +56,8 @@ export class Service {
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
+  /** A newer release found by the daily update check; shown as a link, never downloaded. */
+  update: { version: string; url: string } | null = null;
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
   draftRevision: number | null = null;
@@ -200,6 +202,7 @@ export class Service {
       comparison: this.comparison,
       pickupFee: this.pickupFee,
       ai: this.ai,
+      update: this.update,
       draft: this.draft,
     };
   }

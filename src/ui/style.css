@@ -1169,3 +1169,8 @@ nav button.store-open small {
   display: block;
   font-weight: 400;
 }
+.update-banner {
+  padding: 6px 16px;
+  background: #f3f6f3;
+  font-size: 12px;
+}
