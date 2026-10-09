@@ -61,6 +61,8 @@ export class DemoProvider implements StoreProvider {
     private save?: () => void,
   ) {}
   async searchStores(query = ""): Promise<StoreContext[]> {
+    if (/search-error/i.test(query)) throw new Error("storeBusy");
+    if (/no-results/i.test(query)) return [];
     return [
       {
         providerId: this.id,
@@ -69,7 +71,7 @@ export class DemoProvider implements StoreProvider {
           : /pickup-only/i.test(query)
             ? "demo-pickup-only"
             : "demo-helsinki",
-        storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · Helsinki (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
+        storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · ${/alternate/i.test(query) ? "Alternate" : /pickup-only/i.test(query) ? "Pickup only" : "Helsinki"} (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
         fulfillment: "pickup",
       },
     ];

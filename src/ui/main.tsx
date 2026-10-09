@@ -13,6 +13,7 @@ import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { Chains } from "./chains";
+import { ShoppingContext } from "./context";
 import { isLive } from "../stores/provider";
 declare global {
   interface Window {
@@ -316,10 +317,17 @@ function App() {
             ))}
           </nav>
           <main className="app-main">
-            <div className="context">
-              <span>{state.context.storeName}</span>
-              <span>{t(state.context.fulfillment)}</span>
-            </div>
+            <ShoppingContext
+              snapshot={snapshot}
+              busy={busy}
+              setBusy={setBusy}
+              apply={(next) =>
+                setSnapshot((current) => ({
+                  ...next,
+                  state: { ...next.state, language: current.state.language },
+                }))
+              }
+            />
             {(page === "week" || page === "weekPlan" || page === "history") && (
               <ShoppingWorkspace
                 key={`${page}:${snapshot.developmentMode}`}

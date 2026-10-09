@@ -16,6 +16,7 @@ Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helve
 | Explicit note updates (U8.1) | Fixture request counts stay at zero after typing, waiting, view return and restored edits. The labelled button and Ctrl+Enter each request an update. Cancellation, errors and obsolete responses preserve the saved list; Finnish and English controls and unapplied-edit hints are covered | Done |
 | Retained quotes (U8.2) | Focused service, real SQLite and desktop fixtures restore compatible products, totals and quote time with zero catalogue calls on navigation and restart. No previous quote has an explicit fetch action; store/list edits reprice. Failed pricing shows saved edits as unpriced and supports retry. A price rise at fresh transfer review blocks retailer writes | Done (automated); U8.3 owner check pending |
 | Confirmed context API (U9.1) | Twelve focused unit cases and a real development-mode IPC/restart check cover store changes, remembered chains, pickup/delivery fixtures, unavailable fulfillment, read/save failures, concurrent confirmation, unchanged groceries and note, refreshed fees and durable quotes. Live adapters expose pickup only; the header UI remains U9.2 | Done (automated) |
+| Header context selectors (U9.2) | Focused desktop fixtures cover mouse/keyboard, cancel/Escape and focus return, Finnish/English labels, empty/failed store search, confirmed changes, unsupported delivery and adapter failure/retry. Opening/cancelling makes no catalogue requests; context changes make no AI requests. Typed note and groceries remain intact | Done (automated); U9.3 owner check pending |
 | Two demo stores and reviewed cart changes | Desktop journey verifies matching, approval, interrupted transfer, reconciliation and restart | Done |
 | Migration backup and local export/restore | SQLite test reads pre-migration WAL content from the backup; desktop test exports, restores and rejects broken recipe references | Done |
 | Saved meal calendar (F9.1) | Older profiles default to an empty calendar; SQLite restart and real backup export/restore preserve dates, meal IDs and leftovers. Invalid dates are rejected without replacing saved data | Done |
@@ -49,6 +50,8 @@ The reported unexpected app exit during early store selection was not reproduced
 
 
 ## Explicit-update owner check (U8.3)
+
+The [header context owner check](testing.md#header-context-owner-check-u93) is also pending observation for U9.3. Automated selector tests are recorded separately above. The interactive milestone combines explicit list updates, retained quotes and confirmed header context changes in development mode, without live account access.
 
 Status on 9 October 2026: pending owner observation. U8.1 (`4b55c80`) and U8.2 (`5d73dd5`) have automated fixture evidence. The owner has not yet reported the combined edit, view-return, restart, button and shortcut check. Follow the [check steps](testing.md#explicit-update-owner-check-u83), then record the tested commit, mode and result here. Development mode uses no ChatGPT allowance; live testing needs an explicit request and two successful generations, with up to one corrective retry each. No retailer writes are part of this check.
 
