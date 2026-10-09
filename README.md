@@ -2,7 +2,7 @@
 
 A local Windows app that turns a shopping note into meals, groceries and a priced list.
 
-The pre-release includes automatic note interpretation and product choices, editable shopping rows, recipes, an optional meal schedule, transfer history and PDF receipt import. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
+The current source includes explicitly requested note interpretation, automatic product choices, editable shopping rows, recipes, an optional meal schedule, transfer history and PDF receipt import. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
 
 ## Install the pre-release
 
@@ -25,9 +25,11 @@ The store search includes both chains. S-kaupat uses the pinned v1.2.0 worker wi
 
 ## Shopping and receipts
 
-Write meals and groceries in one note. After a short pause, Korikone interprets it and selects products. Ctrl+Enter updates immediately. Adjust portions, mark items already at home, remove rows or choose alternatives. Transfer opens a summary of actual cart changes, including any unresolved items excluded from the batch.
+Write meals and groceries in one note. In the current source, press **Päivitä lista** / **Update list** or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. Transfer opens a summary of actual cart changes, including any unresolved items excluded from the batch.
 
-In the current source build, **Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press Ctrl+Enter or the arrow to retry it explicitly.
+**Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press the update button or Ctrl+Enter to retry. Editing during an update discards its obsolete response without starting another request.
+
+Returning to the shopping list or restarting restores compatible products, totals and the time labelled **Viimeksi haetut hinnat** / **Last quoted prices**, without requesting interpretation or catalogue data. Explicit list, product and store changes refresh prices. A list without a compatible quote shows **Ei hinnoiteltu** / **Not priced** and an explicit action to fetch products and prices. If an edit saves but pricing fails, the saved rows stay visible as unpriced with a retry action. Transfer review checks fresh retailer data before any write.
 
 Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and can be edited before use in future ChatGPT suggestions. Scanned PDFs require OCR first. Copy or save the list for manual shopping; direct phone sync is not implemented.
 

@@ -44,6 +44,8 @@ On successful interpretation, replace the current generated list, persist the no
 
 Cancel is available beside the note while generation runs. It aborts the request and invalidates pending drafts. The saved list stays intact and the typed note remains available for an explicit retry. Cancellation has its own status rather than a network-failure alert. Development mode exposes request counts in its snapshots for explicit-update, retry and cancellation checks.
 
+Keep the saved list and quote stable through note edits, view return and restart. Check this separately from the button and shortcut updates using the [U8 owner-check steps](testing.md#explicit-update-owner-check-u83); record owner observations in acceptance rather than inferring them from fixture results.
+
 The app discovers a suitable available model automatically. OAuth, credentials, streaming completion checks and usage errors stay in the local AI provider. The renderer never receives tokens. There is no automatic paid API fallback.
 
 ## Product selection and transfer

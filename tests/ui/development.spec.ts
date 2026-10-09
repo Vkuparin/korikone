@@ -67,6 +67,14 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     await page
       .getByLabel("What would you like to cook?")
       .fill("pasta and soup");
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentRequests,
+      ),
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Update list", exact: true })
+      .click();
     await expect(page.locator(".interpretation")).toHaveCount(2, {
       timeout: 15000,
     });

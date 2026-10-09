@@ -35,4 +35,15 @@ During implementation, run focused unit tests for the changed feature, such as `
 
 ## Live acceptance
 
+### Explicit-update owner check (U8.3)
+
+Use the current source build with an existing priced list. Development mode uses local fixtures and no ChatGPT allowance. A live check requires an explicit request and two successful ChatGPT generations, one for each update action; invalid output can cause one corrective retry per action. Typing, navigation and restart should use no generations or catalogue requests. Explicit updates also read the retailer catalogue; this check transfers no products.
+
+1. Note the current meals, rows, total and quote time. Edit the note without updating. Check the unapplied-edit hint and unchanged list and prices; no update progress should appear.
+2. Open Recipes and return to Shopping list. Restart the app. Check that the edited note, saved rows, total and quote time remain, without interpretation or pricing progress.
+3. Press “Päivitä lista” / “Update list”. Check that update progress and cancellation appear while it runs, then that the completed list matches the applied note and has a quote time.
+4. Edit the note again and press Ctrl+Enter. Check the same progress and completed-list behavior. Record the build/commit, mode, date, observations and any failures in `docs/acceptance.md`.
+
+Automated counterparts are the explicit-update and obsolete-response cases in `tests/ui/shopping.spec.ts`, the retained-quote restart case in `tests/ui/quotes.spec.ts`, and the explicit button/validation retry in `tests/ui/development.spec.ts`. These fixture checks do not establish an owner-observed result.
+
 Ask for live testing only after implementation and fixture checks pass. State what remains to verify, such as actual account authorization, model availability, retailer browser handoff or a reviewed cart write. Live ChatGPT requests require an explicit user request. Offline tests cannot prove a remote service's current behavior or the quality of live meal interpretation.

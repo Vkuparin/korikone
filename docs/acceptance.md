@@ -4,7 +4,7 @@ Evidence through 9 October 2026. Current scope is defined in [pre-release.md](pr
 
 ## Current source acceptance preparation
 
-Development mode is the default for automated and agent testing. The current source adds cancellation beside the note input, invalidates running and queued drafts, preserves the saved list and typed note, and requires an explicit retry of the cancelled note. Fixture request counts check debounce, the bounded validation retry, cancellation of queued requests and usage-failure behavior. The original multi-dish example has cooked-meal, ready-food, breakfast and snack fixtures through the real validation and matching paths.
+Development mode is the default for automated and agent testing. The current source updates the note only by the labelled button or Ctrl+Enter, supports cancellation and discards obsolete drafts. Fixture request counts check zero automatic generations, the bounded validation retry, cancellation and usage failures. Compatible quotes survive navigation and restart without catalogue requests. The original multi-dish example has cooked-meal, ready-food, breakfast and snack fixtures through the real validation and matching paths.
 
 Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helvetica and Courier, multiple-page order, malformed/textless documents and the page/file limits. This is offline evidence only; varied real receipts and live model quality remain acceptance work. Routine work uses focused feature checks. Full suites are reserved for release preparation.
 
@@ -46,6 +46,12 @@ Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helve
 
 The reported unexpected app exit during early store selection was not reproduced. Windows Application Error records inspected for Korikone/Electron did not identify a crash. The cause remains unresolved; desktop test windows have since been made hidden to avoid interrupting the user's session.
 
+
+## Explicit-update owner check (U8.3)
+
+Status on 9 October 2026: pending owner observation. U8.1 (`4b55c80`) and U8.2 (`5d73dd5`) have automated fixture evidence. The owner has not yet reported the combined edit, view-return, restart, button and shortcut check. Follow the [check steps](testing.md#explicit-update-owner-check-u83), then record the tested commit, mode and result here. Development mode uses no ChatGPT allowance; live testing needs an explicit request and two successful generations, with up to one corrective retry each. No retailer writes are part of this check.
+
+U8.3 preparation: four focused development-mode desktop checks passed on 9 October 2026: real IPC with an explicit button and validation retry, retained quotes through view return and restart, no automatic updates after typing/restored edits, and obsolete-response protection. Type checking and changed-test formatting passed. These checks used temporary profiles and local fixtures, with no live AI or retailer requests.
 
 ## Feedback-round implementation, 9 October 2026
 

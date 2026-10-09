@@ -58,6 +58,8 @@ Settings offers PDF, TXT and CSV import plus an editable text area. PDF text ext
 
 Compare desktop, narrow and empty-state captures with the redesign. Check long Finnish names, row density, keyboard focus, disabled states, language switching, stale note responses, manual additions, home/removal behavior, additive quantities and clear-list. Keep transfer recovery and existing setup/form persistence tests. Live model and retailer behavior need user-account checks beyond automated fixtures.
 
+For explicit updates and retained quotes, use the [U8 owner-check steps](testing.md#explicit-update-owner-check-u83): edit without updating, leave and return, restart, then update by button and Ctrl+Enter. Verify stable rows and quote time before an update and visible progress only while it runs. Record the mode and observed result in acceptance.
+
 ## Preserved store and support features
 
 Both retailers remain searchable during setup. Settings lists K-Ruoka and S-kaupat side by side, each with its own sign-in state, remembered store and a *Use this store* action; one is marked active, and switching keeps the other chain signed in. Setup shows the other chain below the chosen store. Keep S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.
