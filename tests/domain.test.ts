@@ -191,3 +191,22 @@ describe("reviewed cart transfers", () => {
     expect(journal.error).toBe("verificationFailed");
   });
 });
+
+it("keeps home rows visible separately from removed rows and applies quantity overrides", () => {
+  const state = initialState();
+  state.staples = [];
+  state.meals = [
+    { id: "one", day: 0, recipeId: "pasta", servings: 4, leftovers: false },
+  ];
+  state.extras = [{ id: "pasta", name: "Pasta", amount: 100, unit: "g" }];
+  expect(requirements(state).find((r) => r.id === "pasta")?.amount).toBe(500);
+  state.quantities = { "pasta:g": 1000 };
+  state.skipped = ["pasta:g"];
+  state.removed = ["tomato:g"];
+  expect(requirements(state)).toEqual([]);
+  expect(
+    requirements(state, new Date(), true).map((r) => [r.id, r.amount]),
+  ).toEqual([["pasta", 1000]]);
+  state.skipped = [];
+  expect(requirements(state).map((r) => r.id)).toEqual(["pasta"]);
+});

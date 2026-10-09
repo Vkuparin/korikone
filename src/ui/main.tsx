@@ -8,7 +8,7 @@ import {
   type Recipe,
   type Unit,
 } from "../domain/model";
-import { requirements } from "../domain/planner";
+import { ShoppingWorkspace } from "./shopping";
 import { en, fi, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
@@ -51,26 +51,6 @@ function App() {
       style: "currency",
       currency: "EUR",
     }).format(cents / 100);
-  const days =
-    state.language === "fi"
-      ? [
-          "Maanantai",
-          "Tiistai",
-          "Keskiviikko",
-          "Torstai",
-          "Perjantai",
-          "Lauantai",
-          "Sunnuntai",
-        ]
-      : [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-          "Sunday",
-        ];
   async function call(method: string, input?: unknown) {
     setBusy(true);
     setError("");
@@ -110,6 +90,31 @@ function App() {
     }, 1500);
     return () => clearInterval(timer);
   }, [snapshot.ai.state]);
+  useEffect(() => {
+    if (snapshot.storeLogin !== "waiting" || busy) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      try {
+        const result = await window.korikone.checkStoreLogin();
+        if (stopped) return;
+        if (!result.ok) {
+          setError(result.error ?? "storeUnavailable");
+          return;
+        }
+        setSnapshot(result.value);
+        if (result.value.storeLogin === "waiting")
+          timer = setTimeout(check, 2500);
+      } catch {
+        if (!stopped) setError("storeUnavailable");
+      }
+    };
+    timer = setTimeout(check, 2500);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [snapshot.storeLogin, busy]);
   const field = (label: string, control: React.ReactNode) => (
     <label>
       {label}
@@ -124,6 +129,7 @@ function App() {
     );
   return (
     <>
+      <div className="window-bar">▧ Korikone</div>
       <header>
         <a
           className="brand"
@@ -175,7 +181,15 @@ function App() {
           t={t}
           busy={busy}
           call={call}
-          finish={() => save({ ...state, setupComplete: true })}
+          finish={() =>
+            save({
+              ...state,
+              setupComplete: true,
+              staples: state.meals.length
+                ? state.staples
+                : state.staples.map((s) => ({ ...s, enabled: false })),
+            })
+          }
         />
       ) : !state.onboarded ? (
         <main className="welcome">
@@ -199,6 +213,7 @@ function App() {
                   ...state,
                   onboarded: true,
                   setupComplete: true,
+                  note: "Tomaattipasta ja peruna-porkkanakeitto. Kahvia.",
                   meals: [
                     {
                       id: crypto.randomUUID(),
@@ -224,7 +239,12 @@ function App() {
               className="secondary"
               disabled={busy}
               onClick={() =>
-                void save({ ...state, onboarded: true, setupComplete: true })
+                void save({
+                  ...state,
+                  onboarded: true,
+                  setupComplete: true,
+                  staples: state.staples.map((s) => ({ ...s, enabled: false })),
+                })
               }
             >
               {t("manual")}
@@ -235,7 +255,15 @@ function App() {
         <>
           <nav>
             {(
-              ["week", "recipes", "staples", "basket", "settings"] as Key[]
+              [
+                "week",
+                "weekPlan",
+                "recipes",
+                "staples",
+                "history",
+                "basket",
+                "settings",
+              ] as Key[]
             ).map((key) => (
               <button
                 key={key}
@@ -246,308 +274,28 @@ function App() {
               </button>
             ))}
           </nav>
-          <main>
+          <main className="app-main">
             <div className="context">
               <span>{state.context.storeName}</span>
               <span>{t(state.context.fulfillment)}</span>
             </div>
-            {page === "week" && (
-              <>
-                <div className="section-heading">
-                  <div>
-                    <div className="eyebrow">VIIKKO / WEEK</div>
-                    <h1>{t("welcome")}</h1>
-                  </div>
-                  <button
-                    disabled={busy}
-                    onClick={async () => {
-                      if (await call("buildBasket")) setPage("basket");
-                    }}
-                  >
-                    {t("buildBasket")}
-                  </button>
-                </div>
-                <section className="card">
-                  <h2>{t("assistedPlanning")}</h2>
-                  {snapshot.ai.state === "connected" ? (
-                    <form
-                      className="form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const data = new FormData(e.currentTarget);
-                        void call("generate", {
-                          prompt: String(data.get("prompt")),
-                          model: String(data.get("model") ?? "auto"),
-                          consent: true,
-                        });
-                      }}
-                    >
-                      <p>{snapshot.ai.email}</p>
-                      <label>
-                        {t("mealRequest")}
-                        <textarea name="prompt" required maxLength={10000} />
-                      </label>
-                      <details
-                        onToggle={(event) => {
-                          if (
-                            event.currentTarget.open &&
-                            !snapshot.ai.models.length &&
-                            !busy
-                          )
-                            void call("modelsAI");
-                        }}
-                      >
-                        <summary>{t("advancedSettings")}</summary>
-                        <p>{t("automaticModelInfo")}</p>
-                        <label>
-                          {t("model")}
-                          <select name="model" defaultValue="auto">
-                            <option value="auto">{t("automaticModel")}</option>
-                            {snapshot.ai.models.map((model) => (
-                              <option key={model.slug} value={model.slug}>
-                                {model.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button
-                          type="button"
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() => void call("modelsAI")}
-                        >
-                          {t("loadModels")}
-                        </button>
-                      </details>
-                      <p className="muted">{t("aiConsent")}</p>
-                      <button disabled={busy}>{t("generate")}</button>
-                    </form>
-                  ) : (
-                    <>
-                      <p>{t("aiStatus")}</p>
-                      <button
-                        disabled={busy || snapshot.ai.state === "waiting"}
-                        onClick={() => void call("signInAI")}
-                      >
-                        Continue with ChatGPT
-                      </button>
-                      {snapshot.ai.state === "waiting" && (
-                        <p role="status">{t("waitingAI")}</p>
-                      )}
-                    </>
-                  )}
-                  {snapshot.draft && (
-                    <div className="draft">
-                      <h3>{t("draftReview")}</h3>
-                      <p>{snapshot.draft.notes}</p>
-                      {snapshot.draft.meals.map((meal, i) => (
-                        <p key={i}>
-                          {days[meal.day]} ·{" "}
-                          {
-                            [...state.recipes, ...snapshot.draft!.recipes].find(
-                              (r) => r.id === meal.recipeId,
-                            )?.name
-                          }{" "}
-                          · {meal.servings} {t("servings").toLowerCase()}
-                        </p>
-                      ))}
-                      {snapshot.draft.recipes.map((recipe) => (
-                        <details key={recipe.id} open>
-                          <summary>{recipe.name}</summary>
-                          <ul>
-                            {recipe.ingredients.map((item, i) => (
-                              <li key={i}>
-                                {item.name}: {item.amount} {item.unit}
-                              </li>
-                            ))}
-                          </ul>
-                          <p>{recipe.instructions}</p>
-                        </details>
-                      ))}
-                      <button
-                        disabled={busy}
-                        onClick={() => void call("approveDraft")}
-                      >
-                        {t("approveDraft")}
-                      </button>
-                    </div>
-                  )}
-                </section>
-                <div className="columns">
-                  <section>
-                    <form
-                      className="card inline"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const data = new FormData(e.currentTarget);
-                        void save({
-                          ...state,
-                          meals: [
-                            ...state.meals,
-                            {
-                              id: crypto.randomUUID(),
-                              recipeId: String(data.get("recipe")),
-                              day: Number(data.get("day")),
-                              servings: Number(data.get("servings")),
-                              leftovers: false,
-                            },
-                          ],
-                        });
-                      }}
-                    >
-                      {field(
-                        t("recipe"),
-                        <select name="recipe" aria-label={t("recipe")}>
-                          {state.recipes.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </select>,
-                      )}
-                      {field(
-                        t("day"),
-                        <select name="day">
-                          {days.map((day, i) => (
-                            <option key={day} value={i}>
-                              {day}
-                            </option>
-                          ))}
-                        </select>,
-                      )}
-                      {field(
-                        t("servings"),
-                        <input
-                          name="servings"
-                          type="number"
-                          min="1"
-                          max="100"
-                          defaultValue={state.household.servings}
-                          required
-                        />,
-                      )}
-                      <button disabled={busy || !state.recipes.length}>
-                        {t("addMeal")}
-                      </button>
-                    </form>
-                    {!state.meals.length && (
-                      <p className="muted">{t("empty")}</p>
-                    )}
-                    {[...state.meals]
-                      .sort((a, b) => a.day - b.day)
-                      .map((meal) => (
-                        <article className="card meal" key={meal.id}>
-                          <div className="day">{days[meal.day]}</div>
-                          <h2>
-                            {
-                              state.recipes.find((r) => r.id === meal.recipeId)
-                                ?.name
-                            }
-                          </h2>
-                          <div className="inline">
-                            {field(
-                              t("servings"),
-                              <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={meal.servings}
-                                disabled={busy}
-                                onChange={(e) => {
-                                  const n = Number(e.target.value);
-                                  if (n >= 1 && n <= 100)
-                                    void save({
-                                      ...state,
-                                      meals: state.meals.map((m) =>
-                                        m.id === meal.id
-                                          ? { ...m, servings: n }
-                                          : m,
-                                      ),
-                                    });
-                                }}
-                              />,
-                            )}
-                            <label className="check">
-                              <input
-                                type="checkbox"
-                                checked={meal.leftovers}
-                                disabled={busy}
-                                onChange={(e) =>
-                                  void save({
-                                    ...state,
-                                    meals: state.meals.map((m) =>
-                                      m.id === meal.id
-                                        ? { ...m, leftovers: e.target.checked }
-                                        : m,
-                                    ),
-                                  })
-                                }
-                              />
-                              {t("leftovers")}
-                            </label>
-                            <button
-                              className="text"
-                              disabled={busy}
-                              onClick={() =>
-                                void save({
-                                  ...state,
-                                  meals: state.meals.filter(
-                                    (m) => m.id !== meal.id,
-                                  ),
-                                })
-                              }
-                            >
-                              {t("remove")}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                  </section>
-                  <aside className="card">
-                    <h2>{t("shoppingList")}</h2>
-                    {requirements(state).map((r) => (
-                      <div className="requirement" key={`${r.id}:${r.unit}`}>
-                        <strong>{r.name}</strong>
-                        <span>
-                          {r.amount} {r.unit}
-                        </span>
-                        <small>
-                          {r.sources
-                            .map((s) => (s === "staple" ? t("staple") : s))
-                            .join(", ")}
-                        </small>
-                        <button
-                          className="text"
-                          disabled={busy}
-                          onClick={() =>
-                            void save({
-                              ...state,
-                              skipped: [...state.skipped, `${r.id}:${r.unit}`],
-                            })
-                          }
-                        >
-                          {t("alreadyHave")}
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void call("exportList")}
-                    >
-                      {t("exportList")}
-                    </button>
-                    {!!state.skipped.length && (
-                      <button
-                        className="text"
-                        onClick={() => void save({ ...state, skipped: [] })}
-                      >
-                        {t("restoreItems")}
-                      </button>
-                    )}
-                  </aside>
-                </div>
-              </>
+            {(page === "week" || page === "weekPlan" || page === "history") && (
+              <ShoppingWorkspace
+                key={page}
+                snapshot={snapshot}
+                busy={busy}
+                call={call}
+                save={save}
+                settings={() => setPage("settings")}
+                review={() => setPage("basket")}
+                view={
+                  page === "weekPlan"
+                    ? "schedule"
+                    : page === "history"
+                      ? "history"
+                      : "list"
+                }
+              />
             )}
             {page === "recipes" && (
               <>
@@ -812,6 +560,30 @@ function App() {
                       {t("verifiedLines")}: {snapshot.journal.verified.length} /{" "}
                       {snapshot.journal.review.targets.length}
                     </p>
+                    {!!snapshot.journal.review.unresolved?.length && (
+                      <div className="warning">
+                        <h3>
+                          {state.language === "fi"
+                            ? "Nämä jäivät ostoskorin ulkopuolelle"
+                            : "These items were not transferred"}
+                        </h3>
+                        <ul>
+                          {snapshot.journal.review.unresolved.map((item) => (
+                            <li key={`${item.id}:${item.unit}`}>
+                              {item.name} · {item.amount} {item.unit}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <button
+                      className="secondary"
+                      onClick={() => setPage("week")}
+                    >
+                      {state.language === "fi"
+                        ? "Takaisin listaan"
+                        : "Back to list"}
+                    </button>
                     {snapshot.journal.uncertain && (
                       <p>
                         {t("uncertain")}: {snapshot.journal.uncertain}
@@ -831,6 +603,22 @@ function App() {
                   <section className="card">
                     <h2>{t("reviewTitle")}</h2>
                     <p>{snapshot.review.context.storeName}</p>
+                    {!!snapshot.review.unresolved?.length && (
+                      <div className="warning">
+                        <h3>
+                          {state.language === "fi"
+                            ? "Tuote puuttuu: ei siirretä"
+                            : "No product selected: excluded from transfer"}
+                        </h3>
+                        <ul>
+                          {snapshot.review.unresolved.map((item) => (
+                            <li key={`${item.id}:${item.unit}`}>
+                              {item.name} · {item.amount} {item.unit}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     {snapshot.review.context.providerId === "k-ruoka" && (
                       <p>
                         {t("account")}: {snapshot.review.baseline.accountId}
@@ -1222,6 +1010,50 @@ function App() {
                       </button>
                     )}
                   </div>
+                </section>
+                <section className="card form">
+                  <h2>
+                    {state.language === "fi"
+                      ? "Aiemmat kuitit"
+                      : "Previous receipts"}
+                  </h2>
+                  <p>
+                    {state.language === "fi"
+                      ? "Tuo PDF-kuitti, teksti- tai CSV-tiedosto tai liitä ostosrivit alle. PDF:n teksti luetaan paikallisesti. Tietoja käytetään seuraavissa ChatGPT-ehdotuksissa. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."
+                      : "Import a PDF, text or CSV receipt, or paste purchase lines below. PDF text is extracted locally. These inform future ChatGPT suggestions. Scanned PDFs need OCR."}
+                  </p>
+                  <button
+                    disabled={busy}
+                    onClick={() => void call("importReceipt")}
+                  >
+                    {state.language === "fi"
+                      ? "Tuo kuitti (PDF, teksti tai CSV)"
+                      : "Import receipt (PDF, text or CSV)"}
+                  </button>
+                  <form
+                    key={state.receiptText}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void save({
+                        ...state,
+                        receiptText: String(
+                          new FormData(e.currentTarget).get("receipts"),
+                        ),
+                      });
+                    }}
+                  >
+                    <label>
+                      {state.language === "fi"
+                        ? "Kuittien ostosrivit"
+                        : "Receipt purchase lines"}
+                      <textarea
+                        name="receipts"
+                        defaultValue={state.receiptText}
+                        maxLength={50000}
+                      />
+                    </label>
+                    <button disabled={busy}>{t("save")}</button>
+                  </form>
                 </section>
                 <details className="card">
                   <summary>{t("dataManagement")}</summary>

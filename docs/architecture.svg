@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
 <title id="title">Korikone local desktop architecture</title>
-<desc id="desc">A graphical desktop app calls a local application core. ChatGPT provides AI drafts. Two local MCP adapters reach K-Ruoka and the separate S-kaupat MCP project. Only the human completes checkout.</desc>
+<desc id="desc">A graphical desktop app calls a local application core. ChatGPT provides AI drafts. K-Ruoka is live; S-kaupat is planned. A local PDF worker extracts receipt text. Only the human completes checkout.</desc>
 <rect width="1440" height="1020" fill="#f6f7f3"/>
 <text x="40" y="63" font-family="Segoe UI, sans-serif" font-size="38" font-weight="700" fill="#182c25">Korikone</text>
-<text x="40" y="100" font-family="Segoe UI, sans-serif" font-size="23" font-weight="400" fill="#52615a">Local desktop app • ChatGPT assistance • Two retailers • Human checkout</text>
+<text x="40" y="100" font-family="Segoe UI, sans-serif" font-size="23" font-weight="400" fill="#52615a">Note-driven shopping • Local PDF receipts • Human checkout</text>
 <text x="40" y="140" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#52615a">LOCAL APP AND EXTERNAL SERVICES</text>
 <rect x="40" y="158" width="850" height="115" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
 <text x="62" y="197" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">React interface in Electron</text>
-<text x="62" y="231" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Planner, recipes, store selection and basket review • Finnish / English</text>
+<text x="62" y="231" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Note, interpretation cards and compact shopping list • Finnish / English</text>
 <text x="62" y="260" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Narrow validated IPC; no credentials or generic tool execution</text>
 <rect x="940" y="158" width="460" height="115" rx="16" fill="#eaf3ed" stroke="#dce3db" stroke-width="2"/>
 <text x="962" y="197" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">ChatGPT / OpenAI</text>
@@ -15,7 +15,7 @@
 <text x="962" y="260" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Eligible AI requests use the user’s plan</text>
 <rect x="40" y="320" width="850" height="140" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
 <text x="62" y="359" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local application and domain services</text>
-<text x="62" y="393" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Validate AI drafts; calculate ingredients, packs, prices and cart diffs</text>
+<text x="62" y="393" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Validate notes; merge ingredients; auto-select products and compute totals</text>
 <text x="62" y="422" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Bind approval to the basket, retailer account and current cart</text>
 <text x="62" y="451" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Journal writes; reconcile failures; verify the result</text>
 <rect x="940" y="320" width="460" height="140" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
@@ -35,14 +35,14 @@
 <text x="62" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Reviewed schemas and capabilities</text>
 <text x="62" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
 <rect x="495" y="516" width="395" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="517" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat adapter</text>
-<text x="517" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Pinned local s-kaupat-mcp release</text>
-<text x="517" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Separate project; browser choice in S0</text>
+<text x="517" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat (planned)</text>
+<text x="517" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Separate project; demo available now</text>
+<text x="517" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Live adapter awaits its own release</text>
 <text x="517" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
 <rect x="940" y="516" width="460" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
 <text x="962" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local persistence</text>
 <text x="962" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">SQLite with migrations and backup</text>
-<text x="962" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Recipes, plans and purchase history</text>
+<text x="962" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Notes, receipts and transfer history</text>
 <text x="962" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Cart snapshots and operation journal</text>
 <polyline points="237,460 237,516" fill="none" stroke="#698176" stroke-width="3"/>
 <polygon points="237,516 231,506 243,506" fill="#698176"/>
@@ -59,16 +59,16 @@
 <text x="517" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Selected branch and fulfillment</text>
 <text x="517" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Search, authenticated cart and readback</text>
 <rect x="940" y="698" width="460" height="115" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="962" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Future retailers</text>
-<text x="962" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Register another provider and fixtures</text>
-<text x="962" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Reuse the planner and review interface</text>
+<text x="962" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">PDF receipt worker</text>
+<text x="962" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Local PDF.js text extraction</text>
+<text x="962" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Bounded size and time; OCR deferred</text>
 <polyline points="237,661 237,698" fill="none" stroke="#698176" stroke-width="3"/>
 <polygon points="237,698 231,688 243,688" fill="#698176"/>
 <polyline points="690,661 690,698" fill="none" stroke="#698176" stroke-width="3"/>
 <polygon points="690,698 684,688 696,688" fill="#698176"/>
 <rect x="40" y="870" width="1360" height="105" rx="16" fill="#fff4df" stroke="#e8d9b9" stroke-width="2"/>
 <text x="62" y="909" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Human checkout</text>
-<text x="62" y="943" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">After verified transfer, open the same authenticated cart in a human-controlled store window. The user orders and pays.</text>
+<text x="62" y="943" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Open the default browser; sign into the same store account if needed. The user chooses delivery, orders and pays.</text>
 <polyline points="237,813 237,870" fill="none" stroke="#698176" stroke-width="3"/>
 <polygon points="237,870 231,860 243,860" fill="#698176"/>
 <polyline points="690,813 690,870" fill="none" stroke="#698176" stroke-width="3"/>

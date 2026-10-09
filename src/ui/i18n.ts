@@ -1,4 +1,13 @@
 export const en = {
+  receiptNoText:
+    "This PDF has no readable text. For a scanned receipt, export a searchable PDF with OCR first, or paste its purchase lines.",
+  receiptUnreadable:
+    "The receipt could not be read. Check that the PDF is valid and not password protected.",
+  receiptTooLarge:
+    "Receipt data exceeds the limit (20 MB, 100 PDF pages or 50,000 saved characters). Import a smaller receipt or remove old receipt text.",
+  weekPlan: "Meal schedule",
+  history: "History",
+  changeStore: "Choose another branch",
   dataManagement: "Backups and data",
   setupStart: "Set up my shopping",
   setupProgress: "Getting started",
@@ -87,7 +96,7 @@ export const en = {
   closeStoreWindow: "Close the store window before connecting again.",
   unsupportedCart:
     "The cart contains unsupported product identifiers. Review it in the store.",
-  week: "Week",
+  week: "Shopping list",
   recipes: "Recipes",
   staples: "Regular items",
   settings: "Settings",
@@ -189,6 +198,15 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  receiptNoText:
+    "PDF ei sisällä luettavaa tekstiä. Tee skannatulle kuitille tekstintunnistus (OCR) tai liitä ostosrivit tekstinä.",
+  receiptUnreadable:
+    "Kuitin lukeminen epäonnistui. Tarkista, että PDF on ehjä eikä salasanasuojattu.",
+  receiptTooLarge:
+    "Kuittitiedot ylittävät rajan (20 Mt, 100 PDF-sivua tai 50 000 tallennettua merkkiä). Tuo pienempi kuitti tai poista vanhaa kuittitekstiä.",
+  weekPlan: "Viikkosuunnitelma",
+  history: "Historia",
+  changeStore: "Valitse toinen kauppa",
   dataManagement: "Varmuuskopiot ja tiedot",
   setupStart: "Ota käyttöön",
   setupProgress: "Aloitetaan",
@@ -271,7 +289,7 @@ export const fi: Record<Key, string> = {
   closeStoreWindow: "Sulje kaupan ikkuna ennen uutta yhteyttä.",
   unsupportedCart:
     "Korissa on tuotetunnisteita, joita ei tueta. Tarkista kori kaupassa.",
-  week: "Viikko",
+  week: "Ostoslista",
   recipes: "Reseptit",
   staples: "Vakiotuotteet",
   settings: "Asetukset",

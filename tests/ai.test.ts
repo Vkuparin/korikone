@@ -99,7 +99,7 @@ test("requires completed inference even after partial text", async () => {
     stream: true,
   });
 });
-test("rejects invented recipe references, collisions and malformed drafts", () => {
+test("rejects invented references and malformed drafts, and remaps colliding recipe IDs", () => {
   const state = initialState();
   const valid = {
     recipes: [],
@@ -116,11 +116,62 @@ test("rejects invented recipe references, collisions and malformed drafts", () =
       state,
     ),
   ).toThrow("invalidDraft");
+  const remapped = validateDraft(
+    JSON.stringify({ ...valid, recipes: [state.recipes[0]] }),
+    state,
+  );
+  expect(remapped.recipes[0].id).not.toBe("pasta");
+  expect(remapped.meals[0].recipeId).toBe(remapped.recipes[0].id);
+  expect(() => validateDraft('{"partial":', state)).toThrow("invalidDraft");
+});
+
+test("multiple meals and ready foods share ingredient identities and survive code fences", () => {
+  const state = initialState();
+  const raw = {
+    recipes: [
+      {
+        id: "soup",
+        name: "Nakkikeitto",
+        servings: 4,
+        instructions: "Keitä.",
+        ingredients: [
+          { id: "potatoes", name: "Peruna", amount: 800, unit: "g" },
+        ],
+      },
+      {
+        id: "fish",
+        name: "Lohi",
+        servings: 4,
+        instructions: "Paista.",
+        ingredients: [
+          { id: "different-id", name: "Peruna", amount: 600, unit: "g" },
+        ],
+      },
+    ],
+    meals: [
+      { recipeId: "soup", servings: 4 },
+      { recipeId: "fish", servings: 4 },
+    ],
+    items: [{ id: "pizza", name: "Pakastepizza", amount: 1050, unit: "g" }],
+  };
+  const draft = validateDraft(
+    "```json\n" + JSON.stringify(raw) + "\n```",
+    state,
+  );
+  expect(draft.meals).toHaveLength(2);
+  expect(draft.recipes.map((r) => r.ingredients[0].id)).toEqual([
+    "potato",
+    "potato",
+  ]);
+  expect(draft.items[0].amount).toBe(1050);
+  expect(draft.meals[0].recipeId).toBe(draft.recipes[0].id);
+  expect(
+    validateDraft(JSON.stringify({ items: raw.items }), state).meals,
+  ).toEqual([]);
   expect(() =>
     validateDraft(
-      JSON.stringify({ ...valid, recipes: [state.recipes[0]] }),
+      JSON.stringify({ ...raw, recipes: [raw.recipes[0], raw.recipes[0]] }),
       state,
     ),
   ).toThrow("invalidDraft");
-  expect(() => validateDraft('{"partial":', state)).toThrow("invalidDraft");
 });

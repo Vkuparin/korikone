@@ -14,6 +14,7 @@ export const recipeSchema = z.object({
   servings: z.number().int().min(1).max(100),
   ingredients: z.array(ingredientSchema).min(1).max(100),
   instructions: z.string().max(10000),
+  kind: z.enum(["meal", "ready", "breakfast", "evening", "snack"]).optional(),
 });
 export const mealSchema = z.object({
   id: z.string(),
@@ -50,6 +51,35 @@ export const stateSchema = z.object({
   context: contextSchema,
   revision: z.number().int().nonnegative(),
   accepted: z.record(z.string(), z.array(z.string())),
+  note: z.string().max(10000).default(""),
+  assumptions: z.string().max(5000).default(""),
+  extras: z.array(ingredientSchema).max(500).default([]),
+  removed: z.array(z.string()).max(1000).default([]),
+  quantities: z
+    .record(z.string(), z.number().int().positive().max(10_000_000))
+    .default({}),
+  productPreference: z
+    .enum(["price", "storeBrand", "avoidStoreBrand"])
+    .default("price"),
+  receiptText: z.string().max(50000).default(""),
+  history: z
+    .array(
+      z.object({
+        id: z.string(),
+        date: z.string(),
+        note: z.string(),
+        meals: z.array(mealSchema),
+        recipes: z.array(recipeSchema).default([]),
+        extras: z.array(ingredientSchema),
+        skipped: z.array(z.string()).default([]),
+        removed: z.array(z.string()).default([]),
+        quantities: z
+          .record(z.string(), z.number().int().positive())
+          .default({}),
+      }),
+    )
+    .max(52)
+    .default([]),
 });
 export type AppState = z.infer<typeof stateSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
@@ -103,6 +133,7 @@ export type Review = {
   createdAt: string;
   total: number;
   quotes: BasketLine[];
+  unresolved?: Requirement[];
 };
 export type Journal = {
   review: Review;
@@ -123,7 +154,7 @@ export function parseAmount(input: string, unit: Unit | "kg" | "l"): number {
   return result;
 }
 export function initialState(): AppState {
-  return {
+  return stateSchema.parse({
     version: 1,
     language: "fi",
     onboarded: false,
@@ -183,5 +214,5 @@ export function initialState(): AppState {
     },
     revision: 0,
     accepted: {},
-  };
+  });
 }

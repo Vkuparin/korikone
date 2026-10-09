@@ -5,6 +5,7 @@ import {
   dialog,
   safeStorage,
   shell,
+  clipboard,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -18,6 +19,7 @@ import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
 import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
+import { readReceipt } from "../receipts/read";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -62,7 +64,9 @@ else
       height: 900,
       minWidth: 680,
       minHeight: 600,
-      backgroundColor: "#f5f4ef",
+      backgroundColor: "#f3f6f3",
+      titleBarStyle: "hidden",
+      titleBarOverlay: { color: "#f3f6f3", symbolColor: "#30483b", height: 38 },
       webPreferences: {
         backgroundThrottling: process.env.KORIKONE_TEST_HIDDEN !== "1",
         preload: fileURLToPath(new URL("./preload.cjs", import.meta.url)),
@@ -112,19 +116,31 @@ else
           })
           .parse(input);
         const revision = service.state.revision;
-        const text = await ai.generate(
+        let text = await ai.generate(
           request.model,
           draftPrompt(request.prompt, service.state),
         );
-        service.draft = validateDraft(text, service.state);
+        try {
+          service.draft = validateDraft(text, service.state);
+        } catch (error) {
+          if (!(error instanceof Error) || error.message !== "invalidDraft")
+            throw error;
+          text = await ai.generate(
+            request.model,
+            draftPrompt(request.prompt, service.state) +
+              " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
+          );
+          service.draft = validateDraft(text, service.state);
+        }
         service.draftRevision = revision;
+        service.draftNote = request.prompt;
         return service.snapshot();
       },
       approveDraft: () => service.approveDraft(),
       confirmPurchase: () => service.confirmPurchase(),
       buildBasket: () => service.buildBasket(),
       accept: (input) => service.accept(input),
-      prepare: () => service.prepare(),
+      prepare: (input) => service.prepare(input),
       execute: (input) => service.execute(input),
       recover: () => service.recover(),
       scenario: (input) => service.scenario(input),
@@ -169,7 +185,29 @@ else
           service.journal.review.context.providerId !== "k-ruoka"
         )
           throw new Error("reviewRequired");
-        await worker.handoff();
+        await shell.openExternal("https://www.k-ruoka.fi/kauppa/ostoskori");
+        return service.snapshot();
+      },
+      copyList: async () => {
+        clipboard.writeText(shoppingList(service.state));
+        return service.snapshot();
+      },
+      importReceipt: async () => {
+        const { filePaths } = await dialog.showOpenDialog(window, {
+          properties: ["openFile"],
+          filters: [
+            { name: "Receipt / Kuitti", extensions: ["pdf", "txt", "csv"] },
+          ],
+        });
+        if (filePaths[0]) {
+          const text = await readReceipt(filePaths[0]);
+          if (service.state.receiptText.length + text.length + 1 > 50000)
+            throw new Error("receiptTooLarge");
+          return service.save({
+            ...service.state,
+            receiptText: service.state.receiptText + "\n" + text,
+          });
+        }
         return service.snapshot();
       },
       exportList: async () => {

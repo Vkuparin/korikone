@@ -28,6 +28,7 @@ export class Service {
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
   draftRevision: number | null = null;
+  draftNote = "";
   storeResults: StoreContext[] = [];
   storeLogin = "notStarted";
   controller: AbortController | null = null;
@@ -111,6 +112,12 @@ export class Service {
       ...this.state,
       recipes: [...this.state.recipes, ...this.draft.recipes],
       meals: this.draft.meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
+      extras: this.draft.items,
+      note: this.draftNote,
+      assumptions: this.draft.notes,
+      quantities: {},
+      removed: [],
+      skipped: [],
     });
     this.draft = null;
     this.draftRevision = null;
@@ -154,7 +161,29 @@ export class Service {
         this.state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
         ] ?? [];
-      result.push(match(requirement, products, accepted));
+      const available = products.filter(
+        (p) =>
+          p.available &&
+          p.price !== null &&
+          p.unit === requirement.unit &&
+          p.packAmount > 0,
+      );
+      const storeBrand = (name: string) =>
+        /\b(pirkka|k-menu|k menu|rainbow|xtra|coop)\b/i.test(name);
+      const preferred = available.filter((p) =>
+        this.state.productPreference === "storeBrand"
+          ? storeBrand(p.name)
+          : this.state.productPreference === "avoidStoreBrand"
+            ? !storeBrand(p.name)
+            : true,
+      );
+      const auto = (preferred.length ? preferred : available).map((p) => p.id);
+      const selected = accepted.filter((id) =>
+        available.some((p) => p.id === id),
+      );
+      result.push(
+        match(requirement, products, selected.length ? selected : auto),
+      );
     }
     this.basket = result;
     return this.snapshot();
@@ -183,15 +212,24 @@ export class Service {
     });
     return this.buildBasket();
   }
-  async prepare() {
+  async prepare(input?: unknown) {
     if (this.busy) throw new Error("busy");
     if (this.journal?.status === "partial") throw new Error("recoverFirst");
+    const { allowMissing } = z
+      .object({ allowMissing: z.boolean().default(false) })
+      .parse(input ?? {});
+    const unresolved = this.basket.filter(
+      (line) => !line.product || line.total === null,
+    );
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
       this.state.revision,
-      this.basket,
+      allowMissing
+        ? this.basket.filter((line) => line.product && line.total !== null)
+        : this.basket,
     );
+    this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
   }
   async execute(input: unknown) {
@@ -241,6 +279,33 @@ export class Service {
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
         await this.db.set(provider.id, [...provider.carts]);
+      if (this.journal.status === "verified") {
+        const next = {
+          ...this.state,
+          history: [
+            {
+              id: this.journal.review.id,
+              date: new Date().toISOString(),
+              note: this.state.note,
+              meals: structuredClone(this.state.meals),
+              recipes: structuredClone(
+                this.state.recipes.filter((r) =>
+                  this.state.meals.some((m) => m.recipeId === r.id),
+                ),
+              ),
+              extras: structuredClone(this.state.extras),
+              skipped: [...this.state.skipped],
+              removed: [...this.state.removed],
+              quantities: { ...this.state.quantities },
+            },
+            ...this.state.history.filter(
+              (h) => h.id !== this.journal!.review.id,
+            ),
+          ].slice(0, 52),
+        };
+        await this.db.set("state", next);
+        this.state = next;
+      }
       return this.snapshot();
     } finally {
       this.busy = false;

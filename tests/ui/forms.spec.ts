@@ -38,7 +38,10 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await page.getByText("Advanced settings", { exact: true }).click();
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
     await expect(page.locator(".context")).toContainText("S-kaupat");
-    await page.getByRole("button", { name: "Week", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Shopping list", exact: true })
+      .click();
+    await page.getByText("Add saved recipes", { exact: true }).click();
     await expect(page.getByLabel("Recipe", { exact: true })).toContainText(
       "Testikeitto",
     );
@@ -48,6 +51,7 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await app.close();
     app = await electron.launch({ args: ["."], env });
     const restarted = await app.firstWindow();
+    await restarted.getByText("Add saved recipes", { exact: true }).click();
     await expect(restarted.getByLabel("Recipe", { exact: true })).toContainText(
       "Testikeitto",
     );

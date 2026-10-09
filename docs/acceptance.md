@@ -21,3 +21,11 @@ Evidence recorded on 8 October 2026. Scope is defined in [prototype-scope.md](pr
 The reported unexpected app exit during early store selection was not reproduced. Windows Application Error records inspected for Korikone/Electron did not identify a crash. The cause remains unresolved; desktop test windows have since been made hidden to avoid interrupting the user's session.
 
 Live desktop work is paused while the owner uses the PC. No real cart transfer or purchase is claimed. Checkout remains manual. Clean-machine installation, signing, the independent S-kaupat integration and household usability sessions belong to the later release gates.
+
+## Feedback-round implementation, 9 October 2026
+
+The shopping workspace now follows the note/interpretation/list direction. Automated coverage includes multi-dish normalization, automatic product selection, home/removal/quantity behavior, stale drafts, partial transfer batches, and local PDF receipt extraction. Desktop checks cover setup, manual list editing, responsive layout, obsolete AI responses and cart recovery. See the current test results when assessing a particular build.
+
+The original first-round failure was reported against a live ChatGPT request. Collision handling and one bounded validation retry address known rejection paths, but do not establish that every real multi-dish response succeeds. Repeat the original nakkikeitto/multiple-meal request with the owner's account.
+
+Receipt PDFs with text are supported. Scanned/image-only PDFs produce a clear OCR-needed error. Live PDF receipt variety, default-browser retailer account continuity, the revised installer and real cart writes remain acceptance work; no real purchase was performed during implementation.

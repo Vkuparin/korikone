@@ -21,3 +21,7 @@ Use good defaults and automate setup details. Model discovery and selection must
 ## Verification
 
 Track implementation, automated checks, packaged-app checks and live-account checks separately. A mock contract test cannot establish live retailer behavior. A build cannot establish clean-machine installation. Record outstanding acceptance work explicitly.
+
+## First feedback round, 9 October 2026
+
+The current UI direction is the note-driven shopping workspace in [design.md](design.md) and [ux.md](ux.md). It supersedes the separate weekly-entry and draft-review flow. Add automatic interpretation and product selection, editable compact rows, a separate optional meal schedule, transfer history, and local PDF/TXT/CSV receipt import. Preserve the existing optional setup and manual path. Scanned PDFs requiring OCR, phone sync and an embedded retailer browser are not implemented.

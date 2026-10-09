@@ -23,3 +23,13 @@ The official DevKit examined at `0a36fefeb913055c8c7a1a29b63d82b96b2e841a` uses 
 The Windows NSIS installer build succeeded. It is an unsigned development prototype. On 8 October 2026, the owner selected a real K-Ruoka store, signed in and reported that the app's login check succeeded. Live cart mutation, checkout continuity, clean-machine installation and household usability sessions remain unverified. The owner also reported one unexpected app exit after store selection; its cause is under investigation.
 
 Live read-only catalogue smoke passed on 8 October 2026: the adapter found Ruoholahti and normalized 20 pasta search results from that branch. No account login or cart mutation was performed.
+
+## PDF receipts
+
+The 9 October 2026 feedback iteration adds `pdfjs-dist` 6.4.299 (Mozilla PDF.js, Apache-2.0), pinned in package.json and the lockfile. A dedicated Node worker extracts text from local PDFs with bounded file size, page count, output length and timeout. The app does not execute PDF document actions or fetch the receipt from a URL. The PDF.js package stays external to the main bundle so its worker and standard font assets remain available in the packaged dependency. Third-party notices include the library and its dependencies. API reference: https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib.html.
+
+## Revised product and checkout behavior
+
+Automatic product choice uses known-price, compatible-unit, available candidates. Explicit selections win; otherwise sufficient-pack cost and the user's soft brand preference decide. Unknown pack data still stays unresolved and dietary checks remain part of live transfer review.
+
+The checkout action now opens the retailer URL in the default browser. It does not use the earlier same-profile Chrome handoff and does not copy cookies. The user may need to sign into the same retailer account in that browser. This supersedes the checkout-handoff description above; continuity requires a live acceptance check.

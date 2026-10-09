@@ -1,9 +1,17 @@
 import type { AppState, BasketLine, Product, Requirement } from "./model";
-export function requirements(state: AppState, now = new Date()): Requirement[] {
+export function requirements(
+  state: AppState,
+  now = new Date(),
+  includeHome = false,
+): Requirement[] {
   const result = new Map<string, Requirement>();
   const add = (item: Requirement) => {
     const key = `${item.id}:${item.unit}`;
-    if (state.skipped.includes(key)) return;
+    if (
+      (!includeHome && state.skipped.includes(key)) ||
+      state.removed.includes(key)
+    )
+      return;
     const previous = result.get(key);
     if (previous) {
       previous.amount += item.amount;
@@ -28,7 +36,11 @@ export function requirements(state: AppState, now = new Date()): Requirement[] {
         staple.everyDays * 86400000;
     if (staple.enabled && due) add({ ...staple, sources: ["staple"] });
   }
-  return [...result.values()];
+  for (const item of state.extras) add({ ...item, sources: ["extra"] });
+  return [...result.values()].map((item) => ({
+    ...item,
+    amount: state.quantities[`${item.id}:${item.unit}`] ?? item.amount,
+  }));
 }
 export function match(
   requirement: Requirement,

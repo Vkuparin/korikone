@@ -32,6 +32,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Basket", exact: true }).click();
     await page
       .getByRole("button", { name: "Review products", exact: true })
       .click();

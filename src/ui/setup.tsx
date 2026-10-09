@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
 
@@ -17,11 +17,9 @@ export function Setup({
 }) {
   const [step, setStep] = useState(0);
   const { state } = snapshot;
-  useEffect(() => {
-    if (snapshot.storeLogin !== "waiting" || busy) return;
-    const timer = setTimeout(() => void call("checkStoreLogin"), 2500);
-    return () => clearTimeout(timer);
-  }, [snapshot.storeLogin, busy, call]);
+  const [choosingStore, setChoosingStore] = useState(
+    state.context.providerId !== "k-ruoka",
+  );
   return (
     <main className="welcome">
       <p>
@@ -31,7 +29,7 @@ export function Setup({
       {step === 0 ? (
         <section className="card form">
           <p>{t("setupStoreInfo")}</p>
-          {state.context.providerId !== "k-ruoka" ? (
+          {choosingStore ? (
             <>
               <form
                 className="inline"
@@ -60,9 +58,10 @@ export function Setup({
                   key={store.storeId}
                   className="secondary"
                   disabled={busy}
-                  onClick={() =>
-                    void call("save", { ...state, context: store })
-                  }
+                  onClick={async () => {
+                    if (await call("save", { ...state, context: store }))
+                      setChoosingStore(false);
+                  }}
                 >
                   {store.storeName}
                 </button>
@@ -71,6 +70,13 @@ export function Setup({
           ) : (
             <>
               <strong>{state.context.storeName}</strong>
+              <button
+                className="text"
+                disabled={busy || snapshot.storeLogin === "waiting"}
+                onClick={() => setChoosingStore(true)}
+              >
+                {t("changeStore")}
+              </button>
               {snapshot.storeLogin === "signedIn" ? (
                 <p role="status">{t("signedIn")}</p>
               ) : (

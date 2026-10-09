@@ -1,5 +1,14 @@
 import { build } from "esbuild";
 await build({
+  entryPoints: ["src/receipts/worker.ts"],
+  outfile: "dist/main/receipt-worker.js",
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  external: ["pdfjs-dist/*"],
+  target: "node24",
+});
+await build({
   entryPoints: ["src/main/main.ts"],
   outdir: "dist/main",
   bundle: true,

@@ -117,3 +117,75 @@ test("restart retains partial operations and reconciles successful timeout write
   await resumed.execute({ id: resumed.review!.id, acknowledged: false });
   expect(resumed.journal?.status).toBe("verified");
 });
+
+test("automatically chooses available products and respects explicit swaps and brand preferences", async () => {
+  const service = new Service(memory());
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const search = provider.searchProducts.bind(provider);
+  provider.searchProducts = async (...args) => {
+    const products = await search(...args);
+    return products.flatMap((p) => [
+      { ...p, id: p.id + "-brand", name: "Brand coffee", price: 500 },
+      { ...p, id: p.id + "-store", name: "Pirkka kahvi", price: 600 },
+      { ...p, id: p.id + "-unavailable", price: 1, available: false },
+    ]);
+  };
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("coffee-brand");
+  await service.save({ ...service.state, productPreference: "storeBrand" });
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("coffee-store");
+  await service.accept({ ingredientId: "coffee", productId: "coffee-brand" });
+  expect(service.basket[0].product?.id).toBe("coffee-brand");
+  await service.save({
+    ...service.state,
+    productPreference: "avoidStoreBrand",
+    accepted: {},
+  });
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("coffee-brand");
+});
+
+test("approved drafts replace the list while retaining saved recipes, and stale drafts cannot overwrite edits", async () => {
+  const service = new Service(memory());
+  service.draft = {
+    recipes: [],
+    meals: [{ day: 0, recipeId: "pasta", servings: 4, leftovers: false }],
+    items: [{ id: "pizza", name: "Pakastepizza", amount: 700, unit: "g" }],
+    notes: "Two pizzas",
+  };
+  service.draftRevision = service.state.revision;
+  service.draftNote = "Pasta and pizza";
+  await service.approveDraft();
+  expect(service.state.extras[0].amount).toBe(700);
+  expect(service.state.note).toBe("Pasta and pizza");
+  expect(service.state.assumptions).toBe("Two pizzas");
+  expect(service.state.recipes).toHaveLength(3);
+  service.draft = {
+    recipes: [],
+    meals: [],
+    items: [{ id: "x", name: "x", amount: 1, unit: "pcs" }],
+    notes: "",
+  };
+  service.draftRevision = service.state.revision;
+  await service.save({ ...service.state, extras: [] });
+  await expect(service.approveDraft()).rejects.toThrow("draftStale");
+});
+
+test("partial batches explicitly record missing requirements without hiding them from the list", async () => {
+  const service = new Service(memory());
+  service.state.extras = [
+    { id: "missing", name: "Missing product", amount: 1, unit: "pcs" },
+  ];
+  await service.buildBasket();
+  await expect(service.prepare()).rejects.toThrow("unresolved");
+  await service.prepare({ allowMissing: true });
+  expect(service.review?.unresolved?.map((r) => r.name)).toEqual([
+    "Missing product",
+  ]);
+  expect(service.review?.targets).toHaveLength(1);
+  await service.execute({ id: service.review!.id, acknowledged: false });
+  expect(service.state.history).toHaveLength(1);
+  expect(service.state.extras).toHaveLength(1);
+  expect(service.journal?.review.unresolved).toHaveLength(1);
+});
