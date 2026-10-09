@@ -59,7 +59,7 @@ npm run package
 - Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks, and live acceptance confirmed the account list and retained quantities after restart. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
 - Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
-- Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Complete price handling remains in v0.6.0.
+- Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Complete price handling is planned for v0.7.0 after the v0.6.0 design release; see the [roadmap](docs/roadmap.md).
 - The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.5.0 acceptance](docs/release-0.5.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.

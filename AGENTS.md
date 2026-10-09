@@ -12,6 +12,16 @@ Run full unit and desktop suites only when preparing a release. Release preparat
 
 Local file dialogs may be stubbed to select test files. Receipt parsing, backup import/export, diagnostics and clipboard operations stay real and local in development mode.
 
+# Roadmap and task coordination
+
+`docs/roadmap.md` is the release-goal and product-decision index. Canonical implementation cards/statuses live in `docs/tasks/<version>.md`; unassigned work is in `docs/tasks/later.md`. Read `docs/tasks/README.md`, the assigned card and its direct dependency contracts, not the entire backlog. Existing IDs stay stable when releases move. `docs/roadmap-history.md` records historical audits and is not a second task register.
+
+Before taking a card, fetch/reconcile the latest GitHub state and inspect real code/active work. Publish In progress with agent/thread, branch/worktree and scope so another agent cannot claim the same card. Implement only assigned scope. A Strong agent fixes contracts and rewrites dependent cards with exact files, symbols and fixtures before Simple handoff. Planned paths are suggestions until that contract lands.
+
+Record Done with commit/PR, local-only versus merged/released status, checks actually run and remaining owner acceptance. Do not infer release readiness from task completion or claim unrun checks. Update behavior documentation when implementation changes it; update the roadmap index only when release goals or decisions change.
+
+Always update both GitHub and local roadmap/task files. Fetch and preserve other agents' status changes, publish the documentation, then synchronize the changed local files to that published version without altering unrelated application work. Report a failed push explicitly. Never describe a local commit as pushed. Owner visual checks use development mode by default; live AI/retailer acceptance still follows the development rules above.
+
 # Writing preferences
 
 Use plain, concrete language. Apply the unslop skill when writing or editing prose. Preserve meaning, technical accuracy, literal content and requested formatting.
