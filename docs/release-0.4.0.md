@@ -24,6 +24,8 @@ The executable reports Korikone 0.4.0 and includes K-Ruoka worker 0.1.3 and S-ka
 
 ## Remaining acceptance
 
+The first owner fixture walkthrough found unclear development-mode opening feedback. The source fix explains that no real retailer window opens and displays a count of tested openings; its focused desktop check passed. Rebuild the candidate before final acceptance. The installer checksum above still describes the earlier packaged build.
+
 For U10, transfer a small displayed batch to each chain, compare the resulting quantities, check automatic opening, reopen without adding products, and verify manual checkout. This changes retailer baskets/lists and needs no ChatGPT generations.
 
 For U11, find and change both model selectors, restart, then validate Automatic and an explicit choice. Live validation requires two successful ChatGPT generations, with at most one corrective validation retry per request. The [testing checklist](testing.md#one-action-transfer-and-model-checks-040) also describes fixture-only observation.

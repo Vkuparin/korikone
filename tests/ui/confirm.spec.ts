@@ -95,6 +95,16 @@ test("the transfer is confirmed and reported in the list column", async () => {
       async () => (await window.korikone.load()).value,
     );
     expect(evidence.developmentHandoffs).toEqual(["s-kaupat:list"]);
+    await expect(result).toContainText("Oikeaa kaupan ikkunaa ei avata.");
+    await expect(result).toContainText("Testatut avaukset: 1");
+    await result
+      .getByRole("button", { name: "Avaa S-kaupat-lista uudelleen" })
+      .click();
+    await expect(result).toContainText("Testatut avaukset: 2");
+    const reopened = await page.evaluate(
+      async () => (await window.korikone.load()).value,
+    );
+    expect(reopened.journal).toEqual(evidence.journal);
 
     await expect(result.getByRole("status")).toHaveText(
       "Ostoskori päivitetty ja tarkistettu",

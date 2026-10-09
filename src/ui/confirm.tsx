@@ -233,13 +233,24 @@ export function ConfirmPanel({
             </p>
           )}
           <p className="muted">
-            {journal.review.context.providerId === "s-kaupat"
-              ? t("sKaupatHandoff")
-              : tr(
-                  "Viimeistele tilaus kaupan ostoskorissa. Tarvittaessa voit avata sen uudelleen.",
-                  "Complete checkout in the store basket. You can reopen it if needed.",
-                )}
+            {snapshot.developmentMode
+              ? tr(
+                  "Kehitystila: siirto tarkistettiin testikorissa. Oikeaa kaupan ikkunaa ei avata. Avauspainike testaa avaamisen lisäämättä tuotteita.",
+                  "Development mode: transfer verified in the test basket. No real store window opens. The open button tests opening without adding products.",
+                )
+              : journal.review.context.providerId === "s-kaupat"
+                ? t("sKaupatHandoff")
+                : tr(
+                    "Viimeistele tilaus kaupan ostoskorissa. Tarvittaessa voit avata sen uudelleen.",
+                    "Complete checkout in the store basket. You can reopen it if needed.",
+                  )}
           </p>
+          {snapshot.developmentMode && (
+            <p aria-live="polite">
+              {tr("Testatut avaukset", "Tested openings")}:{" "}
+              {snapshot.developmentHandoffs.length}
+            </p>
+          )}
           <div className="actions">
             {live && (
               <button
