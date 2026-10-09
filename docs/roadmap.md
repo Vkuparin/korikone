@@ -94,7 +94,7 @@ The total and a "Siirrä S-kauppaan · 25,39 €" button stay pinned at the bott
 | U1.2 | Confirmation panel on the list page with attention items only, built on the existing review and journal code | U1.1 | Planned |
 | U1.3 | Replace the checkbox with the labelled confirm button; keep an explicit acknowledgement only when over budget or a price rose since quoting. Update [design.md](design.md) and [ux.md](ux.md) | U1.2 | Planned |
 | U1.4 | Show the transfer result in the same panel: verified count, what was left out, next step | U1.2 | Planned |
-| U1.5 | Move the F2 comparison into the pinned bar, for example "K-Ruoka 2,10 € halvempi · Vertaa", opening the existing panel | U1.1 | Planned |
+| U1.5 | Move the F2 comparison into the pinned bar, for example "K-Ruoka 2,10 € halvempi · Vertaa", opening the existing panel | U1.1 | Done: the bar shows "Vertaa kauppoja" and, after comparing, "S-kaupat 0,60 € halvempi · Vertaa" until the list changes. Comparing still runs only when pressed, since it searches the other chain for every row |
 
 ### U2. One basket view instead of three
 

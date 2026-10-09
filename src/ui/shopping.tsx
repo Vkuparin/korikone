@@ -3,7 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
-import { ComparePanel, canCompare, feeRange } from "./compare";
+import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -40,6 +40,7 @@ export function ShoppingWorkspace({
   const attempted = useRef(state.note);
   const quoted = useRef(-1);
   const panel = useRef<HTMLElement>(null);
+  const [comparing, setComparing] = useState(false);
   // The list column is as tall as the window below its current top, so the total and
   // transfer bar at its bottom stays in view however far the page is scrolled.
   useEffect(() => {
@@ -1086,6 +1087,8 @@ export function ShoppingWorkspace({
               call={call}
               tr={tr}
               money={money}
+              open={comparing}
+              onClose={() => setComparing(false)}
             />
           )}
           {state.context.providerId === "s-kaupat" && (
@@ -1136,6 +1139,16 @@ export function ShoppingWorkspace({
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>
             <strong>{money(total)}</strong>
           </div>
+          {canCompare(snapshot) && (
+            <CompareSummary
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              tr={tr}
+              money={money}
+              onOpen={() => setComparing(true)}
+            />
+          )}
           <button
             className="transfer-button"
             disabled={busy || !rows.length || missing.length === rows.length}

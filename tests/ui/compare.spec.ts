@@ -66,7 +66,8 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     const cartBefore = await page.evaluate(
       async () => (await window.korikone.load()).value.state,
     );
-    const compare = list.getByRole("button", { name: "Vertaa kauppoja" });
+    const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
+    const compare = bar.getByRole("button", { name: "Vertaa kauppoja" });
     await compare.click();
     const panel = list.getByRole("region", { name: "Kauppojen vertailu" });
     await expect(panel.getByRole("columnheader")).toHaveText([
@@ -95,11 +96,16 @@ test("comparing stores is read-only and can switch to the other chain", async ()
 
     await panel.getByRole("button", { name: "Sulje vertailu" }).click();
     await expect(panel).toHaveCount(0);
+    // The bar keeps the result until the list changes, and reopens the panel from it.
+    const summary = bar.getByRole("button", {
+      name: /^S-kaupat \d+,\d\d € halvempi · Vertaa$/,
+    });
+    await expect(summary).toBeVisible();
     await expect(page.locator(".context")).toContainText(
       "S-kaupat · Helsinki (fixture)",
     );
 
-    await compare.click();
+    await summary.click();
     await list
       .getByRole("button", { name: "Käytä tätä kauppaa: K-Ruoka" })
       .click();
@@ -108,6 +114,7 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     );
     await expect(panel).toHaveCount(0);
     await expect(list).toContainText("Suola");
+    await expect(compare).toBeVisible();
   } finally {
     await app.close();
   }

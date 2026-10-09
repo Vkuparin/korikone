@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef } from "react";
 import type { Snapshot } from "../application/service";
 import { isLive } from "../stores/provider";
 
@@ -26,34 +26,74 @@ export function canCompare(snapshot: Snapshot) {
   );
 }
 
-/** "Compare stores" under the total: the same list priced at the other chain, read-only. */
+type Props = {
+  snapshot: Snapshot;
+  busy: boolean;
+  call: (method: string, input?: unknown) => Promise<boolean>;
+  tr: (fi: string, en: string) => string;
+  money: (cents: number) => string;
+};
+
+/**
+ * The comparison line in the pinned total bar. Comparing searches the other chain for every
+ * row, so it runs only when pressed; afterwards the line shows the result until the list changes.
+ */
+export function CompareSummary({
+  snapshot,
+  busy,
+  call,
+  tr,
+  money,
+  onOpen,
+}: Props & { onOpen: () => void }) {
+  const { state, comparison } = snapshot;
+  if (!comparison)
+    return (
+      <button
+        className="text compare-summary"
+        disabled={busy || !snapshot.basket.length}
+        onClick={async () => {
+          if (await call("compareStores")) onOpen();
+        }}
+      >
+        {tr("Vertaa kauppoja", "Compare stores")}
+      </button>
+    );
+  const { result, other } = comparison;
+  const difference = Math.abs(result.common.a - result.common.b);
+  const cheaper =
+    result.cheaper === "a"
+      ? chainName(state.context.providerId)
+      : chainName(other.providerId);
+  return (
+    <button className="text compare-summary" onClick={onOpen}>
+      {result.cheaper === null
+        ? result.common.rows
+          ? tr("Sama hinta molemmissa", "Same price at both")
+          : tr("Ei yhteisiä tuotteita", "No items in common")
+        : `${cheaper} ${money(difference)} ${tr("halvempi", "cheaper")}`}
+      {" · "}
+      {tr("Vertaa", "Compare")}
+    </button>
+  );
+}
+
+/** The full comparison, opened from the pinned bar: the same list priced at the other chain, read-only. */
 export function ComparePanel({
   snapshot,
   busy,
   call,
   tr,
   money,
-}: {
-  snapshot: Snapshot;
-  busy: boolean;
-  call: (method: string, input?: unknown) => Promise<boolean>;
-  tr: (fi: string, en: string) => string;
-  money: (cents: number) => string;
-}) {
-  const [open, setOpen] = useState(false);
+  open,
+  onClose,
+}: Props & { open: boolean; onClose: () => void }) {
+  const section = useRef<HTMLElement>(null);
   const { state, comparison } = snapshot;
-  if (!open || !comparison)
-    return (
-      <button
-        className="secondary"
-        disabled={busy || !snapshot.basket.length}
-        onClick={async () => {
-          if (await call("compareStores")) setOpen(true);
-        }}
-      >
-        {tr("Vertaa kauppoja", "Compare stores")}
-      </button>
-    );
+  useEffect(() => {
+    if (open) section.current?.scrollIntoView({ block: "nearest" });
+  }, [open, comparison]);
+  if (!open || !comparison) return null;
   const { result, other, fees } = comparison;
   const fee = (range: { min: number; max: number } | null) =>
     range ? feeRange(range, money) : tr("ei tiedossa", "not known");
@@ -63,6 +103,7 @@ export function ComparePanel({
     count ? ` · ${count} ${tr("ilman hintaa", "without a price")}` : "";
   return (
     <section
+      ref={section}
       className="comparison"
       aria-label={tr("Kauppojen vertailu", "Store comparison")}
     >
@@ -144,12 +185,12 @@ export function ComparePanel({
           disabled={busy}
           onClick={async () => {
             if (await call("save", { ...state, context: other }))
-              setOpen(false);
+              onClose();
           }}
         >
           {tr("Käytä tätä kauppaa", "Use this store")}: {b}
         </button>
-        <button className="text" disabled={busy} onClick={() => setOpen(false)}>
+        <button className="text" disabled={busy} onClick={onClose}>
           {tr("Sulje vertailu", "Close comparison")}
         </button>
       </div>

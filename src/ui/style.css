@@ -1007,3 +1007,9 @@ body:has(.app-main) > #root > .progress {
   margin: 0;
   padding-left: 18px;
 }
+.shopping-total .compare-summary {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  font-size: 11px;
+}
