@@ -1039,3 +1039,59 @@ body:has(.app-main) > #root > .progress {
   flex-wrap: wrap;
   gap: 8px;
 }
+.grocery-description .row-name {
+  all: unset;
+  display: block;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.grocery-description .row-name:hover,
+.grocery-description .row-name[aria-expanded="true"] {
+  text-decoration: underline;
+}
+.grocery-description .row-name:focus-visible {
+  outline: 2px solid #244e3c;
+  outline-offset: 2px;
+}
+.row-details {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f6f3;
+  font-size: 11px;
+}
+.row-details p {
+  margin: 0;
+}
+.row-details .candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.row-details .candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.row-details .candidate small {
+  grid-column: 1;
+  grid-row: 2;
+}
+.row-details .candidate strong {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.row-details .candidate button {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  padding: 4px 8px;
+  font-size: 10px;
+}

@@ -102,7 +102,7 @@ The Ostoskori page leaves the navigation. Its decision details (why a product wa
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| U2.1 | Row detail drawer with the basket details from today's Ostoskori page | | Planned |
+| U2.1 | Row detail drawer with the basket details from today's Ostoskori page | | Done: the product name opens `src/ui/details.tsx` under the row: needed and bought amounts, surplus, why this product, unit prices, deposits, hidden products and the other products with "Valitse tuote"; `tests/ui/details.spec.ts` |
 | U2.2 | Remove the Ostoskori page and its "Tarkista korin muutokset" button; recovery of an interrupted transfer moves into the U1 panel | U1.2, U2.1 | Planned |
 | U2.3 | Quieter rows: quantity and price always visible; home, remove and alternatives on hover, focus or in the drawer, reachable by keyboard | U2.1 | Planned |
 | U2.4 | Navigation without Ostoskori; Vakiotuotteet under Asetukset or in "Unohtuiko jotain?"; desktop tests updated | U2.2 | Planned |

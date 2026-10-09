@@ -4,6 +4,7 @@ import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
+import { RowDetails } from "./details";
 import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
@@ -41,6 +42,8 @@ export function ShoppingWorkspace({
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // The list row whose details are open.
+  const [opened, setOpened] = useState<string | null>(null);
   // The list column is as tall as the window below its current top, so the total and
   // transfer bar at its bottom stays in view however far the page is scrolled.
   useEffect(() => {
@@ -883,7 +886,17 @@ export function ShoppingWorkspace({
                       ⌂
                     </button>
                     <div className="grocery-description">
-                      <strong>{line?.product?.name ?? r.name}</strong>
+                      {line ? (
+                        <button
+                          className="row-name"
+                          aria-expanded={opened === key}
+                          onClick={() => setOpened(opened === key ? null : key)}
+                        >
+                          {line.product?.name ?? r.name}
+                        </button>
+                      ) : (
+                        <strong>{r.name}</strong>
+                      )}
                       {!!line?.excluded && (
                         <small>
                           {line.excluded}{" "}
@@ -1018,6 +1031,22 @@ export function ShoppingWorkspace({
                       >
                         {tr("Kumoa vaihto", "Undo swap")}
                       </button>
+                    )}
+                    {opened === key && line && (
+                      <RowDetails
+                        snapshot={snapshot}
+                        line={line}
+                        busy={busy}
+                        money={money}
+                        choose={(p) => {
+                          if (line.product)
+                            setUndo({ ...undo, [key]: line.product.id });
+                          void call("accept", {
+                            ingredientId: r.id,
+                            productId: p.id,
+                          });
+                        }}
+                      />
                     )}
                     {!home && !!line?.candidates.length && (
                       <details className="product-options">
