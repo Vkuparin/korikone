@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. Korikone now pins s-kaupat-mcp 1.2.0 and keeps its S-kaupat login for its own data folder (`SKAUPAT_LOGIN_SCOPE=data-dir`), so *Open store cart* opens the same signed-in window and signing in or out in Korikone no longer touches other apps on the PC. Existing users are asked to sign in once more. Not yet observed against a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
+- S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. Korikone now pins s-kaupat-mcp 1.2.0 and keeps its S-kaupat login for its own data folder (`SKAUPAT_LOGIN_SCOPE=data-dir`), so *Open store cart* opens the same signed-in window and signing in or out in Korikone no longer touches other apps on the PC. Existing users are asked to sign in once more. Confirmed by the owner on a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
 - Added the live acceptance note (makaronilaatikko) as a fixture, with the look-alike products a store search returns: garlic for onion, lemon pepper for black pepper, chicken mince, a ready meal and M10 egg packs. Development-mode checks cover product choice, Finnish units, tidied names and the account name in cart review.
 
 ## 0.2.0-alpha.3 — 9 October 2026
