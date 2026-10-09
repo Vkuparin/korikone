@@ -62,7 +62,8 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
       .getByRole("button", { name: "Avaa kaupan ostoskori" })
       .click();
 
-    // The Kauppa view shows S-kaupat's shopping lists, where the transfer went.
+    // The Kauppa view shows the "Korikone" list where the transfer went, with the site's own
+    // add-all button scrolled into view and not pressed.
     await expect(
       page.getByRole("button", { name: "Kauppa", exact: true }),
     ).toHaveAttribute("aria-current", "page");
@@ -71,11 +72,20 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
     ).toHaveAttribute("aria-selected", "true");
     await expect
       .poll(async () => (await store())?.url)
-      .toMatch(/^http:\/\/127\.0\.0\.1:\d+\/s-kaupat\/ostoslistat$/);
+      .toMatch(/^http:\/\/127\.0\.0\.1:\d+\/s-kaupat\/ostoslistat\/lista-1$/);
     const tab = (await store())!;
     expect(await run(tab.id, "document.title")).toBe(
-      "S-kaupat (fixture): Ostoslistat",
+      "S-kaupat (fixture): Lista",
     );
+    await expect
+      .poll(() => run(tab.id, "window.scrollY"))
+      .toBeGreaterThan(1000);
+    expect(
+      await run(
+        tab.id,
+        `document.querySelector("button[data-test-id=addAllToCart]").getBoundingClientRect().top < window.innerHeight`,
+      ),
+    ).toBe(true);
 
     // Store pages get no Korikone bridge and no Node.
     expect(await run(tab.id, "typeof window.korikone")).toBe("undefined");

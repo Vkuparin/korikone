@@ -32,6 +32,22 @@ const BACKGROUND_PATH: Record<Chain, string> = {
   "s-kaupat": "/",
   "k-ruoka": "/kauppa",
 };
+/** Scrolls the add-all button into view; the data-test-id is the site's own hook, the text the fallback. */
+const SCROLL_TO_ADD_ALL = `(async () => {
+  for (let i = 0; i < 20; i++) {
+    const button =
+      document.querySelector("button[data-test-id=addAllToCart]") ||
+      [...document.querySelectorAll("button")].find((b) =>
+        (b.textContent || "").trim().startsWith("Lisää kaikki ostoskoriin"),
+      );
+    if (button) {
+      button.scrollIntoView({ block: "center" });
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
+})()`;
 /** Payment providers and banks a checkout may redirect to; they open without asking. */
 const PAYMENT_DOMAINS = [
   "paytrail.com",
@@ -209,6 +225,24 @@ export class StoreViews {
     await this.navigate(chain, view, await this.url(chain, page));
   }
 
+  /**
+   * Opens one S-kaupat shopping list in the tab and scrolls the site's own "Lisää kaikki
+   * ostoskoriin" button into view. The button is never pressed: it ends in choosing a pickup time.
+   */
+  async openList(chain: Chain, listId: string) {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(listId)) throw new Error("hostRefused");
+    const view = this.view(chain);
+    await this.navigate(
+      chain,
+      view,
+      `${await this.origin(chain)}/ostoslistat/${listId}`,
+    );
+    // The page draws its list after loading, so look for the button for a few seconds.
+    await view.webContents
+      .executeJavaScript(SCROLL_TO_ADD_ALL, true)
+      .catch(() => false);
+  }
+
   async action(chain: Chain, action: "back" | "reload" | "browser") {
     const view = this.views.get(chain);
     if (!view) return;
@@ -318,7 +352,8 @@ const page = (title: string, body: string) =>
 export function fixtureSite(): Promise<{ server: Server; origin: string }> {
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
-    const [, chain, path = ""] = url.pathname.split("/");
+    const [, chain, ...rest] = url.pathname.split("/");
+    const path = rest.join("/");
     const name =
       chain === "s-kaupat"
         ? "S-kaupat (fixture)"
@@ -341,6 +376,11 @@ export function fixtureSite(): Promise<{ server: Server; origin: string }> {
       ostoslistat: () =>
         page(`${name}: Ostoslistat`, "<ul><li>Korikone</li></ul>"),
       ikkuna: () => page(`${name}: Ikkuna`, "<p>Ponnahdusikkuna</p>"),
+      "ostoslistat/lista-1": () =>
+        page(
+          `${name}: Lista`,
+          `<div style="height:3000px">Pitkä lista</div><button data-test-id="addAllToCart">Lisää kaikki ostoskoriin 3,00 €</button>`,
+        ),
     };
     if (!name || !(path in pages)) {
       response.writeHead(404, { "content-type": "text/plain" }).end();
@@ -357,7 +397,7 @@ export function fixtureSite(): Promise<{ server: Server; origin: string }> {
     }
     response
       .writeHead(200, { "content-type": "text/html; charset=utf-8" })
-      .end(pages[path]());
+      .end(pages[path]().replace("<head>", `<head><base href="/${chain}/">`));
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);

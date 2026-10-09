@@ -140,6 +140,23 @@ else
           sLogin = null;
         });
     };
+    // The page of the "Korikone" list on S-kaupat; null when it cannot be found, and the lists page opens instead.
+    const sKaupatListId = async () => {
+      if (development) return "lista-1";
+      const storeId = service.journal?.review.context.storeId;
+      if (!storeId) return null;
+      try {
+        const found = z
+          .object({
+            lists: z.array(z.object({ id: z.string(), name: z.string() })),
+          })
+          .parse(await sWorker.call("get_shopping_lists", { storeId }))
+          .lists.filter((l) => l.name === "Korikone");
+        return found.length === 1 ? found[0].id : null;
+      } catch {
+        return null;
+      }
+    };
     // Sign-in actions name a chain, so either chain can be signed in while the other is active.
     const chainOf = (input: unknown) =>
       input === undefined || input === null
@@ -480,8 +497,11 @@ else
           (providerId !== "k-ruoka" && providerId !== "s-kaupat")
         )
           throw new Error("reviewRequired");
-        // The K-Ruoka cart, or S-kaupat's shopping lists where the transfer went, in the store tab.
-        await stores.open(providerId, "cart");
+        // The K-Ruoka cart, or the S-kaupat "Korikone" list where the transfer went (the page where
+        // the shopper presses the site's own add-all button), in the store tab.
+        const listId = providerId === "s-kaupat" ? await sKaupatListId() : null;
+        if (listId) await stores.openList("s-kaupat", listId);
+        else await stores.open(providerId, "cart");
         return service.snapshot();
       },
       storeView: async (input) => {
