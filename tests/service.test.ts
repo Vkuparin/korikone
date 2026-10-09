@@ -388,6 +388,8 @@ test("a verified transfer remembers what it paid, and only a rise of more than 5
   await service.execute({ id: service.review!.id, acknowledged: true });
   const [latest] = service.state.listHistory;
   const paid = Object.entries(latest.prices);
+  expect(latest.storeKey).toBe("demo-k:demo-helsinki");
+  expect(latest.transferred.map((t) => [t.productId, t.price])).toEqual(paid);
   expect(paid.length).toBe(
     service.review ? 0 : service.basket.filter((l) => l.product).length,
   );
