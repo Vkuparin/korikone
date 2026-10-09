@@ -1,74 +1,61 @@
-# s-kaupat-mcp prerequisite project
+# S-kaupat integration: s-kaupat-mcp
 
-Decision recorded 8 October 2026: build this as a separate repository and release it before Korikone's real store integration. This file defines the handoff; it does not create or implement that repository.
+Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.1.0**, which adds a stable account ID. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
 
-## Ownership and scope
+## What was released
 
-The project owns S-kaupat discovery, login, session storage, catalogue access, cart operations, protocol schemas, fixtures and release artifacts. Korikone owns meal planning, product preferences, budgets, approvals and its user interface. No dependency from s-kaupat-mcp back to Korikone.
-
-Recommended starting implementation: TypeScript with a reusable client and a thin MCP SDK wrapper. S0 chooses between a managed browser session and a minimal extension; Playwright is a candidate for the managed-session implementation, not a settled requirement. Prove distributable packaging early; language choice is less important than a stable protocol and no developer tools on the user's machine. Inspect mcp-ruoka for catalogue behavior, subject to reuse permission; independently establish cart behavior.
-
-## Minimum usable release
-
-| Tool | Contract |
+| Item | Value |
 |---|---|
-| `search_stores` | Query or location to stable branch IDs and supported fulfillment modes. |
-| `search_products` | Explicit branch/context, query and limit; return IDs, pack size, quantity units, price basis, availability and observation time. Unknown fields remain unknown. |
-| `get_products` | Refresh exact product IDs in the selected context or return explicit unavailable/unknown results. |
-| `auth_status` | Distinguish signed out, signed in, expired, blocked and uncertain; provide an opaque account identity for verification. |
-| `start_login`, `login_status`, `cancel_login` | Human login in a visible browser; structured lifecycle suitable for an app UI. No passwords through MCP. |
-| `get_cart` | Return verified account/context, current lines, product IDs, cart line IDs, quantities, units and totals when known. Never treat an anonymous basket as an authenticated one. |
-| `set_cart_item_quantity` | Set an absolute target, preserving native quantity units and increments. Return a write result backed by readback or explicitly uncertain. |
-| `remove_cart_item` | Remove one known line and verify absence. |
-| `open_cart` | Hand the same authenticated cart to a human-controlled browser window; automation detaches before checkout. |
+| Release | `v1.1.0`, source commit `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad` |
+| License | Apache-2.0; bundling and redistribution are permitted |
+| Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade` |
+| Schema description | `tools.json`, SHA-256 `e5e221f56b30a3b90515797c514792b7852fff73af1e16ac4f62d457a6fd46da` |
+| Protocol | stdio MCP; every result carries `schemaVersion: "1.0"`, fixed for all of 1.x |
+| Compatibility promise | Semantic versioning: tool names, inputs, result fields, error codes and settings are stable within 1.x |
+| Errors | `isError` results with a stable `code`, an `action`, `retryable` and Finnish/English `userMessage` |
+| Demo mode | `--demo` serves a built-in catalogue, pretend login and in-memory lists with no network |
 
-Tool names above are proposed, not existing upstream APIs. Publish JSON schemas, capabilities, schema version and examples with the release. Tool errors need stable codes such as `auth_required`, `session_expired`, `blocked`, `invalid_quantity`, `context_changed`, `unavailable`, `conflict`, `unsupported` and `write_uncertain`.
+`scripts/prepare-s-kaupat.mjs` downloads the pinned files and refuses any checksum mismatch. At runtime Korikone checks the file checksum, the reported server version, the required tool names and the `schemaVersion` of every result before trusting it. An incompatible file stops store operations with the `workerIncompatible` message.
 
-No bulk clear, order placement or payment tools. A standalone server still validates arguments, scopes sessions and serializes writes; Korikone's approval system is not a substitute for safe server behavior.
+## What the S0 feasibility work decided
 
-## Build sequence
-
-### S0. Feasibility and reuse rights
-
-Inspect the normal S-kaupat browser flow. Compare two narrow working prototypes with an owned test account and a deliberately small basket: (A) a dedicated managed browser session, and (B) a minimal extension in the user's normal browser session. Establish login, branch/slot context, authenticated cart identity, exact quantity updates, removal and same-cart browser handoff for each viable approach. Use supported access where available; stop if access is denied. Record sanitized request/response fixtures and uncertainties. Check the licenses of any code intended for reuse.
-
-Record these results for each prototype:
-
-| Scenario | Evidence to record |
+| Planned question | Outcome in the release |
 |---|---|
-| Clean-machine installation | Components/downloads, permissions, user steps and any developer intervention |
-| First and returning login | Required logins, session persistence, account/profile ambiguity |
-| Cart operations | Correct branch, native units, absolute quantities and readback |
-| Browser close/restart and expired login | Preserved work, reconnect behavior and user interventions |
-| Interrupted write | Detection of success versus uncertainty; no blind replay |
-| Manual checkout handoff | Same authenticated cart, usable browser and automation fully detached |
+| Managed browser session or extension | **Managed session.** The server keeps its own Edge or Chrome profile under its data folder and sends API calls from a minimised window of that browser, because S-kaupat refuses plain scripted requests since 7 October 2026. No extension, native helper or developer mode is needed. |
+| Login | A small S-kaupat window opened by `start_login`; the server stores only the refresh token, in Windows Credential Manager. No passwords pass through MCP. |
+| Authenticated cart | **S-kaupat has no server-side cart.** The website keeps its cart in the browser. The release writes to shopping lists on the account instead, and the site's *Lisää kaikki ostoskoriin* button fills the cart from a list. |
+| Exact quantities and readback | List writes set an absolute quantity per product (never a second row) and return one result per product: `added`, `updated`, `unchanged`, `missing` (with a reason) or `uncertain`. |
+| Same-session checkout handoff | `open_site` opens S-kaupat in the server's own, already logged-in window. |
+| Checkout | The release can also review and place orders and start card payments. **Korikone does not use this**; see below. |
 
-Choose the approach with fewer user interventions and more reliable recovery. One installer is the target; an extension needs a demonstrated benefit that justifies its setup. Record limitations and the combined K-Ruoka/S-kaupat onboarding implications. Do not build a side panel or keep two production transports during the experiment. Neither approach is assumed to work until observed.
+The planned cart gate is therefore met through account shopping lists rather than a cart. The final step from list to cart is the shopper's own press of *Lisää kaikki ostoskoriin* on the site, followed by manual checkout. This keeps the "approve before change, checkout by hand" model intact. It is not the catalogue-only preview mode the plan described as the failure case.
 
-If the extension wins, the standalone project owns its minimal bridge, native helper, versioned message schemas and installation instructions. A generic MCP client must still work without Korikone. Specify how the browser-launched native host connects to the MCP process, how each process starts/stops, and how reconnects avoid duplicate commands. Do not treat Native Messaging framing and MCP stdio as interchangeable. Allowlist the extension and retailer origins, validate senders and fixed command schemas, bind requests to the selected account/tab/context, and reject arbitrary JavaScript or URLs. Do not export browser cookies. Store no AI credentials in the extension. Browser API/session access remains a feasibility test.
+## How Korikone uses it
 
-Exit: a documented browser-approach decision and a written capability matrix with observed results. Catalogue-only success does not pass the cart gate. If cart access fails, publish that limitation and keep Korikone's S-kaupat experience in explicit shopping-list preview mode.
+Code: [`src/stores/s-kaupat.ts`](../src/stores/s-kaupat.ts), generic worker in [`src/stores/worker.ts`](../src/stores/worker.ts).
 
-### S1. Client and hermetic tests
+- **Process.** Electron runs the single-file `.cjs` release with its own Node.js (`ELECTRON_RUN_AS_NODE`), so users install nothing beyond Korikone. The data folder is `<userData>/retailers/s-kaupat`. Logs on stderr are discarded because they may contain account details.
+- **No ordering.** Korikone starts the server with `SKAUPAT_ORDERING=false` and allowlists only catalogue, login, list and site-handoff tools. `review_order`, `place_order`, payment, order history, delivery-slot and list-deletion tools are never called. This follows the design rule that checkout and payment are always manual.
+- **Store search.** The store picker searches K-Ruoka and S-kaupat together. Stores without online ordering are hidden. Choosing an S-kaupat store also calls `select_store`, so the server's site instructions name the same store; Korikone still passes the store ID explicitly on every call.
+- **Products.** `search_products` supplies prices and pack labels. Only per-item, non-approximate prices with a recognisable pack size are priced; weighed goods and unclear packs stay unresolved, as with K-Ruoka. Search results never report stock, so Korikone asks `check_basket` for the same products and treats only `ok` as available. Deposits come from `depositPrice`.
+- **Cart transfer.** Korikone's cart for S-kaupat is the single shopping list named **Korikone** on the account. A missing list is an empty cart; it is created by the first approved write. Two lists with that name stop the transfer. Writes use `add_to_shopping_list` with `allowSubstitutes: false` and absolute quantities. Any result other than `added`, `updated` or `unchanged` stops the transfer; `uncertain` becomes `writeUncertain`, and the usual journal and readback rules apply.
+- **Account binding.** Since 1.1.0, `login_status` returns `accountId`, a stable one-way hash of the S-kaupat user ID that is the same on any device and across logins. Korikone binds each review and every write to it, so an account switch stops a transfer with `accountChanged`. A logged-in answer without `accountId` is treated as an incompatible server.
+- **Handoff.** After a verified transfer, *Open store cart* calls `open_site` and tells the user to open the Korikone list, press *Lisää kaikki ostoskoriin*, choose the store and time, and finish there.
+- **Errors.** Server codes map to Korikone message keys (`loginRequired`, `browserRequired`, `storeBusy`, `chooseStore`, `productUnavailable`, `writeUncertain` and others). Unknown codes fall back to `storeUnavailable`.
 
-Implement the retailer client and selected browser approach, verified session/account binding, one writer per account/cart, pacing, cancellation, session recovery, quantity handling and verified mutations. Build tests around anonymous carts, expired login, missing products, weight units, silent no-ops, changed context and a timeout after a successful write. Unknown mutation outcomes trigger readback rather than blind retries.
+## Tests
 
-Exit: client contract tests pass without network access; no secret data in fixtures or logs.
+`tests/s-kaupat.test.ts` covers the adapter with synthetic tool results and also runs the pinned release itself in demo mode over a real stdio connection: store search and selection, login, priced and stock-checked products, a reviewed transfer through `createReview` and `transfer`, and readback of the Korikone list. It also checks that a checkout tool is refused before reaching the server. These tests run offline in CI.
 
-### S2. MCP and packaging
+## Outstanding live acceptance
 
-Wrap the client in stdio MCP. Keep logs on stderr. Validate schemas and structured error results. Publish capability/version discovery, configuration for the chosen session approach and shutdown behavior. Validate protocol compatibility across the server and any bridge before accepting commands. Build a Windows artifact first and record how browser dependencies are installed without shell commands from users. If an extension is required, the installer registers its native helper; provide a guided enablement flow, compatible version ranges, missing/disabled-extension recovery and a distribution/update plan. Do not require unpacked extension loading or developer mode for the consumer release. Include license notices and checksums; test the artifact on a clean machine.
+Not yet observed in Korikone on the owner's PC:
 
-Exit: a generic MCP client and Korikone's eventual adapter can both launch it without source checkout or developer tooling.
+- Store search, login and a priced basket against the live site from the packaged app.
+- One small reviewed transfer to the Korikone list, with exact before/after quantities read back.
+- `open_site` handoff, *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
+- Combined onboarding with K-Ruoka, which uses Chrome while S-kaupat prefers Edge.
 
-### S3. Observed acceptance and release
+## Earlier prerequisite plan (summary)
 
-Use an owned account to verify the packaged artifact against one small basket. Test reconnect, process restart, partial failure and manual handoff. The user restores any test changes after reviewing them. Document supported platforms and known limitations. Publish the first versioned release when the tests pass.
-
-Exit: release artifact, exact revision/checksum, schemas, fixtures, capability matrix and a short integration example are ready for Korikone. Publishing is future project work, not an action performed by this design task.
-
-## Korikone handoff
-
-Korikone pins the released artifact and translates its schemas into `StoreProvider`. Its contract suite tests the same scenarios as K-Ruoka. Server upgrades require the shared suite and a controlled live smoke test before distribution. App and server versions may advance independently. Publish supported schema/protocol ranges and capability requirements. Korikone checks compatibility before enabling operations; an incompatible update must pause integration with an actionable message rather than attempt writes. Apply the same rule to an extension/native-helper pair if selected.
-
-Do not wait for offers, receipts, order history, remote hosting or perfect coverage of every product type. Do wait for trustworthy login, cart identity, exact quantities, failure reporting, readback and packaging. UI prototyping and the ChatGPT proof of concept can proceed independently, but the full Korikone implementation follows this prerequisite.
+Decision of 8 October 2026: build S-kaupat access as a separate repository and release it before Korikone's real store integration. The project owns S-kaupat discovery, login, sessions, catalogue, cart or list operations, schemas, fixtures and release artifacts; Korikone owns planning, preferences, budgets, approvals and its interface, with no dependency in the other direction. The plan proposed tools such as `get_cart`, `set_cart_item_quantity` and `open_cart`, stable error codes, no bulk clear, order placement or payment tools, and a sequence of S0 feasibility, S1 client and hermetic tests, S2 MCP and packaging, and S3 observed acceptance and release. The released tool names differ from that proposal and the release added optional ordering tools; Korikone's adapter translates the release's schemas rather than assuming the proposed names.

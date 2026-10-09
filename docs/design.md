@@ -41,7 +41,7 @@ The app discovers a suitable available model automatically. OAuth, credentials, 
 
 ## Product selection and transfer
 
-The selection preference is lowest total pack cost, prefer store brands, or avoid store brands. Brand preferences are soft: if no matching brand candidate is usable, other available candidates remain eligible. An explicit product choice takes precedence. Only products with known price, compatible unit and positive pack size/increment are automatically selected.
+The selection preference is lowest total pack cost, prefer store brands, or avoid store brands. Brand preferences are soft: if no matching brand candidate is usable, other available candidates remain eligible. An explicit product choice takes precedence. Household exclusion terms filter candidates before selection, including saved choices. Only products with known price, compatible unit and positive pack size/increment are automatically selected. This name-based filter cannot certify allergens or dietary suitability.
 
 Available alternatives can be selected inline. Show a cheaper alternative when one exists, with swap and undo controls. Undo changes a local choice; it does not reverse a retailer write. Catalogue data cannot certify dietary suitability, so the final live transfer review still asks the shopper to check products and pack labels.
 
@@ -52,7 +52,7 @@ Transfer flow:
 3. Apply the user's reviewed batch. Keep revision, account, store, price and quantity checks.
 4. Journal each operation and read back the cart. A failure stops the batch and offers reconciliation; never blindly repeat an uncertain write.
 5. Show verified and unresolved items. Save verified runs to local transfer history so they can be reused.
-6. Open the cart URL in the default browser. The user may need to sign into the same retailer account there. The app does not copy browser cookies or claim session continuity.
+6. For K-Ruoka, open the cart URL in the default browser. S-kaupat retains its authenticated `open_site` handoff and list-to-cart instructions. The user may need to sign into the same retailer account there. The app does not copy browser cookies or claim session continuity.
 
 Unsupported weighted prices and ambiguous pack labels remain unresolved. A partial batch may transfer the available products only after the review lists what is excluded. It must not imply the complete list was transferred. Fees and unreported deposits remain outside the estimate.
 
@@ -62,7 +62,7 @@ Receipt import accepts PDF, TXT and CSV. A dedicated worker uses pinned Mozilla 
 
 Imported text is visible and editable in settings. It is supplied as untrusted purchase data for subsequent AI suggestions, never as instructions. It is not sent to ChatGPT merely by importing it. Receipt storage is included in local backups.
 
-History records verified cart transfers, not completed purchases. It stores the note, meal references, extras, home/removal flags and quantity overrides. Reusing an entry replaces the local list and obtains fresh quotes. Prices are not reused as current prices.
+The new `listHistory` records verified transfers, not completed purchases. Existing `history` entries keep the earlier-week schema and remain reusable through the History view; clearing the list archives its meals there. It stores the note, meal references, extras, home/removal flags and quantity overrides. Reusing an entry replaces the local list and obtains fresh quotes. Prices are not reused as current prices.
 
 ## Architecture
 
@@ -73,7 +73,7 @@ History records verified cart transfers, not completed purchases. It stores the 
 - `src/application`: saved state, list application, product matching, review and journaled transfer.
 - `src/ai`: protected ChatGPT authorization, model discovery and validated interpretation.
 - `src/receipts`: local file reader and isolated PDF extraction worker.
-- `src/stores`: demo providers and the pinned K-Ruoka MCP adapter.
+- `src/stores`: demo providers and the pinned K-Ruoka and S-kaupat MCP adapters.
 - `src/persistence`: SQLite storage and durable operation journal.
 - `src/main`: restricted IPC, file dialogs, clipboard and default-browser handoff.
 
@@ -81,6 +81,6 @@ Schema defaults retain compatibility with older saved profiles. Language changes
 
 ## Current boundaries
 
-K-Ruoka is the live adapter. S-kaupat remains a separate future integration; both demo stores are available. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
+K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.1.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 
 See [UX behavior](ux.md), [implementation plan](implementation-plan.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.

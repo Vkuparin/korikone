@@ -44,7 +44,7 @@ Show the quoted total and explicitly count missing prices/products. Excluded hom
 
 The transfer button opens one review with destination, before/after quantities, retained unrelated cart items, total and omitted unresolved requirements. The user can transfer available products while the missing ones remain on the list. Keep explicit live-product and budget acknowledgement in that review.
 
-The result shows verified counts, omitted requirements, a return-to-list action and default-browser checkout. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
+The result shows verified counts, omitted requirements and a return-to-list action. K-Ruoka opens the default browser. S-kaupat opens its authenticated site and explains that the user must add the Korikone account list to the cart. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
 
 ## Receipts
 
@@ -53,3 +53,7 @@ Settings offers PDF, TXT and CSV import plus an editable text area. PDF text ext
 ## Visual and interaction checks
 
 Compare desktop, narrow and empty-state captures with the redesign. Check long Finnish names, row density, keyboard focus, disabled states, language switching, stale note responses, manual additions, home/removal behavior, additive quantities and clear-list. Keep transfer recovery and existing setup/form persistence tests. Live model and retailer behavior need user-account checks beyond automated fixtures.
+
+## Preserved store and support features
+
+Both retailers remain searchable during setup. Keep provider-specific login state, S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.

@@ -911,3 +911,24 @@ body:has(.app-main) > #root > .error,
 body:has(.app-main) > #root > .progress {
   margin-left: 178px;
 }
+.card.attention {
+  border-left: 4px solid #a8551b;
+}
+@media (max-width: 900px) {
+  body:has(.app-main) header {
+    padding: 14px 12px;
+  }
+  body:has(.app-main) header label {
+    width: 100%;
+  }
+  body:has(.app-main) nav button {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    padding: 10px 8px;
+  }
+  body:has(.app-main) > #root > .error,
+  body:has(.app-main) > #root > .progress {
+    margin-left: 140px;
+  }
+}

@@ -181,7 +181,7 @@ export function ShoppingWorkspace({
           )}
         </p>
         <div className="interpretations">
-          {state.history.map((h) => (
+          {state.listHistory.map((h) => (
             <article className="card" key={h.id}>
               <h2>
                 {new Date(h.date).toLocaleDateString(fi ? "fi-FI" : "en-FI")}
@@ -227,13 +227,34 @@ export function ShoppingWorkspace({
             </article>
           ))}
         </div>
-        {!state.history.length && (
+        {!state.listHistory.length && (
           <p>
             {tr(
               "Siirretyt listat näkyvät tässä.",
               "Transferred lists will appear here.",
             )}
           </p>
+        )}
+        {!!state.history.length && (
+          <section className="card">
+            <h2>{tr("Aiempi viikko", "Earlier week")}</h2>
+            <p>
+              {state.history[0].meals
+                .map(
+                  (m) => state.recipes.find((r) => r.id === m.recipeId)?.name,
+                )
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                if (await call("reuseWeek")) changeNote("");
+              }}
+            >
+              {tr("Käytä aiempaa viikkoa", "Use the earlier week")}
+            </button>
+          </section>
         )}
       </section>
     );
@@ -629,23 +650,7 @@ export function ShoppingWorkspace({
               className="text"
               disabled={busy}
               onClick={async () => {
-                if (
-                  await save({
-                    ...state,
-                    meals: [],
-                    extras: [],
-                    note: "",
-                    assumptions: "",
-                    skipped: [],
-                    removed: [],
-                    quantities: {},
-                    staples: state.staples.map((s) => ({
-                      ...s,
-                      enabled: false,
-                    })),
-                  })
-                )
-                  changeNote("");
+                if (await call("newWeek")) changeNote("");
               }}
             >
               {tr("Tyhjennä ostoslista", "Clear shopping list")}
@@ -813,6 +818,27 @@ export function ShoppingWorkspace({
                     </button>
                     <div className="grocery-description">
                       <strong>{line?.product?.name ?? r.name}</strong>
+                      {!!line?.excluded && (
+                        <small>
+                          {line.excluded}{" "}
+                          {tr(
+                            "tuotetta rajattu pois ruokavalion perusteella",
+                            "products hidden by household exclusions",
+                          )}
+                        </small>
+                      )}
+                      {r.sources.includes("staple") && (
+                        <small>
+                          {tr("Viimeksi ostettu", "Last purchased")}:{" "}
+                          {state.staples.find((s) => s.id === r.id)
+                            ?.lastPurchased
+                            ? new Date(
+                                state.staples.find((s) => s.id === r.id)!
+                                  .lastPurchased!,
+                              ).toLocaleDateString(fi ? "fi-FI" : "en-FI")
+                            : tr("ei vielä merkitty", "not recorded")}
+                        </small>
+                      )}
                       <small>
                         {r.sources
                           .map((s) =>
@@ -991,12 +1017,26 @@ export function ShoppingWorkspace({
               if (await call("prepare", { allowMissing: true })) review();
             }}
           >
-            {tr("Siirrä", "Transfer to")}{" "}
-            {state.context.providerId === "k-ruoka"
-              ? "K-Ruoan"
-              : tr("kaupan", "store")}{" "}
-            {tr("ostoskoriin", "cart")}
+            {state.context.providerId === "s-kaupat" ? (
+              tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+            ) : (
+              <>
+                {tr("Siirrä", "Transfer to")}{" "}
+                {state.context.providerId === "k-ruoka"
+                  ? "K-Ruoan"
+                  : tr("kaupan", "store")}{" "}
+                {tr("ostoskoriin", "cart")}
+              </>
+            )}
           </button>
+          {state.context.providerId === "s-kaupat" && (
+            <p className="input-notice">
+              {tr(
+                "Tuotteet siirtyvät S-kauppojen Korikone-ostoslistalle. Lisää ne ostoskoriin S-kauppojen sivulla.",
+                "Products go to your Korikone shopping list at S-kaupat. Add them to the cart on the S-kaupat website.",
+              )}
+            </p>
+          )}
           <div className="list-exports">
             <button
               className="secondary"

@@ -9,10 +9,10 @@ Confirmed with the project owner on 8 October 2026.
 - Both demo stores, including existing cart items, missing products, changed prices and interrupted-transfer recovery.
 - Real K-Ruoka catalogue and reviewed, reconciled cart transfer. Live account acceptance requires the owner's login and an observed small transfer.
 - Attempt official ChatGPT sign-in and meal drafting. Manual planning remains available if access is blocked. No automatic paid API fallback.
-- Consume S-kaupat only after its independently developed release is ready. Do not work on that project here.
+- Consume S-kaupat only after its independently developed release is ready. Do not work on that project here. (Done: s-kaupat-mcp v1.0.0 was released on 8 October 2026 and is now consumed through a pinned adapter.)
 - Commit and push working stages to main without additional publication approvals.
 
-This scope overrides the prerequisite ordering for this prototype. It does not claim the complete two-retailer consumer release, signed distribution, clean-machine acceptance, household pilot or live account checks before they have actually been performed.
+With the S-kaupat release, Korikone moves from this prototype scope to the product in progress described in [design.md](design.md) and the [implementation plan](implementation-plan.md). The items above remain in force. This scope overrode the prerequisite ordering for the prototype. It does not claim the complete two-retailer consumer release, signed distribution, clean-machine acceptance, household pilot or live account checks before they have actually been performed.
 
 ## UX direction confirmed on 8 October 2026
 

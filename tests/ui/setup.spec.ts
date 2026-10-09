@@ -108,7 +108,7 @@ test("setup can change branch and detects completed sign-in without a check butt
     await page.getByRole("button", { name: "First", exact: true }).click();
     await page.getByRole("button", { name: "Valitse toinen kauppa" }).click();
     await page.getByRole("button", { name: "Second", exact: true }).click();
-    await page.getByRole("button", { name: "Kirjaudu K-Ruokaan" }).click();
+    await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
     await expect(
       page.getByRole("button", { name: "Jatka", exact: true }),
     ).toBeVisible({ timeout: 10000 });

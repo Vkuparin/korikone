@@ -13,7 +13,7 @@ export const en = {
   setupProgress: "Getting started",
   setupStore: "Where do you shop?",
   setupStoreInfo:
-    "Connect K-Ruoka to review products and send your shopping list to its cart. Search by town or store name. You can also plan without connecting a store.",
+    "Connect K-Ruoka or S-kaupat to review real products and prices and send your shopping list to the store. Search by town or store name. You can also plan without connecting a store.",
   setupLoginInfo:
     "Sign in in the browser that opens. Korikone will check the connection automatically when you finish.",
   setupAI: "Get help planning meals",
@@ -76,11 +76,11 @@ export const en = {
     "I checked product suitability, pack sizes and the displayed total, including any budget overrun. Fees and unreported deposits are still unknown.",
   confirmBudget: "I accept the displayed budget overrun.",
   cancelled: "Transfer stopped. Changes already made remain in the cart.",
-  liveStore: "K-Ruoka · Real store · Checkout is always manual",
+  liveStore: "Real store · Checkout is always manual",
   openStoreCart: "Open store cart",
-  searchStores: "Find a K-Ruoka branch",
+  searchStores: "Find a K-Ruoka or S-kaupat store",
   search: "Search",
-  loginStore: "Sign in to K-Ruoka",
+  loginStore: "Sign in to the store",
   checkLogin: "Check sign-in",
   signedIn: "Signed in",
   waitingLogin:
@@ -194,6 +194,43 @@ export const en = {
   storageFailed: "Local storage failed. Try again before closing the app.",
   staple: "Regular item",
   noDate: "Not recorded",
+  storeConnection: "Store connection",
+  sKaupatStatus:
+    'S-kaupat signs in and searches through its own small Microsoft Edge or Chrome window on this device. S-kaupat has no online cart that apps can fill, so Korikone writes approved products to the shopping list "Korikone" on your account. Weighed products and products without a clear pack size need manual store review.',
+  sKaupatListInfo:
+    'These products go to the shopping list "Korikone" on your S-kaupat account. Existing list rows are kept and substitutes are not allowed.',
+  sKaupatHandoff:
+    'S-kaupat opens in its own window. Open the list "Korikone", press "Lisää kaikki ostoskoriin", choose the store and time, and complete the order there.',
+  browserRequired:
+    "S-kaupat needs Microsoft Edge or Google Chrome on this computer.",
+  storeBusy: "The store connection is busy. Try again shortly.",
+  loginInProgress: "Finish signing in in the store window first.",
+  chooseStore: "The store is no longer available. Choose the store again.",
+  productUnavailable:
+    "A product is not sold in this store. Choose another product.",
+  writeUncertain:
+    "The store did not confirm the change. Check the list before continuing.",
+  surplus: "Left over",
+  reasonAccepted: "Your accepted product for this ingredient.",
+  reasonCheapest:
+    "Cheapest of your accepted products for the amount needed, counting whole packs.",
+  noCandidates:
+    "No matching product was found in this store. Mark it as already at home or buy it elsewhere.",
+  chosen: "Chosen",
+  stockUnknown: "Stock unknown",
+  deposit: "deposit",
+  perPiece: "pc",
+  needsAttention: "Items needing a decision",
+  goods: "Goods",
+  deposits: "Known deposits",
+  reuseWeek: "Use last week",
+  newWeek: "Start a new week",
+  noEarlierWeek: "There is no earlier week to reuse yet.",
+  logoutStore: "Sign out or switch account",
+  diagnostics: "Save a diagnostic report (no personal data)",
+  excludedProducts: "Hidden by your exclusions",
+  exclusionsHelp:
+    "Separate words with commas. Products whose name contains one are never chosen. Ingredient and allergen data is not checked, so read product labels.",
   reviewTitle: "Review the exact cart changes",
 } as const;
 export type Key = keyof typeof en;
@@ -212,7 +249,7 @@ export const fi: Record<Key, string> = {
   setupProgress: "Aloitetaan",
   setupStore: "Missä teet ruokaostokset?",
   setupStoreInfo:
-    "Yhdistä K-Ruoka, niin voit tarkistaa tuotteet ja siirtää ostoslistan kaupan koriin. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
+    "Yhdistä K-Ruoka tai S-kaupat, niin voit tarkistaa oikeat tuotteet ja hinnat ja siirtää ostoslistan kauppaan. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
   setupLoginInfo:
     "Kirjaudu avautuvassa selaimessa. Korikone tarkistaa yhteyden automaattisesti, kun olet valmis.",
   setupAI: "Apua aterioiden suunnitteluun",
@@ -271,11 +308,11 @@ export const fi: Record<Key, string> = {
     "Tarkistin tuotteiden sopivuuden, pakkauskoot ja summan, myös mahdollisen budjetin ylityksen. Maksut ja ilmoittamattomat pantit eivät ole tiedossa.",
   confirmBudget: "Hyväksyn näytetyn budjetin ylityksen.",
   cancelled: "Siirto pysäytettiin. Jo tehdyt muutokset säilyvät korissa.",
-  liveStore: "K-Ruoka · Oikea kauppa · Viimeistelet tilauksen itse",
+  liveStore: "Oikea kauppa · Viimeistelet tilauksen itse",
   openStoreCart: "Avaa kaupan ostoskori",
-  searchStores: "Etsi K-Ruoka-kauppa",
+  searchStores: "Etsi K-Ruoka- tai S-kaupat-kauppa",
   search: "Etsi",
-  loginStore: "Kirjaudu K-Ruokaan",
+  loginStore: "Kirjaudu kauppaan",
   checkLogin: "Tarkista kirjautuminen",
   signedIn: "Kirjautunut",
   waitingLogin: "Kirjaudu kaupan ikkunassa ja tarkista kirjautuminen tästä.",
@@ -387,5 +424,41 @@ export const fi: Record<Key, string> = {
     "Tallennus epäonnistui. Yritä uudelleen ennen sovelluksen sulkemista.",
   staple: "Vakiotuote",
   noDate: "Ei kirjattu",
+  storeConnection: "Kauppayhteys",
+  sKaupatStatus:
+    'S-kaupat kirjautuu ja hakee tuotteet omassa pienessä Microsoft Edge- tai Chrome-ikkunassaan tällä laitteella. S-kaupoissa ei ole verkko-ostoskoria, jota sovellus voisi täyttää, joten Korikone kirjoittaa hyväksytyt tuotteet tilisi ostoslistaan "Korikone". Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.',
+  sKaupatListInfo:
+    'Nämä tuotteet lisätään S-kaupat-tilisi ostoslistaan "Korikone". Listan muut rivit säilyvät, eikä korvaavia tuotteita sallita.',
+  sKaupatHandoff:
+    'S-kaupat avautuu omaan ikkunaansa. Avaa lista "Korikone", paina "Lisää kaikki ostoskoriin", valitse kauppa ja aika ja viimeistele tilaus siellä.',
+  browserRequired:
+    "S-kaupat tarvitsee tälle koneelle Microsoft Edgen tai Google Chromen.",
+  storeBusy: "Kauppayhteys on varattu. Yritä hetken päästä uudelleen.",
+  loginInProgress: "Viimeistele ensin kirjautuminen kaupan ikkunassa.",
+  chooseStore: "Kauppa ei ole enää saatavilla. Valitse kauppa uudelleen.",
+  productUnavailable: "Tuotetta ei myydä tässä kaupassa. Valitse toinen tuote.",
+  writeUncertain:
+    "Kauppa ei vahvistanut muutosta. Tarkista lista ennen jatkamista.",
+  surplus: "Yli jää",
+  reasonAccepted: "Tälle ainekselle hyväksymäsi tuote.",
+  reasonCheapest:
+    "Halvin hyväksymistäsi tuotteista tarvittavalle määrälle kokonaisina pakkauksina.",
+  noCandidates:
+    "Kaupasta ei löytynyt sopivaa tuotetta. Merkitse se jo kotona olevaksi tai osta muualta.",
+  chosen: "Valittu",
+  stockUnknown: "Saatavuus ei tiedossa",
+  deposit: "pantti",
+  perPiece: "kpl",
+  needsAttention: "Päätöstä vaativat tuotteet",
+  goods: "Tuotteet",
+  deposits: "Tiedossa olevat pantit",
+  reuseWeek: "Käytä viime viikkoa",
+  newWeek: "Aloita uusi viikko",
+  noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
+  logoutStore: "Kirjaudu ulos tai vaihda tiliä",
+  diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",
+  excludedProducts: "Piilotettu rajoitustesi vuoksi",
+  exclusionsHelp:
+    "Erota sanat pilkuilla. Tuotteita, joiden nimessä sana esiintyy, ei koskaan valita. Ainesosa- ja allergeenitietoja ei tarkisteta, joten lue tuotteiden merkinnät.",
   reviewTitle: "Tarkista ostoskorin muutokset",
 };

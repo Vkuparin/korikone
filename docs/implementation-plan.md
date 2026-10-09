@@ -27,6 +27,6 @@ Revised 9 October 2026. The current work follows [design.md](design.md) and [ux.
 
 ## Deferred product work
 
-Automatic OCR for scanned receipts; frequency-based purchase learning; direct phone sync; embedded retailer sessions; a persistent editable meal calendar; and the independent S-kaupat live integration. Do not imply these work in this prototype. Checkout and payment are always performed by the user.
+Automatic OCR for scanned receipts; frequency-based purchase learning; direct phone sync; embedded retailer sessions; a persistent editable meal calendar; and broader purchase-learning features. Do not imply these work in this prototype. Checkout and payment are always performed by the user.
 
-The S-kaupat project retains its own [plan and release gates](s-kaupat-mcp-plan.md). It does not block this K-Ruoka feedback iteration. Keep dependency licensing, account protection, backup compatibility, language switching and journal recovery checks for future changes.
+S-kaupat v1.1.0 is integrated and its offline contract tests are retained. Live login, account-list transfer and authenticated handoff remain acceptance checks. The S-kaupat project retains its own [plan and release gates](s-kaupat-mcp-plan.md). It does not block this K-Ruoka feedback iteration. Keep dependency licensing, account protection, backup compatibility, language switching and journal recovery checks for future changes.

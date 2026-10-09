@@ -12,6 +12,7 @@ import { ShoppingWorkspace } from "./shopping";
 import { en, fi, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
+import { isLive } from "../stores/provider";
 declare global {
   interface Window {
     korikone: Record<
@@ -66,6 +67,10 @@ function App() {
       setBusy(false);
     }
   }
+  const unitPrice = (cents: number, amount: number, unit: Unit) =>
+    unit === "pcs"
+      ? `${money(cents / amount)} / ${t("perPiece")}`
+      : `${money(Math.round((cents * 1000) / amount))} / ${unit === "g" ? "kg" : "l"}`;
   const save = (next: AppState) => call("save", next);
   async function changeLanguage(language: "fi" | "en") {
     setSnapshot((current) => ({
@@ -154,7 +159,9 @@ function App() {
         )}
       </header>
       <div className="demo">
-        {t(state.context.providerId === "k-ruoka" ? "liveStore" : "demo")}
+        {isLive(state.context.providerId)
+          ? `${state.context.storeName} · ${t("liveStore")}`
+          : t("demo")}
       </div>
       {error && (
         <div role="alert" className="error">
@@ -547,8 +554,7 @@ function App() {
                       </button>
                     )}
                     {snapshot.journal.status === "verified" &&
-                      snapshot.journal.review.context.providerId ===
-                        "k-ruoka" && (
+                      isLive(snapshot.journal.review.context.providerId) && (
                         <button
                           disabled={busy}
                           onClick={() => void call("openStoreCart")}
@@ -556,6 +562,9 @@ function App() {
                           {t("openStoreCart")}
                         </button>
                       )}
+                    {snapshot.journal.status === "verified" &&
+                      snapshot.journal.review.context.providerId ===
+                        "s-kaupat" && <p>{t("sKaupatHandoff")}</p>}
                     <p>
                       {t("verifiedLines")}: {snapshot.journal.verified.length} /{" "}
                       {snapshot.journal.review.targets.length}
@@ -619,10 +628,13 @@ function App() {
                         </ul>
                       </div>
                     )}
-                    {snapshot.review.context.providerId === "k-ruoka" && (
+                    {isLive(snapshot.review.context.providerId) && (
                       <p>
                         {t("account")}: {snapshot.review.baseline.accountId}
                       </p>
+                    )}
+                    {snapshot.review.context.providerId === "s-kaupat" && (
+                      <p>{t("sKaupatListInfo")}</p>
                     )}
                     {snapshot.review.targets.map((target) => (
                       <div className="cart-row" key={target.productId}>
@@ -652,7 +664,7 @@ function App() {
                       {t("total")}: {money(snapshot.review.total)} ·{" "}
                       {t("budget")}: {money(state.household.budget)}
                     </p>
-                    {(snapshot.review.context.providerId === "k-ruoka" ||
+                    {(isLive(snapshot.review.context.providerId) ||
                       snapshot.review.total > state.household.budget) && (
                       <label className="check">
                         <input
@@ -661,7 +673,7 @@ function App() {
                           onChange={(e) => setAcknowledged(e.target.checked)}
                         />
                         {t(
-                          snapshot.review.context.providerId === "k-ruoka"
+                          isLive(snapshot.review.context.providerId)
                             ? "confirmRealReview"
                             : "confirmBudget",
                         )}
@@ -675,7 +687,7 @@ function App() {
                     <button
                       disabled={
                         busy ||
-                        ((snapshot.review.context.providerId === "k-ruoka" ||
+                        ((isLive(snapshot.review.context.providerId) ||
                           snapshot.review.total > state.household.budget) &&
                           !acknowledged)
                       }
@@ -692,66 +704,146 @@ function App() {
                 ) : (
                   <>
                     {!snapshot.basket.length && <p>{t("noRequirements")}</p>}
-                    {snapshot.basket.map((line) => (
-                      <article
-                        className="card"
-                        key={`${line.requirement.id}:${line.requirement.unit}`}
-                      >
-                        <div className="section-heading">
-                          <div>
-                            <h2>{line.requirement.name}</h2>
-                            <p>
-                              {t("required")}: {line.requirement.amount}{" "}
-                              {line.requirement.unit}
-                            </p>
-                          </div>
-                          <strong>
-                            {line.total === null ? "—" : money(line.total)}
-                          </strong>
-                        </div>
-                        {line.product ? (
-                          <p>
-                            {line.product.name} · {line.packs}{" "}
-                            {t("packs").toLowerCase()} · {t("bought")}:{" "}
-                            {line.packs * line.product.packAmount}{" "}
-                            {line.product.unit}
-                          </p>
-                        ) : (
-                          <p className="warning">{t("unresolved")}</p>
-                        )}
-                        <div className="candidates">
-                          {line.candidates.map((p) => (
-                            <div className="candidate" key={p.id}>
-                              <span>{p.name}</span>
-                              <small>
-                                {p.packAmount} {p.unit}
-                              </small>
+                    {[...snapshot.basket]
+                      .sort((a, b) => Number(!!a.product) - Number(!!b.product))
+                      .map((line) => {
+                        const key = `${line.requirement.id}:${line.requirement.unit}`;
+                        const bought = line.product
+                          ? line.packs * line.product.packAmount
+                          : 0;
+                        return (
+                          <article
+                            className={`card${line.product ? "" : " attention"}`}
+                            key={key}
+                          >
+                            <div className="section-heading">
+                              <div>
+                                <h2>{line.requirement.name}</h2>
+                                <p>
+                                  {t("required")}: {line.requirement.amount}{" "}
+                                  {line.requirement.unit}
+                                </p>
+                              </div>
                               <strong>
-                                {p.price === null
-                                  ? t("unknown")
-                                  : money(p.price)}
+                                {line.total === null ? "—" : money(line.total)}
                               </strong>
-                              <button
-                                className="secondary"
-                                disabled={
-                                  busy || !p.available || p.price === null
-                                }
-                                onClick={() =>
-                                  void call("accept", {
-                                    ingredientId: line.requirement.id,
-                                    productId: p.id,
-                                  })
-                                }
-                              >
-                                {p.available ? t("choose") : t("unavailable")}
-                              </button>
                             </div>
-                          ))}
-                        </div>
-                      </article>
-                    ))}
+                            {line.product ? (
+                              <>
+                                <p>
+                                  {line.product.name} · {line.packs}{" "}
+                                  {t("packs").toLowerCase()} · {t("bought")}:{" "}
+                                  {bought} {line.product.unit}
+                                  {bought > line.requirement.amount &&
+                                    ` · ${t("surplus")}: ${bought - line.requirement.amount} ${line.product.unit}`}
+                                </p>
+                                <p className="muted">
+                                  {t(
+                                    line.candidates.filter(
+                                      (p) => p.available && p.price !== null,
+                                    ).length > 1
+                                      ? "reasonCheapest"
+                                      : "reasonAccepted",
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="warning" role="status">
+                                {t(
+                                  line.candidates.length
+                                    ? "unresolved"
+                                    : "noCandidates",
+                                )}
+                              </p>
+                            )}
+                            <div className="candidates">
+                              {line.candidates.map((p) => (
+                                <div className="candidate" key={p.id}>
+                                  <span>{p.name}</span>
+                                  <small>
+                                    {p.packAmount} {p.unit}
+                                    {p.price !== null &&
+                                      p.packAmount > 0 &&
+                                      ` · ${unitPrice(p.price, p.packAmount, p.unit)}`}
+                                    {p.deposit > 0 &&
+                                      ` · ${t("deposit")} ${money(p.deposit)}`}
+                                  </small>
+                                  <strong>
+                                    {p.price === null
+                                      ? t("unknown")
+                                      : money(p.price)}
+                                  </strong>
+                                  <button
+                                    className="secondary"
+                                    disabled={
+                                      busy ||
+                                      !p.available ||
+                                      p.price === null ||
+                                      p.id === line.product?.id
+                                    }
+                                    onClick={() =>
+                                      void call("accept", {
+                                        ingredientId: line.requirement.id,
+                                        productId: p.id,
+                                      })
+                                    }
+                                  >
+                                    {p.id === line.product?.id
+                                      ? t("chosen")
+                                      : p.available
+                                        ? t("choose")
+                                        : p.available === false
+                                          ? t("unavailable")
+                                          : t("stockUnknown")}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            {!!line.excluded && (
+                              <p className="muted">
+                                {t("excludedProducts")}: {line.excluded}
+                              </p>
+                            )}
+                            <button
+                              className="text"
+                              disabled={busy}
+                              onClick={() => void call("omit", key)}
+                            >
+                              {t("alreadyHave")}
+                            </button>
+                          </article>
+                        );
+                      })}
                     {!!snapshot.basket.length && (
                       <section className="card summary">
+                        {snapshot.basket.some((l) => !l.product) && (
+                          <p className="warning" role="status">
+                            {t("needsAttention")}:{" "}
+                            {snapshot.basket.filter((l) => !l.product).length}
+                          </p>
+                        )}
+                        <p>
+                          {t("goods")}:{" "}
+                          {money(
+                            snapshot.basket.reduce(
+                              (s, l) =>
+                                s +
+                                (l.product ? l.packs * l.product.price! : 0),
+                              0,
+                            ),
+                          )}
+                        </p>
+                        <p>
+                          {t("deposits")}:{" "}
+                          {money(
+                            snapshot.basket.reduce(
+                              (s, l) =>
+                                s +
+                                (l.product ? l.packs * l.product.deposit : 0),
+                              0,
+                            ),
+                          )}
+                        </p>
                         <h2>
                           {t("total")}:{" "}
                           {money(
@@ -841,6 +933,7 @@ function App() {
                       defaultValue={state.household.exclusions}
                     />,
                   )}
+                  <p className="muted">{t("exclusionsHelp")}</p>
                   <button disabled={busy}>{t("save")}</button>
                 </form>
                 <section className="card form">
@@ -864,8 +957,8 @@ function App() {
                       >
                         <option value="demo-k">K-Ruoka (demo)</option>
                         <option value="demo-s">S-kaupat (demo)</option>
-                        {state.context.providerId === "k-ruoka" && (
-                          <option value="k-ruoka">
+                        {isLive(state.context.providerId) && (
+                          <option value={state.context.providerId}>
                             {state.context.storeName}
                           </option>
                         )}
@@ -875,7 +968,7 @@ function App() {
                       t("pickup") + " / " + t("delivery"),
                       <select
                         value={state.context.fulfillment}
-                        disabled={state.context.providerId === "k-ruoka"}
+                        disabled={isLive(state.context.providerId)}
                         onChange={(e) =>
                           void save({
                             ...state,
@@ -892,8 +985,14 @@ function App() {
                       </select>,
                     )}
                   </details>
-                  <h2>K-Ruoka</h2>
-                  <p>{t("realStatus")}</p>
+                  <h2>{t("storeConnection")}</h2>
+                  {isLive(state.context.providerId) && (
+                    <p>
+                      <strong>{state.context.storeName}</strong>
+                    </p>
+                  )}
+                  <p>K-Ruoka: {t("realStatus")}</p>
+                  <p>S-kaupat: {t("sKaupatStatus")}</p>
                   <form
                     className="inline"
                     onSubmit={(e) => {
@@ -946,6 +1045,16 @@ function App() {
                     >
                       {t("cancel")}
                     </button>
+                    {state.context.providerId === "s-kaupat" &&
+                      snapshot.storeLogin === "signedIn" && (
+                        <button
+                          className="text"
+                          disabled={busy}
+                          onClick={() => void call("logoutStore")}
+                        >
+                          {t("logoutStore")}
+                        </button>
+                      )}
                   </div>
                   <p role="status">
                     {t(
@@ -1070,6 +1179,12 @@ function App() {
                       onClick={() => void call("importData")}
                     >
                       {t("restore")}
+                    </button>
+                    <button
+                      className="text"
+                      onClick={() => void call("exportDiagnostics")}
+                    >
+                      {t("diagnostics")}
                     </button>
                   </div>
                 </details>

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
 <title id="title">Korikone local desktop architecture</title>
-<desc id="desc">A graphical desktop app calls a local application core. ChatGPT provides AI drafts. K-Ruoka is live; S-kaupat is planned. A local PDF worker extracts receipt text. Only the human completes checkout.</desc>
+<desc id="desc">A graphical desktop app calls a local application core. ChatGPT provides AI drafts. K-Ruoka cart and S-kaupat account-list adapters are implemented. A local PDF worker extracts receipt text. Only the human completes checkout.</desc>
 <rect width="1440" height="1020" fill="#f6f7f3"/>
 <text x="40" y="63" font-family="Segoe UI, sans-serif" font-size="38" font-weight="700" fill="#182c25">Korikone</text>
 <text x="40" y="100" font-family="Segoe UI, sans-serif" font-size="23" font-weight="400" fill="#52615a">Note-driven shopping • Local PDF receipts • Human checkout</text>
@@ -35,9 +35,9 @@
 <text x="62" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Reviewed schemas and capabilities</text>
 <text x="62" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
 <rect x="495" y="516" width="395" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="517" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat (planned)</text>
-<text x="517" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Separate project; demo available now</text>
-<text x="517" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Live adapter awaits its own release</text>
+<text x="517" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat adapter</text>
+<text x="517" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Pinned s-kaupat-mcp v1.1.0</text>
+<text x="517" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Writes to the Korikone account list</text>
 <text x="517" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
 <rect x="940" y="516" width="460" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
 <text x="962" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local persistence</text>
@@ -57,7 +57,7 @@
 <rect x="495" y="698" width="395" height="115" rx="16" fill="#eaf3ed" stroke="#dce3db" stroke-width="2"/>
 <text x="517" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat</text>
 <text x="517" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Selected branch and fulfillment</text>
-<text x="517" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Search, authenticated cart and readback</text>
+<text x="517" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Search, account list and readback</text>
 <rect x="940" y="698" width="460" height="115" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
 <text x="962" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">PDF receipt worker</text>
 <text x="962" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Local PDF.js text extraction</text>
@@ -68,7 +68,7 @@
 <polygon points="690,698 684,688 696,688" fill="#698176"/>
 <rect x="40" y="870" width="1360" height="105" rx="16" fill="#fff4df" stroke="#e8d9b9" stroke-width="2"/>
 <text x="62" y="909" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Human checkout</text>
-<text x="62" y="943" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Open the default browser; sign into the same store account if needed. The user chooses delivery, orders and pays.</text>
+<text x="62" y="943" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">K-Ruoka: default browser. S-kaupat: authenticated site, then add list to cart. The user orders and pays.</text>
 <polyline points="237,813 237,870" fill="none" stroke="#698176" stroke-width="3"/>
 <polygon points="237,870 231,860 243,860" fill="#698176"/>
 <polyline points="690,813 690,870" fill="none" stroke="#698176" stroke-width="3"/>

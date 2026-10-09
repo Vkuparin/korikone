@@ -1,6 +1,7 @@
 import { test, expect } from "vitest";
 import { Service } from "../src/application/service";
 import { DemoProvider } from "../src/stores/demo";
+import { diagnostics } from "../src/application/diagnostics";
 function memory() {
   const entries = new Map<string, unknown>();
   return {
@@ -185,7 +186,127 @@ test("partial batches explicitly record missing requirements without hiding them
   ]);
   expect(service.review?.targets).toHaveLength(1);
   await service.execute({ id: service.review!.id, acknowledged: false });
-  expect(service.state.history).toHaveLength(1);
+  expect(service.state.listHistory).toHaveLength(1);
   expect(service.state.extras).toHaveLength(1);
   expect(service.journal?.review.unresolved).toHaveLength(1);
+});
+test("omitting a basket line skips it and rematches the rest", async () => {
+  const service = new Service(memory());
+  await service.init();
+  await service.buildBasket();
+  const key = "coffee:g";
+  expect(
+    service.basket.some(
+      (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+    ),
+  ).toBe(true);
+  await service.omit(key);
+  expect(service.state.skipped).toContain(key);
+  expect(
+    service.basket.some(
+      (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+    ),
+  ).toBe(false);
+  await expect(service.omit("missing:g")).rejects.toThrow("unresolved");
+});
+
+test("a new week keeps the old plan for reuse without duplicates", async () => {
+  const service = new Service(memory());
+  await service.init();
+  await expect(service.reuseWeek()).rejects.toThrow("noEarlierWeek");
+  await service.save({
+    ...service.state,
+    meals: [
+      { id: "a", day: 0, recipeId: "pasta", servings: 4, leftovers: false },
+    ],
+  });
+  await service.newWeek();
+  expect(service.state.meals).toEqual([]);
+  expect(service.state.history).toHaveLength(1);
+  await service.reuseWeek();
+  expect(service.state.meals).toMatchObject([
+    { day: 0, recipeId: "pasta", servings: 4 },
+  ]);
+  expect(service.state.meals[0].id).not.toBe("a");
+  await service.newWeek();
+  expect(service.state.history).toHaveLength(1);
+});
+
+test("diagnostics leave out recipes, products and account details", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const report = JSON.stringify(
+    diagnostics(
+      {
+        ...service.snapshot(),
+        ai: { state: "connected", email: "a@b.fi", error: null, models: [] },
+      },
+      { app: "test" },
+    ),
+  );
+  for (const secret of [
+    "Tomaattipasta",
+    "Pasta 500 g",
+    "demo-household",
+    "a@b.fi",
+  ])
+    expect(report).not.toContain(secret);
+  expect(JSON.parse(report).counts.recipes).toBe(3);
+});
+
+test("automatic choices cannot bypass household exclusions through saved products or brand preferences", async () => {
+  const service = new Service(memory());
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const search = provider.searchProducts.bind(provider);
+  provider.searchProducts = async (...args) =>
+    (await search(...args)).flatMap((p) => [
+      { ...p, id: "excluded", name: "Pirkka kahvi", price: 100 },
+      { ...p, id: "allowed", name: "Other coffee", price: 600 },
+    ]);
+  service.state.productPreference = "storeBrand";
+  service.state.household.exclusions = "pirkka";
+  service.state.accepted["demo-k:demo-helsinki:coffee"] = ["excluded"];
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("allowed");
+  expect(service.basket[0].excluded).toBe(1);
+  await expect(
+    service.accept({ ingredientId: "coffee", productId: "excluded" }),
+  ).rejects.toThrow("unresolved");
+});
+
+test("a language change during transfer-history persistence retains both updates", async () => {
+  const storage = memory();
+  const service = new Service(storage);
+  await ready(service);
+  const originalSet = storage.set;
+  let entered!: () => void;
+  let release!: () => void;
+  const writing = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  storage.set = async (key, value) => {
+    if (
+      key === "state" &&
+      (value as any).listHistory.length &&
+      (value as any).language === "fi"
+    ) {
+      entered();
+      await gate;
+    }
+    return originalSet(key, value);
+  };
+  const transfer = service.execute({
+    id: service.review!.id,
+    acknowledged: false,
+  });
+  await writing;
+  const language = service.setLanguage("en");
+  release();
+  await Promise.all([transfer, language]);
+  expect(service.state.language).toBe("en");
+  expect(service.state.listHistory).toHaveLength(1);
+  expect(await storage.get("state")).toEqual(service.state);
 });

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
+import { isLive } from "../stores/provider";
 
 export function Setup({
   snapshot,
@@ -18,7 +19,7 @@ export function Setup({
   const [step, setStep] = useState(0);
   const { state } = snapshot;
   const [choosingStore, setChoosingStore] = useState(
-    state.context.providerId !== "k-ruoka",
+    !isLive(state.context.providerId),
   );
   return (
     <main className="welcome">

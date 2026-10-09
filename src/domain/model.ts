@@ -62,7 +62,7 @@ export const stateSchema = z.object({
     .enum(["price", "storeBrand", "avoidStoreBrand"])
     .default("price"),
   receiptText: z.string().max(50000).default(""),
-  history: z
+  listHistory: z
     .array(
       z.object({
         id: z.string(),
@@ -79,6 +79,13 @@ export const stateSchema = z.object({
       }),
     )
     .max(52)
+    .default([]),
+  // Earlier weeks, newest first, for "use last week".
+  history: z
+    .array(
+      z.object({ savedAt: z.string(), meals: z.array(mealSchema).max(100) }),
+    )
+    .max(12)
     .default([]),
 });
 export type AppState = z.infer<typeof stateSchema>;
@@ -107,6 +114,8 @@ export type BasketLine = {
   packs: number;
   total: number | null;
   candidates: Product[];
+  /** Products hidden because their name contains a household exclusion. */
+  excluded?: number;
 };
 export type CartLine = {
   productId: string;

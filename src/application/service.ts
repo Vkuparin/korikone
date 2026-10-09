@@ -8,8 +8,8 @@ import {
   type Review,
   type StoreContext,
 } from "../domain/model";
-import { requirements, match } from "../domain/planner";
-import { ProviderRegistry } from "../stores/provider";
+import { requirements, match, exclusionTerms } from "../domain/planner";
+import { ProviderRegistry, isLive } from "../stores/provider";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
@@ -30,7 +30,7 @@ export class Service {
   draftRevision: number | null = null;
   draftNote = "";
   storeResults: StoreContext[] = [];
-  storeLogin = "notStarted";
+  storeLogins: Record<string, string> = {};
   controller: AbortController | null = null;
   private stateWrites: Promise<void> = Promise.resolve();
   private writeState<T>(operation: () => Promise<T>): Promise<T> {
@@ -75,7 +75,8 @@ export class Service {
       journal: this.journal,
       review: this.review,
       storeResults: this.storeResults,
-      storeLogin: this.storeLogin,
+      storeLogin:
+        this.storeLogins[this.state.context.providerId] ?? "notStarted",
       ai: this.ai,
       draft: this.draft,
     };
@@ -123,6 +124,48 @@ export class Service {
     this.draftRevision = null;
     return { ...result, draft: null };
   }
+  /** Keeps the current meals as the latest earlier week, skipping an identical copy. */
+  private archived(state: AppState, at = new Date().toISOString()) {
+    if (!state.meals.length) return state.history;
+    const plan = (meals: AppState["meals"]) =>
+      JSON.stringify(meals.map(({ id: _id, ...rest }) => rest));
+    if (state.history[0] && plan(state.history[0].meals) === plan(state.meals))
+      return state.history;
+    return [{ savedAt: at, meals: state.meals }, ...state.history].slice(0, 12);
+  }
+  async newWeek() {
+    if (this.busy) throw new Error("busy");
+    return this.save({
+      ...this.state,
+      history: this.archived(this.state),
+      meals: [],
+      skipped: [],
+      note: "",
+      assumptions: "",
+      extras: [],
+      removed: [],
+      quantities: {},
+      staples: this.state.staples.map((item) => ({ ...item, enabled: false })),
+    });
+  }
+  async reuseWeek() {
+    if (this.busy) throw new Error("busy");
+    const last = this.state.history[0];
+    if (!last) throw new Error("noEarlierWeek");
+    const meals = last.meals.filter((m) =>
+      this.state.recipes.some((r) => r.id === m.recipeId),
+    );
+    return this.save({
+      ...this.state,
+      meals: meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
+      note: "",
+      assumptions: "",
+      extras: [],
+      removed: [],
+      skipped: [],
+      quantities: {},
+    });
+  }
   async confirmPurchase() {
     if (this.busy || this.journal?.status !== "verified")
       throw new Error("reviewRequired");
@@ -135,6 +178,7 @@ export class Service {
     );
     const next = {
       ...this.state,
+      history: this.archived(this.state, order.confirmedAt),
       staples: this.state.staples.map((item) =>
         purchased.has(item.id)
           ? { ...item, lastPurchased: order.confirmedAt }
@@ -161,15 +205,19 @@ export class Service {
         this.state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
         ] ?? [];
+      const exclusions = exclusionTerms(this.state.household.exclusions);
       const available = products.filter(
         (p) =>
           p.available &&
           p.price !== null &&
           p.unit === requirement.unit &&
-          p.packAmount > 0,
+          p.packAmount > 0 &&
+          !exclusions.some((term) =>
+            p.name.toLocaleLowerCase("fi").includes(term),
+          ),
       );
       const storeBrand = (name: string) =>
-        /\b(pirkka|k-menu|k menu|rainbow|xtra|coop)\b/i.test(name);
+        /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
       const preferred = available.filter((p) =>
         this.state.productPreference === "storeBrand"
           ? storeBrand(p.name)
@@ -182,7 +230,12 @@ export class Service {
         available.some((p) => p.id === id),
       );
       result.push(
-        match(requirement, products, selected.length ? selected : auto),
+        match(
+          requirement,
+          products,
+          selected.length ? selected : auto,
+          exclusions,
+        ),
       );
     }
     this.basket = result;
@@ -210,6 +263,19 @@ export class Service {
         ],
       },
     });
+    return this.buildBasket();
+  }
+  /** "Already have this" from the basket: skip the requirement and rematch. */
+  async omit(input: unknown) {
+    if (this.busy) throw new Error("busy");
+    const key = z.string().min(1).max(200).parse(input);
+    if (
+      !this.basket.some(
+        (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+      )
+    )
+      throw new Error("unresolved");
+    await this.save({ ...this.state, skipped: [...this.state.skipped, key] });
     return this.buildBasket();
   }
   async prepare(input?: unknown) {
@@ -246,7 +312,7 @@ export class Service {
       throw new Error("reviewRequired");
     if (
       (this.review.total > this.state.household.budget ||
-        this.review.context.providerId === "k-ruoka") &&
+        isLive(this.review.context.providerId)) &&
       !acknowledged
     )
       throw new Error("acknowledgeReview");
@@ -280,31 +346,33 @@ export class Service {
       if (provider instanceof DemoProvider)
         await this.db.set(provider.id, [...provider.carts]);
       if (this.journal.status === "verified") {
-        const next = {
-          ...this.state,
-          history: [
-            {
-              id: this.journal.review.id,
-              date: new Date().toISOString(),
-              note: this.state.note,
-              meals: structuredClone(this.state.meals),
-              recipes: structuredClone(
-                this.state.recipes.filter((r) =>
-                  this.state.meals.some((m) => m.recipeId === r.id),
+        await this.writeState(async () => {
+          const next = {
+            ...this.state,
+            listHistory: [
+              {
+                id: this.journal!.review.id,
+                date: new Date().toISOString(),
+                note: this.state.note,
+                meals: structuredClone(this.state.meals),
+                recipes: structuredClone(
+                  this.state.recipes.filter((r) =>
+                    this.state.meals.some((m) => m.recipeId === r.id),
+                  ),
                 ),
+                extras: structuredClone(this.state.extras),
+                skipped: [...this.state.skipped],
+                removed: [...this.state.removed],
+                quantities: { ...this.state.quantities },
+              },
+              ...this.state.listHistory.filter(
+                (h) => h.id !== this.journal!.review.id,
               ),
-              extras: structuredClone(this.state.extras),
-              skipped: [...this.state.skipped],
-              removed: [...this.state.removed],
-              quantities: { ...this.state.quantities },
-            },
-            ...this.state.history.filter(
-              (h) => h.id !== this.journal!.review.id,
-            ),
-          ].slice(0, 52),
-        };
-        await this.db.set("state", next);
-        this.state = next;
+            ].slice(0, 52),
+          };
+          await this.db.set("state", next);
+          this.state = next;
+        });
       }
       return this.snapshot();
     } finally {
@@ -325,6 +393,7 @@ export class Service {
       this.journal,
     );
     this.review.revision = this.state.revision;
+    this.review.unresolved = this.journal.review.unresolved;
     return this.snapshot();
   }
   async scenario(value: unknown) {

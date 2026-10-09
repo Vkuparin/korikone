@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { initialState, parseAmount, type Journal } from "../src/domain/model";
-import { requirements, match } from "../src/domain/planner";
+import { describe, it, expect, test } from "vitest";
+import {
+  initialState,
+  parseAmount,
+  stateSchema,
+  type Journal,
+} from "../src/domain/model";
+import { requirements, match, exclusionTerms } from "../src/domain/planner";
 import { DemoProvider } from "../src/stores/demo";
 import {
   createReview,
@@ -209,4 +214,75 @@ it("keeps home rows visible separately from removed rows and applies quantity ov
   ).toEqual([["pasta", 1000]]);
   state.skipped = [];
   expect(requirements(state).map((r) => r.id)).toEqual(["pasta"]);
+});
+test("household exclusions remove products before ranking and acceptance", () => {
+  const requirement = {
+    id: "meat",
+    name: "Jauheliha",
+    amount: 400,
+    unit: "g" as const,
+    sources: [],
+  };
+  const product = (id: string, name: string, price: number) => ({
+    id,
+    providerId: "demo-k",
+    storeId: "s",
+    name,
+    ingredientId: "meat",
+    packAmount: 400,
+    unit: "g" as const,
+    price,
+    available: true,
+    deposit: 0,
+    nativeUnit: "kpl",
+    increment: 1,
+    observedAt: "",
+  });
+  const line = match(
+    requirement,
+    [
+      product("1", "Sika-nauta jauheliha 400 g", 300),
+      product("2", "Naudan jauheliha 400 g", 450),
+    ],
+    ["1", "2"],
+    exclusionTerms("sika, ok"),
+  );
+  expect(exclusionTerms("Sika, ok\nPähkinä")).toEqual(["sika", "pähkinä"]);
+  expect(line.product?.id).toBe("2");
+  expect(line.candidates.map((p) => p.id)).toEqual(["2"]);
+  expect(line.excluded).toBe(1);
+});
+
+test("profiles with earlier-week history remain compatible with shopping-list history", () => {
+  const saved = {
+    ...initialState(),
+    history: [
+      {
+        savedAt: "2026-10-08T12:00:00Z",
+        meals: [
+          {
+            id: "old",
+            day: 0,
+            recipeId: "pasta",
+            servings: 4,
+            leftovers: false,
+          },
+        ],
+      },
+    ],
+  } as Record<string, unknown>;
+  for (const key of [
+    "listHistory",
+    "note",
+    "extras",
+    "quantities",
+    "removed",
+    "receiptText",
+    "productPreference",
+  ])
+    delete saved[key];
+  const restored = stateSchema.parse(saved);
+  expect(restored.history[0].meals[0].recipeId).toBe("pasta");
+  expect(restored.listHistory).toEqual([]);
+  expect(restored.extras).toEqual([]);
 });
