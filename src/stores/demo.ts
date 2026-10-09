@@ -53,6 +53,8 @@ export class DemoProvider implements StoreProvider {
   failAfter: number | null = null;
   priceChange = false;
   writes = 0;
+  searchRequests = 0;
+  failSearch = false;
   constructor(
     public id: string,
     private save?: () => void,
@@ -72,6 +74,8 @@ export class DemoProvider implements StoreProvider {
     query: string,
     ingredientId: string,
   ): Promise<Product[]> {
+    this.searchRequests++;
+    if (this.failSearch) throw new Error("storeBusy");
     const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
     return catalogue
       .filter((p) => adjust[p[0]] !== null)

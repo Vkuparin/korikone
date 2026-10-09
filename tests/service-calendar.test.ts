@@ -29,7 +29,7 @@ test("calendar edits preserve the shopping list, quoted total and approval revis
   // A real shopping edit still invalidates the quotes and their approval.
   await service.save({
     ...service.state,
-    household: { ...service.state.household, servings: 2 },
+    quantities: { "coffee:g": 1000 },
   });
   expect(service.state.revision).toBe(before.state.revision + 1);
   expect(service.basket).toEqual([]);

@@ -26,6 +26,7 @@ import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
 import type { MealDraft } from "../ai/draft";
+import { pricingKey, restoredQuote } from "./quotes";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -37,6 +38,8 @@ export class Service {
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
+  quotedAt: string | null = null;
+  pricingError: string | null = null;
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
@@ -98,14 +101,34 @@ export class Service {
       const carts = await this.db.get(id);
       if (carts) (this.registry.get(id) as DemoProvider).carts = new Map(carts);
     }
+    const quote = restoredQuote(await this.db.get("last-quote"), this.state);
+    if (quote) {
+      this.basket = quote.basket;
+      this.pickupFee = quote.pickupFee;
+      this.quotedAt = quote.quotedAt;
+    }
   }
   snapshot() {
     return {
       developmentMode: this.developmentMode,
       developmentScenario: this.developmentScenario,
       developmentRequests: this.developmentRequests,
+      developmentCatalogueRequests: this.developmentMode
+        ? this.registry
+            .all()
+            .reduce(
+              (sum, provider) =>
+                sum +
+                (provider instanceof DemoProvider
+                  ? provider.searchRequests
+                  : 0),
+              0,
+            )
+        : 0,
       state: this.state,
       basket: this.basket,
+      quotedAt: this.quotedAt,
+      pricingError: this.pricingError,
       journal: this.journal,
       review: this.review,
       storeResults: this.storeResults,
@@ -140,12 +163,18 @@ export class Service {
       if (changed) {
         next.revision = this.state.revision + 1;
       }
+      const pricingChanged = pricingKey(next) !== pricingKey(this.state);
       await this.db.set("state", next);
       this.state = next;
       if (changed) {
-        this.basket = [];
         this.review = null;
         this.comparison = null;
+      }
+      if (pricingChanged) {
+        this.basket = [];
+        this.pickupFee = null;
+        this.quotedAt = null;
+        this.pricingError = null;
       }
       return this.snapshot();
     });
@@ -236,8 +265,50 @@ export class Service {
   async buildBasket() {
     if (this.busy) throw new Error("busy");
     this.review = null;
-    this.basket = await this.price(this.state.context);
-    this.pickupFee = await this.readFee(this.state.context);
+    const context = this.state.context;
+    const key = pricingKey(this.state);
+    const basket = await this.price(context);
+    const pickupFee = basket.length ? await this.readFee(context) : null;
+    return this.retainQuote(key, context, basket, pickupFee);
+  }
+  private retainQuote(
+    key: string,
+    context: StoreContext,
+    basket: BasketLine[],
+    pickupFee: FeeRange | null,
+  ) {
+    return this.writeState(async () => {
+      if (key !== pricingKey(this.state)) throw new Error("draftStale");
+      const quotedAt = new Date().toISOString();
+      await this.db.set("last-quote", {
+        key,
+        context,
+        basket,
+        pickupFee,
+        quotedAt,
+      });
+      this.basket = basket;
+      this.pickupFee = pickupFee;
+      this.quotedAt = quotedAt;
+      this.pricingError = null;
+      return this.snapshot();
+    });
+  }
+  /** Explicit list operations refresh incompatible quotes; opening a view never calls this. */
+  async refreshAfterChange(operation: () => Promise<unknown>) {
+    const key = pricingKey(this.state);
+    await operation();
+    if (key !== pricingKey(this.state)) {
+      try {
+        return await this.buildBasket();
+      } catch (error) {
+        // The list operation was already saved; show that list with unpriced rows.
+        this.pricingError =
+          error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+            ? error.message
+            : "operationFailed";
+      }
+    }
     return this.snapshot();
   }
   /** Fees change with the time of day, so a reading is reused for 15 minutes at most. A failed read is unknown. */
@@ -324,7 +395,9 @@ export class Service {
     )
       throw new Error("compareUnavailable");
     const revision = this.state.revision;
-    const lines = this.basket.length ? this.basket : await this.price(active);
+    const hasQuote = this.quotedAt !== null;
+    const key = pricingKey(this.state);
+    const lines = hasQuote ? this.basket : await this.price(active);
     const otherLines = await this.price(other);
     const fees = {
       a: await this.readFee(active),
@@ -333,6 +406,7 @@ export class Service {
     // A list edited meanwhile makes the comparison stale; show none rather than a wrong one.
     if (this.state.revision !== revision || this.state.context !== active)
       throw new Error("draftStale");
+    if (!hasQuote) await this.retainQuote(key, active, lines, fees.a);
     this.basket = lines;
     this.pickupFee = fees.a;
     this.comparison = {
@@ -357,16 +431,17 @@ export class Service {
     )
       throw new Error("unresolved");
     const context = this.state.context;
-    await this.save({
-      ...this.state,
-      accepted: {
-        ...this.state.accepted,
-        [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
-          productId,
-        ],
-      },
-    });
-    return this.buildBasket();
+    return this.refreshAfterChange(() =>
+      this.save({
+        ...this.state,
+        accepted: {
+          ...this.state.accepted,
+          [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
+            productId,
+          ],
+        },
+      }),
+    );
   }
   /** "Already have this" from the basket: skip the requirement and rematch. */
   async omit(input: unknown) {
@@ -378,8 +453,9 @@ export class Service {
       )
     )
       throw new Error("unresolved");
-    await this.save({ ...this.state, skipped: [...this.state.skipped, key] });
-    return this.buildBasket();
+    return this.refreshAfterChange(() =>
+      this.save({ ...this.state, skipped: [...this.state.skipped, key] }),
+    );
   }
   async prepare(input?: unknown) {
     if (this.busy) throw new Error("busy");
@@ -499,11 +575,12 @@ export class Service {
   }
   async scenario(value: unknown) {
     if (this.busy) throw new Error("busy");
-    const scenario = z.enum(["interrupt", "price"]).parse(value);
+    const scenario = z.enum(["interrupt", "price", "catalogue"]).parse(value);
     const provider = this.registry.get(this.state.context.providerId);
     if (!(provider instanceof DemoProvider)) throw new Error("unsupported");
     if (scenario === "interrupt") provider.failAfter = provider.writes + 1;
-    else provider.priceChange = !provider.priceChange;
+    else if (scenario === "price") provider.priceChange = !provider.priceChange;
+    else provider.failSearch = !provider.failSearch;
     return this.snapshot();
   }
 }

@@ -20,6 +20,9 @@ export const isLive = (providerId: string) =>
   liveProviders.includes(providerId);
 export class ProviderRegistry {
   private providers = new Map<string, StoreProvider>();
+  all() {
+    return [...this.providers.values()];
+  }
   register(provider: StoreProvider) {
     if (this.providers.has(provider.id)) throw new Error("duplicateProvider");
     this.providers.set(provider.id, provider);

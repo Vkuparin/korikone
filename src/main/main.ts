@@ -193,17 +193,18 @@ else
       },
       save: async (input) => {
         const before = service.state.context;
-        const result = await service.save(input);
-        const context = service.state.context;
-        if (
-          !development &&
-          context.providerId === "s-kaupat" &&
-          (before.providerId !== context.providerId ||
-            before.storeId !== context.storeId)
-        )
-          // Best effort: Korikone always passes the store explicitly.
-          await sKaupat.selectStore(context).catch(() => {});
-        return result;
+        return service.refreshAfterChange(async () => {
+          await service.save(input);
+          const context = service.state.context;
+          if (
+            !development &&
+            context.providerId === "s-kaupat" &&
+            (before.providerId !== context.providerId ||
+              before.storeId !== context.storeId)
+          )
+            // Best effort: Korikone always passes the store explicitly.
+            await sKaupat.selectStore(context).catch(() => {});
+        });
       },
       setLanguage: (input) => service.setLanguage(input),
       cancelTransfer: async () => {
@@ -279,10 +280,12 @@ else
         );
         return service.snapshot();
       },
-      approveDraft: () => service.approveDraft(),
-      confirmPurchase: () => service.confirmPurchase(),
-      newWeek: () => service.newWeek(),
-      reuseWeek: () => service.reuseWeek(),
+      approveDraft: () =>
+        service.refreshAfterChange(() => service.approveDraft()),
+      confirmPurchase: () =>
+        service.refreshAfterChange(() => service.confirmPurchase()),
+      newWeek: () => service.refreshAfterChange(() => service.newWeek()),
+      reuseWeek: () => service.refreshAfterChange(() => service.reuseWeek()),
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
       accept: (input) => service.accept(input),

@@ -13,6 +13,7 @@ Current published delivery: **0.2.0-alpha.3 pre-release**. See [pre-release scop
 | Note-driven shopping | One input replaces the competing prompt and weekday-entry controls. No setup toggles for categories already expressed in the note. |
 | Visible interpretation | “Näin ymmärsin” cards show meals or grocery groups, ingredient counts, estimated cost shares and portions. Selecting a card highlights its list rows. |
 | Explicit list updates | “Päivitä lista” / “Update list” and Ctrl+Enter request interpretation. Typing, returning to the shopping view and restoring an edited note start no AI request. Unapplied note changes have a visible hint. Editing during a request discards its obsolete response and does not start another request. |
+| Retained quotes | Returning to the list or restarting restores compatible last quoted products, prices and pickup fees without catalogue requests. Explicit list, product or store changes fetch new quotes. Transfer review still checks current retailer data before any write. |
 | Automatic product matching | Prefer an explicit saved selection when available. Otherwise choose sufficient packs at the lowest total cost within the brand preference. |
 | Deterministic shopping calculations | AI supplies recipes and grocery amounts. Code merges ingredients, scales portions, chooses packs, computes totals and applies cart changes. |
 | Separate optional scheduling | “Viikkosuunnitelma” shows seven days from today. Cooked meals move by drag and drop or arrow keys; days can be marked as leftovers. Calendar-only saves preserve shopping quantities, quotes and transfer approvals. “Kopioi viikko” copies these seven dates, meal names and leftovers as plain text in the selected language, without changing saved data. The saved `calendar` field maps ISO dates to `{ mealIds: string[], leftovers: boolean }`, defaults to empty for older profiles and is included in backups. |
@@ -86,6 +87,10 @@ The new `listHistory` records verified transfers, not completed purchases. Exist
 - `src/main`: restricted IPC, file dialogs, clipboard and default-browser handoff.
 
 Schema defaults retain compatibility with older saved profiles. Language changes remain presentation-only and preserve quantities, typed notes, approvals and in-flight requests.
+
+The latest successful quote is a separate SQLite document, `last-quote` (`development:last-quote` in development mode), outside `AppState`, JSON backups and diagnostics. It holds the basket, candidates, pickup fee, context and `quotedAt`. `src/application/quotes.ts` validates the document and binds it to the store/fulfillment context, computed requirements, accepted choices, exclusions and product preference. Language, calendar, budget and unrelated saved recipes do not invalidate it. Startup rejects malformed or incompatible documents without fetching replacements.
+
+Explicit saved changes that affect this binding refresh prices through `Service.refreshAfterChange`. If the save succeeds but pricing fails, the snapshot retains the changed list, clears incompatible prices and exposes `pricingError` for a visible retry. A failed manual refresh preserves the previous successful quote. Quotes are published only after their cache write succeeds and their binding still matches the saved list. Cached prices never replace fresh transfer validation.
 
 ## Current boundaries
 

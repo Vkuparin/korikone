@@ -43,7 +43,6 @@ export function ShoppingWorkspace({
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
-  const quoted = useRef(-1);
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -137,12 +136,6 @@ export function ShoppingWorkspace({
       }
     }
   }
-  useEffect(() => {
-    if (view !== "list" || busy || working || quoted.current === state.revision)
-      return;
-    quoted.current = state.revision;
-    if (requirements(state).length) void call("buildBasket");
-  }, [state.revision, busy, working]);
   const all = requirements(state, new Date(), true);
   const rows = requirements(state);
   const money = (cents: number) =>
@@ -1135,8 +1128,38 @@ export function ShoppingWorkspace({
           )}
           <div className="total-line">
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>
-            <strong>{money(total)}</strong>
+            <strong>
+              {snapshot.quotedAt || !rows.length
+                ? money(total)
+                : tr("Ei hinnoiteltu", "Not priced")}
+            </strong>
           </div>
+          {snapshot.pricingError && (
+            <p className="warning" role="alert">
+              {tr(
+                "Tuotteiden ja hintojen haku epäonnistui. Yritä uudelleen.",
+                "Could not retrieve products and prices. Try again.",
+              )}
+            </p>
+          )}
+          {snapshot.quotedAt ? (
+            <p className="muted">
+              {tr("Viimeksi haetut hinnat", "Last quoted prices")} ·{" "}
+              {new Date(snapshot.quotedAt).toLocaleString(
+                fi ? "fi-FI" : "en-FI",
+              )}
+            </p>
+          ) : (
+            rows.length > 0 && (
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("buildBasket")}
+              >
+                {tr("Hae tuotteet ja hinnat", "Get products and prices")}
+              </button>
+            )
+          )}
           {canCompare(snapshot) && (
             <CompareSummary
               snapshot={snapshot}
