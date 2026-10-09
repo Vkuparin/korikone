@@ -91,3 +91,11 @@ Run on the owner's PC from a throwaway script outside `src/`: k-ruoka.fi in a `W
 
 Conclusion: K-Ruoka can run inside Korikone in its own persistent session, and its API answers same-origin `fetch` from the page with the session cookie. The first cart `PATCH` from the view needs an owner check. The choice for U3.7 is in [dependency-decisions.md](dependency-decisions.md#k-ruoka).
 
+
+## S-kaupat "Lisää kaikki ostoskoriin" (U4.1, 9 October 2026)
+
+Watched by the owner on his PC in a signed-in S-kaupat window, with checkout, delivery-time and payment pages blocked. Nothing was automated and no time was chosen.
+
+- **What the button does.** Pressing *Lisää kaikki ostoskoriin* on a shopping list first opens a popup that asks for a store, found by the owner's address. After the store it shows pickup options and a calendar. According to the owner, choosing the pickup type would then reserve a delivery slot. He stopped there on purpose and closed the dialog.
+- **Conclusion: not automated.** The site ties adding a whole list to choosing a pickup store, a pickup type and a time, and the last of these reserves a slot. Korikone never picks times or reserves slots, and it does not use the shopper's address, so it cannot press this button for the shopper. The request shape and whether the items reach the cart without a time were not recorded; the owner's usage ran out before the detailed capture.
+- **What Korikone does instead (U4.2, "not" branch).** After a verified transfer it opens the tab on the Korikone list under *Ostoslistat*, where the shopper presses the button and chooses store and time themselves.
