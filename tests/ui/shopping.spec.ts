@@ -13,13 +13,21 @@ async function launch() {
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-redesign-"));
-  return electron.launch({
+  const app = await electron.launch({
     args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
     env,
     ...(process.env.KORIKONE_EXECUTABLE
       ? { executablePath: process.env.KORIKONE_EXECUTABLE }
       : {}),
   });
+  // Packaged Windows builds need a visible compositor surface for screenshots.
+  if (process.env.KORIKONE_EXECUTABLE) {
+    await (await app.firstWindow()).waitForLoadState("domcontentloaded");
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].show(),
+    );
+  }
+  return app;
 }
 
 test("manual groceries accept decimal units and merge into quoted ingredient rows", async () => {

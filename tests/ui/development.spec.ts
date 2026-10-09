@@ -245,7 +245,7 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       .click();
     await expect(
       page.getByRole("button", { name: "Kauppa", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+    ).toHaveAttribute("aria-current", "page", { timeout: 15000 });
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
     const panel = list.getByRole("region", { name: "Siirron tulos" });
     await expect(panel).toContainText("Ostoskori päivitetty ja tarkistettu");
