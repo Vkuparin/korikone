@@ -40,6 +40,7 @@ function App() {
     pickupFee: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
     draft: null,
+    recipeDraft: null,
   });
   const [page, setPage] = useState<Key>("week");
   const [loaded, setLoaded] = useState(false);

@@ -79,6 +79,14 @@ export class FixtureAI {
       this.scenario !== "invalidOnce"
     )
       throw new Error(this.scenario);
+    const recipeText = input.match(/Recipe text: ("(?:[^"\\]|\\.)*")/)?.[1];
+    if (recipeText) {
+      const request = JSON.parse(recipeText).toLocaleLowerCase("fi");
+      const recipe =
+        mealFixtures.find((fixture) => fixture.pattern.test(request))?.recipe ??
+        initialState().recipes[0];
+      return JSON.stringify(structuredClone(recipe));
+    }
     const note = input.match(/User note: ("(?:[^"\\]|\\.)*")/)?.[1];
     const request = note ? JSON.parse(note).toLocaleLowerCase("fi") : "";
     const servings = Number(

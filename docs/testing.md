@@ -10,6 +10,7 @@ The app never initializes the live AI connection in development mode. AI sign-in
 | --- | --- |
 | Onboarding, store selection, AI sign-in and settings | `tests/ui/setup.spec.ts`, `tests/ui/development.spec.ts` |
 | AI draft validation, automatic model choice, retry and failures | `tests/ai.test.ts`, `tests/models.test.ts`, `tests/development.test.ts`, `tests/ui/development.spec.ts` |
+| Recipe-import API (F10.1) | `tests/ai.test.ts` covers one recipe, schema failures, corrective retry, usage limit and cancellation; `tests/ui/recipe-import-api.spec.ts` runs the real IPC path and confirms imports never save recipes, including across restart |
 | Delayed notes, stale results, recipes, quantities, home items, schedule and history | `tests/ui/shopping.spec.ts`, `tests/ui/forms.spec.ts`, `tests/service.test.ts`, `tests/domain.test.ts` |
 | Matching, unavailable products, price changes, transfers and interrupted recovery | `tests/domain.test.ts`, `tests/service.test.ts`, `tests/ui/journey.spec.ts` |
 | Retailer protocol and normalization | `tests/k-ruoka.test.ts`, `tests/s-kaupat.test.ts` (mock transports and the offline S-kaupat worker) |

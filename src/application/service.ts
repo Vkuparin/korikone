@@ -7,6 +7,7 @@ import {
   type Journal,
   type Review,
   type StoreContext,
+  type Recipe,
 } from "../domain/model";
 import {
   requirements,
@@ -41,6 +42,7 @@ export class Service {
   busy = false;
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
+  recipeDraft: Recipe | null = null;
   draftRevision: number | null = null;
   draftNote = "";
   storeResults: StoreContext[] = [];
@@ -114,6 +116,7 @@ export class Service {
       pickupFee: this.pickupFee,
       ai: this.ai,
       draft: this.draft,
+      recipeDraft: this.recipeDraft,
     };
   }
   async save(input: unknown) {

@@ -25,7 +25,13 @@ import {
   sKaupatWorker,
 } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
-import { draftPrompt, validateDraft } from "../ai/draft";
+import {
+  draftPrompt,
+  validateDraft,
+  generateValidated,
+  recipePrompt,
+  validateRecipe,
+} from "../ai/draft";
 import { readReceipt } from "../receipts/read";
 import { diagnostics } from "../application/diagnostics";
 if (process.env.KORIKONE_TEST_DATA)
@@ -130,6 +136,25 @@ else
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     let generationRun = 0;
+    const generateAI =
+      (model: string, run: number) => async (prompt: string) => {
+        try {
+          const text = await ai.generate(model, prompt);
+          if (run !== generationRun) throw new Error("aiCancelled");
+          return text;
+        } catch (error) {
+          if (
+            run !== generationRun ||
+            (error instanceof Error && error.name === "AbortError")
+          )
+            throw new Error("aiCancelled");
+          throw error;
+        } finally {
+          service.developmentRequests = development
+            ? fixtureAI.requestCount
+            : 0;
+        }
+      };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => {
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
@@ -191,6 +216,7 @@ else
       },
       cancelAI: async () => {
         generationRun++;
+        service.recipeDraft = null;
         service.draft = null;
         service.draftRevision = null;
         ai.cancel();
@@ -199,6 +225,7 @@ else
       },
       signOutAI: async () => {
         await ai.signOut();
+        service.recipeDraft = null;
         service.draft = null;
         return service.snapshot();
       },
@@ -223,38 +250,33 @@ else
         const run = ++generationRun;
         service.draft = null;
         service.draftRevision = null;
-        const generate = async (prompt: string) => {
-          try {
-            const text = await ai.generate(request.model, prompt);
-            if (run !== generationRun) throw new Error("aiCancelled");
-            return text;
-          } catch (error) {
-            if (
-              run !== generationRun ||
-              (error instanceof Error && error.name === "AbortError")
-            )
-              throw new Error("aiCancelled");
-            throw error;
-          } finally {
-            service.developmentRequests = development
-              ? fixtureAI.requestCount
-              : 0;
-          }
-        };
-        let text = await generate(draftPrompt(request.prompt, service.state));
-        try {
-          service.draft = validateDraft(text, service.state);
-        } catch (error) {
-          if (!(error instanceof Error) || error.message !== "invalidDraft")
-            throw error;
-          text = await generate(
-            draftPrompt(request.prompt, service.state) +
-              " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
-          );
-          service.draft = validateDraft(text, service.state);
-        }
+        service.recipeDraft = null;
+        service.draft = await generateValidated(
+          generateAI(request.model, run),
+          draftPrompt(request.prompt, service.state),
+          (text) => validateDraft(text, service.state),
+          " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
+        );
         service.draftRevision = revision;
         service.draftNote = request.prompt;
+        return service.snapshot();
+      },
+      importRecipe: async (input) => {
+        const request = z
+          .object({
+            text: z.string().trim().min(1).max(10000),
+            model: z.string().default("auto"),
+            consent: z.literal(true),
+          })
+          .parse(input);
+        const run = ++generationRun;
+        service.recipeDraft = null;
+        service.recipeDraft = await generateValidated(
+          generateAI(request.model, run),
+          recipePrompt(request.text, service.state),
+          (text) => validateRecipe(text, service.state),
+          " The previous response failed validation. Return one complete recipe object with positive integer g, ml or pcs quantities, servings from 1 to 100, and at least one ingredient. Return JSON only.",
+        );
         return service.snapshot();
       },
       approveDraft: () => service.approveDraft(),
@@ -491,7 +513,10 @@ else
           }
           const submittedRun = generationRun;
           const pending = queue.then(() => {
-            if (name === "generate" && submittedRun !== generationRun)
+            if (
+              (name === "generate" || name === "importRecipe") &&
+              submittedRun !== generationRun
+            )
               throw new Error("aiCancelled");
             return handler(input);
           });

@@ -68,6 +68,8 @@ Receipt import accepts PDF, TXT and CSV. A dedicated worker uses pinned Mozilla 
 
 Imported text is visible and editable in settings. It is supplied as untrusted purchase data for subsequent AI suggestions, never as instructions. It is not sent to ChatGPT merely by importing it. Receipt storage is included in local backups.
 
+The recipe-import API accepts pasted recipe text as untrusted data and requests one `recipeSchema` object. Notes and recipe import share one corrective retry for invalid output; usage and cancellation errors are not retried. Imported recipes reuse saved ingredient identities and receive a new ID if their ID collides with a saved recipe. The result stays in the temporary `recipeDraft` snapshot field, outside saved state and backups. Cancelling AI, signing out or restarting clears it. The review form and explicit save action are planned in F10.2; there is no recipe-import control yet.
+
 The new `listHistory` records verified transfers, not completed purchases. Existing `history` entries keep the earlier-week schema and remain reusable through the History view; clearing the list archives its meals there. It stores the note, meal references, extras, home/removal flags and quantity overrides. Reusing an entry replaces the local list and obtains fresh quotes. Prices are not reused as current prices.
 
 ## Architecture
