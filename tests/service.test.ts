@@ -427,3 +427,33 @@ test("a verified transfer remembers what it paid, and only a rise of more than 5
   );
   expect(big.risen.map((r) => r.productId)).toEqual([id]);
 });
+
+test("the error log keeps the last 50 entries as code, time and view, and diagnostics carry nothing else", async () => {
+  const db = memory();
+  const service = new Service(db);
+  await ready(service);
+  for (let n = 0; n < 55; n++)
+    await service.recordError({
+      code: n % 2 ? "storeUnavailable" : "loginRequired",
+      view: "store",
+    });
+  // Text that could carry a product name, a note or an account is never kept.
+  await service.recordError({
+    code: "Tomaattipasta 500 g, a@b.fi",
+    view: "Reseptit: Tomaattipasta",
+  });
+  const log = await service.errorLog();
+  expect(log).toHaveLength(50);
+  expect(log.at(-1)).toMatchObject({
+    code: "operationFailed",
+    view: "unknown",
+  });
+  expect(Object.keys(log[0]).sort()).toEqual(["code", "time", "view"]);
+  await expect(new Service(db).errorLog()).resolves.toEqual(log);
+  const report = JSON.stringify(
+    diagnostics(service.snapshot(), { app: "test" }, log),
+  );
+  expect(JSON.parse(report).errors).toHaveLength(50);
+  for (const secret of ["Tomaattipasta", "a@b.fi", "Pasta 500 g"])
+    expect(report).not.toContain(secret);
+});

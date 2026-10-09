@@ -87,7 +87,11 @@ function App() {
       });
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "operationFailed");
+      const code = e instanceof Error ? e.message : "operationFailed";
+      setError(code);
+      // The code and the view go to the local error log for the diagnostic export.
+      if (method !== "recordError")
+        void window.korikone.recordError({ code, view: page }).catch(() => {});
       return false;
     } finally {
       setBusy(false);

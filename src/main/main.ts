@@ -297,6 +297,7 @@ else
       reuseWeek: () => service.reuseWeek(),
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
+      recordError: (input) => service.recordError(input),
       accept: (input) => service.accept(input),
       setPackSize: (input) => service.setPackSize(input),
       omit: (input) => service.omit(input),
@@ -496,12 +497,16 @@ else
       },
       exportDiagnostics: async () => {
         const report = JSON.stringify(
-          diagnostics(service.snapshot(), {
-            app: app.getVersion(),
-            electron: process.versions.electron,
-            platform: `${process.platform} ${process.arch}`,
-            packaged: String(app.isPackaged),
-          }),
+          diagnostics(
+            service.snapshot(),
+            {
+              app: app.getVersion(),
+              electron: process.versions.electron,
+              platform: `${process.platform} ${process.arch}`,
+              packaged: String(app.isPackaged),
+            },
+            await service.errorLog(),
+          ),
           null,
           2,
         );

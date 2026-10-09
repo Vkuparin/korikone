@@ -26,6 +26,12 @@ import {
 import { compareBaskets, type Comparison } from "../domain/compare";
 import { storeKey } from "../domain/changes";
 import {
+  ERROR_KEY,
+  ERROR_LIMIT,
+  errorLogSchema,
+  type ErrorEntry,
+} from "./errors";
+import {
   PRICE_KEY,
   limitPrices,
   priceObservationsSchema,
@@ -114,6 +120,29 @@ export class Service {
         recordPrices(saved.success ? saved.data : [], products),
       );
     }).catch(() => {});
+  }
+  /** The last 50 errors the shopper saw: a code, the time and the view. Nothing else is kept. */
+  async recordError(input: unknown) {
+    const { code, view } = z
+      .object({ code: z.string().max(100), view: z.string().max(100) })
+      .parse(input);
+    const entry = {
+      // Codes are short identifiers; anything else could carry text from a product or a note.
+      code: /^[a-zA-Z]{1,40}$/.test(code) ? code : "operationFailed",
+      time: new Date().toISOString(),
+      view: /^[a-zA-Z]{1,20}$/.test(view) ? view : "unknown",
+    };
+    await this.writeState(async () => {
+      const saved = await this.errorLog();
+      await this.db.set(ERROR_KEY, [...saved, entry].slice(-ERROR_LIMIT));
+    });
+    return this.snapshot();
+  }
+  async errorLog(): Promise<ErrorEntry[]> {
+    const saved = errorLogSchema.safeParse(
+      (await this.db.get(ERROR_KEY)) ?? [],
+    );
+    return saved.success ? saved.data : [];
   }
   async priceHistory(): Promise<PriceObservation[]> {
     const saved = priceObservationsSchema.safeParse(

@@ -10,6 +10,7 @@ const methods = [
   "cancelTransfer",
   "buildBasket",
   "compareStores",
+  "recordError",
   "accept",
   "setPackSize",
   "omit",
