@@ -261,6 +261,7 @@ else
       newWeek: () => service.newWeek(),
       reuseWeek: () => service.reuseWeek(),
       buildBasket: () => service.buildBasket(),
+      compareStores: () => service.compareStores(),
       accept: (input) => service.accept(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),

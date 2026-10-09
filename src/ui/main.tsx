@@ -36,6 +36,7 @@ function App() {
     storeResults: [],
     storeLogin: "notStarted",
     storeLogins: {},
+    comparison: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
     draft: null,
   });

@@ -274,3 +274,63 @@ test("switching chains with a list in progress keeps the list and each chain's p
     "s-kaupat",
   ]);
 });
+
+test("comparing stores prices the list at the other chain without changing anything", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const k = new DemoProvider("k-ruoka");
+  const s = new DemoProvider("s-kaupat");
+  const service = await createService(db, true, [k, s]);
+  const [kStore] = await k.searchStores();
+  const [sStore] = await s.searchStores();
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [
+      { id: "jauheliha", name: "Jauheliha", amount: 400, unit: "g" },
+      { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
+    ],
+    context: sStore,
+  });
+  await service.save({ ...service.state, context: kStore });
+  await expect(service.compareStores()).rejects.toThrow("compareUnavailable");
+  service.storeLogins = { "k-ruoka": "signedIn", "s-kaupat": "signedIn" };
+  await service.buildBasket();
+  await service.accept({
+    ingredientId: "jauheliha",
+    productId: "mince-chicken",
+  });
+  const writes = [
+    vi.spyOn(k, "setQuantity"),
+    vi.spyOn(s, "setQuantity"),
+    vi.spyOn(k, "getCart"),
+    vi.spyOn(s, "getCart"),
+  ];
+  const before = JSON.stringify(service.state);
+  const saved = JSON.stringify(entries.get("development:state"));
+  const result = await service.compareStores();
+  expect(JSON.stringify(service.state)).toBe(before);
+  expect(JSON.stringify(entries.get("development:state"))).toBe(saved);
+  expect(service.review).toBeNull();
+  expect(service.journal ?? null).toBeNull();
+  expect(entries.has("development:journal")).toBe(false);
+  for (const spy of writes) expect(spy).not.toHaveBeenCalled();
+  const comparison = result.comparison!;
+  expect(comparison.other.providerId).toBe("s-kaupat");
+  // K-Ruoka keeps the shopper's chicken mince; S-kaupat makes its own automatic choice.
+  expect(comparison.lines.map((l) => l.product?.id)).toEqual(["mince", "milk"]);
+  expect(comparison.result.common.rows).toBe(2);
+  expect(comparison.result.cheaper).toBe("a");
+  // Any list change drops the comparison rather than leaving a stale one.
+  await service.save({
+    ...service.state,
+    extras: service.state.extras.slice(1),
+  });
+  expect(service.snapshot().comparison).toBeNull();
+});

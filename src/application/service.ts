@@ -14,7 +14,8 @@ import {
   exclusionTerms,
   relevant,
 } from "../domain/planner";
-import { ProviderRegistry, isLive } from "../stores/provider";
+import { ProviderRegistry, isLive, liveProviders } from "../stores/provider";
+import { compareBaskets, type Comparison } from "../domain/compare";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
@@ -39,6 +40,13 @@ export class Service {
   draftNote = "";
   storeResults: StoreContext[] = [];
   storeLogins: Record<string, string> = {};
+  /** The last store comparison for the current list revision; never saved. */
+  comparison: {
+    revision: number;
+    other: StoreContext;
+    lines: BasketLine[];
+    result: Comparison;
+  } | null = null;
   controller: AbortController | null = null;
   private stateWrites: Promise<void> = Promise.resolve();
   private writeState<T>(operation: () => Promise<T>): Promise<T> {
@@ -93,6 +101,7 @@ export class Service {
       storeLogin:
         this.storeLogins[this.state.context.providerId] ?? "notStarted",
       storeLogins: { ...this.storeLogins },
+      comparison: this.comparison,
       ai: this.ai,
       draft: this.draft,
     };
@@ -118,6 +127,7 @@ export class Service {
       if (changed) {
         this.basket = [];
         this.review = null;
+        this.comparison = null;
       }
       return this.snapshot();
     });
@@ -208,7 +218,11 @@ export class Service {
   async buildBasket() {
     if (this.busy) throw new Error("busy");
     this.review = null;
-    const context = this.state.context;
+    this.basket = await this.price(this.state.context);
+    return this.snapshot();
+  }
+  /** Prices the current list at a store, reading only: nothing saved, reviewed or journalled. */
+  private async price(context: StoreContext): Promise<BasketLine[]> {
     const provider = this.registry.get(context.providerId);
     const result = [];
     for (const requirement of requirements(this.state)) {
@@ -260,7 +274,37 @@ export class Service {
         ),
       );
     }
-    this.basket = result;
+    return result;
+  }
+  /**
+   * Prices the list at the other chain's remembered store too, without changing either account,
+   * the saved state, the review or the journal. Both chains must be signed in with a store chosen.
+   */
+  async compareStores() {
+    if (this.busy) throw new Error("busy");
+    const active = this.state.context;
+    const otherId = liveProviders.find((id) => id !== active.providerId);
+    const other = otherId ? this.state.stores[otherId] : undefined;
+    if (
+      !isLive(active.providerId) ||
+      !other ||
+      this.storeLogins[active.providerId] !== "signedIn" ||
+      this.storeLogins[other.providerId] !== "signedIn"
+    )
+      throw new Error("compareUnavailable");
+    const revision = this.state.revision;
+    const lines = this.basket.length ? this.basket : await this.price(active);
+    const otherLines = await this.price(other);
+    // A list edited meanwhile makes the comparison stale; show none rather than a wrong one.
+    if (this.state.revision !== revision || this.state.context !== active)
+      throw new Error("draftStale");
+    this.basket = lines;
+    this.comparison = {
+      revision,
+      other,
+      lines: otherLines,
+      result: compareBaskets(lines, otherLines),
+    };
     return this.snapshot();
   }
   async accept(input: unknown) {
