@@ -44,6 +44,11 @@ function App() {
   });
   const [page, setPage] = useState<Key>("week");
   const [storeChain, setStoreChain] = useState<Chain | null>(null);
+  // A store page stays loaded after leaving the Kauppa view; the navigation says so.
+  const [storeOpen, setStoreOpen] = useState(false);
+  useEffect(() => {
+    if (page === "store") setStoreOpen(true);
+  }, [page]);
   const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -339,9 +344,22 @@ function App() {
                     ? "page"
                     : undefined
                 }
+                className={
+                  key === "store" && storeOpen && page !== "store"
+                    ? "store-open"
+                    : undefined
+                }
                 onClick={() => setPage(key)}
               >
                 {t(key)}
+                {key === "store" && storeOpen && page !== "store" && (
+                  <small>
+                    {(storeChain ?? state.context.providerId) === "k-ruoka"
+                      ? "K-Ruoka"
+                      : "S-kaupat"}{" "}
+                    · {state.language === "fi" ? "palaa" : "return"}
+                  </small>
+                )}
               </button>
             ))}
           </nav>

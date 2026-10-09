@@ -120,7 +120,7 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
         ),
       ).toContain("ERR_BLOCKED_BY_CLIENT");
 
-    // Leaving the Kauppa view takes the site off the window.
+    // Leaving the Kauppa view takes the site off the window, and the navigation leads back.
     expect(
       await app.evaluate(
         ({ BrowserWindow }) =>
@@ -136,6 +136,20 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
         ),
       )
       .toBe(0);
+    const back = page.getByRole("button", { name: "Kauppa S-kaupat · palaa" });
+    await expect(back).toBeVisible();
+    await back.click();
+    await expect(
+      page.getByRole("tab", { name: "S-kaupat", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect
+      .poll(() =>
+        app.evaluate(
+          ({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].contentView.children.length,
+        ),
+      )
+      .toBe(1);
   } finally {
     await app.close();
   }

@@ -1160,3 +1160,12 @@ body:has(.app-main) > #root > .progress {
   border-radius: 8px;
   background: #ffffff;
 }
+/* A store page is still open in the Kauppa view. */
+nav button.store-open {
+  background: #23623f;
+  color: #ffffff;
+}
+nav button.store-open small {
+  display: block;
+  font-weight: 400;
+}
