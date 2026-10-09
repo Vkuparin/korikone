@@ -214,7 +214,7 @@ export const en = {
   sKaupatListInfo:
     'These products go to the shopping list "Korikone" on your S-kaupat account. Existing list rows are kept and substitutes are not allowed.',
   sKaupatHandoff:
-    'S-kaupat opens in its own window. If it asks you to sign in, sign in there once with the same account; the window remembers it. Open the list "Korikone", press "Lisää kaikki ostoskoriin", choose the store and time, and complete the order there.',
+    'S-kaupat opens in its own window, signed in to the same account. Open the list "Korikone", press "Lisää kaikki ostoskoriin", choose the store and time, and complete the order there.',
   browserRequired:
     "S-kaupat needs Microsoft Edge or Google Chrome on this computer.",
   storeBusy: "The store connection is busy. Try again shortly.",
@@ -449,7 +449,7 @@ export const fi: Record<Key, string> = {
   sKaupatListInfo:
     'Nämä tuotteet lisätään S-kaupat-tilisi ostoslistaan "Korikone". Listan muut rivit säilyvät, eikä korvaavia tuotteita sallita.',
   sKaupatHandoff:
-    'S-kaupat avautuu omaan ikkunaansa. Jos se pyytää kirjautumaan, kirjaudu siinä kerran samalla tilillä; ikkuna muistaa kirjautumisen. Avaa lista "Korikone", paina "Lisää kaikki ostoskoriin", valitse kauppa ja aika ja viimeistele tilaus siellä.',
+    'S-kaupat avautuu omaan ikkunaansa samalle tilille kirjautuneena. Avaa lista "Korikone", paina "Lisää kaikki ostoskoriin", valitse kauppa ja aika ja viimeistele tilaus siellä.',
   browserRequired:
     "S-kaupat tarvitsee tälle koneelle Microsoft Edgen tai Google Chromen.",
   storeBusy: "Kauppayhteys on varattu. Yritä hetken päästä uudelleen.",

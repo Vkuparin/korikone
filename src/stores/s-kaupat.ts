@@ -286,3 +286,70 @@ export class SKaupatProvider implements StoreProvider {
       throw sKaupatError({ error: outcome.error ?? { code: "unavailable" } });
   }
 }
+type TimedCall = (
+  name: string,
+  args: Record<string, unknown>,
+  timeout?: number,
+) => Promise<unknown>;
+type Marker = {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<unknown>;
+};
+const WINDOW_ACCOUNT = "s-kaupat-window-account";
+const accountSchema = z.object({
+  status: z.string(),
+  accountId: z.string().nullish(),
+});
+/**
+ * Sign-in as the shopper sees it: the store window Korikone opens must be signed in too.
+ * The server keeps its login token PC-wide, but the site session lives in this data folder's
+ * browser profile. A token alone (another app, an earlier installation) would let transfers
+ * work and then open the store signed out, so a login counts only once the server's login
+ * window has completed here for the same account.
+ */
+export class SKaupatSession {
+  constructor(
+    private call: TimedCall,
+    private marker: Marker,
+  ) {}
+  private async account() {
+    const login = accountSchema.parse(await this.call("login_status", {}));
+    return login.status === "logged_in" ? (login.accountId ?? null) : null;
+  }
+  async signedIn(): Promise<boolean> {
+    const account = await this.account();
+    return !!account && (await this.marker.get(WINDOW_ACCOUNT)) === account;
+  }
+  async login(timeoutSeconds = 300): Promise<string> {
+    const account = await this.account();
+    if (account) {
+      if ((await this.marker.get(WINDOW_ACCOUNT)) === account)
+        return "signedIn";
+      // Forget the token so the login window opens and signs this profile in.
+      await this.call("log_out", {});
+    }
+    const result = accountSchema
+      .extend({ alreadyLoggedIn: z.boolean().nullish() })
+      .parse(
+        await this.call(
+          "start_login",
+          { timeoutSeconds },
+          (timeoutSeconds + 30) * 1000,
+        ),
+      );
+    if (result.status === "cancelled") return "notStarted";
+    // alreadyLoggedIn: no window was shown, so this profile is still signed out.
+    if (
+      result.status !== "logged_in" ||
+      !result.accountId ||
+      result.alreadyLoggedIn
+    )
+      return "failed";
+    await this.marker.set(WINDOW_ACCOUNT, result.accountId);
+    return "signedIn";
+  }
+  async logout() {
+    await this.call("log_out", {});
+    await this.marker.set(WINDOW_ACCOUNT, null);
+  }
+}

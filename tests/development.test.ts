@@ -157,3 +157,61 @@ test("development profiles isolate state and transfer journals and never call li
     expect(provider.setQuantity).not.toHaveBeenCalled();
   }
 });
+
+test("the live acceptance note picks the ingredient itself among store look-alikes", async () => {
+  const entries = new Map<string, unknown>();
+  const dev = await createService(
+    {
+      get: async (key) => structuredClone(entries.get(key)),
+      set: async (key, value) => void entries.set(key, structuredClone(value)),
+    },
+    true,
+    [new DemoProvider("k-ruoka"), new DemoProvider("s-kaupat")],
+  );
+  const provider = dev.registry.get("s-kaupat");
+  const [context] = await provider.searchStores("Helsinki");
+  await dev.save({ ...dev.state, context, staples: [] });
+  // The store answers with compounds, variants and ready meals, as the live search did.
+  const found = async (query: string, id: string) =>
+    (await provider.searchProducts(context, query, id)).map((p) => p.id);
+  expect(await found("Sipuli", "onion")).toEqual(["onion", "garlic"]);
+  expect(await found("Mustapippuri", "pepper")).toContain("lemon-pepper");
+  expect(await found("Jauheliha", "mince")).toContain("mince-chicken");
+  expect(await found("MakaronI", "macaroni")).toContain("macaroni-meal");
+  const ai = new FixtureAI();
+  await ai.signIn();
+  dev.draft = validateDraft(
+    await ai.generate("auto", draftPrompt("Makaronilaatikko", dev.state)),
+    dev.state,
+  );
+  dev.draftRevision = dev.state.revision;
+  dev.draftNote = "Makaronilaatikko";
+  await dev.approveDraft();
+  await dev.buildBasket();
+  expect(
+    Object.fromEntries(
+      dev.basket.map((l) => [l.requirement.name, l.product?.id ?? null]),
+    ),
+  ).toEqual({
+    Makaroni: "macaroni",
+    Jauheliha: "mince",
+    Sipuli: "onion",
+    Maito: "milk",
+    Kananmuna: "egg",
+    Suola: "salt",
+    Mustapippuri: "pepper",
+  });
+  const eggs = dev.basket.find((l) => l.requirement.name === "Kananmuna")!;
+  expect([eggs.packs, eggs.product!.packAmount]).toEqual([1, 10]);
+  // Look-alikes stay available for the shopper to choose by hand.
+  expect(
+    dev.basket
+      .find((l) => l.requirement.name === "Sipuli")!
+      .candidates.map((p) => p.id),
+  ).toEqual(["onion", "garlic"]);
+  await dev.prepare();
+  expect(dev.review!.baseline.accountName).toBe("Testi");
+  expect(dev.review!.baseline.accountName).not.toBe(
+    dev.review!.baseline.accountId,
+  );
+});

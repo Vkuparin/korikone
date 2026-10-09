@@ -19,7 +19,7 @@ This stage covers release versioning, packaging, automated checks, packaged-app 
 
 ## Gates before a stable release
 
-- Resolve and observe S-kaupat authenticated browser handoff ([#3](https://github.com/Vkuparin/korikone/issues/3)). Account-list transfer was verified, but the opened site was signed out.
+- Observe the S-kaupat authenticated browser handoff ([#3](https://github.com/Vkuparin/korikone/issues/3)). Account-list transfer was verified, but the opened site was signed out. A fix that requires the login window to complete in Korikone's own data folder passes fixture tests and awaits a live check.
 - Observe a small K-Ruoka cart transfer and confirm the checkout browser shows the same cart.
 - Test a clean Windows install, an upgrade with existing data, and uninstall behavior. A packaged executable smoke test does not establish installer acceptance.
 - Observe real multi-dish notes, varied receipts and household use without coaching.

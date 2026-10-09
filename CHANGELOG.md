@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. If the PC is already signed in through another app or an earlier installation, **Sign in to store** signs that shared login out and opens the login window, so *Open store cart* opens the same signed-in window. Other apps that use the shared S-kaupat login on the PC are signed out by this. Existing users are asked to sign in once more. Not yet observed against a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
+- Added the live acceptance note (makaronilaatikko) as a fixture, with the look-alike products a store search returns: garlic for onion, lemon pepper for black pepper, chicken mince, a ready meal and M10 egg packs. Development-mode checks cover product choice, Finnish units, tidied names and the account name in cart review.
 - Cancel a pending note interpretation beside the input. Cancellation preserves the saved list and typed note, invalidates pending drafts, and suppresses automatic resubmission.
 - Added the original nakkikeitto/kanapasta/ready-food/breakfast/treats fixture and regression checks for debounce, request counts, cancellation, usage failures and explicit retry.
 - Updated the implementation plan and acceptance preparation for the published alpha.2 release. Live model and retailer acceptance remain separate.

@@ -18,7 +18,11 @@ import { stateSchema } from "../domain/model";
 import { z } from "zod";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
-import { SKaupatProvider, sKaupatWorker } from "../stores/s-kaupat";
+import {
+  SKaupatProvider,
+  SKaupatSession,
+  sKaupatWorker,
+} from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
 import { readReceipt } from "../receipts/read";
@@ -78,6 +82,10 @@ else
     const sKaupat = new SKaupatProvider((name, args) =>
       sWorker.call(name, args),
     );
+    const sSession = new SKaupatSession(
+      (name, args, timeout) => sWorker.call(name, args, timeout),
+      db,
+    );
     let service = await createService(db, development, [kRuoka, sKaupat]);
     service.ai = ai.status();
     // start_login waits for the user, so it runs beside the serialized operations.
@@ -87,16 +95,8 @@ else
       if (sLogin) return;
       const run = ++sLoginRun;
       service.storeLogins["s-kaupat"] = "waiting";
-      sLogin = sWorker
-        .call("start_login", { timeoutSeconds: 300 }, 330000)
-        .then((result) => {
-          const { status } = z.object({ status: z.string() }).parse(result);
-          return status === "logged_in"
-            ? "signedIn"
-            : status === "cancelled"
-              ? "notStarted"
-              : "failed";
-        })
+      sLogin = sSession
+        .login()
         .catch(() => "failed")
         .then((state) => {
           if (run === sLoginRun) service.storeLogins["s-kaupat"] = state;
@@ -298,13 +298,10 @@ else
         if (service.busy) throw new Error("busy");
         if (development) return service.snapshot();
         if (service.state.context.providerId === "s-kaupat") {
-          if (!sLogin) {
-            const { status } = z
-              .object({ status: z.string() })
-              .parse(await sWorker.call("login_status", {}));
-            service.storeLogins["s-kaupat"] =
-              status === "logged_in" ? "signedIn" : "notStarted";
-          }
+          if (!sLogin)
+            service.storeLogins["s-kaupat"] = (await sSession.signedIn())
+              ? "signedIn"
+              : "notStarted";
           return service.snapshot();
         }
         const result = z
@@ -346,7 +343,7 @@ else
         // K-Ruoka's pinned worker has no sign-out tool.
         if (service.busy || service.state.context.providerId !== "s-kaupat")
           throw new Error("unsupported");
-        await sWorker.call("log_out", {});
+        await sSession.logout();
         service.storeLogins["s-kaupat"] = "notStarted";
         return service.snapshot();
       },
@@ -359,9 +356,14 @@ else
         )
           throw new Error("reviewRequired");
         if (development) return service.snapshot();
-        if (providerId === "s-kaupat")
+        if (providerId === "s-kaupat") {
+          // A token without a login in this folder's window would open the store signed out.
+          if (!(await sSession.signedIn())) {
+            service.storeLogins["s-kaupat"] = "notStarted";
+            throw new Error("loginRequired");
+          }
           await sWorker.call("open_site", { applyChoice: false });
-        else
+        } else
           await shell.openExternal("https://www.k-ruoka.fi/kauppa/ostoskori");
         return service.snapshot();
       },

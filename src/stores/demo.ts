@@ -1,6 +1,14 @@
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
-const catalogue: [string, string, number, "g" | "ml" | "pcs", number][] = [
+// The optional last entry is a search word the store also answers with this product.
+const catalogue: [
+  string,
+  string,
+  number,
+  "g" | "ml" | "pcs",
+  number,
+  string?,
+][] = [
   ["pasta", "Pasta 500 g", 500, "g", 129],
   ["tomato", "Tomaattimurska 400 g", 400, "g", 99],
   ["potato", "Peruna 1 kg", 1000, "g", 199],
@@ -15,6 +23,26 @@ const catalogue: [string, string, number, "g" | "ml" | "pcs", number][] = [
   ["yoghurt", "Jogurtti 1 kg", 1000, "g", 199],
   ["banana", "Banaani 6 kpl", 6, "pcs", 199],
   ["chocolate", "Suklaa 200 g", 200, "g", 249],
+  // Names and prices seen at S-market Herttoniemi on 9 October 2026, with the
+  // look-alikes a loose store search returns beside the ingredient itself.
+  ["macaroni", "Myllyn Paras Makaroni 400g", 400, "g", 55],
+  ["macaroni-meal", "Kokkikartano Lihamakaronilaatikko 300g", 300, "g", 409],
+  ["mince", "Kotimaista sika-nauta jauheliha 23 % 400 g", 400, "g", 385],
+  ["mince-chicken", "Kotimaista kanan jauheliha 4% 400 g", 400, "g", 329],
+  ["onion", "Kotimaista sipuli 500 g", 500, "g", 89],
+  ["garlic", "Coop valkosipuli 100 g", 100, "g", 89],
+  ["pepper", "Meira Mustapippuri jauhettu 25g", 25, "g", 124],
+  [
+    "lemon-pepper",
+    "Santa Maria 33G Sitruunapippuri",
+    33,
+    "g",
+    105,
+    "mustapippuri",
+  ],
+  ["salt", "JOZO 125g suola jodioitu sirotin", 125, "g", 99],
+  ["egg", "Kotimaista vapaan kanan munat M10", 10, "pcs", 255, "kananmuna"],
+  ["egg-slicer", "House kananmunaleikkuri", 1, "pcs", 550],
 ];
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };
@@ -45,7 +73,10 @@ export class DemoProvider implements StoreProvider {
       .filter(
         (p) =>
           p[0] === ingredientId ||
-          p[1].toLocaleLowerCase("fi").includes(query.toLocaleLowerCase("fi")),
+          p[1]
+            .toLocaleLowerCase("fi")
+            .includes(query.toLocaleLowerCase("fi")) ||
+          p[5] === query.toLocaleLowerCase("fi"),
       )
       .flatMap(([id, name, packAmount, unit, price]) => [
         {
@@ -92,6 +123,7 @@ export class DemoProvider implements StoreProvider {
     if (!this.carts.has(key))
       this.carts.set(key, {
         accountId: "demo-household",
+        accountName: "Testi",
         context,
         lines: [
           { productId: "bread", quantity: 1, unit: "kpl", name: "Leipä" },

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   SKaupatProvider,
+  SKaupatSession,
   sKaupatError,
   sKaupatWorker,
 } from "../src/stores/s-kaupat";
@@ -194,4 +195,93 @@ test("transfers a reviewed basket to the pinned server's shopping list", async (
   expect((await provider.getCart(store)).lines).toEqual([
     { productId: milk.id, name: milk.name, quantity: 2, unit: "kpl" },
   ]);
+}, 30000);
+/** A data folder's saved marker, as the app database keeps it. */
+const folder = () => {
+  const values = new Map<string, unknown>();
+  return {
+    get: async (key: string) => values.get(key),
+    set: async (key: string, value: unknown) => void values.set(key, value),
+  };
+};
+/** The server's login behaviour: one PC-wide token, a login window only when it is absent. */
+function loginFixture(token: string | null, window: string | null = "sk_1") {
+  const calls: string[] = [];
+  const call = async (name: string) => {
+    calls.push(name);
+    if (name === "log_out") token = null;
+    if (name === "start_login") {
+      if (token)
+        return { status: "logged_in", accountId: token, alreadyLoggedIn: true };
+      if (!window) return { status: "cancelled", accountId: null };
+      token = window;
+      return { status: "logged_in", accountId: token, alreadyLoggedIn: false };
+    }
+    return token
+      ? { status: "logged_in", accountId: token }
+      : { status: "logged_out", accountId: null };
+  };
+  return { call, calls, share: (account: string) => (token = account) };
+}
+test("a shared token is not a sign-in until this folder's store window has logged in", async () => {
+  const server = loginFixture("sk_1");
+  const marker = folder();
+  const session = new SKaupatSession(server.call, marker);
+  expect(await session.signedIn()).toBe(false);
+  expect(await session.login()).toBe("signedIn");
+  expect(server.calls).toEqual([
+    "login_status",
+    "login_status",
+    "log_out",
+    "start_login",
+  ]);
+  expect(await session.signedIn()).toBe(true);
+  server.calls.length = 0;
+  expect(await session.login()).toBe("signedIn");
+  expect(server.calls).toEqual(["login_status"]);
+  // Another app signs the PC in to a different account: the window is still on the old one.
+  server.share("sk_2");
+  expect(await session.signedIn()).toBe(false);
+  await session.logout();
+  expect(await marker.get("s-kaupat-window-account")).toBeNull();
+  expect(await session.signedIn()).toBe(false);
+});
+test("a closed or skipped login window leaves the store signed out", async () => {
+  const closed = new SKaupatSession(loginFixture(null, null).call, folder());
+  expect(await closed.login()).toBe("notStarted");
+  expect(await closed.signedIn()).toBe(false);
+  // The server answers from a token another app saved meanwhile, without showing a window.
+  const marker = folder();
+  const skipped = new SKaupatSession(
+    async (name) =>
+      name === "start_login"
+        ? { status: "logged_in", accountId: "sk_1", alreadyLoggedIn: true }
+        : { status: "logged_out", accountId: null },
+    marker,
+  );
+  expect(await skipped.login()).toBe("failed");
+  expect(await marker.get("s-kaupat-window-account")).toBeUndefined();
+  const timedOut = new SKaupatSession(
+    async (name) => ({
+      status: name === "start_login" ? "timed_out" : "logged_out",
+    }),
+    folder(),
+  );
+  expect(await timedOut.login()).toBe("failed");
+});
+test("the pinned server reports whether its login window was shown", async () => {
+  // The transfer test above left the server signed in, as another app sharing the token would.
+  const call = (name: string, args: Record<string, unknown>) =>
+    worker.call(name, args);
+  const session = new SKaupatSession(call, folder());
+  expect(await session.signedIn()).toBe(false);
+  expect(await worker.call("start_login", {})).toMatchObject({
+    alreadyLoggedIn: true,
+  });
+  expect(await session.login()).toBe("signedIn");
+  expect(await session.signedIn()).toBe(true);
+  await session.logout();
+  expect(await worker.call("login_status", {})).toMatchObject({
+    status: "logged_out",
+  });
 }, 30000);

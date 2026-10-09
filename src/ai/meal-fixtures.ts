@@ -3,6 +3,27 @@ import type { Recipe } from "../domain/model";
 /** Scripted examples for the original multi-dish acceptance note. */
 export const mealFixtures: { pattern: RegExp; recipe: Recipe }[] = [
   {
+    // The live acceptance note of 9 October 2026, with the casing slip the model made.
+    pattern: /makaronilaatikko|macaroni casserole/,
+    recipe: {
+      id: "fixture-macaroni-casserole",
+      name: "Makaronilaatikko",
+      servings: 4,
+      kind: "meal",
+      ingredients: [
+        { id: "macaroni", name: "MakaronI", amount: 400, unit: "g" },
+        { id: "mince", name: "Jauheliha", amount: 400, unit: "g" },
+        { id: "onion", name: "Sipuli", amount: 100, unit: "g" },
+        { id: "milk", name: "Maito", amount: 800, unit: "ml" },
+        { id: "egg", name: "Kananmuna", amount: 2, unit: "pcs" },
+        { id: "salt", name: "Suola", amount: 5, unit: "g" },
+        { id: "pepper", name: "Mustapippuri", amount: 1, unit: "g" },
+      ],
+      instructions:
+        "Keitä makaronit ja ruskista jauheliha sipulin kanssa. Kaada päälle munamaito ja paista uunissa.",
+    },
+  },
+  {
     pattern: /nakkikeitto|sausage soup/,
     recipe: {
       id: "fixture-sausage-soup",

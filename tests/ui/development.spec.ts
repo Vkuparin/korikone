@@ -171,3 +171,62 @@ test("settings enable and persist development mode with separate profiles", asyn
     await app.close();
   }
 });
+
+test("the live acceptance note shows Finnish units, tidy names and the account name", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (e): e is [string, string] => typeof e[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(
+    join(tmpdir(), "korikone-acceptance-note-"),
+  );
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await launch(env);
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Ota käyttöön", exact: true })
+      .click();
+    await page.getByRole("textbox").fill("Helsinki");
+    await page.getByRole("button", { name: "Etsi", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "S-kaupat · Helsinki (fixture)",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+    await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
+    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    await note.fill("Makaronilaatikko");
+    await note.press("Control+Enter");
+    const list = page.getByRole("complementary");
+    await expect(list.getByRole("heading", { level: 2 })).toHaveText(
+      "Ostoslista · 7",
+      { timeout: 15000 },
+    );
+    for (const product of [
+      "Myllyn Paras Makaroni 400g",
+      "Kotimaista sika-nauta jauheliha 23 % 400 g",
+      "Kotimaista sipuli 500 g",
+      "Meira Mustapippuri jauhettu 25g",
+      "Kotimaista vapaan kanan munat M10",
+    ])
+      await expect(list.getByText(product, { exact: true })).toBeVisible();
+    await expect(list).toContainText("Makaronilaatikko2 kpl");
+    await expect(list).not.toContainText("pcs");
+    await expect(page.locator("body")).not.toContainText("MakaronI");
+    await list
+      .getByRole("button", { name: "Siirrä S-kauppojen listalle" })
+      .click();
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Tili: Testi");
+    await expect(main).not.toContainText("demo-household");
+  } finally {
+    await app.close();
+  }
+});
