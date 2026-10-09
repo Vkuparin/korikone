@@ -327,6 +327,19 @@ test("comparing stores prices the list at the other chain without changing anyth
   expect(comparison.lines.map((l) => l.product?.id)).toEqual(["mince", "milk"]);
   expect(comparison.result.common.rows).toBe(2);
   expect(comparison.result.cheaper).toBe("a");
+  // Only S-kaupat reports a pickup fee; K-Ruoka's stays unknown.
+  expect(comparison.fees).toEqual({ a: null, b: { min: 390, max: 590 } });
+  await service.save({ ...service.state, context: sStore });
+  await service.buildBasket();
+  expect(service.snapshot().pickupFee).toEqual({ min: 390, max: 590 });
+  await service.save({
+    ...service.state,
+    context: { ...sStore, fulfillment: "delivery" },
+  });
+  await service.buildBasket();
+  expect(service.snapshot().pickupFee).toBeNull();
+  await service.save({ ...service.state, context: kStore });
+  await service.compareStores();
   // Any list change drops the comparison rather than leaving a stale one.
   await service.save({
     ...service.state,

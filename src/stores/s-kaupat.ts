@@ -11,7 +11,8 @@ export const S_KAUPAT_CHECKSUM =
   "17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a";
 /** S-kaupat has no server-side cart. Korikone transfers to this shopping list on the account. */
 export const S_KAUPAT_LIST = "Korikone";
-// Checkout, payment, delivery and list deletion tools are deliberately absent.
+// Checkout, payment, time choice and list deletion tools are deliberately absent.
+// get_delivery_options only reads the pickup fees.
 export const S_KAUPAT_TOOLS = [
   "get_setup_status",
   "search_stores",
@@ -26,6 +27,7 @@ export const S_KAUPAT_TOOLS = [
   "create_shopping_list",
   "add_to_shopping_list",
   "open_site",
+  "get_delivery_options",
 ];
 const errorCodes: Record<string, string> = {
   login_required: "loginRequired",
@@ -135,6 +137,35 @@ export class SKaupatProvider implements StoreProvider {
         storeName: s.name + (s.street ? ` · ${s.street}` : ""),
         fulfillment: "pickup",
       }));
+  }
+  /** Pickup fees at the store; home delivery would need the shopper's address, which Korikone does not ask for. */
+  async pickupFee(context: StoreContext) {
+    const data = z
+      .object({
+        options: z.array(
+          z.object({
+            method: z.string(),
+            storeId: z.string().nullish(),
+            price: z.number().nullish(),
+            nextSlot: z.object({ price: z.number().nullish() }).nullish(),
+          }),
+        ),
+      })
+      .parse(
+        await this.call("get_delivery_options", { storeId: context.storeId }),
+      );
+    const prices = data.options
+      .filter(
+        (o) =>
+          o.method === "pickup" &&
+          (!o.storeId || o.storeId === context.storeId),
+      )
+      .flatMap((o) => [o.price, o.nextSlot?.price])
+      .filter((p): p is number => typeof p === "number" && p >= 0)
+      .map((p) => Math.round(p * 100));
+    return prices.length
+      ? { min: Math.min(...prices), max: Math.max(...prices) }
+      : null;
   }
   /** Keeps the server's own store choice in step, so its site handoff names the same store. */
   async selectStore(context: StoreContext) {

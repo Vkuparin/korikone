@@ -124,6 +124,10 @@ export class DemoProvider implements StoreProvider {
           : []),
       ]);
   }
+  async pickupFee() {
+    // Only the S-kaupat fixture reports fees, as only the real S-kaupat worker does.
+    return this.id === "s-kaupat" ? { min: 390, max: 590 } : null;
+  }
   async getCart(context: StoreContext): Promise<Cart> {
     const key = JSON.stringify(context);
     if (!this.carts.has(key))

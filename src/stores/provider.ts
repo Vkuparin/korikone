@@ -10,7 +10,10 @@ export interface StoreProvider {
   ): Promise<Product[]>;
   getCart(context: StoreContext): Promise<Cart>;
   setQuantity(context: StoreContext, target: Target): Promise<void>;
+  /** Lowest and highest pickup fee at the store, in cents, without choosing a time. */
+  pickupFee?(context: StoreContext): Promise<FeeRange | null>;
 }
+export type FeeRange = { min: number; max: number };
 /** Real retailers; every other provider is sample data. */
 export const liveProviders = ["k-ruoka", "s-kaupat"];
 export const isLive = (providerId: string) =>

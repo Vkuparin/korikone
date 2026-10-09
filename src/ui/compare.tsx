@@ -5,6 +5,12 @@ import { isLive } from "../stores/provider";
 const chainName = (providerId: string) =>
   providerId === "s-kaupat" ? "S-kaupat" : "K-Ruoka";
 
+export const feeRange = (
+  fee: { min: number; max: number },
+  money: (cents: number) => string,
+) =>
+  fee.min === fee.max ? money(fee.min) : `${money(fee.min)}–${money(fee.max)}`;
+
 /** True when both chains are signed in and the other chain has a store chosen. */
 export function canCompare(snapshot: Snapshot) {
   const { state } = snapshot;
@@ -48,7 +54,9 @@ export function ComparePanel({
         {tr("Vertaa kauppoja", "Compare stores")}
       </button>
     );
-  const { result, other } = comparison;
+  const { result, other, fees } = comparison;
+  const fee = (range: { min: number; max: number } | null) =>
+    range ? feeRange(range, money) : tr("ei tiedossa", "not known");
   const a = chainName(state.context.providerId);
   const b = chainName(other.providerId);
   const missing = (count: number) =>
@@ -93,6 +101,11 @@ export function ComparePanel({
             <td>{money(result.a.deposits)}</td>
             <td>{money(result.b.deposits)}</td>
           </tr>
+          <tr>
+            <th scope="row">{tr("Noutomaksu", "Pickup fee")}</th>
+            <td>{fee(fees.a)}</td>
+            <td>{fee(fees.b)}</td>
+          </tr>
         </tbody>
       </table>
       <p role="status">
@@ -122,8 +135,8 @@ export function ComparePanel({
       )}
       <small>
         {tr(
-          "Vertailu ei muuta kumpaakaan ostoskoria. Toimitusmaksut eivät ole mukana.",
-          "Comparing changes neither cart. Delivery fees are not included.",
+          "Vertailu ei muuta kumpaakaan ostoskoria. Summat ovat ilman nouto- ja toimitusmaksuja.",
+          "Comparing changes neither cart. Totals exclude pickup and delivery fees.",
         )}
       </small>
       <div className="actions">

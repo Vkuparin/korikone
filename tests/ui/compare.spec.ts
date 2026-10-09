@@ -80,6 +80,10 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     await expect(panel.getByRole("status")).toContainText(
       "S-kaupat on edullisempi",
     );
+    await expect(panel.getByRole("row", { name: /Noutomaksu/ })).toContainText(
+      "ei tiedossa",
+    );
+    await expect(list).toContainText("Noutomaksu 3,90");
     await expect(panel.getByRole("listitem").first()).toContainText(
       "Jauheliha",
     );

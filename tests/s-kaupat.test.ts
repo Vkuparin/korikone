@@ -160,9 +160,17 @@ afterAll(async () => {
 test("transfers a reviewed basket to the pinned server's shopping list", async () => {
   const provider = new SKaupatProvider((name, args) => worker.call(name, args));
   await expect(worker.call("place_order", {})).rejects.toThrow("unsupported");
+  await expect(
+    worker.call("get_delivery_slots", { areaId: "x" }),
+  ).rejects.toThrow("unsupported");
+  await expect(worker.call("select_delivery", {})).rejects.toThrow(
+    "unsupported",
+  );
   const [store] = await provider.searchStores("Helsinki");
   expect(store.providerId).toBe("s-kaupat");
   await provider.selectStore(store);
+  // Store pickup and the pickup locker, each with a base fee and the next time's fee.
+  expect(await provider.pickupFee(store)).toEqual({ min: 290, max: 590 });
   await expect(provider.getCart(store)).rejects.toThrow("loginRequired");
   await worker.call("start_login", {});
   const milk = (await provider.searchProducts(store, "maito", "milk"))[0];

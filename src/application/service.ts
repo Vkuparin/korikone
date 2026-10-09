@@ -14,7 +14,12 @@ import {
   exclusionTerms,
   relevant,
 } from "../domain/planner";
-import { ProviderRegistry, isLive, liveProviders } from "../stores/provider";
+import {
+  ProviderRegistry,
+  isLive,
+  liveProviders,
+  type FeeRange,
+} from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
@@ -46,7 +51,11 @@ export class Service {
     other: StoreContext;
     lines: BasketLine[];
     result: Comparison;
+    fees: { a: FeeRange | null; b: FeeRange | null };
   } | null = null;
+  /** Pickup fee range at the active store, when the store reports one. */
+  pickupFee: FeeRange | null = null;
+  private fees = new Map<string, { at: number; fee: FeeRange | null }>();
   controller: AbortController | null = null;
   private stateWrites: Promise<void> = Promise.resolve();
   private writeState<T>(operation: () => Promise<T>): Promise<T> {
@@ -102,6 +111,7 @@ export class Service {
         this.storeLogins[this.state.context.providerId] ?? "notStarted",
       storeLogins: { ...this.storeLogins },
       comparison: this.comparison,
+      pickupFee: this.pickupFee,
       ai: this.ai,
       draft: this.draft,
     };
@@ -219,7 +229,20 @@ export class Service {
     if (this.busy) throw new Error("busy");
     this.review = null;
     this.basket = await this.price(this.state.context);
+    this.pickupFee = await this.readFee(this.state.context);
     return this.snapshot();
+  }
+  /** Fees change with the time of day, so a reading is reused for 15 minutes at most. A failed read is unknown. */
+  private async readFee(context: StoreContext) {
+    if (context.fulfillment !== "pickup") return null;
+    const provider = this.registry.get(context.providerId);
+    if (!provider.pickupFee) return null;
+    const key = `${context.providerId}:${context.storeId}`;
+    const cached = this.fees.get(key);
+    if (cached && Date.now() - cached.at < 15 * 60_000) return cached.fee;
+    const fee = await provider.pickupFee(context).catch(() => null);
+    this.fees.set(key, { at: Date.now(), fee });
+    return fee;
   }
   /** Prices the current list at a store, reading only: nothing saved, reviewed or journalled. */
   private async price(context: StoreContext): Promise<BasketLine[]> {
@@ -295,15 +318,21 @@ export class Service {
     const revision = this.state.revision;
     const lines = this.basket.length ? this.basket : await this.price(active);
     const otherLines = await this.price(other);
+    const fees = {
+      a: await this.readFee(active),
+      b: await this.readFee(other),
+    };
     // A list edited meanwhile makes the comparison stale; show none rather than a wrong one.
     if (this.state.revision !== revision || this.state.context !== active)
       throw new Error("draftStale");
     this.basket = lines;
+    this.pickupFee = fees.a;
     this.comparison = {
       revision,
       other,
       lines: otherLines,
       result: compareBaskets(lines, otherLines),
+      fees,
     };
     return this.snapshot();
   }

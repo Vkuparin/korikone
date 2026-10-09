@@ -3,7 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
-import { ComparePanel, canCompare } from "./compare";
+import { ComparePanel, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -1053,6 +1053,14 @@ export function ShoppingWorkspace({
               )}
             </p>
           )}
+          <small>
+            {snapshot.pickupFee
+              ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
+              : tr(
+                  "Toimitus- tai noutomaksu ei ole tiedossa.",
+                  "The delivery or pickup fee is not known.",
+                )}
+          </small>
           {canCompare(snapshot) && (
             <ComparePanel
               snapshot={snapshot}
@@ -1114,8 +1122,8 @@ export function ShoppingWorkspace({
           </div>
           <small>
             {tr(
-              "Toimitusmaksut ja mahdolliset pantit tarkistetaan kaupassa.",
-              "Check delivery fees and any unreported deposits at the store.",
+              "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
+              "Check the fee and any unreported deposits at the store.",
             )}
           </small>
         </div>

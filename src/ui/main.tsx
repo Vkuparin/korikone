@@ -37,6 +37,7 @@ function App() {
     storeLogin: "notStarted",
     storeLogins: {},
     comparison: null,
+    pickupFee: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
     draft: null,
   });
