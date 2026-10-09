@@ -95,23 +95,44 @@ test("model selectors save one preference without submitting the note and retain
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     const settingsModel = page.getByLabel("AI-malli", { exact: true });
     await expect(settingsModel).toBeEnabled();
-    await expect(settingsModel.locator("option")).toHaveCount(3);
     await page
       .getByRole("button", { name: "Hallitse ChatGPT:n käyttöä" })
       .focus();
     await page.keyboard.press("Tab");
     await expect(settingsModel).toBeFocused();
-    await settingsModel.selectOption("fixture-large");
+    await page.keyboard.press("ArrowDown");
+    const options = page.getByRole("listbox", {
+      name: "AI-malli",
+      exact: true,
+    });
+    await expect(options.getByRole("option")).toHaveCount(3);
+    await expect(
+      options.getByRole("option", { name: "Automaattinen" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await expect(options).toHaveCount(0);
+    await expect(settingsModel).toBeFocused();
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
     const model = page.getByLabel("AI-malli", { exact: true });
-    await expect(model).toHaveValue("fixture-large");
+    await expect(model).toContainText("Local large model");
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Pasta");
     const before = await page.evaluate(
       async () => (await window.korikone.load()).value,
     );
-    await model.selectOption("auto");
-    await expect(model).toHaveValue("auto");
+    await model.click();
+    await page.keyboard.press("Escape");
+    await expect(model).toBeFocused();
+    await expect(model).toContainText("Local large model");
+    await model.click();
+    await note.click();
+    await expect(options).toHaveCount(0);
+    await expect(note).toHaveValue("Pasta");
+    await expect(model).toContainText("Local large model");
+    await model.click();
+    await options.getByRole("option", { name: "Automaattinen" }).click();
+    await expect(model).toHaveText("Automaattinen");
     await expect(
       page.getByRole("button", { name: "Päivitä lista", exact: true }),
     ).toBeEnabled();
@@ -133,7 +154,8 @@ test("model selectors save one preference without submitting the note and retain
           ).developmentModel,
       )
       .toBe("fixture-mini");
-    await model.selectOption("fixture-large");
+    await model.click();
+    await options.getByRole("option", { name: /^Local large model/ }).click();
     await expect(model).toBeEnabled();
     await page
       .getByRole("button", { name: "Päivitä lista", exact: true })
@@ -145,6 +167,14 @@ test("model selectors save one preference without submitting the note and retain
     );
     const box = (await model.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(1280);
+    await model.click();
+    const menuBox = (await options.boundingBox())!;
+    expect(menuBox.x).toBeGreaterThanOrEqual(0);
+    expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(1280);
+    expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(800);
+    await expect(
+      options.getByRole("option", { name: /^Local large model/ }),
+    ).toHaveAttribute("aria-selected", "true");
     if (!process.env.KORIKONE_EXECUTABLE)
       await page.screenshot({ path: "test-results/models.png" });
     await app.close();
@@ -156,7 +186,7 @@ test("model selectors save one preference without submitting the note and retain
         : {}),
     });
     page = await app.firstWindow();
-    await expect(page.getByLabel("AI-malli", { exact: true })).toHaveValue(
+    await expect(page.getByLabel("AI-malli", { exact: true })).toContainText(
       "fixture-large",
     );
     const results = await page.evaluate(async () => {
@@ -189,6 +219,19 @@ test("model selectors save one preference without submitting the note and retain
       "modelsUnavailable",
     ]);
     expect(results.automatic).toBe("modelSelectionRequired");
+    await page.evaluate(async () => {
+      await window.korikone.setAIModel("fixture-large");
+      await window.korikone.developmentScenario("removedModel");
+    });
+    await page.reload();
+    const restored = page.getByLabel("AI-malli", { exact: true });
+    await expect(restored).toContainText("ei saatavilla");
+    await restored.click();
+    await expect(
+      page.getByRole("option", { name: /fixture-large/ }),
+    ).toBeDisabled();
+    await page.getByRole("option", { name: "Automaattinen" }).click();
+    await expect(restored).toHaveText("Automaattinen");
   } finally {
     await app.close();
   }

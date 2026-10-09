@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { Snapshot } from "../application/service";
+import { Choice } from "./choice";
 
 export function ModelSelector({
   snapshot,
@@ -23,29 +24,31 @@ export function ModelSelector({
     selected !== "auto" && !models.some((model) => model.slug === selected);
   return (
     <div className="model-control">
-      <label className="model-selector">
+      <div className="model-selector">
         <span>{tr("AI-malli", "AI model")}</span>
-        <select
-          aria-label={tr("AI-malli", "AI model")}
+        <Choice
+          label={tr("AI-malli", "AI model")}
           value={selected}
           disabled={busy || !connected}
-          onChange={(event) =>
-            void call("setAIModel", event.currentTarget.value)
-          }
-        >
-          <option value="auto">{tr("Automaattinen", "Automatic")}</option>
-          {missing && (
-            <option value={selected}>
-              {selected} · {tr("ei saatavilla", "unavailable")}
-            </option>
-          )}
-          {models.map((model) => (
-            <option key={model.slug} value={model.slug}>
-              {model.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          onChange={(value) => call("setAIModel", value)}
+          options={[
+            { value: "auto", label: tr("Automaattinen", "Automatic") },
+            ...(missing
+              ? [
+                  {
+                    value: selected,
+                    label: `${selected} · ${tr("ei saatavilla", "unavailable")}`,
+                    disabled: true,
+                  },
+                ]
+              : []),
+            ...models.map((model) => ({
+              value: model.slug,
+              label: model.name,
+            })),
+          ]}
+        />
+      </div>
       {!connected && (
         <small>
           {tr("Yhdistä ChatGPT asetuksissa.", "Connect ChatGPT in Settings.")}
