@@ -34,60 +34,74 @@ export const contextSchema = z.object({
   storeName: z.string(),
   fulfillment: z.enum(["pickup", "delivery"]),
 });
-export const stateSchema = z.object({
-  version: z.literal(1),
-  language: z.enum(["fi", "en"]),
-  onboarded: z.boolean(),
-  setupComplete: z.boolean().default(true),
-  household: z.object({
-    servings: z.number().int().min(1).max(100),
-    budget: z.number().int().min(0).max(1_000_000),
-    exclusions: z.string().max(1000),
-  }),
-  recipes: z.array(recipeSchema).max(1000),
-  meals: z.array(mealSchema).max(100),
-  staples: z.array(stapleSchema).max(500),
-  skipped: z.array(z.string()).max(1000),
-  context: contextSchema,
-  revision: z.number().int().nonnegative(),
-  accepted: z.record(z.string(), z.array(z.string())),
-  note: z.string().max(10000).default(""),
-  assumptions: z.string().max(5000).default(""),
-  extras: z.array(ingredientSchema).max(500).default([]),
-  removed: z.array(z.string()).max(1000).default([]),
-  quantities: z
-    .record(z.string(), z.number().int().positive().max(10_000_000))
-    .default({}),
-  productPreference: z
-    .enum(["price", "storeBrand", "avoidStoreBrand"])
-    .default("price"),
-  receiptText: z.string().max(50000).default(""),
-  listHistory: z
-    .array(
-      z.object({
-        id: z.string(),
-        date: z.string(),
-        note: z.string(),
-        meals: z.array(mealSchema),
-        recipes: z.array(recipeSchema).default([]),
-        extras: z.array(ingredientSchema),
-        skipped: z.array(z.string()).default([]),
-        removed: z.array(z.string()).default([]),
-        quantities: z
-          .record(z.string(), z.number().int().positive())
-          .default({}),
-      }),
-    )
-    .max(52)
-    .default([]),
-  // Earlier weeks, newest first, for "use last week".
-  history: z
-    .array(
-      z.object({ savedAt: z.string(), meals: z.array(mealSchema).max(100) }),
-    )
-    .max(12)
-    .default([]),
-});
+export const stateSchema = z
+  .object({
+    version: z.literal(1),
+    language: z.enum(["fi", "en"]),
+    onboarded: z.boolean(),
+    setupComplete: z.boolean().default(true),
+    household: z.object({
+      servings: z.number().int().min(1).max(100),
+      budget: z.number().int().min(0).max(1_000_000),
+      exclusions: z.string().max(1000),
+    }),
+    recipes: z.array(recipeSchema).max(1000),
+    meals: z.array(mealSchema).max(100),
+    staples: z.array(stapleSchema).max(500),
+    skipped: z.array(z.string()).max(1000),
+    // The active store. Earlier releases read only this field.
+    context: contextSchema,
+    // The last store chosen at each chain, keyed by provider, so switching chains keeps the other.
+    stores: z.record(z.string(), contextSchema).default({}),
+    revision: z.number().int().nonnegative(),
+    accepted: z.record(z.string(), z.array(z.string())),
+    note: z.string().max(10000).default(""),
+    assumptions: z.string().max(5000).default(""),
+    extras: z.array(ingredientSchema).max(500).default([]),
+    removed: z.array(z.string()).max(1000).default([]),
+    quantities: z
+      .record(z.string(), z.number().int().positive().max(10_000_000))
+      .default({}),
+    productPreference: z
+      .enum(["price", "storeBrand", "avoidStoreBrand"])
+      .default("price"),
+    receiptText: z.string().max(50000).default(""),
+    listHistory: z
+      .array(
+        z.object({
+          id: z.string(),
+          date: z.string(),
+          note: z.string(),
+          meals: z.array(mealSchema),
+          recipes: z.array(recipeSchema).default([]),
+          extras: z.array(ingredientSchema),
+          skipped: z.array(z.string()).default([]),
+          removed: z.array(z.string()).default([]),
+          quantities: z
+            .record(z.string(), z.number().int().positive())
+            .default({}),
+        }),
+      )
+      .max(52)
+      .default([]),
+    // Earlier weeks, newest first, for "use last week".
+    history: z
+      .array(
+        z.object({ savedAt: z.string(), meals: z.array(mealSchema).max(100) }),
+      )
+      .max(12)
+      .default([]),
+  })
+  // The active store is always also the remembered store of its chain; older profiles migrate here.
+  .transform((state) => ({
+    ...state,
+    stores: {
+      ...Object.fromEntries(
+        Object.entries(state.stores).filter(([id, s]) => s.providerId === id),
+      ),
+      [state.context.providerId]: state.context,
+    },
+  }));
 export type AppState = z.infer<typeof stateSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type Ingredient = z.infer<typeof ingredientSchema>;

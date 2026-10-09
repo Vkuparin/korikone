@@ -84,10 +84,7 @@ export const en = {
     "Signed out locally. Remote revocation was not confirmed; disconnect the app in ChatGPT settings.",
   recoverFirst:
     "An interrupted transfer needs review before starting another transfer.",
-  acknowledgeReview:
-    "Confirm the review, dietary suitability and any budget overrun before transferring.",
-  confirmRealReview:
-    "I checked product suitability, pack sizes and the displayed total, including any budget overrun. Fees and unreported deposits are still unknown.",
+  acknowledgeReview: "Accept the budget overrun before transferring.",
   confirmBudget: "I accept the displayed budget overrun.",
   cancelled: "Transfer stopped. Changes already made remain in the cart.",
   liveStore: "Real store · Checkout is always manual",
@@ -113,6 +110,9 @@ export const en = {
   week: "Shopping list",
   recipes: "Recipes",
   staples: "Regular items",
+  editStaples: "Edit regular items",
+  staplesHelp:
+    'Items you buy often. Korikone suggests them under "Forgot anything?" when they are due.',
   settings: "Settings",
   basket: "Basket",
   tagline: "Meals planned. Shopping reviewed.",
@@ -241,6 +241,14 @@ export const en = {
   newWeek: "Start a new week",
   noEarlierWeek: "There is no earlier week to reuse yet.",
   logoutStore: "Sign out or switch account",
+  chainsTitle: "Store chains",
+  chainsHelp:
+    "Both chains can stay signed in. Lists and transfers use the active store; switching keeps the other chain's store and sign-in.",
+  activeStore: "Active",
+  noStoreChosen: "No store chosen",
+  useThisStore: "Use this store",
+  signInChain: "Sign in",
+  otherChain: "The other chain",
   diagnostics: "Save a diagnostic report (no personal data)",
   excludedProducts: "Hidden by your exclusions",
   exclusionsHelp:
@@ -321,10 +329,7 @@ export const fi: Record<Key, string> = {
   revocationUnconfirmed:
     "Kirjauduit ulos paikallisesti. Palvelimen valtuutuksen perumista ei varmistettu; poista sovelluksen yhteys ChatGPT:n asetuksista.",
   recoverFirst: "Keskeytynyt siirto on tarkistettava ennen uutta siirtoa.",
-  acknowledgeReview:
-    "Vahvista tuotteiden sopivuus, korin tarkistus ja mahdollinen budjetin ylitys.",
-  confirmRealReview:
-    "Tarkistin tuotteiden sopivuuden, pakkauskoot ja summan, myös mahdollisen budjetin ylityksen. Maksut ja ilmoittamattomat pantit eivät ole tiedossa.",
+  acknowledgeReview: "Hyväksy budjetin ylitys ennen siirtoa.",
   confirmBudget: "Hyväksyn näytetyn budjetin ylityksen.",
   cancelled: "Siirto pysäytettiin. Jo tehdyt muutokset säilyvät korissa.",
   liveStore: "Oikea kauppa · Viimeistelet tilauksen itse",
@@ -348,6 +353,9 @@ export const fi: Record<Key, string> = {
   week: "Ostoslista",
   recipes: "Reseptit",
   staples: "Vakiotuotteet",
+  editStaples: "Muokkaa vakiotuotteita",
+  staplesHelp:
+    'Usein ostamasi tuotteet. Korikone ehdottaa niitä kohdassa "Unohtuiko jotain?", kun ne ovat ajankohtaisia.',
   settings: "Asetukset",
   basket: "Ostoskori",
   tagline: "Ateriat suunniteltu. Ostokset tarkistettu.",
@@ -475,6 +483,14 @@ export const fi: Record<Key, string> = {
   newWeek: "Aloita uusi viikko",
   noEarlierWeek: "Aiempaa viikkoa ei ole vielä tallennettu.",
   logoutStore: "Kirjaudu ulos tai vaihda tiliä",
+  chainsTitle: "Kauppaketjut",
+  chainsHelp:
+    "Molemmat ketjut voivat pysyä kirjautuneina. Lista ja siirrot käyttävät aktiivista kauppaa; vaihtaminen säilyttää toisen ketjun kaupan ja kirjautumisen.",
+  activeStore: "Käytössä",
+  noStoreChosen: "Kauppaa ei ole valittu",
+  useThisStore: "Käytä tätä kauppaa",
+  signInChain: "Kirjaudu sisään",
+  otherChain: "Toinen kauppaketju",
   diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",
   excludedProducts: "Piilotettu rajoitustesi vuoksi",
   exclusionsHelp:

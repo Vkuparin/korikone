@@ -10,7 +10,7 @@ This gives Korikone two equivalent integration boundaries and keeps retailer mai
 
 ## Browser approach and component compatibility
 
-The accepted [plan review](plan-review.md) adds an early comparison of managed browser sessions and a minimal extension. The [S-kaupat S0 plan](s-kaupat-mcp-plan.md) owns the experiment and records a choice before implementation. Existing MCP research does not establish that an extension can reproduce the same authenticated operations. Prove that separately. Do not commit to both transports or a second user interface.
+The accepted plan review of 8 October 2026 added an early comparison of managed browser sessions and a minimal extension. The [S-kaupat S0 plan](s-kaupat-mcp-plan.md) owns the experiment and records a choice before implementation. Existing MCP research does not establish that an extension can reproduce the same authenticated operations. Prove that separately. Do not commit to both transports or a second user interface.
 
 Keep K-Ruoka reuse conditional on its installation and same-cart handoff tests. A different S-kaupat transport does not by itself justify rewriting K-Ruoka. Test combined onboarding and make session identity explicit inside both adapters.
 
@@ -56,3 +56,12 @@ See [s-kaupat-mcp-plan.md](s-kaupat-mcp-plan.md) for the prerequisite release an
 The current ChatGPT plan-usage preview excludes hosted MCP/connectors. It permits supported local function/custom tool execution, but Korikone does not need to hand retailer tools to the model: its local application can call MCP during deterministic matching and approved transfers. Keep OAuth credentials in the AI runtime and retailer sessions in their respective worker processes. [OpenAI preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
 There is no public MCP endpoint, hosted worker or shared retailer session in v1. A new AI connection is not a new grocery connection. A store login does not authorize AI usage.
+
+## Delivery and pickup fees (F3.1, 9 October 2026)
+
+What each pinned worker reports about fees without choosing a time:
+
+- **S-kaupat (s-kaupat-mcp 1.2.0).** `get_delivery_options` with only a store ID lists that store's pickup places (store pickup and pickup locker), each with a base `price` in euros and the `nextSlot` with that time's own `price`. It is marked read-only and needed no login in the server's demo mode. Fees vary by time: in demo data store pickup is 3,90 € and an evening time 5,90 €. `get_delivery_slots` gives every time's fee for up to 14 days, but it is a slot tool, and the per-time detail is not needed for an estimate. Home delivery and express need a location from `find_address`, which means the shopper's home address. Korikone does not ask for or store it, so delivery fees stay unknown.
+- **K-Ruoka (k-ruoka-mcp 0.1.3).** The worker has eight tools: `search_stores`, `set_default_store`, `search_products`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart` and `clear_cart`. Stores report only `hasPickup` and `hasHomeDelivery`. The cart has a `priceSummary` with `itemsSubTotal` and `grandTotal`, but no time is chosen through the worker, so no fee is known. K-Ruoka fees stay unknown.
+
+Decision for F3.2: allow only `get_delivery_options` for S-kaupat. For pickup at the chosen store, show a range from the lowest to the highest price it reports, labelled as depending on the pickup time. Show "unknown" for home delivery and for K-Ruoka. The comparison keeps item totals and fees apart, so an unknown fee never looks like a free one. A live read of `get_delivery_options` for the owner's store is part of the F3 live check; it needs no login and changes nothing.

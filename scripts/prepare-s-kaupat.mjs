@@ -2,15 +2,15 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 // Pinned s-kaupat-mcp release. Update together with src/stores/s-kaupat.ts.
-const version = "1.1.0";
+const version = "1.2.0";
 const files = {
   "s-kaupat-mcp.cjs": [
     `https://github.com/Vkuparin/s-kaupat-mcp/releases/download/v${version}/s-kaupat-mcp.cjs`,
-    "49093b6cfc48723c07a8270ee7c8d2e920f6ed86e6730121c1686537e7966ade",
+    "17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a",
   ],
   "tools.json": [
     `https://github.com/Vkuparin/s-kaupat-mcp/releases/download/v${version}/tools.json`,
-    "e5e221f56b30a3b90515797c514792b7852fff73af1e16ac4f62d457a6fd46da",
+    "a45d418363b3439cee9ddc1919ab2437d377db3e0395883c7f931c72b92461c4",
   ],
   LICENSE: [
     `https://raw.githubusercontent.com/Vkuparin/s-kaupat-mcp/v${version}/LICENSE`,

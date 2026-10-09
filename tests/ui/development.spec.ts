@@ -223,9 +223,9 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
     await list
       .getByRole("button", { name: "Siirrä S-kauppojen listalle" })
       .click();
-    const main = page.getByRole("main");
-    await expect(main).toContainText("Tili: Testi");
-    await expect(main).not.toContainText("demo-household");
+    const panel = list.getByRole("region", { name: "Siirron vahvistus" });
+    await expect(panel).toContainText("Tili: Testi");
+    await expect(panel).not.toContainText("demo-household");
   } finally {
     await app.close();
   }

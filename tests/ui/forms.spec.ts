@@ -57,7 +57,10 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     );
     await expect(restarted.locator(".context")).toContainText("S-kaupat");
     await restarted
-      .getByRole("button", { name: "Regular items", exact: true })
+      .getByRole("button", { name: "Settings", exact: true })
+      .click();
+    await restarted
+      .getByRole("button", { name: "Edit regular items", exact: true })
       .click();
     await restarted.getByRole("button", { name: "Edit", exact: true }).click();
     await restarted.getByLabel("Amount", { exact: true }).fill("750");

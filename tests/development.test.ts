@@ -215,3 +215,172 @@ test("the live acceptance note picks the ingredient itself among store look-alik
     dev.review!.baseline.accountId,
   );
 });
+
+test("switching chains with a list in progress keeps the list and each chain's product choices", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const service = await createService(db, true, [
+    new DemoProvider("k-ruoka"),
+    new DemoProvider("s-kaupat"),
+  ]);
+  const [kStore] = await service.registry.get("k-ruoka").searchStores("x");
+  const [sStore] = await service.registry.get("s-kaupat").searchStores("x");
+  service.storeLogins = { "k-ruoka": "signedIn", "s-kaupat": "signedIn" };
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [{ id: "jauheliha", name: "Jauheliha", amount: 400, unit: "g" }],
+    context: kStore,
+  });
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("mince");
+  await service.accept({
+    ingredientId: "jauheliha",
+    productId: "mince-chicken",
+  });
+  expect(service.basket[0].product?.id).toBe("mince-chicken");
+
+  await service.save({ ...service.state, context: sStore });
+  expect(service.state.extras.map((e) => e.id)).toEqual(["jauheliha"]);
+  await service.buildBasket();
+  // The other chain makes its own choice and prices at its own store.
+  expect(service.basket[0].product).toMatchObject({
+    id: "mince",
+    providerId: "s-kaupat",
+  });
+
+  await service.save({
+    ...service.state,
+    context: service.state.stores["k-ruoka"],
+  });
+  await service.buildBasket();
+  expect(service.basket[0].product).toMatchObject({
+    id: "mince-chicken",
+    providerId: "k-ruoka",
+  });
+  expect(service.snapshot().storeLogins).toEqual({
+    "k-ruoka": "signedIn",
+    "s-kaupat": "signedIn",
+  });
+  expect(Object.keys(service.state.stores).sort()).toEqual([
+    "demo-k",
+    "k-ruoka",
+    "s-kaupat",
+  ]);
+});
+
+test("comparing stores prices the list at the other chain without changing anything", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const k = new DemoProvider("k-ruoka");
+  const s = new DemoProvider("s-kaupat");
+  const service = await createService(db, true, [k, s]);
+  const [kStore] = await k.searchStores();
+  const [sStore] = await s.searchStores();
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [
+      { id: "jauheliha", name: "Jauheliha", amount: 400, unit: "g" },
+      { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
+    ],
+    context: sStore,
+  });
+  await service.save({ ...service.state, context: kStore });
+  await expect(service.compareStores()).rejects.toThrow("compareUnavailable");
+  service.storeLogins = { "k-ruoka": "signedIn", "s-kaupat": "signedIn" };
+  await service.buildBasket();
+  await service.accept({
+    ingredientId: "jauheliha",
+    productId: "mince-chicken",
+  });
+  const writes = [
+    vi.spyOn(k, "setQuantity"),
+    vi.spyOn(s, "setQuantity"),
+    vi.spyOn(k, "getCart"),
+    vi.spyOn(s, "getCart"),
+  ];
+  const before = JSON.stringify(service.state);
+  const saved = JSON.stringify(entries.get("development:state"));
+  const result = await service.compareStores();
+  expect(JSON.stringify(service.state)).toBe(before);
+  expect(JSON.stringify(entries.get("development:state"))).toBe(saved);
+  expect(service.review).toBeNull();
+  expect(service.journal ?? null).toBeNull();
+  expect(entries.has("development:journal")).toBe(false);
+  for (const spy of writes) expect(spy).not.toHaveBeenCalled();
+  const comparison = result.comparison!;
+  expect(comparison.other.providerId).toBe("s-kaupat");
+  // K-Ruoka keeps the shopper's chicken mince; S-kaupat makes its own automatic choice.
+  expect(comparison.lines.map((l) => l.product?.id)).toEqual(["mince", "milk"]);
+  expect(comparison.result.common.rows).toBe(2);
+  expect(comparison.result.cheaper).toBe("a");
+  // Only S-kaupat reports a pickup fee; K-Ruoka's stays unknown.
+  expect(comparison.fees).toEqual({ a: null, b: { min: 390, max: 590 } });
+  await service.save({ ...service.state, context: sStore });
+  await service.buildBasket();
+  expect(service.snapshot().pickupFee).toEqual({ min: 390, max: 590 });
+  await service.save({
+    ...service.state,
+    context: { ...sStore, fulfillment: "delivery" },
+  });
+  await service.buildBasket();
+  expect(service.snapshot().pickupFee).toBeNull();
+  await service.save({ ...service.state, context: kStore });
+  await service.compareStores();
+  // Any list change drops the comparison rather than leaving a stale one.
+  await service.save({
+    ...service.state,
+    extras: service.state.extras.slice(1),
+  });
+  expect(service.snapshot().comparison).toBeNull();
+});
+
+test("confirming is the approval for a live store unless the budget is exceeded", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const s = new DemoProvider("s-kaupat");
+  const service = await createService(db, true, [s]);
+  const [store] = await s.searchStores();
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }],
+    context: store,
+    household: { ...service.state.household, budget: 10000 },
+  });
+  await service.buildBasket();
+  await service.prepare();
+  const done = await service.execute({
+    id: service.review!.id,
+    acknowledged: false,
+  });
+  expect(done.journal!.status).toBe("verified");
+  await service.save({
+    ...service.state,
+    household: { ...service.state.household, budget: 100 },
+  });
+  await service.buildBasket();
+  await service.prepare();
+  await expect(
+    service.execute({ id: service.review!.id, acknowledged: false }),
+  ).rejects.toThrow("acknowledgeReview");
+});

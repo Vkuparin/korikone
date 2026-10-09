@@ -9,9 +9,10 @@ import {
   type Unit,
 } from "../domain/model";
 import { ShoppingWorkspace } from "./shopping";
-import { en, fi, packCount, unitLabel, type Key } from "./i18n";
+import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
+import { Chains } from "./chains";
 import { isLive } from "../stores/provider";
 declare global {
   interface Window {
@@ -34,6 +35,9 @@ function App() {
     journal: null,
     storeResults: [],
     storeLogin: "notStarted",
+    storeLogins: {},
+    comparison: null,
+    pickupFee: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
     draft: null,
   });
@@ -43,8 +47,6 @@ function App() {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
-  useEffect(() => setAcknowledged(false), [snapshot.review?.id]);
   const state = snapshot.state;
   const editingStaple = state.staples.find(
     (item) => item.id === editingStapleId,
@@ -83,10 +85,6 @@ function App() {
       setBusy(false);
     }
   }
-  const unitPrice = (cents: number, amount: number, unit: Unit) =>
-    unit === "pcs"
-      ? `${money(cents / amount)} / ${t("perPiece")}`
-      : `${money(Math.round((cents * 1000) / amount))} / ${unit === "g" ? "kg" : "l"}`;
   const save = (next: AppState) => call("save", next);
   async function changeLanguage(language: "fi" | "en") {
     setSnapshot((current) => ({
@@ -111,20 +109,33 @@ function App() {
     }, 1500);
     return () => clearInterval(timer);
   }, [snapshot.ai.state]);
+  // Either chain may be waiting for its login window, not only the active one.
+  const waitingChain =
+    snapshot.storeLogin === "waiting"
+      ? null
+      : Object.entries(snapshot.storeLogins).find(
+          ([, login]) => login === "waiting",
+        )?.[0];
+  const waiting = snapshot.storeLogin === "waiting" || !!waitingChain;
   useEffect(() => {
-    if (snapshot.storeLogin !== "waiting" || busy) return;
+    if (!waiting || busy) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const check = async () => {
       try {
-        const result = await window.korikone.checkStoreLogin();
+        const result = await window.korikone.checkStoreLogin(
+          waitingChain ?? undefined,
+        );
         if (stopped) return;
         if (!result.ok) {
           setError(result.error ?? "storeUnavailable");
           return;
         }
         setSnapshot(result.value);
-        if (result.value.storeLogin === "waiting")
+        if (
+          Object.values(result.value.storeLogins).includes("waiting") ||
+          result.value.storeLogin === "waiting"
+        )
           timer = setTimeout(check, 2500);
       } catch {
         if (!stopped) setError("storeUnavailable");
@@ -135,7 +146,7 @@ function App() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [snapshot.storeLogin, busy]);
+  }, [waiting, waitingChain, busy]);
   const field = (label: string, control: React.ReactNode) => (
     <label>
       {label}
@@ -284,19 +295,15 @@ function App() {
         <>
           <nav>
             {(
-              [
-                "week",
-                "weekPlan",
-                "recipes",
-                "staples",
-                "history",
-                "basket",
-                "settings",
-              ] as Key[]
+              ["week", "weekPlan", "recipes", "history", "settings"] as Key[]
             ).map((key) => (
               <button
                 key={key}
-                aria-current={page === key ? "page" : undefined}
+                aria-current={
+                  page === key || (key === "settings" && page === "staples")
+                    ? "page"
+                    : undefined
+                }
                 onClick={() => setPage(key)}
               >
                 {t(key)}
@@ -316,7 +323,7 @@ function App() {
                 call={call}
                 save={save}
                 settings={() => setPage("settings")}
-                review={() => setPage("basket")}
+                staples={() => setPage("staples")}
                 view={
                   page === "weekPlan"
                     ? "schedule"
@@ -393,6 +400,9 @@ function App() {
             )}
             {page === "staples" && (
               <>
+                <button className="text" onClick={() => setPage("settings")}>
+                  ← {t("settings")}
+                </button>
                 <h1>{t("staples")}</h1>
                 {state.staples.map((s) => (
                   <article className="card inline" key={s.id}>
@@ -545,373 +555,19 @@ function App() {
                 </form>
               </>
             )}
-            {page === "basket" && (
-              <>
-                <div className="section-heading">
-                  <h1>{t("basket")}</h1>
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void call("buildBasket")}
-                  >
-                    {t("buildBasket")}
-                  </button>
-                </div>
-                {snapshot.journal && (
-                  <section className="card status">
-                    <h2>
-                      {t(
-                        snapshot.journal.status === "verified"
-                          ? "verified"
-                          : "partial",
-                      )}
-                    </h2>
-                    <p>{snapshot.journal.review.context.storeName}</p>
-                    {snapshot.journal.status === "verified" && (
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => void call("confirmPurchase")}
-                      >
-                        {t("ordered")}
-                      </button>
-                    )}
-                    {snapshot.journal.status === "verified" &&
-                      isLive(snapshot.journal.review.context.providerId) && (
-                        <button
-                          disabled={busy}
-                          onClick={() => void call("openStoreCart")}
-                        >
-                          {t("openStoreCart")}
-                        </button>
-                      )}
-                    {snapshot.journal.status === "verified" &&
-                      snapshot.journal.review.context.providerId ===
-                        "s-kaupat" && <p>{t("sKaupatHandoff")}</p>}
-                    <p>
-                      {t("verifiedLines")}: {snapshot.journal.verified.length} /{" "}
-                      {snapshot.journal.review.targets.length}
-                    </p>
-                    {!!snapshot.journal.review.unresolved?.length && (
-                      <div className="warning">
-                        <h3>
-                          {state.language === "fi"
-                            ? "Nämä jäivät ostoskorin ulkopuolelle"
-                            : "These items were not transferred"}
-                        </h3>
-                        <ul>
-                          {snapshot.journal.review.unresolved.map((item) => (
-                            <li key={`${item.id}:${item.unit}`}>
-                              {item.name} · {item.amount} {u(item.unit)}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    <button
-                      className="secondary"
-                      onClick={() => setPage("week")}
-                    >
-                      {state.language === "fi"
-                        ? "Takaisin listaan"
-                        : "Back to list"}
-                    </button>
-                    {snapshot.journal.uncertain && (
-                      <p>
-                        {t("uncertain")}: {snapshot.journal.uncertain}
-                      </p>
-                    )}
-                    {snapshot.journal.status === "partial" && (
-                      <button
-                        disabled={busy}
-                        onClick={() => void call("recover")}
-                      >
-                        {t("recover")}
-                      </button>
-                    )}
-                  </section>
-                )}
-                {snapshot.review ? (
-                  <section className="card">
-                    <h2>{t("reviewTitle")}</h2>
-                    <p>{snapshot.review.context.storeName}</p>
-                    {!!snapshot.review.unresolved?.length && (
-                      <div className="warning">
-                        <h3>
-                          {state.language === "fi"
-                            ? "Tuote puuttuu: ei siirretä"
-                            : "No product selected: excluded from transfer"}
-                        </h3>
-                        <ul>
-                          {snapshot.review.unresolved.map((item) => (
-                            <li key={`${item.id}:${item.unit}`}>
-                              {item.name} · {item.amount} {u(item.unit)}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {isLive(snapshot.review.context.providerId) && (
-                      <p>
-                        {t("account")}:{" "}
-                        {snapshot.review.baseline.accountName || t("signedIn")}
-                      </p>
-                    )}
-                    {snapshot.review.context.providerId === "s-kaupat" && (
-                      <p>{t("sKaupatListInfo")}</p>
-                    )}
-                    {snapshot.review.targets.map((target) => (
-                      <div className="cart-row" key={target.productId}>
-                        <strong>{target.name}</strong>
-                        <span>
-                          {t("before")}: {target.before} → {t("after")}:{" "}
-                          {target.quantity} {target.unit}
-                        </span>
-                      </div>
-                    ))}
-                    <p>{t("retained")}</p>
-                    <ul>
-                      {snapshot.review.baseline.lines
-                        .filter(
-                          (line) =>
-                            !snapshot.review!.targets.some(
-                              (target) => target.productId === line.productId,
-                            ),
-                        )
-                        .map((line) => (
-                          <li key={line.productId}>
-                            {line.name} · {line.quantity} {u(line.unit)}
-                          </li>
-                        ))}
-                    </ul>
-                    <p>
-                      {t("total")}: {money(snapshot.review.total)} ·{" "}
-                      {t("budget")}: {money(state.household.budget)}
-                    </p>
-                    {(isLive(snapshot.review.context.providerId) ||
-                      snapshot.review.total > state.household.budget) && (
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={acknowledged}
-                          onChange={(e) => setAcknowledged(e.target.checked)}
-                        />
-                        {t(
-                          isLive(snapshot.review.context.providerId)
-                            ? "confirmRealReview"
-                            : "confirmBudget",
-                        )}
-                      </label>
-                    )}
-                    {state.household.exclusions && (
-                      <p>
-                        {t("exclusions")}: {state.household.exclusions}
-                      </p>
-                    )}
-                    <button
-                      disabled={
-                        busy ||
-                        ((isLive(snapshot.review.context.providerId) ||
-                          snapshot.review.total > state.household.budget) &&
-                          !acknowledged)
-                      }
-                      onClick={() =>
-                        void call("execute", {
-                          id: snapshot.review!.id,
-                          acknowledged,
-                        })
-                      }
-                    >
-                      {t("transfer")}
-                    </button>
-                  </section>
-                ) : (
-                  <>
-                    {!snapshot.basket.length && <p>{t("noRequirements")}</p>}
-                    {[...snapshot.basket]
-                      .sort((a, b) => Number(!!a.product) - Number(!!b.product))
-                      .map((line) => {
-                        const key = `${line.requirement.id}:${line.requirement.unit}`;
-                        const bought = line.product
-                          ? line.packs * line.product.packAmount
-                          : 0;
-                        return (
-                          <article
-                            className={`card${line.product ? "" : " attention"}`}
-                            key={key}
-                          >
-                            <div className="section-heading">
-                              <div>
-                                <h2>{line.requirement.name}</h2>
-                                <p>
-                                  {t("required")}: {line.requirement.amount}{" "}
-                                  {u(line.requirement.unit)}
-                                </p>
-                              </div>
-                              <strong>
-                                {line.total === null ? "—" : money(line.total)}
-                              </strong>
-                            </div>
-                            {line.product ? (
-                              <>
-                                <p>
-                                  {line.product.name} ·{" "}
-                                  {packCount(line.packs, state.language)} ·{" "}
-                                  {t("bought")}: {bought} {u(line.product.unit)}
-                                  {bought > line.requirement.amount &&
-                                    ` · ${t("surplus")}: ${bought - line.requirement.amount} ${u(line.product.unit)}`}
-                                </p>
-                                <p className="muted">
-                                  {t(
-                                    line.candidates.filter(
-                                      (p) => p.available && p.price !== null,
-                                    ).length > 1
-                                      ? "reasonCheapest"
-                                      : "reasonAccepted",
-                                  )}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="warning" role="status">
-                                {t(
-                                  line.candidates.length
-                                    ? "unresolved"
-                                    : "noCandidates",
-                                )}
-                              </p>
-                            )}
-                            <div className="candidates">
-                              {line.candidates.map((p) => (
-                                <div className="candidate" key={p.id}>
-                                  <span>{p.name}</span>
-                                  <small>
-                                    {p.packAmount} {u(p.unit)}
-                                    {p.price !== null &&
-                                      p.packAmount > 0 &&
-                                      ` · ${unitPrice(p.price, p.packAmount, p.unit)}`}
-                                    {p.deposit > 0 &&
-                                      ` · ${t("deposit")} ${money(p.deposit)}`}
-                                  </small>
-                                  <strong>
-                                    {p.price === null
-                                      ? t("unknown")
-                                      : money(p.price)}
-                                  </strong>
-                                  <button
-                                    className="secondary"
-                                    disabled={
-                                      busy ||
-                                      !p.available ||
-                                      p.price === null ||
-                                      p.id === line.product?.id
-                                    }
-                                    onClick={() =>
-                                      void call("accept", {
-                                        ingredientId: line.requirement.id,
-                                        productId: p.id,
-                                      })
-                                    }
-                                  >
-                                    {p.id === line.product?.id
-                                      ? t("chosen")
-                                      : p.available
-                                        ? t("choose")
-                                        : p.available === false
-                                          ? t("unavailable")
-                                          : t("stockUnknown")}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                            {!!line.excluded && (
-                              <p className="muted">
-                                {t("excludedProducts")}: {line.excluded}
-                              </p>
-                            )}
-                            <button
-                              className="text"
-                              disabled={busy}
-                              onClick={() => void call("omit", key)}
-                            >
-                              {t("alreadyHave")}
-                            </button>
-                          </article>
-                        );
-                      })}
-                    {!!snapshot.basket.length && (
-                      <section className="card summary">
-                        {snapshot.basket.some((l) => !l.product) && (
-                          <p className="warning" role="status">
-                            {t("needsAttention")}:{" "}
-                            {snapshot.basket.filter((l) => !l.product).length}
-                          </p>
-                        )}
-                        <p>
-                          {t("goods")}:{" "}
-                          {money(
-                            snapshot.basket.reduce(
-                              (s, l) =>
-                                s +
-                                (l.product ? l.packs * l.product.price! : 0),
-                              0,
-                            ),
-                          )}
-                        </p>
-                        <p>
-                          {t("deposits")}:{" "}
-                          {money(
-                            snapshot.basket.reduce(
-                              (s, l) =>
-                                s +
-                                (l.product ? l.packs * l.product.deposit : 0),
-                              0,
-                            ),
-                          )}
-                        </p>
-                        <h2>
-                          {t("total")}:{" "}
-                          {money(
-                            snapshot.basket.reduce(
-                              (s, l) => s + (l.total ?? 0),
-                              0,
-                            ),
-                          )}
-                        </h2>
-                        <p>{t("fees")}</p>
-                        <button
-                          disabled={
-                            busy || snapshot.basket.some((l) => !l.product)
-                          }
-                          onClick={() => void call("prepare")}
-                        >
-                          {t("prepare")}
-                        </button>
-                      </section>
-                    )}
-                  </>
-                )}
-                <details>
-                  <summary>Demo</summary>
-                  <div className="actions">
-                    <button
-                      className="secondary"
-                      onClick={() => void call("scenario", "interrupt")}
-                    >
-                      {t("demoInterrupt")}
-                    </button>
-                    <button
-                      className="secondary"
-                      onClick={() => void call("scenario", "price")}
-                    >
-                      {t("demoPrice")}
-                    </button>
-                  </div>
-                </details>
-              </>
-            )}
             {page === "settings" && (
               <>
                 <h1>{t("settings")}</h1>
+                <section className="card">
+                  <h2>{t("staples")}</h2>
+                  <p className="muted">{t("staplesHelp")}</p>
+                  <button
+                    className="secondary"
+                    onClick={() => setPage("staples")}
+                  >
+                    {t("editStaples")}
+                  </button>
+                </section>
                 <section className="card">
                   <label>
                     <input
@@ -1055,6 +711,9 @@ function App() {
                       <strong>{state.context.storeName}</strong>
                     </p>
                   )}
+                  <h3>{t("chainsTitle")}</h3>
+                  <p className="muted">{t("chainsHelp")}</p>
+                  <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
                   <p>K-Ruoka: {t("realStatus")}</p>
                   <p>S-kaupat: {t("sKaupatStatus")}</p>
                   <form
@@ -1088,49 +747,6 @@ function App() {
                       {store.storeName}
                     </button>
                   ))}
-                  <div className="actions">
-                    <button
-                      disabled={busy}
-                      onClick={() => void call("loginStore")}
-                    >
-                      {t("loginStore")}
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void call("checkStoreLogin")}
-                    >
-                      {t("checkLogin")}
-                    </button>
-                    <button
-                      className="text"
-                      disabled={busy}
-                      onClick={() => void call("cancelStoreLogin")}
-                    >
-                      {t("cancel")}
-                    </button>
-                    {state.context.providerId === "s-kaupat" &&
-                      snapshot.storeLogin === "signedIn" && (
-                        <button
-                          className="text"
-                          disabled={busy}
-                          onClick={() => void call("logoutStore")}
-                        >
-                          {t("logoutStore")}
-                        </button>
-                      )}
-                  </div>
-                  <p role="status">
-                    {t(
-                      snapshot.storeLogin === "signedIn"
-                        ? "signedIn"
-                        : snapshot.storeLogin === "waiting"
-                          ? "waitingLogin"
-                          : snapshot.storeLogin === "failed"
-                            ? "loginFailed"
-                            : "notConnected",
-                    )}
-                  </p>
                   <h2>ChatGPT</h2>
                   <p>{t("aiConnectionInfo")}</p>
                   <p role="status">

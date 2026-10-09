@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
-import { requirements } from "../domain/planner";
+import { relevant, requirements } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
+import { ConfirmPanel } from "./confirm";
+import { RowDetails } from "./details";
+import { isLive } from "../stores/provider";
+import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -12,7 +16,7 @@ export function ShoppingWorkspace({
   call,
   save,
   settings,
-  review,
+  staples,
   view = "list",
 }: {
   snapshot: Snapshot;
@@ -20,7 +24,7 @@ export function ShoppingWorkspace({
   call: (method: string, input?: unknown) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   settings: () => void;
-  review: () => void;
+  staples: () => void;
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
@@ -41,6 +45,32 @@ export function ShoppingWorkspace({
   const currentNote = useRef(note);
   const attempted = useRef(state.note);
   const quoted = useRef(-1);
+  const panel = useRef<HTMLElement>(null);
+  const [comparing, setComparing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  // The list row whose details are open.
+  const [opened, setOpened] = useState<string | null>(null);
+  // The list column is as tall as the window below its current top, so the total and
+  // transfer bar at its bottom stays in view however far the page is scrolled.
+  useEffect(() => {
+    const fit = () => {
+      const el = panel.current;
+      if (!el) return;
+      if (getComputedStyle(el).position !== "sticky") {
+        el.style.maxHeight = "";
+        return;
+      }
+      const top = Math.max(el.getBoundingClientRect().top, 12);
+      el.style.maxHeight = `${window.innerHeight - top - 12}px`;
+    };
+    fit();
+    window.addEventListener("scroll", fit, { passive: true });
+    window.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("scroll", fit);
+      window.removeEventListener("resize", fit);
+    };
+  }, []);
   const active = useRef(true);
   const running = useRef(false);
   const savedNote = useRef(state.note);
@@ -641,7 +671,9 @@ export function ShoppingWorkspace({
           <section className="forgotten card">
             <div className="section-heading compact">
               <h2>{tr("Unohtuiko jotain?", "Forgot anything?")}</h2>
-              <small>{tr("Vakio-ostoksesi", "Your regular items")}</small>
+              <button className="text" onClick={staples}>
+                {tr("Muokkaa vakiotuotteita", "Edit regular items")}
+              </button>
             </div>
             {state.staples
               .filter((s) => !rows.some((r) => r.id === s.id))
@@ -681,7 +713,7 @@ export function ShoppingWorkspace({
           </section>
         )}
       </section>
-      <aside className="shopping-panel">
+      <aside className="shopping-panel" ref={panel}>
         <div className="section-heading compact">
           <h2>
             {tr("Ostoslista", "Shopping list")}{" "}
@@ -843,7 +875,10 @@ export function ShoppingWorkspace({
                       p.packAmount > 0 &&
                       p.increment > 0 &&
                       line.total !== null &&
-                      cost(p) < line.total,
+                      cost(p) < line.total &&
+                      // A look-alike such as chicken mince is not the same ingredient.
+                      (!isLive(state.context.providerId) ||
+                        relevant(p.name, r.name)),
                   )
                   .sort((a, b) => cost(a) - cost(b))[0];
                 return (
@@ -868,7 +903,17 @@ export function ShoppingWorkspace({
                       ⌂
                     </button>
                     <div className="grocery-description">
-                      <strong>{line?.product?.name ?? r.name}</strong>
+                      {line ? (
+                        <button
+                          className="row-name"
+                          aria-expanded={opened === key}
+                          onClick={() => setOpened(opened === key ? null : key)}
+                        >
+                          {line.product?.name ?? r.name}
+                        </button>
+                      ) : (
+                        <strong>{r.name}</strong>
+                      )}
                       {!!line?.excluded && (
                         <small>
                           {line.excluded}{" "}
@@ -963,25 +1008,14 @@ export function ShoppingWorkspace({
                     >
                       ×
                     </button>
-                    {!home && cheaper && (
-                      <div className="row-alternative">
-                        {tr("Edullisempi vastaava", "Cheaper alternative")}:{" "}
-                        {cheaper.name} · {money(cost(cheaper))}{" "}
-                        <button
-                          className="text"
-                          disabled={busy}
-                          onClick={() => {
-                            if (line?.product)
-                              setUndo({ ...undo, [key]: line.product.id });
-                            void call("accept", {
-                              ingredientId: r.id,
-                              productId: cheaper.id,
-                            });
-                          }}
-                        >
-                          {tr("Vaihda", "Swap")}
-                        </button>
-                      </div>
+                    {!home && cheaper && opened !== key && (
+                      <button
+                        className="text row-alternative"
+                        onClick={() => setOpened(key)}
+                      >
+                        {tr("Edullisempi vaihtoehto", "Cheaper option")}{" "}
+                        {money(line!.total! - cost(cheaper))}
+                      </button>
                     )}
                     {undo[key] && (
                       <button
@@ -1004,48 +1038,33 @@ export function ShoppingWorkspace({
                         {tr("Kumoa vaihto", "Undo swap")}
                       </button>
                     )}
-                    {!home && !!line?.candidates.length && (
-                      <details className="product-options">
-                        <summary>
-                          {tr("Vaihda tuotetta", "Change product")}
-                        </summary>
-                        {line.candidates.map((p) => (
-                          <button
-                            className="candidate-option"
-                            key={p.id}
-                            disabled={
-                              busy ||
-                              !p.available ||
-                              p.price === null ||
-                              !p.packAmount
-                            }
-                            onClick={() => {
-                              if (line.product)
-                                setUndo({ ...undo, [key]: line.product.id });
-                              void call("accept", {
-                                ingredientId: r.id,
-                                productId: p.id,
-                              });
-                            }}
-                          >
-                            {p.name} ·{" "}
-                            {p.price === null
-                              ? tr("Hinta puuttuu", "Price unknown")
-                              : money(p.price)}
-                          </button>
-                        ))}
-                      </details>
+                    {opened === key && line && (
+                      <RowDetails
+                        snapshot={snapshot}
+                        line={line}
+                        busy={busy}
+                        money={money}
+                        cheaper={
+                          !home && cheaper
+                            ? { product: cheaper, total: cost(cheaper) }
+                            : null
+                        }
+                        choose={(p) => {
+                          if (line.product)
+                            setUndo({ ...undo, [key]: line.product.id });
+                          void call("accept", {
+                            ingredientId: r.id,
+                            productId: p.id,
+                          });
+                        }}
+                      />
                     )}
                   </div>
                 );
               })}
           </section>
         ))}
-        <div className="shopping-total">
-          <div>
-            <span>{tr("Arvio yhteensä", "Estimated total")}</span>
-            <strong>{money(total)}</strong>
-          </div>
+        <div className="list-footer">
           {state.skipped.length > 0 && (
             <small>
               {state.skipped.length}{" "}
@@ -1061,25 +1080,25 @@ export function ShoppingWorkspace({
               )}
             </p>
           )}
-          <button
-            className="transfer-button"
-            disabled={busy || !rows.length || missing.length === rows.length}
-            onClick={async () => {
-              if (await call("prepare", { allowMissing: true })) review();
-            }}
-          >
-            {state.context.providerId === "s-kaupat" ? (
-              tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
-            ) : (
-              <>
-                {tr("Siirrä", "Transfer to")}{" "}
-                {state.context.providerId === "k-ruoka"
-                  ? "K-Ruoan"
-                  : tr("kaupan", "store")}{" "}
-                {tr("ostoskoriin", "cart")}
-              </>
-            )}
-          </button>
+          <small>
+            {snapshot.pickupFee
+              ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
+              : tr(
+                  "Toimitus- tai noutomaksu ei ole tiedossa.",
+                  "The delivery or pickup fee is not known.",
+                )}
+          </small>
+          {canCompare(snapshot) && (
+            <ComparePanel
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              tr={tr}
+              money={money}
+              open={comparing}
+              onClose={() => setComparing(false)}
+            />
+          )}
           {state.context.providerId === "s-kaupat" && (
             <p className="input-notice">
               {tr(
@@ -1113,10 +1132,100 @@ export function ShoppingWorkspace({
           </div>
           <small>
             {tr(
-              "Toimitusmaksut ja mahdolliset pantit tarkistetaan kaupassa.",
-              "Check delivery fees and any unreported deposits at the store.",
+              "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
+              "Check the fee and any unreported deposits at the store.",
             )}
           </small>
+          {!isLive(state.context.providerId) && (
+            <details className="demo-controls">
+              <summary>{tr("Esimerkki", "Demo")}</summary>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("scenario", "interrupt")}
+              >
+                {tr(
+                  "Esimerkki: keskeytä seuraava siirto",
+                  "Demo: interrupt next transfer",
+                )}
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("scenario", "price")}
+              >
+                {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
+              </button>
+            </details>
+          )}
+        </div>
+        {/* Stays at the bottom of the list column while the rows scroll. */}
+        <div
+          className="shopping-total"
+          role="region"
+          aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
+        >
+          {confirming && (
+            <ConfirmPanel
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              money={money}
+              onClose={() => setConfirming(false)}
+              onRecover={() => void call("recover")}
+            />
+          )}
+          {!confirming && snapshot.journal?.status === "partial" && (
+            <p className="warning" role="status">
+              {tr("Edellinen siirto keskeytyi.", "The last transfer stopped.")}{" "}
+              <button className="text" onClick={() => setConfirming(true)}>
+                {tr("Tarkista", "Check it")}
+              </button>
+            </p>
+          )}
+          <div className="total-line">
+            <span>{tr("Arvio yhteensä", "Estimated total")}</span>
+            <strong>{money(total)}</strong>
+          </div>
+          {canCompare(snapshot) && (
+            <CompareSummary
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              tr={tr}
+              money={money}
+              onOpen={() => setComparing(true)}
+            />
+          )}
+          {!confirming && (
+            <button
+              className="transfer-button"
+              disabled={busy || !rows.length || missing.length === rows.length}
+              onClick={async () => {
+                // An interrupted transfer is shown for recovery instead of a new review.
+                if (
+                  snapshot.journal?.status === "partial" ||
+                  (await call("prepare", { allowMissing: true }))
+                )
+                  setConfirming(true);
+              }}
+            >
+              {state.context.providerId === "s-kaupat" ? (
+                tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+              ) : (
+                <>
+                  {tr("Siirrä", "Transfer to")}{" "}
+                  {state.context.providerId === "k-ruoka"
+                    ? "K-Ruoan"
+                    : tr("kaupan", "store")}{" "}
+                  {tr("ostoskoriin", "cart")}
+                </>
+              )}
+              {total > 0 && (
+                <span className="transfer-total"> · {money(total)}</span>
+              )}
+            </button>
+          )}
         </div>
       </aside>
     </div>

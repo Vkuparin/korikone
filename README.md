@@ -21,7 +21,7 @@ npm start
 
 Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. ChatGPT model selection is automatic, preferring a small model from the current account catalogue. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
 
-The store search includes both chains. S-kaupat uses the pinned v1.1.0 worker with its own Edge or Chrome profile and authenticated site handoff.
+The store search includes both chains. S-kaupat uses the pinned v1.2.0 worker with its own Edge or Chrome profile and authenticated site handoff.
 
 ## Shopping and receipts
 
@@ -61,6 +61,6 @@ npm run package
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 
-See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [implementation plan](docs/implementation-plan.md).
+See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [roadmap to 1.0.0](docs/roadmap.md).
 
 Licensed under Apache-2.0. Copyright 2026 Vkuparin.

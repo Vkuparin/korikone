@@ -32,53 +32,42 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Basket", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Review products", exact: true })
-      .click();
-    await expect(page.locator("article")).toHaveCount(6);
-    for (let i = 0; i < 6; i++) {
-      const article = page
-        .locator("article")
-        .filter({ has: page.locator(".warning") })
-        .first();
-      const missing = page
-        .locator("article")
-        .filter({ has: page.locator(".warning") });
-      const count = await missing.count();
-      if (count) {
-        await article
-          .getByRole("button", { name: "Choose this product" })
-          .first()
-          .click();
-        await expect(missing).toHaveCount(count - 1);
-      }
+    const list = page.getByRole("complementary");
+    // Rows without a product are resolved from their details.
+    const needing = list.locator(".grocery-row", {
+      hasText: "Needs a product",
+    });
+    for (let i = 0; i < 6 && (await needing.count()); i++) {
+      const count = await needing.count();
+      const row = needing.first();
+      await row.locator(".row-name").click();
+      await row
+        .getByRole("button", { name: /^Choose this product: / })
+        .and(page.locator(":enabled"))
+        .first()
+        .click();
+      await expect(needing).toHaveCount(count - 1);
     }
-    await page.getByText("Demo", { exact: true }).click();
-    await page
+    await list.getByText("Demo", { exact: true }).click();
+    await list
       .getByRole("button", { name: "Demo: interrupt next transfer" })
       .click();
-    await page
-      .getByRole("button", { name: "Review cart changes", exact: true })
-      .click();
-    await expect(
-      page.getByText("In cart: 1 → After transfer: 2 kpl"),
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Transfer to cart", exact: true })
-      .click();
-    await expect(
-      page.getByRole("heading", { name: "Transfer interrupted" }),
-    ).toBeVisible();
-    await page
+    const bar = list.getByRole("region", { name: "Total and transfer" });
+    await bar.getByRole("button", { name: /^Transfer to store cart/ }).click();
+    const panel = bar.getByRole("region", { name: "Transfer confirmation" });
+    await expect(panel).toContainText(
+      "Already in the cart: Pasta 500 g 1 → 2 kpl",
+    );
+    await panel.getByRole("button", { name: /^Confirm: / }).click();
+    const result = bar.getByRole("region", { name: "Transfer result" });
+    await expect(result.getByRole("status")).toHaveText("Transfer interrupted");
+    await result
       .getByRole("button", { name: "Check cart and review remaining changes" })
       .click();
-    await page
-      .getByRole("button", { name: "Transfer to cart", exact: true })
-      .click();
-    await expect(
-      page.getByRole("heading", { name: "Cart updated and verified" }),
-    ).toBeVisible();
+    await panel.getByRole("button", { name: /^Confirm: / }).click();
+    await expect(result.getByRole("status")).toHaveText(
+      "Cart updated and verified",
+    );
     // Visual capture is covered by the source build. A packaged hidden window
     // may not produce compositor frames even when DOM interaction works.
     if (!process.env.KORIKONE_EXECUTABLE)

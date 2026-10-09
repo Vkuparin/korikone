@@ -44,6 +44,9 @@ const catalogue: [
   ["egg", "Kotimaista vapaan kanan munat M10", 10, "pcs", 255, "kananmuna"],
   ["egg-slicer", "House kananmunaleikkuri", 1, "pcs", 550],
 ];
+// The K-Ruoka fixture differs from the S-kaupat one so a comparison has something to show:
+// its mince costs more and it does not stock the salt.
+const kRuokaFixture: Record<string, number | null> = { mince: 90, salt: null };
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };
   carts = new Map<string, Cart>();
@@ -69,7 +72,9 @@ export class DemoProvider implements StoreProvider {
     query: string,
     ingredientId: string,
   ): Promise<Product[]> {
+    const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
     return catalogue
+      .filter((p) => adjust[p[0]] !== null)
       .filter(
         (p) =>
           p[0] === ingredientId ||
@@ -90,6 +95,7 @@ export class DemoProvider implements StoreProvider {
           price:
             price +
             (["demo-s", "s-kaupat"].includes(this.id) ? 10 : 0) +
+            (adjust[id] ?? 0) +
             (this.priceChange ? 20 : 0),
           available: id !== "carrot",
           deposit: 0,
@@ -117,6 +123,10 @@ export class DemoProvider implements StoreProvider {
             ]
           : []),
       ]);
+  }
+  async pickupFee() {
+    // Only the S-kaupat fixture reports fees, as only the real S-kaupat worker does.
+    return this.id === "s-kaupat" ? { min: 390, max: 590 } : null;
   }
   async getCart(context: StoreContext): Promise<Cart> {
     const key = JSON.stringify(context);

@@ -4,7 +4,7 @@ Revised 9 October 2026. Follow the first-round refined feedback and redesign PDF
 
 ## Navigation and first use
 
-Use a left rail: Ostoslista, Viikkosuunnitelma, Reseptit, Vakiotuotteet, Historia, Ostoskori and Asetukset. Keep Finnish/English switching available. Use the native Windows title-bar overlay. Keep the existing optional store/ChatGPT setup and a working manual path.
+Use a left rail: Ostoslista, Viikkosuunnitelma, Reseptit, Historia and Asetukset. Vakiotuotteet opens from Asetukset and from "Unohtuiko jotain?". There is no separate basket page: product details open from a list row, and the transfer is confirmed in the list column. Keep Finnish/English switching available. Use the native Windows title-bar overlay. Keep the existing optional store/ChatGPT setup and a working manual path.
 
 The everyday entry is the shopping list. Avoid a large hero, photo or weekday-entry grid. An empty note has starter ideas in one place. An empty list explains that groceries and their meal sources will appear there. Show only real local history and recurring items, never the mockup's invented weeks, prices or user name.
 
@@ -42,9 +42,9 @@ Clear-list appears once, in the list menu. Copy/save are under the total. Text f
 
 Show the quoted total and explicitly count missing prices/products. Excluded home items are separate. Fees and unreported deposits are unknown. Never label an incomplete quote as the full basket cost.
 
-The transfer button opens one review with destination, before/after quantities, retained unrelated cart items, total and omitted unresolved requirements. The user can transfer available products while the missing ones remain on the list. Keep explicit live-product and budget acknowledgement in that review.
+The total and transfer button stay pinned under the list. The transfer button opens a confirmation panel in the same column that shows only what needs attention: omitted unresolved requirements, products already in the cart, cheaper alternatives and a budget overrun. When nothing needs attention it says so in one line and the confirm button has focus. Before/after quantities and retained cart items are under "Näytä kaikki rivit". The confirm button names the product count, chain and total and is the approval; only a budget overrun needs a separate checkbox. The user can transfer available products while the missing ones remain on the list.
 
-The result shows verified counts, omitted requirements and a return-to-list action. K-Ruoka opens the default browser. S-kaupat opens its authenticated site and explains that the user must add the Korikone account list to the cart. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
+The result shows in the same panel: verified counts, omitted requirements, the next step and a close action. K-Ruoka opens the default browser. S-kaupat opens its authenticated site and explains that the user must add the Korikone account list to the cart. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
 
 ## Receipts
 
@@ -56,4 +56,4 @@ Compare desktop, narrow and empty-state captures with the redesign. Check long F
 
 ## Preserved store and support features
 
-Both retailers remain searchable during setup. Keep provider-specific login state, S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.
+Both retailers remain searchable during setup. Settings lists K-Ruoka and S-kaupat side by side, each with its own sign-in state, remembered store and a *Use this store* action; one is marked active, and switching keeps the other chain signed in. Setup shows the other chain below the chosen store. Keep S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.

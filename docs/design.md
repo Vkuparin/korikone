@@ -25,11 +25,11 @@ Use a quiet green/white palette, a compact heading, a left navigation rail, a no
 
 The note footer shows household size, current date and selected branch. Settings remain one click away. Explain that the note, recipes, household preferences and imported receipt text are sent to ChatGPT. Do not fabricate prices, history, account names or connection states from the mockup.
 
-Every list row includes the chosen product or unresolved ingredient, source meals, required amount, quantity controls, price when known, a home marker, removal, and an optional product picker. Shared ingredients appear once with additive amounts and all source meals. “Löytyy kotoa” leaves a visible row but excludes it from matching and totals. Removal hides the row independently; restoring home items does not restore removed rows.
+Every list row includes the chosen product or unresolved ingredient, source meals, required amount, quantity controls, price when known, a home marker and removal (shown on hover or keyboard focus), and details that open from the product name with the product picker. Shared ingredients appear once with additive amounts and all source meals. “Löytyy kotoa” leaves a visible row but excludes it from matching and totals. Removal hides the row independently; restoring home items does not restore removed rows.
 
 Manual additions accept decimal commas or points for kg and l, converted to integer g and ml. Base units and pieces require whole numbers. Matching names and units reuse the existing ingredient identity, so manual additions and recipe amounts share one row. Additions increase an explicit row quantity too, restore a removed row, and preserve its home marker. Invalid amounts leave the list and input intact.
 
-Put clear-list and text export in the list menu. Put transfer below the running total, with copy/save actions beside it. Keep all rows available; do not collapse a long list behind “show more.” A missing quote is shown as unknown and excluded from the estimate.
+Put clear-list and text export in the list menu. Keep the running total and the transfer button in a bar pinned to the bottom of the list column, which scrolls on its own; copy/save actions sit above it. Keep all rows available; do not collapse a long list behind “show more.” A missing quote is shown as unknown and excluded from the estimate.
 
 Saved recipes are added through a disclosure, without choosing a day. Recurring items appear under “Unohtuiko jotain?” and can be added with one click. Existing enabled recurring items retain their cadence behavior. No purchase frequency is inferred from transfer history.
 
@@ -49,15 +49,15 @@ The app discovers a suitable available model automatically. OAuth, credentials, 
 
 The selection preference is lowest total pack cost, prefer store brands, or avoid store brands. Brand preferences are soft: if no matching brand candidate is usable, other available candidates remain eligible. An explicit product choice takes precedence. Household exclusion terms filter candidates before selection, including saved choices. Only products with known price, compatible unit and positive pack size/increment are automatically selected. This name-based filter cannot certify allergens or dietary suitability.
 
-Available alternatives can be selected inline. Show a cheaper alternative when one exists, with swap and undo controls. Undo changes a local choice; it does not reverse a retailer write. Catalogue data cannot certify dietary suitability, so the final live transfer review still asks the shopper to check products and pack labels.
+Alternatives are chosen in the row details. When a cheaper product for the same ingredient exists, the row shows the saving and the details offer the swap; undo stays on the row. Undo changes a local choice; it does not reverse a retailer write. Catalogue data cannot certify dietary suitability; the confirmation panel lists the products under "Näytä kaikki rivit" for the shopper to check.
 
 Transfer flow:
 
 1. Read the current cart and refresh selected product quotes.
-2. Show exact before/after quantities, retained unrelated items, the total and any unresolved ingredients excluded from this batch.
-3. Apply the user's reviewed batch. Keep revision, account, store, price and quantity checks.
+2. Show a confirmation panel in the list column with only what needs attention: unresolved ingredients excluded from this batch, products already in the cart, cheaper alternatives for the same ingredient, and a budget overrun. Exact before/after quantities and retained unrelated items are under "Näytä kaikki rivit". A changed price or pack stops the review before this step, so the list is re-quoted first.
+3. Apply the batch when the shopper presses the confirm button, which names the product count, chain and total. That press is the approval. A separate acknowledgement is required only when the total is over the weekly budget. Keep revision, account, store, price and quantity checks.
 4. Journal each operation and read back the cart. A failure stops the batch and offers reconciliation; never blindly repeat an uncertain write.
-5. Show verified and unresolved items. Save verified runs to local transfer history so they can be reused.
+5. Show verified and unresolved items in the same panel, with the next step. Save verified runs to local transfer history so they can be reused.
 6. For K-Ruoka, open the cart URL in the default browser. S-kaupat retains its authenticated `open_site` handoff and list-to-cart instructions. The user may need to sign into the same retailer account there. The app does not copy browser cookies or claim session continuity.
 
 Unsupported weighted prices and ambiguous pack labels remain unresolved. A partial batch may transfer the available products only after the review lists what is excluded. It must not imply the complete list was transferred. Fees and unreported deposits remain outside the estimate.
@@ -87,6 +87,6 @@ Schema defaults retain compatibility with older saved profiles. Language changes
 
 ## Current boundaries
 
-K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.1.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
+K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.2.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 
-See [UX behavior](ux.md), [implementation plan](implementation-plan.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.
+See [UX behavior](ux.md), [roadmap](roadmap.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.

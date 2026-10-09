@@ -349,3 +349,31 @@ test("reads egg pack counts and plain-ingredient variants from live S-kaupat nam
     true,
   );
 });
+test("remembers one store per chain and migrates profiles that have only the active store", () => {
+  const old = { ...initialState() } as Record<string, unknown>;
+  delete old.stores;
+  const migrated = stateSchema.parse(old);
+  expect(migrated.stores).toEqual({
+    [migrated.context.providerId]: migrated.context,
+  });
+  const sStore = {
+    providerId: "s-kaupat",
+    storeId: "631940293",
+    storeName: "S-market Herttoniemi",
+    fulfillment: "pickup" as const,
+  };
+  const switched = stateSchema.parse({ ...migrated, context: sStore });
+  expect(switched.context).toEqual(sStore);
+  expect(switched.stores[migrated.context.providerId]).toEqual(
+    migrated.context,
+  );
+  expect(switched.stores["s-kaupat"]).toEqual(sStore);
+  // A saved state from this release still carries the active store where earlier releases read it.
+  expect(JSON.parse(JSON.stringify(switched)).context).toEqual(sStore);
+  // Entries filed under the wrong chain are dropped rather than trusted.
+  const tampered = stateSchema.parse({
+    ...switched,
+    stores: { ...switched.stores, "k-ruoka": sStore },
+  });
+  expect(tampered.stores["k-ruoka"]).toBeUndefined();
+});

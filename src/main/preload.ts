@@ -9,6 +9,7 @@ const methods = [
   "setLanguage",
   "cancelTransfer",
   "buildBasket",
+  "compareStores",
   "accept",
   "omit",
   "prepare",
