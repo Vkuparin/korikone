@@ -20,7 +20,7 @@ This stage covers release versioning, packaging, automated checks, packaged-app 
 ## Gates before a stable release
 
 - S-kaupat authenticated browser handoff ([#3](https://github.com/Vkuparin/korikone/issues/3)): observed by the owner on 9 October 2026 with s-kaupat-mcp 1.2.0 and a per-folder login. After one sign-in, *Open store cart* opened the S-kaupat window signed in. *Lisää kaikki ostoskoriin* remains roadmap task A.2.
-- Observe a small K-Ruoka cart transfer and confirm the checkout browser shows the same cart.
+- K-Ruoka cart transfer: the owner reported on 9 October 2026 that a transfer went through and the in-app store tab showed the same cart. Record one transfer with exact before/after quantities to close this gate.
 - Test a clean Windows install, an upgrade with existing data, and uninstall behavior. A packaged executable smoke test does not establish installer acceptance.
 - Observe real multi-dish notes, varied receipts and household use without coaching.
 - Decide on signing and verify the distribution process before broad release.
