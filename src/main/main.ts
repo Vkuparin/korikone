@@ -28,6 +28,11 @@ import { draftPrompt, validateDraft } from "../ai/draft";
 import { readReceipt } from "../receipts/read";
 import { diagnostics } from "../application/diagnostics";
 import { StoreViews } from "./store-view";
+import {
+  KRuokaSite,
+  pageScript,
+  type PageRequest,
+} from "../stores/k-ruoka-site";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 else if (process.env.KORIKONE_DATA_DIR)
@@ -72,7 +77,23 @@ else
       join(app.getPath("userData"), "retailers/k-ruoka/profile"),
       findChrome(),
     );
-    const kRuoka = new KRuokaProvider((name, args) => worker.call(name, args));
+    // KORIKONE_K_RUOKA=site uses Korikone's own client through the K-Ruoka store tab's session
+    // (U3.7) instead of the worker's Chrome. The worker stays the default until the owner checks it.
+    const kRuokaViaSite = process.env.KORIKONE_K_RUOKA === "site";
+    const kRuokaSite = new KRuokaSite(
+      (request) =>
+        stores.evaluate(
+          "k-ruoka",
+          pageScript(request),
+        ) as ReturnType<PageRequest>,
+    );
+    const kRuokaStore = () =>
+      service.state.context.providerId === "k-ruoka"
+        ? service.state.context.storeId
+        : service.state.stores["k-ruoka"]?.storeId;
+    const kRuoka = new KRuokaProvider((name, args) =>
+      kRuokaViaSite ? kRuokaSite.call(name, args) : worker.call(name, args),
+    );
     const sWorker = sKaupatWorker({
       script: join(
         app.isPackaged ? process.resourcesPath : app.getAppPath(),
@@ -311,6 +332,11 @@ else
           loginSKaupat();
           return service.snapshot();
         }
+        if (kRuokaViaSite) {
+          // Sign-in happens in the Kauppa tab; Asetukset checks it afterwards.
+          await stores.open("k-ruoka", "login");
+          return service.snapshot();
+        }
         const result = z
           .object({ state: z.string() })
           .parse(await worker.call("start_login", {}));
@@ -330,6 +356,19 @@ else
         if (chain === "s-kaupat") {
           if (!sLogin)
             service.storeLogins["s-kaupat"] = (await sSession.signedIn())
+              ? "signedIn"
+              : "notStarted";
+          return service.snapshot();
+        }
+        if (kRuokaViaSite) {
+          const storeId = kRuokaStore();
+          service.storeLogins["k-ruoka"] =
+            storeId &&
+            z
+              .object({ loggedIn: z.boolean() })
+              .parse(
+                await kRuokaSite.call("auth_status", { store_id: storeId }),
+              ).loggedIn
               ? "signedIn"
               : "notStarted";
           return service.snapshot();
@@ -362,7 +401,7 @@ else
           service.storeLogins["s-kaupat"] = "notStarted";
           return service.snapshot();
         }
-        await worker.call("cancel_login", {});
+        if (!kRuokaViaSite) await worker.call("cancel_login", {});
         service.storeLogins["k-ruoka"] = "notStarted";
         return service.snapshot();
       },

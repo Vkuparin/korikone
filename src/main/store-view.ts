@@ -59,6 +59,7 @@ const within = (host: string, domains: string[]) =>
  */
 export class StoreViews {
   private views = new Map<Chain, WebContentsView>();
+  private backgrounds = new Map<Chain, WebContentsView>();
   private shown: Chain | null = null;
   private fixture: Promise<string> | null = null;
   private server: Server | null = null;
@@ -211,10 +212,40 @@ export class StoreViews {
   }
 
   /** Development mode switched: the tabs belong to the other set of sessions now. */
+  /**
+   * Runs a script in a hidden page of the chain's site, in the same session as its tab, so
+   * Korikone's own calls carry the sign-in the shopper made there. Live mode only.
+   */
+  async evaluate(chain: Chain, script: string): Promise<unknown> {
+    if (this.development()) throw new Error("developmentRequired");
+    const home = `${SITES[chain].origin}/kauppa`;
+    this.backgrounds.get(chain) ??
+      this.backgrounds.set(
+        chain,
+        new WebContentsView({
+          webPreferences: {
+            session: session.fromPartition(`persist:${chain}`),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+          },
+        }),
+      );
+    const contents = this.backgrounds.get(chain)!.webContents;
+    contents.setWindowOpenHandler(() => ({ action: "deny" }));
+    if (
+      new URL(contents.getURL() || "about:blank").origin !== SITES[chain].origin
+    )
+      await contents.loadURL(home);
+    return contents.executeJavaScript(script, true);
+  }
+
   reset() {
     this.hide();
     for (const view of this.views.values()) view.webContents.close();
     this.views.clear();
+    for (const view of this.backgrounds.values()) view.webContents.close();
+    this.backgrounds.clear();
   }
 
   close() {

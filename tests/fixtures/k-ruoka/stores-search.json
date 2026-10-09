@@ -1,0 +1,32 @@
+{
+  "results": [
+    {
+      "id": "N195",
+      "name": "K‑Citymarket Helsinki Columbus",
+      "chain": "kcitymarket",
+      "chainName": "K-Citymarket",
+      "location": "Helsinki",
+      "deliveryMethods": ["pickupBox", "homeDelivery"],
+      "hasPickup": false,
+      "hasPickupBox": true,
+      "hasHomeDelivery": true,
+      "isWebStore": true,
+      "nextFreePickupBox": "2026-10-12"
+    },
+    {
+      "id": "N190",
+      "name": "K‑Citymarket Helsinki Easton",
+      "chain": "kcitymarket",
+      "chainName": "K-Citymarket",
+      "location": "Helsinki",
+      "deliveryMethods": ["pickup"],
+      "hasPickup": true,
+      "hasPickupBox": false,
+      "hasHomeDelivery": false,
+      "isWebStore": true,
+      "nextFreePickup": "2026-10-10"
+    }
+  ],
+  "totalHits": 120,
+  "queryId": "<queryId>"
+}
