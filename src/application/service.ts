@@ -5,6 +5,7 @@ import {
   type AppState,
   type BasketLine,
   type Journal,
+  type Product,
   type Review,
   type StoreContext,
 } from "../domain/model";
@@ -21,6 +22,13 @@ import {
   type FeeRange,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
+import {
+  PRICE_KEY,
+  limitPrices,
+  priceObservationsSchema,
+  recordPrices,
+  type PriceObservation,
+} from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
@@ -78,6 +86,40 @@ export class Service {
   constructor(private db: Storage) {
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
+  }
+  /** Adds the prices just read to the saved price history. A storage failure never stops pricing. */
+  private recordPrices(products: Product[]) {
+    return this.writeState(async () => {
+      const saved = priceObservationsSchema.safeParse(
+        (await this.db.get(PRICE_KEY)) ?? [],
+      );
+      await this.db.set(
+        PRICE_KEY,
+        recordPrices(saved.success ? saved.data : [], products),
+      );
+    }).catch(() => {});
+  }
+  async priceHistory(): Promise<PriceObservation[]> {
+    const saved = priceObservationsSchema.safeParse(
+      (await this.db.get(PRICE_KEY)) ?? [],
+    );
+    return saved.success ? saved.data : [];
+  }
+  /** The backup file: the saved state plus the price history, which earlier releases ignore. */
+  async exportBackup() {
+    return { ...this.state, priceHistory: await this.priceHistory() };
+  }
+  /** Replaces the state and, when the file carries one, the price history. */
+  async importBackup(raw: unknown) {
+    const next = stateSchema.parse(raw);
+    const prices =
+      raw && typeof raw === "object" && "priceHistory" in raw
+        ? priceObservationsSchema.parse(raw.priceHistory)
+        : null;
+    const saved = await this.save({ ...next, revision: this.state.revision });
+    if (prices)
+      await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
+    return saved;
   }
   async init() {
     const state = await this.db.get("state");
@@ -248,12 +290,14 @@ export class Service {
   private async price(context: StoreContext): Promise<BasketLine[]> {
     const provider = this.registry.get(context.providerId);
     const result = [];
+    const observed: Product[] = [];
     for (const requirement of requirements(this.state)) {
       const products = await provider.searchProducts(
         context,
         requirement.name,
         requirement.id,
       );
+      observed.push(...products);
       const accepted =
         this.state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
@@ -297,6 +341,7 @@ export class Service {
         ),
       );
     }
+    await this.recordPrices(observed);
     return result;
   }
   /**

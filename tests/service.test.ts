@@ -254,6 +254,16 @@ test("diagnostics leave out recipes, products and account details", async () => 
   expect(JSON.parse(report).counts.recipes).toBe(3);
 });
 
+test("diagnostics carry no observed prices", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  expect((await service.priceHistory()).length).toBeGreaterThan(0);
+  const report = JSON.stringify(
+    diagnostics(service.snapshot(), { app: "test" }),
+  );
+  expect(report).not.toMatch(/priceHistory|unitPrice|prices:/);
+});
+
 test("automatic choices cannot bypass household exclusions through saved products or brand preferences", async () => {
   const service = new Service(memory());
   const provider = service.registry.get("demo-k") as DemoProvider;

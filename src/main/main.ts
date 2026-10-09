@@ -414,7 +414,7 @@ else
         if (filePath)
           await writeFile(
             filePath,
-            JSON.stringify(service.state, null, 2),
+            JSON.stringify(await service.exportBackup(), null, 2),
             "utf8",
           );
         return service.snapshot();
@@ -453,14 +453,13 @@ else
           filters: [{ name: "JSON", extensions: ["json"] }],
         });
         if (filePaths[0]) {
-          const next = stateSchema.parse(
-            JSON.parse(await readFile(filePaths[0], "utf8")),
-          );
+          const raw = JSON.parse(await readFile(filePaths[0], "utf8"));
+          stateSchema.parse(raw);
           await db.set(
             `${development ? "development:" : ""}backup-${Date.now()}`,
             service.state,
           );
-          return service.save({ ...next, revision: service.state.revision });
+          return service.importBackup(raw);
         }
         return service.snapshot();
       },
