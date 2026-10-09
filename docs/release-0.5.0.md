@@ -2,6 +2,8 @@
 
 Prepared on 9 October 2026 on `codex/v0.5.0-release`. This candidate integrates the published v0.4.0 behavior with the embedded retailer work on main. Publication and final owner acceptance are pending.
 
+The [GitHub draft release](https://github.com/Vkuparin/korikone/releases/tag/untagged-d8c6469ef73f9f52b21a) holds the installer and checksum, targeting candidate commit `3cd7c92`. Both assets are uploaded; GitHub's installer digest matches the checksum below. The release remains an unpublished draft pre-release. CI passed for the tested application code at `6c67459`; later commits change documentation only.
+
 ## Changes
 
 - Both retailers open inside Korikone, with separate persistent sign-in sessions. Setup selects one store, opens its sign-in, offers optional ChatGPT connection and finishes on one screen.
