@@ -1,10 +1,12 @@
 import type {
+  AppState,
   BasketLine,
   Cart,
   Journal,
   Review,
   StoreContext,
 } from "../domain/model";
+import { applyPackSizes } from "../domain/planner";
 import type { StoreProvider } from "../stores/provider";
 export function fingerprint(cart: Cart): string {
   return JSON.stringify({
@@ -20,6 +22,7 @@ export async function createReview(
   context: StoreContext,
   revision: number,
   lines: BasketLine[],
+  packSizes: AppState["packSizes"] = {},
 ): Promise<Review> {
   if (
     !provider.capabilities.cart ||
@@ -34,12 +37,13 @@ export async function createReview(
     const p = line.product!;
     if (p.providerId !== context.providerId || p.storeId !== context.storeId)
       throw new Error("contextChanged");
-    const fresh = (
+    const fresh = applyPackSizes(
       await provider.searchProducts(
         context,
         line.requirement.name,
         line.requirement.id,
-      )
+      ),
+      packSizes,
     ).find((item) => item.id === p.id);
     if (
       !fresh ||
@@ -94,6 +98,7 @@ export async function transfer(
   journal: Journal,
   persist: (j: Journal) => void | Promise<void>,
   signal?: AbortSignal,
+  packSizes: AppState["packSizes"] = {},
 ): Promise<Journal> {
   const review = journal.review;
   const key = JSON.stringify([
@@ -112,12 +117,13 @@ export async function transfer(
     for (const line of review.quotes) {
       const p = line.product!;
       if (!review.targets.some((t) => t.productId === p.id)) continue;
-      const fresh = (
+      const fresh = applyPackSizes(
         await provider.searchProducts(
           review.context,
           line.requirement.name,
           line.requirement.id,
-        )
+        ),
+        packSizes,
       ).find((candidate) => candidate.id === p.id);
       if (
         !fresh ||
@@ -180,6 +186,7 @@ export async function transfer(
 export async function resumeReview(
   provider: StoreProvider,
   journal: Journal,
+  packSizes: AppState["packSizes"] = {},
 ): Promise<Review> {
   const baseline = await provider.getCart(journal.review.context);
   if (baseline.accountId !== journal.review.baseline.accountId)
@@ -201,12 +208,13 @@ export async function resumeReview(
   for (const line of quotes) {
     const target = targets.find((t) => t.productId === line.product?.id);
     if (!target) continue;
-    const fresh = (
+    const fresh = applyPackSizes(
       await provider.searchProducts(
         journal.review.context,
         line.requirement.name,
         line.requirement.id,
-      )
+      ),
+      packSizes,
     ).find((p) => p.id === target.productId);
     if (
       !fresh ||

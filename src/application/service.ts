@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   initialState,
   stateSchema,
+  unitSchema,
   type AppState,
   type BasketLine,
   type Journal,
@@ -14,6 +15,7 @@ import {
   match,
   exclusionTerms,
   relevant,
+  applyPackSizes,
 } from "../domain/planner";
 import {
   ProviderRegistry,
@@ -305,10 +307,13 @@ export class Service {
     const result = [];
     const observed: Product[] = [];
     for (const requirement of requirements(this.state)) {
-      const products = await provider.searchProducts(
-        context,
-        requirement.name,
-        requirement.id,
+      const products = applyPackSizes(
+        await provider.searchProducts(
+          context,
+          requirement.name,
+          requirement.id,
+        ),
+        this.state.packSizes,
       );
       observed.push(...products);
       const accepted =
@@ -394,6 +399,33 @@ export class Service {
     };
     return this.snapshot();
   }
+  /**
+   * Saves the pack size the shopper read from the shelf or the product page for a product whose
+   * label the store does not state, then prices the list again.
+   */
+  async setPackSize(input: unknown) {
+    if (this.busy) throw new Error("busy");
+    const { productId, amount, unit } = z
+      .object({
+        productId: z.string().min(1),
+        amount: z.number().int().positive().max(1_000_000),
+        unit: unitSchema,
+      })
+      .parse(input);
+    const known = this.basket.some((l) =>
+      l.candidates.some(
+        (p) =>
+          p.id === productId &&
+          (!p.packAmount || productId in this.state.packSizes),
+      ),
+    );
+    if (!known) throw new Error("unresolved");
+    await this.save({
+      ...this.state,
+      packSizes: { ...this.state.packSizes, [productId]: { amount, unit } },
+    });
+    return this.buildBasket();
+  }
   async accept(input: unknown) {
     if (this.busy) throw new Error("busy");
     const { ingredientId, productId } = z
@@ -447,6 +479,7 @@ export class Service {
       allowMissing
         ? this.basket.filter((line) => line.product && line.total !== null)
         : this.basket,
+      this.state.packSizes,
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
@@ -492,6 +525,7 @@ export class Service {
             await this.db.set(provider.id, [...provider.carts]);
         },
         this.controller.signal,
+        this.state.packSizes,
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
@@ -542,6 +576,7 @@ export class Service {
     this.review = await resumeReview(
       this.registry.get(this.journal.review.context.providerId),
       this.journal,
+      this.state.packSizes,
     );
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;

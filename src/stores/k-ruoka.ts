@@ -103,8 +103,7 @@ export class KRuokaProvider implements StoreProvider {
     return data.results.map((p) => {
       const pack = packFromName(p.name);
       // Weight pricing and missing pack data remain unresolved; never assume a kg is a pack.
-      const supported =
-        !p.priceIsApproximate && p.priceUnit === "kpl" && pack !== null;
+      const supported = !p.priceIsApproximate && p.priceUnit === "kpl";
       return {
         id: p.ean,
         providerId: this.id,

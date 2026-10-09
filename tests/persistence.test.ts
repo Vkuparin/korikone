@@ -13,7 +13,7 @@ import {
   recordPrices,
   type PriceObservation,
 } from "../src/domain/prices";
-import type { Product } from "../src/domain/model";
+import { stateSchema, initialState, type Product } from "../src/domain/model";
 
 const workerURL = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
 
@@ -150,6 +150,52 @@ test("price history survives a backup round trip and an older backup leaves it a
 
     await expect(
       service.importBackup({ ...backup, priceHistory: [{ price: -1 }] }),
+    ).rejects.toThrow();
+  } finally {
+    await database.close();
+  }
+}, 30000);
+
+test("a profile saved before pack sizes existed still loads, and confirmed sizes survive a backup", async () => {
+  const { packSizes: _omitted, ...older } = initialState();
+  expect(stateSchema.parse(older).packSizes).toEqual({});
+  const directory = await mkdtemp(join(tmpdir(), "korikone-packs-"));
+  const database = new Database(join(directory, "saved.sqlite"), workerURL);
+  try {
+    const service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    await service.save({
+      ...service.state,
+      extras: [{ id: "mince", name: "Jauheliha", amount: 400, unit: "g" }],
+    });
+    await service.buildBasket();
+    const line = service.basket.find((l) => l.requirement.id === "mince");
+    expect(line?.candidates.map((p) => p.id)).toContain("mince-unlabelled");
+    await service.setPackSize({
+      productId: "mince-unlabelled",
+      amount: 500,
+      unit: "g",
+    });
+    const confirmed = service.basket.find((l) => l.requirement.id === "mince");
+    // At 500 g and 299 c the confirmed pack is now the cheapest way to buy 400 g.
+    expect(confirmed?.product?.id).toBe("mince-unlabelled");
+    const backup = JSON.parse(JSON.stringify(await service.exportBackup()));
+    expect(backup.packSizes).toEqual({
+      "mince-unlabelled": { amount: 500, unit: "g" },
+    });
+    const restored = new Service(database);
+    await restored.init();
+    expect(restored.state.packSizes).toEqual(backup.packSizes);
+    await expect(
+      service.setPackSize({ productId: "missing", amount: 1, unit: "g" }),
+    ).rejects.toThrow("unresolved");
+    await expect(
+      service.setPackSize({
+        productId: "mince-unlabelled",
+        amount: 0,
+        unit: "g",
+      }),
     ).rejects.toThrow();
   } finally {
     await database.close();

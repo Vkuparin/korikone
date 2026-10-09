@@ -11,6 +11,7 @@ const methods = [
   "buildBasket",
   "compareStores",
   "accept",
+  "setPackSize",
   "omit",
   "prepare",
   "execute",

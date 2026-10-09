@@ -40,6 +40,8 @@ const catalogue: [
     105,
     "mustapippuri",
   ],
+  // The shop does not state the pack size, so the shopper confirms it.
+  ["mince-unlabelled", "Luomujauheliha", 0, "pcs", 299],
   ["salt", "JOZO 125g suola jodioitu sirotin", 125, "g", 99],
   ["egg", "Kotimaista vapaan kanan munat M10", 10, "pcs", 255, "kananmuna"],
   ["egg-slicer", "House kananmunaleikkuri", 1, "pcs", 550],

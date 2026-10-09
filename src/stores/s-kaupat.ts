@@ -207,8 +207,7 @@ export class SKaupatProvider implements StoreProvider {
       const supported =
         p.priceBasis === "per_item" &&
         !p.approximatePrice &&
-        p.quantityUnit?.toUpperCase() === "KPL" &&
-        pack !== null;
+        p.quantityUnit?.toUpperCase() === "KPL";
       const status = stock.get(p.id);
       return {
         id: p.id,

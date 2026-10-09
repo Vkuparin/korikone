@@ -1057,6 +1057,13 @@ export function ShoppingWorkspace({
                             ? { product: cheaper, total: cost(cheaper) }
                             : null
                         }
+                        confirmPack={(p, amount, unit) =>
+                          void call("setPackSize", {
+                            productId: p.id,
+                            amount,
+                            unit,
+                          })
+                        }
                         choose={(p) => {
                           if (line.product)
                             setUndo({ ...undo, [key]: line.product.id });

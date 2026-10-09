@@ -277,6 +277,7 @@ else
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
       accept: (input) => service.accept(input),
+      setPackSize: (input) => service.setPackSize(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),
       execute: (input) => service.execute(input),

@@ -1077,6 +1077,15 @@ body:has(.app-main) > #root > .progress {
   padding: 4px 8px;
   font-size: 10px;
 }
+.row-details .pack-size {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.row-details .pack-size input {
+  width: 72px;
+}
 .demo-controls {
   font-size: 11px;
 }
