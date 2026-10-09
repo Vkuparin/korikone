@@ -15,7 +15,7 @@ Current published delivery: **0.2.0-alpha.3 pre-release**. See [pre-release scop
 | Automatic local list updates | After a 1.8-second typing pause, run a single AI request. Ctrl+Enter or the arrow requests an immediate update. A later note supersedes an earlier response. |
 | Automatic product matching | Prefer an explicit saved selection when available. Otherwise choose sufficient packs at the lowest total cost within the brand preference. |
 | Deterministic shopping calculations | AI supplies recipes and grocery amounts. Code merges ingredients, scales portions, chooses packs, computes totals and applies cart changes. |
-| Separate optional scheduling | “Viikkosuunnitelma” places the current list's cooked meals on upcoming dates. It does not add ingredients or regenerate the list. |
+| Separate optional scheduling | “Viikkosuunnitelma” places the current list's cooked meals on upcoming dates. It does not add ingredients or regenerate the list. The saved `calendar` field maps ISO dates to `{ mealIds: string[], leftovers: boolean }`, defaults to empty for older profiles and is included in backups. Its editor is planned in F9.2. |
 | Local Windows app | Electron, React and TypeScript; local SQLite; Finnish first and English available throughout. |
 | Manual checkout | A cart transfer is not an order or payment. Purchase confirmation alone advances recurring-item cadence. |
 

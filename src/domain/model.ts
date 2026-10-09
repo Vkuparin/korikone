@@ -47,6 +47,15 @@ export const stateSchema = z
     }),
     recipes: z.array(recipeSchema).max(1000),
     meals: z.array(mealSchema).max(100),
+    calendar: z
+      .record(
+        z.iso.date(),
+        z.object({
+          mealIds: z.array(z.string().min(1)).max(100),
+          leftovers: z.boolean(),
+        }),
+      )
+      .default({}),
     staples: z.array(stapleSchema).max(500),
     skipped: z.array(z.string()).max(1000),
     // The active store. Earlier releases read only this field.
