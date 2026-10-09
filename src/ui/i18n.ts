@@ -1,3 +1,12 @@
+/** Unit as shown to the shopper; stored units stay g, ml and pcs. */
+export function unitLabel(unit: string, language: string): string {
+  return unit === "pcs" ? (language === "fi" ? "kpl" : "pcs") : unit;
+}
+export function packCount(count: number, language: string): string {
+  if (language === "fi")
+    return `${count} ${count === 1 ? "pakkaus" : "pakkausta"}`;
+  return `${count} ${count === 1 ? "pack" : "packs"}`;
+}
 export const en = {
   receiptNoText:
     "This PDF has no readable text. For a scanned receipt, export a searchable PDF with OCR first, or paste its purchase lines.",

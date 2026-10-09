@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
+import { unitLabel } from "./i18n";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -622,7 +623,7 @@ export function ShoppingWorkspace({
                     })
                   }
                 >
-                  + {s.name} {s.amount} {s.unit}
+                  + {s.name} {s.amount} {unitLabel(s.unit, state.language)}
                 </button>
               ))}
             {state.staples.every((s) => rows.some((r) => r.id === s.id)) && (
@@ -852,7 +853,7 @@ export function ShoppingWorkspace({
                           .join(" · ")}
                       </small>
                       <small>
-                        {r.amount} {r.unit}
+                        {r.amount} {unitLabel(r.unit, state.language)}
                         {!home && !line?.product
                           ? ` · ${tr("Tuote puuttuu", "Needs a product")}`
                           : ""}

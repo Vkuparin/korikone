@@ -9,7 +9,7 @@ import {
   type Unit,
 } from "../domain/model";
 import { ShoppingWorkspace } from "./shopping";
-import { en, fi, type Key } from "./i18n";
+import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { isLive } from "../stores/provider";
@@ -47,6 +47,7 @@ function App() {
     (item) => item.id === editingStapleId,
   );
   const t = (key: Key) => (state.language === "fi" ? fi : en)[key];
+  const u = (unit: string) => unitLabel(unit, state.language);
   const money = (cents: number) =>
     new Intl.NumberFormat(state.language === "fi" ? "fi-FI" : "en-FI", {
       style: "currency",
@@ -327,6 +328,7 @@ function App() {
                     key={editing.id}
                     recipe={editing}
                     t={t}
+                    language={state.language}
                     onCancel={() => setEditing(null)}
                     onSave={async (recipe) => {
                       if (
@@ -352,7 +354,7 @@ function App() {
                         <ul>
                           {r.ingredients.map((i) => (
                             <li key={i.id}>
-                              {i.name} · {i.amount} {i.unit}
+                              {i.name} · {i.amount} {u(i.unit)}
                             </li>
                           ))}
                         </ul>
@@ -376,7 +378,7 @@ function App() {
                     <div>
                       <h2>{s.name}</h2>
                       <p>
-                        {s.amount} {s.unit} · {t("everyDays")}: {s.everyDays}
+                        {s.amount} {u(s.unit)} · {t("everyDays")}: {s.everyDays}
                       </p>
                       <small>
                         {t("lastPurchased")}:{" "}
@@ -493,7 +495,7 @@ function App() {
                     >
                       <option>g</option>
                       <option>ml</option>
-                      <option>pcs</option>
+                      <option value="pcs">{u("pcs")}</option>
                     </select>,
                   )}
                   {field(
@@ -579,7 +581,7 @@ function App() {
                         <ul>
                           {snapshot.journal.review.unresolved.map((item) => (
                             <li key={`${item.id}:${item.unit}`}>
-                              {item.name} · {item.amount} {item.unit}
+                              {item.name} · {item.amount} {u(item.unit)}
                             </li>
                           ))}
                         </ul>
@@ -622,7 +624,7 @@ function App() {
                         <ul>
                           {snapshot.review.unresolved.map((item) => (
                             <li key={`${item.id}:${item.unit}`}>
-                              {item.name} · {item.amount} {item.unit}
+                              {item.name} · {item.amount} {u(item.unit)}
                             </li>
                           ))}
                         </ul>
@@ -657,7 +659,7 @@ function App() {
                         )
                         .map((line) => (
                           <li key={line.productId}>
-                            {line.name} · {line.quantity} {line.unit}
+                            {line.name} · {line.quantity} {u(line.unit)}
                           </li>
                         ))}
                     </ul>
@@ -722,7 +724,7 @@ function App() {
                                 <h2>{line.requirement.name}</h2>
                                 <p>
                                   {t("required")}: {line.requirement.amount}{" "}
-                                  {line.requirement.unit}
+                                  {u(line.requirement.unit)}
                                 </p>
                               </div>
                               <strong>
@@ -732,11 +734,11 @@ function App() {
                             {line.product ? (
                               <>
                                 <p>
-                                  {line.product.name} · {line.packs}{" "}
-                                  {t("packs").toLowerCase()} · {t("bought")}:{" "}
-                                  {bought} {line.product.unit}
+                                  {line.product.name} ·{" "}
+                                  {packCount(line.packs, state.language)} ·{" "}
+                                  {t("bought")}: {bought} {u(line.product.unit)}
                                   {bought > line.requirement.amount &&
-                                    ` · ${t("surplus")}: ${bought - line.requirement.amount} ${line.product.unit}`}
+                                    ` · ${t("surplus")}: ${bought - line.requirement.amount} ${u(line.product.unit)}`}
                                 </p>
                                 <p className="muted">
                                   {t(
@@ -762,7 +764,7 @@ function App() {
                                 <div className="candidate" key={p.id}>
                                   <span>{p.name}</span>
                                   <small>
-                                    {p.packAmount} {p.unit}
+                                    {p.packAmount} {u(p.unit)}
                                     {p.price !== null &&
                                       p.packAmount > 0 &&
                                       ` · ${unitPrice(p.price, p.packAmount, p.unit)}`}
@@ -1200,11 +1202,13 @@ function App() {
 function RecipeForm({
   recipe,
   t,
+  language,
   onSave,
   onCancel,
 }: {
   recipe: Recipe;
   t: (key: Key) => string;
+  language: string;
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
 }) {
@@ -1216,6 +1220,7 @@ function RecipeForm({
     })),
   );
   const [error, setError] = useState(false);
+  const u = (unit: string) => unitLabel(unit, language);
   return (
     <form
       className="card form"
@@ -1318,8 +1323,10 @@ function RecipeForm({
                 )
               }
             >
-              {["g", "kg", "ml", "l", "pcs"].map((u) => (
-                <option key={u}>{u}</option>
+              {["g", "kg", "ml", "l", "pcs"].map((unit) => (
+                <option key={unit} value={unit}>
+                  {u(unit)}
+                </option>
               ))}
             </select>
           </label>

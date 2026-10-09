@@ -19,6 +19,12 @@ const draftSchema = z
   })
   .refine((draft) => draft.meals.length + draft.items.length > 0);
 export type MealDraft = z.infer<typeof draftSchema>;
+/** Tidies model casing slips such as "MakaronI" while keeping acronyms. */
+export function tidyName(name: string): string {
+  let tidy = name.trim().replace(/\s+/g, " ");
+  if (/\p{Ll}\p{Lu}/u.test(tidy)) tidy = tidy.toLocaleLowerCase("fi");
+  return tidy.charAt(0).toLocaleUpperCase("fi") + tidy.slice(1);
+}
 export function validateDraft(raw: string, state: AppState): MealDraft {
   let draft: MealDraft;
   try {
@@ -61,6 +67,7 @@ export function validateDraft(raw: string, state: AppState): MealDraft {
     ...draft.recipes.flatMap((r) => r.ingredients),
     ...draft.items,
   ]) {
+    item.name = tidyName(item.name);
     item.id =
       ingredientIds.get(key(item)) ?? item.name.trim().toLocaleLowerCase("fi");
     ingredientIds.set(key(item), item.id);
