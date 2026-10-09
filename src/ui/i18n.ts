@@ -189,7 +189,7 @@ export const en = {
   aiStatus:
     "Connect ChatGPT in Settings for meal drafts. You can also add meals manually below.",
   realStatus:
-    "Uses a separate Chrome profile on this device. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
+    "Sign in to K-Ruoka once in the Store tab. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
   ordered: "I completed the purchase",
   unsupported: "This provider does not support this operation.",
   invalidQuantity:
@@ -441,7 +441,7 @@ export const fi: Record<Key, string> = {
   aiStatus:
     "Yhdistä ChatGPT asetuksissa aterialuonnoksia varten. Voit myös lisätä ateriat käsin alta.",
   realStatus:
-    "Käyttää erillistä Chrome-profiilia tällä laitteella. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
+    "Kirjaudu K-Ruokaan kerran Kauppa-näkymässä. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
   ordered: "Olen tehnyt ostoksen",
   unsupported: "Kauppa ei tue tätä toimintoa.",
   invalidQuantity:
