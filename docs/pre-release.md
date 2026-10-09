@@ -19,7 +19,7 @@ This stage covers release versioning, packaging, automated checks, packaged-app 
 
 ## Gates before a stable release
 
-- Observe the S-kaupat authenticated browser handoff ([#3](https://github.com/Vkuparin/korikone/issues/3)). Account-list transfer was verified, but the opened site was signed out. A fix that requires the login window to complete in Korikone's own data folder passes fixture tests and awaits a live check.
+- S-kaupat authenticated browser handoff ([#3](https://github.com/Vkuparin/korikone/issues/3)): observed by the owner on 9 October 2026 with s-kaupat-mcp 1.2.0 and a per-folder login. After one sign-in, *Open store cart* opened the S-kaupat window signed in. *Lisää kaikki ostoskoriin* remains roadmap task A.2.
 - Observe a small K-Ruoka cart transfer and confirm the checkout browser shows the same cart.
 - Test a clean Windows install, an upgrade with existing data, and uninstall behavior. A packaged executable smoke test does not establish installer acceptance.
 - Observe real multi-dish notes, varied receipts and household use without coaching.

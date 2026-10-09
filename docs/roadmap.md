@@ -41,7 +41,7 @@ Already agreed in [pre-release.md](pre-release.md). The owner observes these; im
 | ID | Task | Status |
 | --- | --- | --- |
 | A.1 | K-Ruoka: transfer two products, compare before and after, open checkout and confirm it shows the same cart | Planned |
-| A.2 | S-kaupat: press *Lisää kaikki ostoskoriin* on the Korikone list and go as far as the checkout page | Planned |
+| A.2 | S-kaupat: press *Lisää kaikki ostoskoriin* on the Korikone list and go as far as the checkout page | Planned. The signed-in handoff it needs was observed on 9 October 2026 ([#3](https://github.com/Vkuparin/korikone/issues/3)) |
 | A.3 | Install on a clean Windows user account, upgrade over existing data, uninstall | Planned |
 | A.4 | A real multi-dish note (the nakkikeitto example) and two or three real receipts | Planned |
 
@@ -53,7 +53,7 @@ Today the app has one store selection, so using the other chain means switching 
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| F1.1 | Saved state keeps one store per chain plus the active chain. Older profiles and backups migrate without losing the current store; the backup format stays readable by the previous release where possible | | Planned |
+| F1.1 | Saved state keeps one store per chain plus the active chain. Older profiles and backups migrate without losing the current store; the backup format stays readable by the previous release where possible | | Done: `stores` keeps one store per chain beside the active `context`, which earlier releases still read |
 | F1.2 | Settings and setup show both chains with sign-in status, store and a "Use this store" action | F1.1 | Planned |
 | F1.3 | Both retailer workers run side by side (K-Ruoka uses Chrome, S-kaupat prefers Edge). Fixture test switching chains with a list in progress, including saved product choices per chain | F1.1 | Planned |
 
