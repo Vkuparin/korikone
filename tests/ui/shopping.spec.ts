@@ -13,7 +13,13 @@ async function launch() {
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-redesign-"));
-  return electron.launch({ args: ["."], env });
+  return electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
 }
 
 test("shopping workspace adds recipes, marks home items, removes rows, schedules and clears", async () => {

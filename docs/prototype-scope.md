@@ -1,4 +1,6 @@
-# Agreed prototype scope
+# Historical prototype scope
+
+Superseded for release planning by [pre-release.md](pre-release.md) on 9 October 2026. The agreements below remain historical context.
 
 Confirmed with the project owner on 8 October 2026.
 

@@ -57,7 +57,7 @@ export class McpWorker {
           .digest("hex") !== this.options.checksum
       )
         throw new Error("workerIncompatible");
-      const client = new Client({ name: "korikone", version: "0.1.0" });
+      const client = new Client({ name: "korikone", version: "0.2.0-alpha.1" });
       const transport = new StdioClientTransport({
         command: this.options.command,
         args: this.options.script

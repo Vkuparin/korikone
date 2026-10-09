@@ -1,6 +1,6 @@
-# Prototype acceptance
+# Pre-release acceptance
 
-Evidence recorded on 8 October 2026. Scope is defined in [prototype-scope.md](prototype-scope.md). This is not acceptance of the later two-retailer consumer release.
+Evidence through 9 October 2026. Current scope is defined in [pre-release.md](pre-release.md). Earlier prototype evidence is retained below; it does not establish stable-release acceptance.
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |
@@ -45,3 +45,7 @@ Live desktop work is paused while the owner uses the PC. No real cart transfer o
 Final merged verification on 9 October 2026: production build, TypeScript and formatting checks passed; 53 unit tests passed, including the pinned S-kaupat v1.1.0 contract, receipt PDFs, exclusion filtering and history-write concurrency. All eight desktop tests passed across the final verification runs; setup and shopping/PDF tests were rerun after resolving the integration overlap. Desktop and narrow-window screenshots were inspected. No live-account cart mutation or purchase was performed.
 
 Live S-kaupat run on 9 October 2026: the read-only catalogue smoke above passed. Two observations from it: the server reported the owner as logged in although it was started with an empty data folder, because the refresh token is kept in Windows Credential Manager and is shared by every data folder on the PC; and with `SKAUPAT_ORDERING=false` the server still lists all 35 tools, including the ordering ones, so Korikone's own allowlist is what keeps them unreachable. The app was then launched with a separate data folder and reached store search in guided setup. The transfer was completed later the same day (see the table). Other defects from that run: the review shows the internal account ID instead of a name ([#2](https://github.com/Vkuparin/korikone/issues/2)), automatic selection chose lemon pepper for black pepper and garlic for onion and found no eggs ([#4](https://github.com/Vkuparin/korikone/issues/4)), and the Finnish list shows "pcs", "MakaronI" and "1 pakkaukset" ([#5](https://github.com/Vkuparin/korikone/issues/5)). The K-Ruoka cart transfer remains pending. No cart change, order or payment was made.
+
+## 0.2.0-alpha.1 release verification, 9 October 2026
+
+The production build and formatting checks passed. All 58 unit tests and all eight source desktop tests passed. The unsigned Windows x64 NSIS installer was built with both pinned retailer workers. Two tests against its packaged executable passed: demo transfer/recovery/restart and PDF import, including malformed-PDF rejection without losing saved text. Windows metadata identifies Korikone and version 0.2.0-alpha.1. These checks used isolated profiles and did not modify real retailer accounts. Clean-machine installation, existing-profile upgrade and live K-Ruoka transfer remain unverified. S-kaupat authenticated handoff remains open in #3.

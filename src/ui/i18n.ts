@@ -51,7 +51,7 @@ export const en = {
   aiConsent:
     "Draft a week sends this request, saved recipes and household preferences to OpenAI using the account shown above.",
   aiConnectionInfo:
-    "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. This prototype retains one account registration per local profile.",
+    "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. Korikone retains one account registration per local profile.",
   waitingAI: "Complete authorization in your browser.",
   signOut: "Sign out",
   manageUsage: "Manage ChatGPT usage",
@@ -194,7 +194,7 @@ export const en = {
   contextChanged: "Switch to the original store to recover this transfer.",
   unitMismatch:
     "The cart uses a different quantity unit. Check it in the store.",
-  excessiveQuantity: "The quantity exceeds the prototype limit.",
+  excessiveQuantity: "The quantity exceeds the supported limit.",
   busy: "An operation is already in progress.",
   interrupted: "The transfer stopped. Check the cart before resuming.",
   verificationFailed: "The cart did not match the approved changes.",
@@ -286,7 +286,7 @@ export const fi: Record<Key, string> = {
   aiConsent:
     "Luonnostele viikko lähettää pyynnön, tallennetut reseptit ja kotitalouden toiveet OpenAI:lle yllä näkyvällä ChatGPT-tilillä.",
   aiConnectionInfo:
-    "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Prototyyppi säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
+    "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Korikone säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
   waitingAI: "Viimeistele valtuutus selaimessa.",
   signOut: "Kirjaudu ulos",
   manageUsage: "Hallitse ChatGPT:n käyttöä",
@@ -423,7 +423,7 @@ export const fi: Record<Key, string> = {
   quoteExpired: "Tarkistus vanheni. Päivitä tuotteet ja tarkista uudelleen.",
   contextChanged: "Vaihda alkuperäiseen kauppaan jatkaaksesi siirtoa.",
   unitMismatch: "Korissa on eri määrän yksikkö. Tarkista tuote kaupassa.",
-  excessiveQuantity: "Määrä ylittää prototyypin rajan.",
+  excessiveQuantity: "Määrä ylittää tuetun enimmäismäärän.",
   busy: "Toiminto on jo käynnissä.",
   interrupted: "Siirto keskeytyi. Tarkista kori ennen jatkamista.",
   verificationFailed: "Ostoskori ei vastannut hyväksyttyjä muutoksia.",

@@ -2,6 +2,10 @@
 
 Revised 9 October 2026. The current work follows [design.md](design.md) and [ux.md](ux.md), based on the first feedback round. The [original CLI plan](archive/2026-10-07/implementation-plan.md) is historical.
 
+## Current delivery stage
+
+Prepare 0.2.0-alpha.1 for early Windows testing under [the pre-release scope](pre-release.md). Retain the current feature set, run automated and packaged-app checks, and publish an unsigned installer with known issues.
+
 ## First feedback implementation
 
 | Area | Implementation | Verification |
@@ -21,12 +25,12 @@ Revised 9 October 2026. The current work follows [design.md](design.md) and [ux.
 
 1. Try a real multi-dish note including nakkikeitto, frozen pizza, breakfast and treats. Check inclusion, quantities and assumptions, including a note based on imported receipts.
 2. Observe a small real K-Ruoka transfer and compare exact before/after quantities. Verify the default browser shows the same account's cart after login.
-3. Build the revised installer and test PDF import there, including the packaged PDF.js worker and fonts. Existing package acceptance predates this redesign.
+3. Test a wider variety of real PDFs and font encodings. The 0.2.0-alpha.1 installer is built; packaged PDF extraction and malformed-PDF handling passed automated checks.
 4. Test a clean Windows installation and observe household use without coaching.
 5. Measure whether the 1.8-second pause creates too many paid-plan inference requests; tune from evidence.
 
 ## Deferred product work
 
-Automatic OCR for scanned receipts; frequency-based purchase learning; direct phone sync; embedded retailer sessions; a persistent editable meal calendar; and broader purchase-learning features. Do not imply these work in this prototype. Checkout and payment are always performed by the user.
+Automatic OCR for scanned receipts; frequency-based purchase learning; direct phone sync; embedded retailer sessions; a persistent editable meal calendar; and broader purchase-learning features. Do not imply these work in this pre-release. Checkout and payment are always performed by the user.
 
-S-kaupat v1.1.0 is integrated and its offline contract tests are retained. Live login, account-list transfer and authenticated handoff remain acceptance checks. The S-kaupat project retains its own [plan and release gates](s-kaupat-mcp-plan.md). It does not block this K-Ruoka feedback iteration. Keep dependency licensing, account protection, backup compatibility, language switching and journal recovery checks for future changes.
+S-kaupat v1.1.0 is integrated and its offline contract tests are retained. Live login and a three-product account-list transfer passed on 9 October 2026. Authenticated handoff remains open in issue #3. The S-kaupat project retains its own [plan and release gates](s-kaupat-mcp-plan.md). It does not block this K-Ruoka feedback iteration. Keep dependency licensing, account protection, backup compatibility, language switching and journal recovery checks for future changes.

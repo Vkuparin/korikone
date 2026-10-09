@@ -2,7 +2,11 @@
 
 A local Windows app that turns a shopping note into meals, groceries and a priced list.
 
-The prototype includes automatic note interpretation and product choices, editable shopping rows, recipes, an optional meal schedule, transfer history and PDF receipt import. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
+The pre-release includes automatic note interpretation and product choices, editable shopping rows, recipes, an optional meal schedule, transfer history and PDF receipt import. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
+
+## Install the pre-release
+
+Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The current version is **0.2.0-alpha.1**, intended for early testing. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -38,15 +42,15 @@ npm run package
 
 ## Current status and limits
 
-- Korikone is a product in progress, not yet the two-retailer consumer release. Remaining release gates are listed in [acceptance](docs/acceptance.md).
+- Korikone is an alpha pre-release for early testing. Remaining release gates are listed in [acceptance](docs/acceptance.md).
 - K-Ruoka live catalogue reads passed, and the owner confirmed login. Cart writes and default-browser account continuity still need observed acceptance testing.
-- S-kaupat has no online cart that apps can fill. Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The S-kaupat adapter passes offline tests against the pinned release; live login, list transfer and handoff in Korikone still need observed acceptance. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
+- S-kaupat has no online cart that apps can fill. Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The S-kaupat adapter passes offline tests against the pinned release; Live login and a three-product list transfer were verified on 9 October 2026. The opened site was signed out; sign in there to use the list. Authenticated handoff remains open in [#3](https://github.com/Vkuparin/korikone/issues/3). See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
 - Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. The owner confirmed sign-in and a meal draft. Automatic model selection has offline coverage; its live check remains outstanding. The app retains one registration per app profile. Manual planning works without it.
 - The installer is unsigned; clean-machine and household usability checks remain outstanding.
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 
-See [the product scope](docs/prototype-scope.md), [design](docs/design.md) and [implementation plan](docs/implementation-plan.md).
+See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [implementation plan](docs/implementation-plan.md).
 
 Licensed under Apache-2.0. Copyright 2026 Vkuparin.

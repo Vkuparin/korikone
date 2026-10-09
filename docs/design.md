@@ -4,6 +4,8 @@ Revised 9 October 2026 after the first user feedback round. The current directio
 
 Korikone turns a household's plain-language shopping note into an editable, priced shopping list. Meals, ready foods, breakfasts, evening foods and treats belong in the same note. Product choices happen automatically; the user corrects exceptions and reviews the resulting cart changes. Checkout stays in the retailer.
 
+Current delivery stage: **0.2.0-alpha.1 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance.
+
 ## Product decisions
 
 | Decision | Behavior |
