@@ -25,7 +25,7 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 0.10.0 | Plan the week and take it along | [Week and exports](tasks/0.10.0.md): F9, F10, F11, F12, F13 | Remaining feature/owner checks; OCR adoption conditional |
 | 0.11.0 | Beta and feature freeze | [Beta](tasks/0.11.0.md): F14 | Feature freeze, accessibility, install/upgrade checks and household pilot; blockers fixed |
 | 1.0.0 | Stable | [Pre-release gates](pre-release.md) | All gates met; no open blocker bugs |
-| Unassigned | Swedish, price-constrained meals and optional routing | [Later](tasks/later.md): L1, F19, F20 | Policy and release assignment before implementation |
+| Unassigned | Swedish, price-constrained meals, optional routing and local models | [Later](tasks/later.md): L1, F19, F20, F21 | Policy and release assignment before implementation |
 
 Every release preparation runs full checks under [AGENTS.md](../AGENTS.md), including packaged checks. Routine card work uses focused checks. Done features in a future milestone stay Done; that milestone still needs its remaining cards and release acceptance.
 
@@ -40,6 +40,7 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 - Show actual progress immediately and clearly marked provisional results as validated interpretation/catalogue results arrive. Preserve the saved list until commit; provisional rows cannot authorize transfer. Long requests must not leave an unchanged screen without feedback.
 - Cheapest suitable means lowest total for enough whole packs. Explicit requirements and exclusions take precedence over preferences and price.
 - Keep F15's optional grouped review and explicit Remember this consent. Reuse F6/F7 history and F5 prices; no competing memory/matcher/transfer systems.
+- Later, offer models running on the same machine as an explicitly selected alternative to ChatGPT (F21). Start with an installed local runner; preserve the same validation and transfer rules, and never silently fall back to cloud inference.
 
 ## Decisions still needed
 
@@ -52,6 +53,7 @@ These block only the named dependent work.
 | Hard versus target budgets and permitted dish changes | F19.1 | Deferred; no budget success claim from incomplete/model-invented prices |
 | Structured-output compatibility on existing ChatGPT account route | F16.7 | Supported fallback, no automatic paid API-key fallback; live request needs explicit authorization |
 | Quality thresholds and search/concurrency bounds | F15.1, F16.1, F16.9 | Measure baseline; zero forbidden fixture matches and zero duplicate writes are fixed regression gates |
+| Initial local runner, supported model/hardware scope and local model-selection policy | F21.1, F21.5 | Deferred; mocked adapter tests plus measured local FI/EN quality; no runtime bundling/model downloads assumed |
 
 ## Working rules
 

@@ -9,6 +9,7 @@ Current release sequencing is in [roadmap.md](roadmap.md); implementation status
 - Allow one automatic batched candidate resolver per explicit update, default enabled with an Advanced off switch. Clear deterministic matches need no resolver; rules validate real supplied IDs.
 - Show immediate actual status/Cancel and clearly marked provisional validated meal/product results as they arrive. Keep committed state until atomic success; provisional results cannot be transferred.
 - Choose lowest total price for enough whole packs, subject to suitability/requirements/preferences. This resolves the previous cost-basis question.
+- Accept local models running on the same machine as a later alternative to ChatGPT (F21, release unassigned). Explicit provider choice, initial installed-runner integration and shared validation/transfer rules; no silent cloud fallback. Local inference does not remove retailer network access.
 
 ## Agreed 9 October 2026
 
