@@ -14,6 +14,7 @@ export function ShoppingWorkspace({
   call,
   save,
   settings,
+  staples,
   view = "list",
 }: {
   snapshot: Snapshot;
@@ -21,6 +22,7 @@ export function ShoppingWorkspace({
   call: (method: string, input?: unknown) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   settings: () => void;
+  staples: () => void;
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
@@ -666,7 +668,9 @@ export function ShoppingWorkspace({
           <section className="forgotten card">
             <div className="section-heading compact">
               <h2>{tr("Unohtuiko jotain?", "Forgot anything?")}</h2>
-              <small>{tr("Vakio-ostoksesi", "Your regular items")}</small>
+              <button className="text" onClick={staples}>
+                {tr("Muokkaa vakiotuotteita", "Edit regular items")}
+              </button>
             </div>
             {state.staples
               .filter((s) => !rows.some((r) => r.id === s.id))

@@ -106,7 +106,7 @@ The Ostoskori page leaves the navigation. Its decision details (why a product wa
 | U2.1 | Row detail drawer with the basket details from today's Ostoskori page | | Done: the product name opens `src/ui/details.tsx` under the row: needed and bought amounts, surplus, why this product, unit prices, deposits, hidden products and the other products with "Valitse tuote"; `tests/ui/details.spec.ts` |
 | U2.2 | Remove the Ostoskori page and its "Tarkista korin muutokset" button; recovery of an interrupted transfer moves into the U1 panel | U1.2, U2.1 | Done: the page and its nav item are gone; an interrupted transfer shows "Edellinen siirto keskeytyi · Tarkista" in the bar, and the demo-store scenarios moved under the list. `tests/ui/journey.spec.ts` now runs the whole demo transfer and recovery from the list |
 | U2.3 | Quieter rows: quantity and price always visible; home, remove and alternatives on hover, focus or in the drawer, reachable by keyboard | U2.1 | Done: home and remove appear on hover or focus (always on touch screens); "Vaihda tuotetta" and the swap line moved into the details; a row only shows "Edullisempi vaihtoehto" with the saving. Look-alikes such as chicken mince no longer count as cheaper at live stores |
-| U2.4 | Navigation without Ostoskori; Vakiotuotteet under Asetukset or in "Unohtuiko jotain?"; desktop tests updated | U2.2 | Planned |
+| U2.4 | Navigation without Ostoskori; Vakiotuotteet under Asetukset or in "Unohtuiko jotain?"; desktop tests updated | U2.2 | Done: the nav is Ostoslista, Viikkosuunnitelma, Reseptit, Historia and Asetukset. The editor opens from Asetukset and from "Muokkaa vakiotuotteita" in "Unohtuiko jotain?" |
 
 ### U7. Readable text
 

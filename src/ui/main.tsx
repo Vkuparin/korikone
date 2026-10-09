@@ -295,18 +295,15 @@ function App() {
         <>
           <nav>
             {(
-              [
-                "week",
-                "weekPlan",
-                "recipes",
-                "staples",
-                "history",
-                "settings",
-              ] as Key[]
+              ["week", "weekPlan", "recipes", "history", "settings"] as Key[]
             ).map((key) => (
               <button
                 key={key}
-                aria-current={page === key ? "page" : undefined}
+                aria-current={
+                  page === key || (key === "settings" && page === "staples")
+                    ? "page"
+                    : undefined
+                }
                 onClick={() => setPage(key)}
               >
                 {t(key)}
@@ -326,6 +323,7 @@ function App() {
                 call={call}
                 save={save}
                 settings={() => setPage("settings")}
+                staples={() => setPage("staples")}
                 view={
                   page === "weekPlan"
                     ? "schedule"
@@ -402,6 +400,9 @@ function App() {
             )}
             {page === "staples" && (
               <>
+                <button className="text" onClick={() => setPage("settings")}>
+                  ← {t("settings")}
+                </button>
                 <h1>{t("staples")}</h1>
                 {state.staples.map((s) => (
                   <article className="card inline" key={s.id}>
@@ -557,6 +558,16 @@ function App() {
             {page === "settings" && (
               <>
                 <h1>{t("settings")}</h1>
+                <section className="card">
+                  <h2>{t("staples")}</h2>
+                  <p className="muted">{t("staplesHelp")}</p>
+                  <button
+                    className="secondary"
+                    onClick={() => setPage("staples")}
+                  >
+                    {t("editStaples")}
+                  </button>
+                </section>
                 <section className="card">
                   <label>
                     <input

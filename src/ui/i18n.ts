@@ -110,6 +110,9 @@ export const en = {
   week: "Shopping list",
   recipes: "Recipes",
   staples: "Regular items",
+  editStaples: "Edit regular items",
+  staplesHelp:
+    'Items you buy often. Korikone suggests them under "Forgot anything?" when they are due.',
   settings: "Settings",
   basket: "Basket",
   tagline: "Meals planned. Shopping reviewed.",
@@ -350,6 +353,9 @@ export const fi: Record<Key, string> = {
   week: "Ostoslista",
   recipes: "Reseptit",
   staples: "Vakiotuotteet",
+  editStaples: "Muokkaa vakiotuotteita",
+  staplesHelp:
+    'Usein ostamasi tuotteet. Korikone ehdottaa niitä kohdassa "Unohtuiko jotain?", kun ne ovat ajankohtaisia.',
   settings: "Asetukset",
   basket: "Ostoskori",
   tagline: "Ateriat suunniteltu. Ostokset tarkistettu.",
