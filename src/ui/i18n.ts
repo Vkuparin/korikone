@@ -61,7 +61,7 @@ export const en = {
     "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. Korikone retains one account registration per local profile.",
   waitingAI: "Complete authorization in your browser.",
   signOut: "Sign out",
-  manageUsage: "Manage ChatGPT usage",
+  manageUsage: "Open ChatGPT usage",
   permissionMissing:
     "ChatGPT plan-use permission is missing. Reconnect and enable it, or continue manually.",
   permissionDenied:
@@ -74,7 +74,7 @@ export const en = {
   modelsUnavailable:
     "The model catalogue is unavailable. Reconnect or try again.",
   usageLimit:
-    "ChatGPT usage is unavailable or exhausted. Manage usage or continue manually.",
+    "ChatGPT limited this request. Check usage settings or continue manually.",
   aiFailed:
     "ChatGPT could not complete the request. Your saved plan is unchanged.",
   incompleteDraft: "The response was interrupted. No changes were applied.",
@@ -311,7 +311,7 @@ export const fi: Record<Key, string> = {
     "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Korikone säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
   waitingAI: "Viimeistele valtuutus selaimessa.",
   signOut: "Kirjaudu ulos",
-  manageUsage: "Hallitse ChatGPT:n käyttöä",
+  manageUsage: "Avaa ChatGPT:n käyttö",
   permissionMissing:
     "Lupa ChatGPT-tilauksen käyttöön puuttuu. Yhdistä uudelleen ja salli käyttö tai jatka käsin.",
   permissionDenied: "Valtuutus hylättiin. Voit jatkaa suunnittelua käsin.",
@@ -324,7 +324,7 @@ export const fi: Record<Key, string> = {
   modelsUnavailable:
     "Malliluetteloa ei saada. Yhdistä uudelleen tai yritä myöhemmin.",
   usageLimit:
-    "ChatGPT:n käyttöraja on täynnä tai käyttö ei ole saatavilla. Hallitse käyttöä tai jatka käsin.",
+    "ChatGPT rajoitti tätä pyyntöä. Tarkista käyttöasetukset tai jatka käsin.",
   aiFailed: "ChatGPT-pyyntö epäonnistui. Tallennettu suunnitelma säilyi.",
   incompleteDraft: "Vastaus keskeytyi. Muutoksia ei tehty.",
   invalidDraft:

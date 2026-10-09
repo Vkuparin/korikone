@@ -27,7 +27,8 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Mitä tällä viikolla syödään?" }),
     ).toBeVisible();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Try the example" }).click();
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
@@ -92,8 +93,8 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
-    await expect(page.getByLabel("Language", { exact: true })).toHaveValue(
-      "en",
+    await expect(page.getByLabel("Language", { exact: true })).toHaveText(
+      "English",
     );
     if (!process.env.KORIKONE_EXECUTABLE)
       await page.screenshot({ path: "test-results/week.png" });

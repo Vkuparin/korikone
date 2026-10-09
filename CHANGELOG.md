@@ -4,6 +4,8 @@
 
 - Transfer and open the destination with one approval of the displayed batch. Only exceptions ask for another decision. Verified batches stay protected against duplicate additions after refresh and restart; failed storefront opening offers an open-only retry.
 - Change the AI model below the note or in the separate ChatGPT Settings card. Both selectors save one preference for future note and recipe requests. Automatic prefers a recognized small model and requires a manual choice when none is identified.
+- Model and language choices use matching rounded buttons and floating menus with a selected checkmark and keyboard navigation. Settings shows the running application version, including prerelease suffixes.
+- Settings explains that remaining ChatGPT allowance and reset time are unavailable and links to ChatGPT usage settings. Received limit errors do not imply the whole account allowance is exhausted.
 - Cancelling a note update or recipe import during model lookup aborts the lookup and starts no generation. The local delayed-catalogue fixture checks both the initial selection and the provider's availability check.
 - Apply shopping notes only with Update list or Ctrl+Enter. Returning to the view and restarting retain compatible last quoted prices without AI or catalogue requests.
 - Change the planning store and supported pickup/delivery choice from the shopping header, preserving the note and groceries.

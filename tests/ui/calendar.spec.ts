@@ -156,7 +156,8 @@ test("calendar moves meals by drag and keyboard, saves leftovers and survives re
       (await page.evaluate(async () => (await window.korikone.load()).value))
         .state.calendar,
     ).toEqual(saved.state.calendar);
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Meal schedule" }),
     ).toBeVisible();

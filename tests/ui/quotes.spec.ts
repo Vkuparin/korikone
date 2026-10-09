@@ -71,7 +71,8 @@ test("view return and restart retain quotes without searches, while explicit edi
     expect((await load()).developmentCatalogueRequests).toBe(0);
     expect((await load()).basket).toEqual(priced.basket);
     await expect(page.locator(".total-line strong")).toHaveText(total!);
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await expect(page.getByText(/Last quoted prices/)).toBeVisible();
     await page.evaluate(() => window.korikone.scenario("price"));
     await page.locator(".transfer-button").click();

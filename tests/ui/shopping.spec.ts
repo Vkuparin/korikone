@@ -213,7 +213,8 @@ test("typing, view return and restored edits never submit without an explicit ac
     await page.waitForTimeout(2100);
     expect((await load()).developmentRequests).toBe(0);
     expect((await load()).state).toEqual(before.state);
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await expect(
       page.getByText("Note changes have not been applied to the list", {
         exact: true,

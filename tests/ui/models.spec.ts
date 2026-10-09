@@ -95,9 +95,7 @@ test("model selectors save one preference without submitting the note and retain
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     const settingsModel = page.getByLabel("AI-malli", { exact: true });
     await expect(settingsModel).toBeEnabled();
-    await page
-      .getByRole("button", { name: "Hallitse ChatGPT:n käyttöä" })
-      .focus();
+    await page.getByRole("button", { name: "Avaa ChatGPT:n käyttö" }).focus();
     await page.keyboard.press("Tab");
     await expect(settingsModel).toBeFocused();
     await page.keyboard.press("ArrowDown");

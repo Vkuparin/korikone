@@ -15,6 +15,7 @@ import { Setup } from "./setup";
 import { Chains } from "./chains";
 import { ShoppingContext } from "./context";
 import { ModelSelector } from "./model";
+import { Choice } from "./choice";
 import { isLive } from "../stores/provider";
 declare global {
   interface Window {
@@ -23,7 +24,13 @@ declare global {
       (
         input?: unknown,
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
-    >;
+    > & {
+      getAppInfo: () => Promise<{
+        ok: boolean;
+        value: { version: string };
+        error?: string;
+      }>;
+    };
   }
 }
 function App() {
@@ -58,6 +65,8 @@ function App() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [appVersion, setAppVersion] = useState("");
+  const [aiRequestLimit, setAIRequestLimit] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
   const state = snapshot.state;
@@ -76,6 +85,9 @@ function App() {
     setError("");
     try {
       const result = await window.korikone[method](input);
+      if (method === "generate" || method === "importRecipe")
+        setAIRequestLimit(!result.ok && result.error === "usageLimit");
+      if (method === "signOutAI") setAIRequestLimit(false);
       if (!result.ok && result.error === "aiCancelled") return false;
       if (!result.ok) throw new Error(result.error);
       if (method === "setDevelopmentMode")
@@ -109,6 +121,9 @@ function App() {
   }
   useEffect(() => {
     void call("load").then(() => setLoaded(true));
+    void window.korikone.getAppInfo().then((result) => {
+      if (result.ok) setAppVersion(result.value.version);
+    });
   }, []);
   useEffect(() => {
     document.documentElement.lang = state.language;
@@ -186,17 +201,18 @@ function App() {
         >
           korikone<span>{t("tagline")}</span>
         </a>
-        {field(
-          t("language"),
-          <select
-            aria-label={t("language")}
+        <div className="language-control">
+          <span>{t("language")}</span>
+          <Choice
+            label={t("language")}
             value={state.language}
-            onChange={(e) => void changeLanguage(e.target.value as "fi" | "en")}
-          >
-            <option value="fi">Suomi</option>
-            <option value="en">English</option>
-          </select>,
-        )}
+            options={[
+              { value: "fi", label: "Suomi" },
+              { value: "en", label: "English" },
+            ]}
+            onChange={(value) => changeLanguage(value as "fi" | "en")}
+          />
+        </div>
       </header>
       {snapshot.developmentMode && (
         <div className="demo" data-testid="development-banner">
@@ -692,6 +708,18 @@ function App() {
                     )}
                   </div>
                   <ModelSelector snapshot={snapshot} busy={busy} call={call} />
+                  <p data-testid="ai-allowance" className="muted">
+                    {state.language === "fi"
+                      ? "Jäljellä oleva ChatGPT-käyttömäärä ja käyttörajan nollausaika eivät ole saatavilla Korikonessa. Tarkista ne ChatGPT:n käyttöasetuksista."
+                      : "Remaining ChatGPT allowance and reset time are unavailable in Korikone. Check ChatGPT usage settings."}
+                  </p>
+                  {aiRequestLimit && (
+                    <p role="alert">
+                      {state.language === "fi"
+                        ? "Viimeisin pyyntö saavutti käyttö- tai pyyntönopeusrajan. Jäljellä oleva käyttömäärä ja nollausaika eivät ole tiedossa."
+                        : "The latest request reached a usage or rate limit. Remaining allowance and reset time are unknown."}
+                    </p>
+                  )}
                   <p className="muted">
                     {state.language === "fi"
                       ? "Automaattinen suosii tilillä saatavilla olevaa pientä mallia käytön vähentämiseksi. Mallin nimi kertoo kokoluokasta, mutta ei tarkkaa hintaa. Jos sopivaa pientä mallia ei löydy, valitse malli itse."
@@ -881,6 +909,29 @@ function App() {
                     </label>
                     <button disabled={busy}>{t("save")}</button>
                   </form>
+                </section>
+                <section
+                  className="card"
+                  aria-label={
+                    state.language === "fi"
+                      ? "Tietoja Korikoneesta"
+                      : "About Korikone"
+                  }
+                >
+                  <h2>
+                    {state.language === "fi"
+                      ? "Tietoja Korikoneesta"
+                      : "About Korikone"}
+                  </h2>
+                  <p>
+                    {state.language === "fi" ? "Versio" : "Version"}:{" "}
+                    <span data-testid="app-version">
+                      {appVersion ||
+                        (state.language === "fi"
+                          ? "Ei saatavilla"
+                          : "Unavailable")}
+                    </span>
+                  </p>
                 </section>
                 <details className="card">
                   <summary>{t("dataManagement")}</summary>

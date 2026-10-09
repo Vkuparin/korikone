@@ -122,7 +122,8 @@ test("copy week writes Finnish and English calendar text through the real clipbo
     expect(after.state).toEqual(before.state);
     expect(after.basket).toEqual(before.basket);
     expect(after.developmentRequests).toBe(0);
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Copy week", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Week copied", exact: true }),

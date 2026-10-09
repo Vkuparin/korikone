@@ -447,7 +447,13 @@ body:has(.app-main) header {
   background: #f3f6f3;
   border-right: 1px solid #e5eae5;
 }
-body:has(.app-main) header label {
+.language-control {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  max-width: 150px;
+}
+body:has(.app-main) .language-control {
   width: 130px;
 }
 body:has(.app-main) nav {
@@ -980,7 +986,7 @@ body:has(.app-main) > #root > .progress {
   body:has(.app-main) header {
     padding: 14px 12px;
   }
-  body:has(.app-main) header label {
+  body:has(.app-main) .language-control {
     width: 100%;
   }
   body:has(.app-main) nav button {

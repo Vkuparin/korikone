@@ -127,7 +127,8 @@ test("header selectors cancel, search, confirm and preserve the typed note witho
     expect((await load()).pickupFee).toBeNull();
     expect((await load()).developmentRequests).toBe(0);
     await expect(note).toHaveValue("Nakkikeitto, edited but not applied");
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: /Change fulfillment/ }).click();
     dialog = page.getByRole("dialog", {
       name: "Change fulfillment",

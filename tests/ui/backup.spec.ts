@@ -26,7 +26,8 @@ test("backup export and restore preserve recipes and reject broken references", 
     await page
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByText("Backups and data", { exact: true }).click();
     await app.evaluate(({ dialog }, filePath) => {

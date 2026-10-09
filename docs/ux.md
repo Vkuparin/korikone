@@ -54,6 +54,12 @@ The result shows in the same panel: verified counts, omitted requirements and a 
 
 The compact AI model selector below the note shares its saved choice with the separate "ChatGPT ja tekoäly" / "ChatGPT and AI" Settings card. A rounded button opens a floating menu with a checkmark beside the selected model. Long names wrap in the menu; the compact button shows a shortened name with the full name in its tooltip. Arrow keys, Home and End move through choices; Enter selects; Escape closes and returns focus. Automatic is the default and prefers an available small model to reduce usage. Settings explains that size is inferred from names and exact prices are unknown. If no suitable small model is found, ask for an explicit choice. Disconnected, empty, failed and unavailable-selection states explain the next action. Loading or changing models never submits the note or changes its list and prices. A request retains the model it started with through validation retries.
 
+Language uses the same rounded button and floating menu, with native names Suomi and English and a selected checkmark. It supports the same keyboard controls and stays inside the viewport, including opening above the button near the bottom of the sidebar. Switching language preserves unsaved notes and recipe fields and persists across restart. Svenska stays hidden until Swedish support is complete.
+
+Settings includes "Tietoja Korikoneesta" / "About Korikone" with the running Electron application's version, including a prerelease suffix. It comes from the narrow `getAppInfo` IPC method, not a hardcoded release label. If the read fails, the version says unavailable.
+
+The AI card explains that remaining ChatGPT allowance and reset time are unavailable in Korikone and offers "Avaa ChatGPT:n käyttö" / "Open ChatGPT usage". A received request limit is shown as a usage or rate limit; it does not imply the whole plan is empty or establish a reset time. No quota request or generation is made just to open Settings.
+
 ## Receipts
 
 Settings offers PDF, TXT and CSV import plus an editable text area. PDF text extraction is local and runs off the main thread. Only future AI note interpretation sends imported text to ChatGPT. Show distinct errors for unreadable/protected files, image-only PDFs needing OCR, and size limits. Import failure preserves all existing receipt text.

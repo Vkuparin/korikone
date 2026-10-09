@@ -20,7 +20,8 @@ test("calendar backup uses real export and restore handlers", async () => {
     await page
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     const calendar = {
       "2026-10-09": { mealIds: ["meal-pasta"], leftovers: false },
       "2026-10-10": { mealIds: [], leftovers: true },

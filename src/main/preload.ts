@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 const methods = [
   "load",
+  "getAppInfo",
   "setDevelopmentMode",
   "developmentScenario",
   "copyList",

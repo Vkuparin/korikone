@@ -55,7 +55,8 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await page.getByRole("button", { name: "Suunnittele viikko" }).click();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(
       page.getByLabel("Development mode", { exact: true }),
