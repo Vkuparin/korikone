@@ -962,3 +962,28 @@ body:has(.app-main) > #root > .progress {
   border-radius: 999px;
   background: #e2ece5;
 }
+.comparison {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dedfd5;
+  border-radius: 8px;
+  background: #fff;
+}
+.comparison table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.comparison th,
+.comparison td {
+  padding: 4px 6px;
+  text-align: right;
+}
+.comparison th[scope="row"] {
+  text-align: left;
+  font-weight: normal;
+}
+.comparison ul {
+  margin: 0;
+  padding-left: 18px;
+}

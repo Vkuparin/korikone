@@ -3,6 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
+import { ComparePanel, canCompare } from "./compare";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -1051,6 +1052,15 @@ export function ShoppingWorkspace({
                 "items need a price or suitable pack. They are excluded from the estimate.",
               )}
             </p>
+          )}
+          {canCompare(snapshot) && (
+            <ComparePanel
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              tr={tr}
+              money={money}
+            />
           )}
           <button
             className="transfer-button"
