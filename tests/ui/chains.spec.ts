@@ -34,9 +34,11 @@ test("both chains stay signed in and switching keeps each chain's store", async 
       .getByRole("button", { name: "S-kaupat: Kirjaudu sisään" })
       .click();
     await expect(other.getByRole("status")).toHaveText("Kirjautunut");
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
 
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Etsi K-Ruoka- tai S-kaupat-kauppa").fill("Helsinki");
@@ -111,9 +113,11 @@ test("a chain card chooses its own store and the bar says what comparing needs",
       .getByRole("button", { name: "S-kaupat: Kirjaudu sisään" })
       .click();
     await expect(other.getByRole("status")).toHaveText("Kirjautunut");
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
 
     const bar = page.getByRole("region", { name: "Yhteensä ja siirto" });
     await expect(bar).toContainText(

@@ -17,19 +17,16 @@ export function Setup({
   call: (method: string, input?: unknown) => Promise<boolean>;
   finish: () => Promise<boolean>;
 }) {
-  const [step, setStep] = useState(0);
   const { state } = snapshot;
   const [choosingStore, setChoosingStore] = useState(
     !isLive(state.context.providerId),
   );
   return (
-    <main className="welcome">
-      <p>
-        {t("setupProgress")} {step + 1} / 2
-      </p>
-      <h1>{t(step === 0 ? "setupStore" : "setupAI")}</h1>
-      {step === 0 ? (
-        <section className="card form">
+    <main className="setup">
+      <h1>{t("setupProgress")}</h1>
+      <div className="setup-grid">
+        <section className="card form" aria-labelledby="setup-store">
+          <h2 id="setup-store">{t("setupStore")}</h2>
           <p>{t("setupStoreInfo")}</p>
           {choosingStore ? (
             <>
@@ -100,7 +97,7 @@ export function Setup({
               )}
               {isLive(state.context.providerId) && (
                 <>
-                  <h2>{t("otherChain")}</h2>
+                  <h3>{t("otherChain")}</h3>
                   <p className="muted">{t("chainsHelp")}</p>
                   <Chains
                     snapshot={snapshot}
@@ -117,29 +114,14 @@ export function Setup({
               )}
             </>
           )}
-          <div className="actions">
-            {snapshot.storeLogin === "signedIn" && (
-              <button disabled={busy} onClick={() => setStep(1)}>
-                {t("setupNext")}
-              </button>
-            )}
-            <button className="text" disabled={busy} onClick={() => setStep(1)}>
-              {t("setupLater")}
-            </button>
-          </div>
         </section>
-      ) : (
-        <section className="card form">
+        <section className="card form" aria-labelledby="setup-ai">
+          <h2 id="setup-ai">{t("setupAI")}</h2>
           <p>{t("setupAIInfo")}</p>
           {snapshot.ai.state === "connected" ? (
-            <>
-              <p role="status">
-                {t("signedIn")} · {snapshot.ai.email}
-              </p>
-              <button disabled={busy} onClick={() => void finish()}>
-                {t("setupFinish")}
-              </button>
-            </>
+            <p role="status">
+              {t("signedIn")} · {snapshot.ai.email}
+            </p>
           ) : (
             <>
               {snapshot.ai.state === "waiting" && (
@@ -152,20 +134,15 @@ export function Setup({
               >
                 Continue with ChatGPT
               </button>
-              <button
-                className="text"
-                disabled={busy}
-                onClick={() => void finish()}
-              >
-                {t("setupLater")}
-              </button>
             </>
           )}
-          <button className="text" disabled={busy} onClick={() => setStep(0)}>
-            {t("setupBack")}
-          </button>
         </section>
-      )}
+      </div>
+      <div className="actions">
+        <button disabled={busy} onClick={() => void finish()}>
+          {t("setupDone")}
+        </button>
+      </div>
     </main>
   );
 }

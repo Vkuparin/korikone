@@ -270,6 +270,31 @@ aside > button {
   font-size: 64px;
   max-width: 650px;
 }
+.setup {
+  padding-top: 32px;
+  max-width: 1100px;
+}
+.setup h1 {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+.setup h2 {
+  font-size: 20px;
+}
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.setup .actions {
+  margin-top: 24px;
+}
+@media (max-width: 900px) {
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .welcome p {
   max-width: 550px;
   color: #5f6a59;

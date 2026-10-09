@@ -34,9 +34,11 @@ test("comparing stores is read-only and can switch to the other chain", async ()
       .getByRole("button", { name: "S-kaupat: Kirjaudu sisään" })
       .click();
     await expect(other.getByRole("status")).toHaveText("Kirjautunut");
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
 
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Etsi K-Ruoka- tai S-kaupat-kauppa").fill("Helsinki");

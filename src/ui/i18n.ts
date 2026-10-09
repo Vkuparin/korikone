@@ -29,14 +29,12 @@ export const en = {
   setupStoreInfo:
     "Connect K-Ruoka or S-kaupat to review real products and prices and send your shopping list to the store. Search by town or store name. You can also plan without connecting a store.",
   setupLoginInfo:
-    "Sign in in the browser that opens. Korikone will check the connection automatically when you finish.",
+    "Sign in in the store view that opens, then come back here. Korikone checks the connection when you do.",
   setupAI: "Get help planning meals",
   setupAIInfo:
     "Connect ChatGPT to describe what you want to cook. Korikone chooses a suitable small model automatically. You can always plan manually.",
-  setupNext: "Continue",
-  setupLater: "Skip for now",
-  setupBack: "Back",
-  setupFinish: "Plan my week",
+  setupDone: "Done",
+  setupBackToSetup: "Back to setup",
   duplicateStaple:
     "This regular item already exists. Edit the existing item instead.",
   advancedSettings: "Advanced settings",
@@ -286,14 +284,12 @@ export const fi: Record<Key, string> = {
   setupStoreInfo:
     "Yhdistä K-Ruoka tai S-kaupat, niin voit tarkistaa oikeat tuotteet ja hinnat ja siirtää ostoslistan kauppaan. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
   setupLoginInfo:
-    "Kirjaudu avautuvassa selaimessa. Korikone tarkistaa yhteyden automaattisesti, kun olet valmis.",
+    "Kirjaudu avautuvassa kauppanäkymässä ja palaa tänne. Korikone tarkistaa yhteyden, kun palaat.",
   setupAI: "Apua aterioiden suunnitteluun",
   setupAIInfo:
     "Yhdistä ChatGPT ja kerro, mitä haluaisit valmistaa. Korikone valitsee sopivan pienen mallin automaattisesti. Voit aina suunnitella myös itse.",
-  setupNext: "Jatka",
-  setupLater: "Ohita toistaiseksi",
-  setupBack: "Takaisin",
-  setupFinish: "Suunnittele viikko",
+  setupDone: "Valmis",
+  setupBackToSetup: "Takaisin aloitukseen",
   duplicateStaple: "Tämä vakiotuote on jo olemassa. Muokkaa nykyistä tuotetta.",
   advancedSettings: "Lisäasetukset",
   automaticModel: "Automaattinen (ensisijaisesti pieni malli)",

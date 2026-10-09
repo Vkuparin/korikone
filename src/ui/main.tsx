@@ -47,6 +47,8 @@ function App() {
   const [storeChain, setStoreChain] = useState<Chain | null>(null);
   // A store page stays loaded after leaving the Kauppa view; the navigation says so.
   const [storeOpen, setStoreOpen] = useState(false);
+  // During setup there is no navigation, so the store tab is shown over the setup screen.
+  const [setupStore, setSetupStore] = useState(false);
   useEffect(() => {
     if (page === "store") setStoreOpen(true);
   }, [page]);
@@ -80,7 +82,8 @@ function App() {
       const openStore = (result.value as { openStore?: Chain }).openStore;
       if (openStore) {
         setStoreChain(openStore);
-        setPage("store");
+        if (snapshot.state.setupComplete) setPage("store");
+        else setSetupStore(true);
       }
       setSnapshot((current) => {
         // Language changes run beside queued operations. Their older snapshots
@@ -269,7 +272,35 @@ function App() {
           </button>
         </div>
       )}
-      {state.onboarded && !state.setupComplete ? (
+      {state.onboarded && !state.setupComplete && setupStore ? (
+        <main className="setup">
+          <StorePage
+            snapshot={snapshot}
+            chain={storeChain}
+            setChain={setStoreChain}
+            settings={() => setSetupStore(false)}
+          />
+          <div className="actions">
+            <button
+              onClick={async () => {
+                setSetupStore(false);
+                // The shopper may have signed in: ask the chain again.
+                const result = await window.korikone
+                  .checkStoreLogin(storeChain ?? undefined)
+                  .catch(() => null);
+                if (result?.ok)
+                  setSnapshot((current) => ({
+                    ...current,
+                    storeLogin: result.value.storeLogin,
+                    storeLogins: result.value.storeLogins,
+                  }));
+              }}
+            >
+              {t("setupBackToSetup")}
+            </button>
+          </div>
+        </main>
+      ) : state.onboarded && !state.setupComplete ? (
         <Setup
           snapshot={snapshot}
           t={t}

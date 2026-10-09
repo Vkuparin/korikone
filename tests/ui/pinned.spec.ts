@@ -30,9 +30,11 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Makaronilaatikko");
     await note.press("Control+Enter");

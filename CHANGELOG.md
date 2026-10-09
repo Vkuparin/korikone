@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Setup is one screen: choose a store and sign in, optionally connect ChatGPT, and press *Valmis*. Every action is visible without scrolling at 1280 × 800. *Kirjaudu kauppaan* opens the store tab over the setup screen and *Takaisin aloitukseen* brings you back and checks the sign-in.
 - S-kaupat now works through the Kauppa tab: *Kirjaudu kauppaan* opens S-kaupat there, and searches and list writes go out from that tab's session with the login you made, so there is one sign-in and no separate Edge or Chrome window. The login is read from the tab only, a local bridge accepts five fixed requests with a random key and reaches only s-kaupat.fi and its API, and ordering and payment stay off. Needs your live check. `KORIKONE_S_KAUPAT=browser` goes back to the old window.
 - Korikone now pins s-kaupat-mcp 1.3.0, which can run its S-kaupat calls in the store tab's own page instead of its own browser. Korikone does not use that mode yet; it comes with single sign-in through the tab.
 - K-Ruoka through the store tab: Korikone searches products and stores, reads the cart and writes quantities through k-ruoka.fi's own API in the signed-in Kauppa tab instead of the k-ruoka-mcp worker and its Chrome. It only ever adds a product found in a search or sets an existing item's amount, binds the review to a hash of the account, and never sends the account's e-mail anywhere. *Kirjaudu kauppaan* for K-Ruoka opens the Kauppa tab to sign in. Checked live by the owner. `KORIKONE_K_RUOKA=worker` goes back to the worker.

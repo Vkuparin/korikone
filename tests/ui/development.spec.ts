@@ -52,9 +52,11 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     await page.getByLabel("Kieli", { exact: true }).selectOption("en");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(
@@ -198,9 +200,11 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Makaronilaatikko");
     await note.press("Control+Enter");
