@@ -4,7 +4,7 @@ import type { ToolCall } from "./k-ruoka";
 
 /** One request run by the k-ruoka.fi page itself, so the store tab's session cookie goes with it. */
 export type PageRequest = (request: {
-  method: "POST" | "PATCH";
+  method: "GET" | "POST" | "PATCH";
   path: string;
   body?: unknown;
   build: string | null;
@@ -119,7 +119,29 @@ export class KRuokaSite {
     return run;
   };
 
-  private async api(method: "POST" | "PATCH", path: string, body?: unknown) {
+  /** The site's own query parameters select the reviewed store and open its basket. */
+  cartUrl(storeId: string): Promise<string> {
+    const run = this.queue.then(async () => {
+      const store = z
+        .object({ id: z.string(), slug: z.string().regex(/^k-[a-z0-9-]+$/) })
+        .parse(
+          await this.api("GET", `/kr-api/store/${encodeURIComponent(storeId)}`),
+        );
+      if (store.id !== storeId) throw new Error("contextChanged");
+      const url = new URL("https://www.k-ruoka.fi/kauppa");
+      url.searchParams.set("kauppa", store.slug);
+      url.searchParams.set("ostoskori", "");
+      return url.toString();
+    });
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  private async api(
+    method: "GET" | "POST" | "PATCH",
+    path: string,
+    body?: unknown,
+  ) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const pause = this.last + this.spacing - Date.now();
       if (pause > 0) await wait(pause);

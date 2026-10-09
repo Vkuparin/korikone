@@ -19,6 +19,49 @@ const context: StoreContext = {
   fulfillment: "pickup",
 };
 type Sent = Parameters<PageRequest>[0];
+
+test("basket opening selects the reviewed store using the retailer's query parameters", async () => {
+  const sent: Sent[] = [];
+  const site = new KRuokaSite(async (request) => {
+    sent.push(request);
+    return {
+      status: 200,
+      build: "42",
+      cfMitigated: null,
+      body: JSON.stringify({
+        id: "N190",
+        slug: "k-citymarket-helsinki-easton",
+      }),
+    };
+  }, 0);
+  expect(await site.cartUrl("N190")).toBe(
+    "https://www.k-ruoka.fi/kauppa?kauppa=k-citymarket-helsinki-easton&ostoskori=",
+  );
+  expect(sent).toEqual([
+    { method: "GET", path: "/kr-api/store/N190", build: null },
+  ]);
+  await expect(site.cartUrl("S222")).rejects.toThrow("contextChanged");
+});
+
+test("basket opening refuses unavailable stores and invalid store slugs", async () => {
+  for (const [status, body] of [
+    [503, {}],
+    [200, { id: "N190", slug: "https://example.invalid" }],
+    [200, { id: "N190" }],
+  ] as const) {
+    const site = new KRuokaSite(
+      async () => ({
+        status,
+        build: "42",
+        cfMitigated: null,
+        body: JSON.stringify(body),
+      }),
+      0,
+    );
+    await expect(site.cartUrl("N190")).rejects.toThrow();
+  }
+});
+
 /** A fake store page: answers by path and records what was sent. */
 function page(
   answer: (request: Sent) => {

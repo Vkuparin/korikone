@@ -630,6 +630,11 @@ else
         }
         const listId = providerId === "s-kaupat" ? await sKaupatListId() : null;
         if (listId) await stores.openList("s-kaupat", listId);
+        else if (!development && providerId === "k-ruoka")
+          await stores.openUrl(
+            "k-ruoka",
+            await kRuokaSite.cartUrl(service.journal.review.context.storeId),
+          );
         else await stores.open(providerId, "cart");
         if (development)
           service.developmentHandoffs.push(
