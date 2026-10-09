@@ -13,12 +13,15 @@ export function RowDetails({
   busy,
   money,
   choose,
+  cheaper,
 }: {
   snapshot: Snapshot;
   line: BasketLine;
   busy: boolean;
   money: (cents: number) => string;
   choose: (product: Product) => void;
+  /** A cheaper product for the same ingredient, with its cost for the needed amount. */
+  cheaper: { product: Product; total: number } | null;
 }) {
   const { state } = snapshot;
   const language = state.language;
@@ -67,6 +70,19 @@ export function RowDetails({
       ) : (
         <p className="warning">
           {t(line.candidates.length ? "unresolved" : "noCandidates")}
+        </p>
+      )}
+      {cheaper && (
+        <p className="row-alternative">
+          {language === "fi" ? "Edullisempi vastaava" : "Cheaper alternative"}:{" "}
+          {cheaper.product.name} · {money(cheaper.total)}{" "}
+          <button
+            className="text"
+            disabled={busy}
+            onClick={() => choose(cheaper.product)}
+          >
+            {language === "fi" ? "Vaihda" : "Swap"}
+          </button>
         </p>
       )}
       {!!line.excluded && (

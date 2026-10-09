@@ -25,7 +25,7 @@ Use a quiet green/white palette, a compact heading, a left navigation rail, a no
 
 The note footer shows household size, current date and selected branch. Settings remain one click away. Explain that the note, recipes, household preferences and imported receipt text are sent to ChatGPT. Do not fabricate prices, history, account names or connection states from the mockup.
 
-Every list row includes the chosen product or unresolved ingredient, source meals, required amount, quantity controls, price when known, a home marker, removal, and an optional product picker. Shared ingredients appear once with additive amounts and all source meals. “Löytyy kotoa” leaves a visible row but excludes it from matching and totals. Removal hides the row independently; restoring home items does not restore removed rows.
+Every list row includes the chosen product or unresolved ingredient, source meals, required amount, quantity controls, price when known, a home marker and removal (shown on hover or keyboard focus), and details that open from the product name with the product picker. Shared ingredients appear once with additive amounts and all source meals. “Löytyy kotoa” leaves a visible row but excludes it from matching and totals. Removal hides the row independently; restoring home items does not restore removed rows.
 
 Put clear-list and text export in the list menu. Keep the running total and the transfer button in a bar pinned to the bottom of the list column, which scrolls on its own; copy/save actions sit above it. Keep all rows available; do not collapse a long list behind “show more.” A missing quote is shown as unknown and excluded from the estimate.
 
@@ -47,7 +47,7 @@ The app discovers a suitable available model automatically. OAuth, credentials, 
 
 The selection preference is lowest total pack cost, prefer store brands, or avoid store brands. Brand preferences are soft: if no matching brand candidate is usable, other available candidates remain eligible. An explicit product choice takes precedence. Household exclusion terms filter candidates before selection, including saved choices. Only products with known price, compatible unit and positive pack size/increment are automatically selected. This name-based filter cannot certify allergens or dietary suitability.
 
-Available alternatives can be selected inline. Show a cheaper alternative when one exists, with swap and undo controls. Undo changes a local choice; it does not reverse a retailer write. Catalogue data cannot certify dietary suitability; the confirmation panel lists the products under "Näytä kaikki rivit" for the shopper to check.
+Alternatives are chosen in the row details. When a cheaper product for the same ingredient exists, the row shows the saving and the details offer the swap; undo stays on the row. Undo changes a local choice; it does not reverse a retailer write. Catalogue data cannot certify dietary suitability; the confirmation panel lists the products under "Näytä kaikki rivit" for the shopper to check.
 
 Transfer flow:
 

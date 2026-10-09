@@ -41,6 +41,21 @@ test("a list row opens its product details and can change the product", async ()
     const name = list.getByRole("button", {
       name: "Kotimaista sika-nauta jauheliha 23 % 400 g",
     });
+    // Quiet rows: home and remove appear on hover or focus; a look-alike is not a cheaper option.
+    const row = list
+      .locator(".grocery-row")
+      .filter({ hasText: "Kotimaista sika-nauta jauheliha 23 % 400 g" });
+    const home = row.getByRole("button", { name: "Löytyy kotoa: Jauheliha" });
+    const opacity = () =>
+      home.evaluate((el) => Number(getComputedStyle(el).opacity));
+    await page.mouse.move(0, 0);
+    await expect.poll(opacity).toBe(0);
+    await row.hover();
+    await expect.poll(opacity).toBe(1);
+    await page.mouse.move(0, 0);
+    await home.focus();
+    await expect.poll(opacity).toBe(1);
+    await expect(row).not.toContainText("Edullisempi");
     await expect(name).toHaveAttribute("aria-expanded", "false");
     await name.focus();
     await page.keyboard.press("Enter");

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
-import { requirements } from "../domain/planner";
+import { relevant, requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
@@ -862,7 +862,10 @@ export function ShoppingWorkspace({
                       p.packAmount > 0 &&
                       p.increment > 0 &&
                       line.total !== null &&
-                      cost(p) < line.total,
+                      cost(p) < line.total &&
+                      // A look-alike such as chicken mince is not the same ingredient.
+                      (!isLive(state.context.providerId) ||
+                        relevant(p.name, r.name)),
                   )
                   .sort((a, b) => cost(a) - cost(b))[0];
                 return (
@@ -992,25 +995,14 @@ export function ShoppingWorkspace({
                     >
                       ×
                     </button>
-                    {!home && cheaper && (
-                      <div className="row-alternative">
-                        {tr("Edullisempi vastaava", "Cheaper alternative")}:{" "}
-                        {cheaper.name} · {money(cost(cheaper))}{" "}
-                        <button
-                          className="text"
-                          disabled={busy}
-                          onClick={() => {
-                            if (line?.product)
-                              setUndo({ ...undo, [key]: line.product.id });
-                            void call("accept", {
-                              ingredientId: r.id,
-                              productId: cheaper.id,
-                            });
-                          }}
-                        >
-                          {tr("Vaihda", "Swap")}
-                        </button>
-                      </div>
+                    {!home && cheaper && opened !== key && (
+                      <button
+                        className="text row-alternative"
+                        onClick={() => setOpened(key)}
+                      >
+                        {tr("Edullisempi vaihtoehto", "Cheaper option")}{" "}
+                        {money(line!.total! - cost(cheaper))}
+                      </button>
                     )}
                     {undo[key] && (
                       <button
@@ -1039,6 +1031,11 @@ export function ShoppingWorkspace({
                         line={line}
                         busy={busy}
                         money={money}
+                        cheaper={
+                          !home && cheaper
+                            ? { product: cheaper, total: cost(cheaper) }
+                            : null
+                        }
                         choose={(p) => {
                           if (line.product)
                             setUndo({ ...undo, [key]: line.product.id });
@@ -1048,38 +1045,6 @@ export function ShoppingWorkspace({
                           });
                         }}
                       />
-                    )}
-                    {!home && !!line?.candidates.length && (
-                      <details className="product-options">
-                        <summary>
-                          {tr("Vaihda tuotetta", "Change product")}
-                        </summary>
-                        {line.candidates.map((p) => (
-                          <button
-                            className="candidate-option"
-                            key={p.id}
-                            disabled={
-                              busy ||
-                              !p.available ||
-                              p.price === null ||
-                              !p.packAmount
-                            }
-                            onClick={() => {
-                              if (line.product)
-                                setUndo({ ...undo, [key]: line.product.id });
-                              void call("accept", {
-                                ingredientId: r.id,
-                                productId: p.id,
-                              });
-                            }}
-                          >
-                            {p.name} ·{" "}
-                            {p.price === null
-                              ? tr("Hinta puuttuu", "Price unknown")
-                              : money(p.price)}
-                          </button>
-                        ))}
-                      </details>
                     )}
                   </div>
                 );

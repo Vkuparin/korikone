@@ -638,6 +638,8 @@ body:has(.app-main) .demo {
   top: 12px;
   max-height: calc(100vh - 24px);
   overflow-y: auto;
+  /* Rows scrolled into view by keyboard or code stop above the pinned bar. */
+  scroll-padding-bottom: 160px;
 }
 .list-menu {
   position: relative;
@@ -740,8 +742,7 @@ body:has(.app-main) .demo {
   background: transparent;
   padding: 0;
 }
-.row-alternative,
-.product-options {
+.row-alternative {
   grid-column: 2 / -1;
   font-size: 10px;
   margin-top: 5px;
@@ -750,22 +751,6 @@ body:has(.app-main) .demo {
 .row-alternative .text {
   font-size: 10px;
   padding: 0 4px;
-}
-.product-options {
-  color: #728778;
-}
-.product-options summary {
-  cursor: pointer;
-}
-.candidate-option {
-  display: block;
-  text-align: left;
-  padding: 7px;
-  background: #f1f5ef;
-  color: #35573e;
-  font-size: 11px;
-  width: 100%;
-  margin-top: 3px;
 }
 .list-footer {
   border-top: 1px solid #e6ece6;
@@ -914,9 +899,6 @@ body:has(.app-main) .demo {
 }
 .shopping-workspace summary {
   margin-bottom: 0;
-}
-.shopping-workspace .product-options {
-  margin-top: 3px;
 }
 .shopping-workspace .grocery-row {
   padding: 7px 0;
@@ -1102,4 +1084,29 @@ body:has(.app-main) > #root > .progress {
   display: block;
   margin-top: 4px;
   font-size: 10px;
+}
+/* Quiet rows: home and remove show on hover or keyboard focus; a home row keeps its marker. */
+.grocery-row .home-button,
+.grocery-row .delete-row {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.grocery-row:hover .home-button,
+.grocery-row:hover .delete-row,
+.grocery-row:focus-within .home-button,
+.grocery-row:focus-within .delete-row,
+.grocery-row.at-home .home-button {
+  opacity: 1;
+}
+@media (hover: none) {
+  .grocery-row .home-button,
+  .grocery-row .delete-row {
+    opacity: 1;
+  }
+}
+.grocery-row > .row-alternative {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0;
+  color: #816c3e;
 }
