@@ -9,6 +9,7 @@ import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
 import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
+import { MealCalendarView } from "./calendar";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -40,7 +41,6 @@ export function ShoppingWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [groceryError, setGroceryError] = useState(false);
-  const [scheduled, setScheduled] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
   const attempted = useRef(state.note);
@@ -314,58 +314,8 @@ export function ShoppingWorkspace({
         )}
       </section>
     );
-  if (view === "schedule") {
-    const meals = groups.filter(
-      (g) => !g.recipe.kind || g.recipe.kind === "meal",
-    );
-    return (
-      <section>
-        <h1>{tr("Viikkosuunnitelma", "Meal schedule")}</h1>
-        <p>
-          {tr(
-            "Jaa ostoslistan ateriat tuleville päiville. Suunnitelma ei lisää aineksia ostoslistaan.",
-            "Place the shopping list’s meals on upcoming days. This does not add ingredients to the list.",
-          )}
-        </p>
-        <button disabled={!meals.length} onClick={() => setScheduled(true)}>
-          {tr("Luonnostele viikko", "Plan the week")}
-        </button>
-        {!meals.length && (
-          <p>
-            {tr(
-              "Lisää ensin aterioita ostoslistaan.",
-              "Add meals to your shopping list first.",
-            )}
-          </p>
-        )}
-        {scheduled && (
-          <div className="schedule-grid">
-            {Array.from({ length: Math.max(7, meals.length) }, (_, i) => {
-              const date = new Date();
-              date.setDate(date.getDate() + i);
-              return (
-                <article className="card" key={i}>
-                  <small>
-                    {date.toLocaleDateString(fi ? "fi-FI" : "en-FI", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "numeric",
-                    })}
-                  </small>
-                  <h2>{meals[i]?.recipe.name ?? tr("Vapaa", "Open")}</h2>
-                  {meals[i] && (
-                    <p>
-                      {meals[i].meal.servings} {tr("annosta", "portions")}
-                    </p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-    );
-  }
+  if (view === "schedule")
+    return <MealCalendarView state={state} busy={busy} save={save} />;
   return (
     <div className="shopping-workspace">
       <section className="planning-pane">

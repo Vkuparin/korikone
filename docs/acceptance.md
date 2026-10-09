@@ -15,7 +15,8 @@ Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helve
 | Finnish default and runtime English | Desktop tests preserve an unsaved decimal-comma quantity and saved language across restart | Done |
 | Two demo stores and reviewed cart changes | Desktop journey verifies matching, approval, interrupted transfer, reconciliation and restart | Done |
 | Migration backup and local export/restore | SQLite test reads pre-migration WAL content from the backup; desktop test exports, restores and rejects broken recipe references | Done |
-| Saved meal calendar (F9.1) | Older profiles default to an empty calendar; SQLite restart and real backup export/restore preserve dates, meal IDs and leftovers. Invalid dates are rejected without replacing saved data. Calendar editing remains F9.2 | Done |
+| Saved meal calendar (F9.1) | Older profiles default to an empty calendar; SQLite restart and real backup export/restore preserve dates, meal IDs and leftovers. Invalid dates are rejected without replacing saved data | Done |
+| Editable meal calendar (F9.2) | Desktop fixtures move meals by drag and keyboard, preserve focus, mark leftovers and restart with the same calendar and shopping total. Calendar save failures preserve the previous state and quotes | Done |
 | Save failure handling | Tests keep saved state and approvals unchanged after failed writes; dead worker rejects subsequent requests | Done |
 | Real K-Ruoka catalogue | Pinned worker smoke found a branch and normalized 20 pasta results | Done |
 | Real K-Ruoka login | Owner selected Easton and reported successful sign-in verification | Done |

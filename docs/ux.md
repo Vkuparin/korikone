@@ -18,7 +18,7 @@ Show household size, date and branch as compact context. Explain the AI data flo
 
 “Näin ymmärsin” displays a card for each meal/group. Show its type, ingredient count, approximate share of the quoted total, and portions. Selecting the card highlights the ingredient rows without hiding other rows. Ingredient cost shares are estimates because packages can be shared. Persist any portion assumptions from the interpretation.
 
-Saved recipes are behind “Lisää valmiita reseptejä.” Pick a recipe and portions, then add its ingredients. No weekday is required. Remove a meal from its card. “Viikkosuunnitelma” is a separate optional view that starts from today's date and uses only cooked meals already on the list.
+Saved recipes are behind “Lisää valmiita reseptejä.” Pick a recipe and portions, then add its ingredients. No weekday is required. Remove a meal from its card. “Viikkosuunnitelma” is a separate optional view with seven days from today and only cooked meals already on the list. Drag a meal onto a day, or focus it and use arrow keys to move one day at a time. Delete returns it to “Ei päivää”. “Luonnostele viikko” distributes current meals across the seven days. A day can be marked “Tähteitä”. Each change is saved automatically and keeps the shopping list and its quoted total unchanged.
 
 ## Shopping rows
 

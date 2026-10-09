@@ -15,6 +15,7 @@ The app never initializes the live AI connection in development mode. AI sign-in
 | Retailer protocol and normalization | `tests/k-ruoka.test.ts`, `tests/s-kaupat.test.ts` (mock transports and the offline S-kaupat worker) |
 | Receipt import, PDF extraction, backups, diagnostics and persistence | `tests/receipts.test.ts`, `tests/persistence.test.ts`, `tests/service.test.ts`, `tests/ui/shopping.spec.ts`, `tests/ui/backup.spec.ts` |
 | Saved calendar schema, older profiles, restart and backup validation | Calendar cases in `tests/persistence.test.ts`; real backup export and restore in `tests/ui/calendar-backup.spec.ts` |
+| Editable seven-day calendar | `tests/calendar.test.ts` covers local dates and meal moves; `tests/service-calendar.test.ts` covers quote preservation and failed saves; `tests/ui/calendar.spec.ts` covers drag, keyboard, leftovers, unknown meal IDs, restart and unchanged shopping total |
 | Mode persistence, profile isolation and forbidden live calls | `tests/development.test.ts`, `tests/ui/development.spec.ts` |
 
 Fixtures recognize pasta, soup/keitto, porridge/puuro, coffee/kahvi, frozen pizza/pakastepizza, nakkikeitto/sausage soup, kanapasta/chicken pasta, yoghurt-and-banana breakfast, and chocolate treats. The original multi-dish acceptance note retains its cooked meals, direct ready food, breakfast and snack groups. Unrecognized notes return a pasta example. This tests app behavior, not language-model quality. Add fixtures for new input cases and failure paths when adding features.

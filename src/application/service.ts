@@ -126,9 +126,14 @@ export class Service {
       for (const meal of next.meals)
         if (!next.recipes.some((r) => r.id === meal.recipeId))
           throw new Error("missingRecipe");
-      const oldWithoutLanguage = { ...this.state, language: next.language };
+      // Scheduling is independent of the shopping list and its current approval.
+      const previousShoppingState = {
+        ...this.state,
+        language: next.language,
+        calendar: next.calendar,
+      };
       const changed =
-        JSON.stringify(oldWithoutLanguage) !== JSON.stringify(next);
+        JSON.stringify(previousShoppingState) !== JSON.stringify(next);
       if (changed) {
         next.revision = this.state.revision + 1;
       }
