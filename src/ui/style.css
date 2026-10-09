@@ -991,9 +991,9 @@ body:has(.app-main) > #root > .progress {
 }
 .shopping-total .compare-summary {
   display: block;
-  margin-top: 4px;
-  padding: 0;
-  font-size: 11px;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
 }
 .confirm-panel {
   display: grid;
@@ -1109,4 +1109,22 @@ body:has(.app-main) > #root > .progress {
   margin-top: 2px;
   padding: 0;
   color: #776439;
+}
+.shopping-total .compare-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #5d6961;
+}
+.shopping-total .compare-hint .text {
+  padding: 0;
+  font-size: 11px;
+}
+.store-picker {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.store-picker > button {
+  justify-self: start;
 }

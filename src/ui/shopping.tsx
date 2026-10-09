@@ -8,7 +8,13 @@ import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
-import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
+import {
+  ComparePanel,
+  CompareSummary,
+  canCompare,
+  compareBlocker,
+  feeRange,
+} from "./compare";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -1187,6 +1193,23 @@ export function ShoppingWorkspace({
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>
             <strong>{money(total)}</strong>
           </div>
+          {compareBlocker(snapshot) && (
+            <p className="compare-hint">
+              {compareBlocker(snapshot)!.need === "store"
+                ? tr(
+                    "Vertailua varten valitse kauppa ketjulle",
+                    "To compare stores, choose a store for",
+                  )
+                : tr(
+                    "Vertailua varten kirjaudu ketjuun",
+                    "To compare stores, sign in to",
+                  )}{" "}
+              {compareBlocker(snapshot)!.chain}.{" "}
+              <button className="text" onClick={settings}>
+                {tr("Avaa Asetukset", "Open Settings")}
+              </button>
+            </p>
+          )}
           {canCompare(snapshot) && (
             <CompareSummary
               snapshot={snapshot}
