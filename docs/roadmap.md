@@ -143,7 +143,7 @@ Start with the spikes. If a chain refuses Electron's built-in Chromium, or its l
 
 | ID | Task, and done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| U4.1 | Spike: in the S-kaupat tab, find how the site's own "Lisää kaikki ostoskoriin" works (a page function, a request, or only the button) and how to read the cart back afterwards. Cart only; never open checkout. Done when [integrations.md](integrations.md) records the mechanism and whether it is reliable enough to automate | Strong, with owner | U3.5 | Planned |
+| U4.1 | Spike: in the S-kaupat tab, find how the site's own "Lisää kaikki ostoskoriin" works (a page function, a request, or only the button) and how to read the cart back afterwards. Cart only; never open checkout. Done when [integrations.md](integrations.md) records the mechanism and whether it is reliable enough to automate | Strong, with owner | U3.5 | In progress |
 | U4.2 | If U4.1 says yes: after a verified S-kaupat transfer, Korikone adds the Korikone list to the cart in the tab, reads the cart back, shows "Lisätty ostoskoriin: n / n" in the result, and opens the cart page. If not: open the tab on the Korikone list with the button scrolled into view. Done when the fixture site covers success, a partial add and a failure, each with a desktop test | Strong | U4.1, U3.8 | Planned |
 
 ### U6. Shorter setup
