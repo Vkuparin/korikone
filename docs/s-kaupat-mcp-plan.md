@@ -49,6 +49,8 @@ Code: [`src/stores/s-kaupat.ts`](../src/stores/s-kaupat.ts), generic worker in [
 
 ## Outstanding live acceptance
 
+Observed on the owner's PC on 9 October 2026, with the pinned server driven directly rather than through the app: live store search, product search with per-item prices and parsable packs, and `check_basket` stock answers. Details are in [acceptance.md](acceptance.md).
+
 Not yet observed in Korikone on the owner's PC:
 
 - Store search, login and a priced basket against the live site from the packaged app.
