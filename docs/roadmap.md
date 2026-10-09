@@ -47,6 +47,7 @@ Already agreed in [pre-release.md](pre-release.md). The owner observes these; im
 | A.2 | S-kaupat: press *Lisää kaikki ostoskoriin* on the Korikone list and go as far as the checkout page | Planned. The signed-in handoff it needs was observed on 9 October 2026 ([#3](https://github.com/Vkuparin/korikone/issues/3)) |
 | A.3 | Install on a clean Windows user account, upgrade over existing data, uninstall | Planned |
 | A.4 | A real multi-dish note (the nakkikeitto example) and two or three real receipts | Planned |
+| A.5 | With an explicitly requested live session, check whether the 1.8-second note pause makes too many ChatGPT requests, and tune it from observed use | Planned |
 
 ## 0.3.0: Both chains at once
 

@@ -16,3 +16,5 @@ vendor/k-ruoka/*.exe
 vendor/k-ruoka/*.zip
 vendor/k-ruoka/unpacked/
 vendor/s-kaupat/
+# Owner's local notes and archived docs; not project context.
+scratch/
