@@ -15,7 +15,7 @@ export type StorePage = "home" | "cart" | "login";
 const SITES: Record<Chain, { origin: string; domains: string[] }> = {
   "s-kaupat": {
     origin: "https://www.s-kaupat.fi",
-    domains: ["s-kaupat.fi", "s-ryhma.fi"],
+    domains: ["s-kaupat.fi", "s-ryhma.fi", "voikukka.fi"],
   },
   "k-ruoka": {
     origin: "https://www.k-ruoka.fi",
@@ -53,7 +53,13 @@ const PAYMENT_DOMAINS = [
   "klarna.com",
   "svea.com",
 ];
-const REAL_HOSTS = ["s-kaupat.fi", "s-ryhma.fi", "k-ruoka.fi", "kesko.fi"];
+const REAL_HOSTS = [
+  "s-kaupat.fi",
+  "s-ryhma.fi",
+  "voikukka.fi",
+  "k-ruoka.fi",
+  "kesko.fi",
+];
 const within = (host: string, domains: string[]) =>
   domains.some((d) => host === d || host.endsWith(`.${d}`));
 
