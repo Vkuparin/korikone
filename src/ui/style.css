@@ -1128,3 +1128,26 @@ body:has(.app-main) > #root > .progress {
 .store-picker > button {
   justify-self: start;
 }
+
+/* The store tab: the site is drawn over .store-frame by the main process. */
+.store-page {
+  display: grid;
+  gap: 8px;
+}
+.store-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.store-toolbar [role="tablist"] {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+.store-frame {
+  min-height: 200px;
+  border: 1px solid #c9d4cc;
+  border-radius: 8px;
+  background: #ffffff;
+}

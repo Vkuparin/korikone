@@ -23,6 +23,7 @@ export function ShoppingWorkspace({
   save,
   settings,
   staples,
+  openStore,
   view = "list",
 }: {
   snapshot: Snapshot;
@@ -31,6 +32,7 @@ export function ShoppingWorkspace({
   save: (state: AppState) => Promise<boolean>;
   settings: () => void;
   staples: () => void;
+  openStore: (chain: "k-ruoka" | "s-kaupat") => void;
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
@@ -1179,6 +1181,7 @@ export function ShoppingWorkspace({
               money={money}
               onClose={() => setConfirming(false)}
               onRecover={() => void call("recover")}
+              onOpenStore={openStore}
             />
           )}
           {!confirming && snapshot.journal?.status === "partial" && (

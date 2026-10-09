@@ -57,6 +57,7 @@ export function ConfirmPanel({
   money,
   onClose,
   onRecover,
+  onOpenStore,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -64,6 +65,8 @@ export function ConfirmPanel({
   money: (cents: number) => string;
   onClose: () => void;
   onRecover: () => void;
+  /** Shows the store tab that "Open store cart" loaded. */
+  onOpenStore: (chain: "k-ruoka" | "s-kaupat") => void;
 }) {
   const { state, review, journal } = snapshot;
   const language = state.language;
@@ -226,7 +229,14 @@ export function ConfirmPanel({
             {live && (
               <button
                 disabled={busy}
-                onClick={() => void call("openStoreCart")}
+                onClick={async () => {
+                  const chain = journal.review.context.providerId;
+                  if (
+                    (chain === "k-ruoka" || chain === "s-kaupat") &&
+                    (await call("openStoreCart"))
+                  )
+                    onOpenStore(chain);
+                }}
               >
                 {t("openStoreCart")}
               </button>

@@ -13,6 +13,7 @@ import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { Chains } from "./chains";
+import { StorePage, type Chain } from "./store";
 import { isLive, liveProviders } from "../stores/provider";
 declare global {
   interface Window {
@@ -42,6 +43,7 @@ function App() {
     draft: null,
   });
   const [page, setPage] = useState<Key>("week");
+  const [storeChain, setStoreChain] = useState<Chain | null>(null);
   const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -321,7 +323,14 @@ function App() {
         <>
           <nav>
             {(
-              ["week", "weekPlan", "recipes", "history", "settings"] as Key[]
+              [
+                "week",
+                "weekPlan",
+                "recipes",
+                "history",
+                "store",
+                "settings",
+              ] as Key[]
             ).map((key) => (
               <button
                 key={key}
@@ -350,6 +359,10 @@ function App() {
                 save={save}
                 settings={() => setPage("settings")}
                 staples={() => setPage("staples")}
+                openStore={(chain) => {
+                  setStoreChain(chain);
+                  setPage("store");
+                }}
                 view={
                   page === "weekPlan"
                     ? "schedule"
@@ -357,6 +370,14 @@ function App() {
                       ? "history"
                       : "list"
                 }
+              />
+            )}
+            {page === "store" && (
+              <StorePage
+                snapshot={snapshot}
+                chain={storeChain}
+                setChain={setStoreChain}
+                settings={() => setPage("settings")}
               />
             )}
             {page === "recipes" && (

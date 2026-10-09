@@ -58,7 +58,9 @@ Transfer flow:
 3. Apply the batch when the shopper presses the confirm button, which names the product count, chain and total. That press is the approval. A separate acknowledgement is required only when the total is over the weekly budget. Keep revision, account, store, price and quantity checks.
 4. Journal each operation and read back the cart. A failure stops the batch and offers reconciliation; never blindly repeat an uncertain write.
 5. Show verified and unresolved items in the same panel, with the next step. Save verified runs to local transfer history so they can be reused.
-6. For K-Ruoka, open the cart URL in the default browser. S-kaupat retains its authenticated `open_site` handoff and list-to-cart instructions. The user may need to sign into the same retailer account there. The app does not copy browser cookies or claim session continuity.
+6. *Avaa kaupan ostoskori* opens the chain's page in the Kauppa view: the K-Ruoka cart, or S-kaupat's *Ostoslistat* page with the "Korikone" list and its "Lisää kaikki ostoskoriin". The tab has its own persistent session per chain (`persist:k-ruoka`, `persist:s-kaupat`), separate from the store servers' windows, so the shopper signs in once in the tab until U3.5 joins the two. The app does not copy browser cookies.
+
+The Kauppa view (`src/main/store-view.ts`) draws a `WebContentsView` over the frame in `src/ui/store.tsx`. Store pages get no preload, `nodeIntegration: false` and a sandbox. Popups load in the same tab; navigation outside the chain's own and known payment domains asks first. *Avaa selaimessa* opens the current page in the default browser. In development mode the tabs load a local fixture site and their sessions cancel requests to the real store hosts.
 
 Unsupported weighted prices and ambiguous pack labels remain unresolved. A partial batch may transfer the available products only after the review lists what is excluded. It must not imply the complete list was transferred. Fees and unreported deposits remain outside the estimate.
 
@@ -81,12 +83,12 @@ The new `listHistory` records verified transfers, not completed purchases. Exist
 - `src/receipts`: local file reader and isolated PDF extraction worker.
 - `src/stores`: demo providers and the pinned K-Ruoka and S-kaupat MCP adapters.
 - `src/persistence`: SQLite storage and durable operation journal.
-- `src/main`: restricted IPC, file dialogs, clipboard and default-browser handoff.
+- `src/main`: restricted IPC, file dialogs, clipboard, the in-app store view and the development fixture site.
 
 Schema defaults retain compatibility with older saved profiles. Language changes remain presentation-only and preserve quantities, typed notes, approvals and in-flight requests.
 
 ## Current boundaries
 
-K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.2.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
+K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.2.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The present schedule is a date-based suggestion, not an editable saved calendar. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 
 See [UX behavior](ux.md), [roadmap](roadmap.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.

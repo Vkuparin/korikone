@@ -27,6 +27,7 @@ import { ChatGPT } from "../ai/chatgpt";
 import { draftPrompt, validateDraft } from "../ai/draft";
 import { readReceipt } from "../receipts/read";
 import { diagnostics } from "../application/diagnostics";
+import { StoreViews } from "./store-view";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 else if (process.env.KORIKONE_DATA_DIR)
@@ -128,6 +129,18 @@ else
     });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
+    const stores = new StoreViews(
+      window,
+      () => development,
+      () => service.state.language,
+    );
+    const chainInput = z.enum(["k-ruoka", "s-kaupat"]);
+    const bounds = z.object({
+      x: z.number().int().min(0),
+      y: z.number().int().min(0),
+      width: z.number().int().min(0),
+      height: z.number().int().min(0),
+    });
     let generationRun = 0;
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => {
@@ -144,6 +157,7 @@ else
         ai.cancel();
         ai.cancelRequest();
         await Promise.all([worker.close(), sWorker.close()]);
+        stores.reset();
         if (!enabled && !liveAIInitialized) {
           await liveAI.init();
           liveAIInitialized = true;
@@ -373,16 +387,29 @@ else
           (providerId !== "k-ruoka" && providerId !== "s-kaupat")
         )
           throw new Error("reviewRequired");
-        if (development) return service.snapshot();
-        if (providerId === "s-kaupat") {
-          // A token without a login in this folder's window would open the store signed out.
-          if (!(await sSession.signedIn())) {
-            service.storeLogins["s-kaupat"] = "notStarted";
-            throw new Error("loginRequired");
-          }
-          await sWorker.call("open_site", { applyChoice: false });
-        } else
-          await shell.openExternal("https://www.k-ruoka.fi/kauppa/ostoskori");
+        // The K-Ruoka cart, or S-kaupat's shopping lists where the transfer went, in the store tab.
+        await stores.open(providerId, "cart");
+        return service.snapshot();
+      },
+      storeView: async (input) => {
+        const { chain, area } = z
+          .object({ chain: chainInput, area: bounds })
+          .parse(input);
+        await stores.show(chain, area);
+        return service.snapshot();
+      },
+      hideStore: async () => {
+        stores.hide();
+        return service.snapshot();
+      },
+      storeAction: async (input) => {
+        const { chain, action } = z
+          .object({
+            chain: chainInput,
+            action: z.enum(["back", "reload", "browser"]),
+          })
+          .parse(input);
+        await stores.action(chain, action);
         return service.snapshot();
       },
       copyList: async () => {
@@ -485,6 +512,9 @@ else
             name === "setLanguage" ||
             name === "cancelTransfer" ||
             name === "cancelAI" ||
+            name === "storeView" ||
+            name === "hideStore" ||
+            name === "storeAction" ||
             name === "load"
           ) {
             const value = (await handler(input)) as object;
@@ -519,6 +549,7 @@ else
       closing = true;
       ai.cancel();
       ai.cancelRequest();
+      stores.close();
       void Promise.allSettled([worker.close(), sWorker.close()])
         .finally(() => db.close())
         .finally(() => app.quit());

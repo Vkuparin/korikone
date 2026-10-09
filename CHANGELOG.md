@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Stores inside Korikone: a new *Kauppa* view shows the store's own site in a tab for each chain with a chosen store, each with its own saved sign-in. *Avaa kaupan ostoskori* after a transfer opens the K-Ruoka cart, or S-kaupat's *Ostoslistat* page where the "Korikone" list is, in that tab instead of an external window ([#8](https://github.com/Vkuparin/korikone/issues/8)). Store pages run sandboxed with no access to Korikone, popups stay in the tab, and leaving the store and payment sites asks first. *Avaa selaimessa* opens the page in the default browser. Sign in once in the tab; the order and payment are always done there by you.
 - Each chain card in Asetukset has its own *Valitse kauppa* store search, which lists only that chain's stores and does not change the active chain ([#6](https://github.com/Vkuparin/korikone/issues/6)). When comparing is not possible, the total bar says what is missing. *Vertaa kauppoja* is a full-size button ([#7](https://github.com/Vkuparin/korikone/issues/7)). Saved store sign-ins are detected at launch and when Asetukset opens.
 - Manual grocery additions accept decimal kg/l amounts and merge matching names and units into existing recipe rows. Added quantities also increase an explicit row override. Invalid amounts preserve the list and input.
 - The total and the transfer button, which now shows the total, stay at the bottom of the shopping list while the list scrolls on its own. The list notes, fee and export buttons sit above them.
