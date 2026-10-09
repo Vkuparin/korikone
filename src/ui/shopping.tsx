@@ -43,7 +43,6 @@ export function ShoppingWorkspace({
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
-  const attempted = useRef(state.note);
   const quoted = useRef(-1);
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
@@ -79,7 +78,6 @@ export function ShoppingWorkspace({
     const stop = () => {
       if (!running.current) return;
       stopRequested.current = true;
-      attempted.current = currentNote.current;
       setCancelled(true);
     };
     window.addEventListener("korikone:cancel-ai", stop);
@@ -95,7 +93,6 @@ export function ShoppingWorkspace({
     setNote(state.note);
     sessionStorage.setItem("shopping-note", state.note);
     currentNote.current = state.note;
-    attempted.current = state.note;
   }, [state.note]);
   const changeNote = (value: string) => {
     setCancelled(false);
@@ -112,7 +109,6 @@ export function ShoppingWorkspace({
     )
       return;
     const requested = note;
-    attempted.current = requested;
     running.current = true;
     stopRequested.current = false;
     setCancelled(false);
@@ -141,19 +137,6 @@ export function ShoppingWorkspace({
       }
     }
   }
-  useEffect(() => {
-    if (
-      view !== "list" ||
-      busy ||
-      working ||
-      note === attempted.current ||
-      !note.trim() ||
-      snapshot.ai.state !== "connected"
-    )
-      return;
-    const timer = setTimeout(() => void update(), 1800);
-    return () => clearTimeout(timer);
-  }, [note, busy, working, snapshot.ai.state, view]);
   useEffect(() => {
     if (view !== "list" || busy || working || quoted.current === state.revision)
       return;
@@ -343,6 +326,11 @@ export function ShoppingWorkspace({
           </label>
           <textarea
             id="shopping-note"
+            aria-describedby={
+              note !== state.note
+                ? "note-update-help note-unapplied"
+                : "note-update-help"
+            }
             value={note}
             maxLength={10000}
             placeholder={tr(
@@ -370,17 +358,15 @@ export function ShoppingWorkspace({
             <button className="chip store-chip" onClick={settings}>
               {state.context.storeName}
             </button>
-            <span className="note-status" role="status">
+            <span id="note-update-help" className="note-status" role="status">
               {working
                 ? tr("Muodostetaan listaa…", "Building your list…")
                 : cancelled
                   ? tr("Listan päivitys peruutettu", "List update cancelled")
-                  : busy
-                    ? tr("Haetaan tuotteita…", "Finding products…")
-                    : tr(
-                        "Ctrl + Enter päivittää heti",
-                        "Ctrl + Enter to update now",
-                      )}
+                  : tr(
+                      "Ctrl + Enter päivittää listan",
+                      "Ctrl + Enter to update the list",
+                    )}
             </span>
             {requesting && (
               <button
@@ -395,8 +381,7 @@ export function ShoppingWorkspace({
               </button>
             )}
             <button
-              className="refresh-note"
-              aria-label={tr("Päivitä ostoslista", "Update shopping list")}
+              className="update-note"
               disabled={
                 busy ||
                 working ||
@@ -405,10 +390,18 @@ export function ShoppingWorkspace({
               }
               onClick={() => void update()}
             >
-              ↑
+              {tr("Päivitä lista", "Update list")}
             </button>
           </div>
         </div>
+        {note !== state.note && (
+          <p id="note-unapplied" className="muted" role="status">
+            {tr(
+              "Muistiinpanoa ei ole päivitetty listaan",
+              "Note changes have not been applied to the list",
+            )}
+          </p>
+        )}
         <p className="input-notice">
           {snapshot.developmentMode ? (
             tr(
@@ -417,8 +410,8 @@ export function ShoppingWorkspace({
             )
           ) : snapshot.ai.state === "connected" ? (
             tr(
-              "Lista päivittyy kirjoitustauon jälkeen. Muistiinpano, reseptit, talouden tiedot ja tuodut kuitit lähetetään ChatGPT:lle.",
-              "The list updates after a pause. Your note, recipes, household preferences and imported receipts are sent to ChatGPT.",
+              "Päivitä lista lähettää muistiinpanon, reseptit, talouden tiedot ja tuodut kuitit ChatGPT:lle. Kirjoittaminen ei lähetä niitä.",
+              "Update list sends your note, recipes, household preferences and imported receipts to ChatGPT. Typing does not send them.",
             )
           ) : (
             <>

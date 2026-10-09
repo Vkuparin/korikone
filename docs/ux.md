@@ -12,7 +12,7 @@ The everyday entry is the shopping list. Avoid a large hero, photo or weekday-en
 
 One note accepts all requested meals and groceries: “Nakkikeitto, kanapasta, pakastepizza. Aamupalaksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.” Do not add category toggles that repeat this input. Ready foods, breakfasts, evening foods and treats must be preserved.
 
-Wait 1.8 seconds after typing before requesting interpretation. Ctrl+Enter and the arrow update immediately. Run one interpretation at a time and discard obsolete responses. The note remains editable while work runs. Show an animated activity state with readable status and cancellation; respect reduced motion. No invented percentage or completion estimate.
+Only “Päivitä lista” / “Update list” or Ctrl+Enter requests interpretation. Typing, returning to the view and restoring an edited note do not submit. Show “Muistiinpanoa ei ole päivitetty listaan” / “Note changes have not been applied to the list” when the note differs from the saved list's note. Run one interpretation at a time and discard obsolete responses. The note remains editable while work runs, and an edit during a request does not submit a follow-up request. Show an animated activity state with readable status and cancellation only while an explicit update runs; respect reduced motion. No invented percentage or completion estimate.
 
 Show household size, date and branch as compact context. Explain the AI data flow next to the input. Connection, usage and validation errors preserve the saved list and offer retry or manual editing.
 

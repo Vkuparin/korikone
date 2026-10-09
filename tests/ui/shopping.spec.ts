@@ -160,7 +160,98 @@ test("shopping workspace adds recipes, marks home items, removes rows, schedules
   }
 });
 
-test("debounced notes discard an obsolete response and apply only the latest note", async () => {
+test("typing, view return and restored edits never submit without an explicit action", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    const state = initialState();
+    state.onboarded = true;
+    state.setupComplete = true;
+    state.staples = [];
+    state.note = "Pasta";
+    state.meals = [
+      {
+        id: "pasta-meal",
+        recipeId: "pasta",
+        day: 0,
+        servings: 4,
+        leftovers: false,
+      },
+    ];
+    await page.evaluate(async (state) => {
+      const saved = await window.korikone.save(state);
+      if (!saved.ok) throw new Error(saved.error);
+      await window.korikone.signInAI();
+    }, state);
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Päivitä lista", exact: true }),
+    ).toBeEnabled();
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    const before = await load();
+    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    await note.fill("Nakkikeitto");
+    await expect(
+      page.getByText("Muistiinpanoa ei ole päivitetty listaan", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.waitForTimeout(2100);
+    expect((await load()).developmentRequests).toBe(0);
+    expect((await load()).state).toEqual(before.state);
+    expect((await load()).basket).toEqual(before.basket);
+    await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+    await page.getByRole("button", { name: "Reseptit", exact: true }).click();
+    await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
+    await expect(note).toHaveValue("Nakkikeitto");
+    await page.waitForTimeout(2100);
+    expect((await load()).developmentRequests).toBe(0);
+    expect((await load()).state).toEqual(before.state);
+    await page.reload();
+    await expect(note).toHaveValue("Nakkikeitto");
+    await page.waitForTimeout(2100);
+    expect((await load()).developmentRequests).toBe(0);
+    expect((await load()).state).toEqual(before.state);
+    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await expect(
+      page.getByText("Note changes have not been applied to the list", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Update list", exact: true })
+      .click();
+    await expect
+      .poll(async () => (await load()).state.note)
+      .toBe("Nakkikeitto");
+    await expect(
+      page.getByText("Note changes have not been applied to the list", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    expect((await load()).developmentRequests).toBe(1);
+    await expect(
+      page.getByRole("button", { name: "Update list", exact: true }),
+    ).toBeEnabled();
+    const englishNote = page.getByLabel("What would you like to cook?");
+    await englishNote.fill("Pakastepizza");
+    await englishNote.press("Control+Enter");
+    await expect
+      .poll(async () => (await load()).state.note)
+      .toBe("Pakastepizza");
+    expect((await load()).developmentRequests).toBe(2);
+    await expect(page.locator(".grocery-row")).toHaveCount(1);
+    await page.screenshot({
+      path: "test-results/explicit-update-desktop.png",
+      fullPage: true,
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("explicit updates discard an obsolete response until the next requested update", async () => {
   const app = await launch();
   try {
     const page = await app.firstWindow();
@@ -178,7 +269,21 @@ test("debounced notes discard an obsolete response and apply only the latest not
     await note.fill("Old note");
     await note.press("Control+Enter");
     await expect(page.locator(".note-box")).toHaveClass(/is-working/);
+    await note.press("Control+Enter");
+    await expect(
+      page.getByRole("button", { name: "Päivitä lista", exact: true }),
+    ).toBeDisabled();
     await note.fill("Pakastepizza");
+    await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+    await page.waitForTimeout(2100);
+    await expect(page.locator(".grocery-row")).toHaveCount(0);
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    expect((await load()).developmentRequests).toBe(1);
+    expect((await load()).state.note).toBe("");
+    await page
+      .getByRole("button", { name: "Päivitä lista", exact: true })
+      .click();
     await expect(page.locator(".grocery-description")).toContainText(
       "Pakastepizza",
       { timeout: 10000 },
@@ -187,6 +292,7 @@ test("debounced notes discard an obsolete response and apply only the latest not
     await expect(page.locator(".grocery-description")).not.toContainText(
       "Old note",
     );
+    expect((await load()).developmentRequests).toBe(2);
   } finally {
     await app.close();
   }
@@ -239,7 +345,7 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
   }
 });
 
-test("multi-dish debounce, cancellation and usage failure preserve the saved list", async () => {
+test("explicit multi-dish updates, cancellation and usage failure preserve the saved list", async () => {
   const app = await launch();
   try {
     const page = await app.firstWindow();
@@ -260,6 +366,15 @@ test("multi-dish debounce, cancellation and usage failure preserve the saved lis
     const fullNote =
       "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.";
     await note.fill(fullNote);
+    await page.waitForTimeout(2100);
+    await expect(page.locator(".interpretation")).toHaveCount(0);
+    expect(
+      (await page.evaluate(() => window.korikone.load())).value
+        .developmentRequests,
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Päivitä lista", exact: true })
+      .click();
     await expect(page.locator(".interpretation")).toHaveCount(4, {
       timeout: 15000,
     });

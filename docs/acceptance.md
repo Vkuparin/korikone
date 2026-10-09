@@ -13,6 +13,7 @@ Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helve
 | Public repository and open-source license | Vkuparin/korikone, Apache-2.0, staged commits pushed to main | Done |
 | Persistent recipes, portions, recurring items and weekly planning | Desktop form and restart tests; recurring-item editor | Done |
 | Finnish default and runtime English | Desktop tests preserve an unsaved decimal-comma quantity and saved language across restart | Done |
+| Explicit note updates (U8.1) | Fixture request counts stay at zero after typing, waiting, view return and restored edits. The labelled button and Ctrl+Enter each request an update. Cancellation, errors and obsolete responses preserve the saved list; Finnish and English controls and unapplied-edit hints are covered | Done |
 | Two demo stores and reviewed cart changes | Desktop journey verifies matching, approval, interrupted transfer, reconciliation and restart | Done |
 | Migration backup and local export/restore | SQLite test reads pre-migration WAL content from the backup; desktop test exports, restores and rejects broken recipe references | Done |
 | Saved meal calendar (F9.1) | Older profiles default to an empty calendar; SQLite restart and real backup export/restore preserve dates, meal IDs and leftovers. Invalid dates are rejected without replacing saved data | Done |

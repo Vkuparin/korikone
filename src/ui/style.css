@@ -506,11 +506,9 @@ body:has(.app-main) .demo {
   color: #566c5d;
   margin-left: auto;
 }
-.refresh-note {
-  border-radius: 50%;
-  width: 29px;
-  height: 29px;
-  padding: 0;
+.update-note {
+  padding: 8px 12px;
+  font-size: 12px;
 }
 .input-notice {
   font-size: 11px;
