@@ -405,11 +405,9 @@ export class Service {
       this.review.revision !== this.state.revision
     )
       throw new Error("reviewRequired");
-    if (
-      (this.review.total > this.state.household.budget ||
-        isLive(this.review.context.providerId)) &&
-      !acknowledged
-    )
+    // Confirming is the approval; only a budget overrun needs to be accepted explicitly.
+    // Changed prices or packs already stop the review in createReview.
+    if (this.review.total > this.state.household.budget && !acknowledged)
       throw new Error("acknowledgeReview");
     this.busy = true;
     this.controller = new AbortController();

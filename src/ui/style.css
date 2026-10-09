@@ -784,7 +784,7 @@ body:has(.app-main) .demo {
   border-top: 1px solid #e6ece6;
   box-shadow: 0 -8px 12px -12px rgba(0, 0, 0, 0.3);
 }
-.shopping-total > div:first-child {
+.shopping-total .total-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1012,4 +1012,30 @@ body:has(.app-main) > #root > .progress {
   margin-top: 4px;
   padding: 0;
   font-size: 11px;
+}
+.confirm-panel {
+  display: grid;
+  gap: 6px;
+  max-height: 55vh;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e6ece6;
+  font-size: 12px;
+}
+.confirm-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.confirm-panel p,
+.confirm-panel ul {
+  margin: 0;
+}
+.attention-list {
+  padding-left: 18px;
+}
+.confirm-panel .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

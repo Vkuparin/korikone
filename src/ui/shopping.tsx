@@ -3,6 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
+import { ConfirmPanel } from "./confirm";
 import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
@@ -11,7 +12,6 @@ export function ShoppingWorkspace({
   call,
   save,
   settings,
-  review,
   view = "list",
 }: {
   snapshot: Snapshot;
@@ -19,7 +19,6 @@ export function ShoppingWorkspace({
   call: (method: string, input?: unknown) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   settings: () => void;
-  review: () => void;
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
@@ -41,6 +40,7 @@ export function ShoppingWorkspace({
   const quoted = useRef(-1);
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   // The list column is as tall as the window below its current top, so the total and
   // transfer bar at its bottom stays in view however far the page is scrolled.
   useEffect(() => {
@@ -1135,7 +1135,17 @@ export function ShoppingWorkspace({
           role="region"
           aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
         >
-          <div>
+          {confirming && (
+            <ConfirmPanel
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              money={money}
+              onClose={() => setConfirming(false)}
+              onRecover={() => void call("recover")}
+            />
+          )}
+          <div className="total-line">
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>
             <strong>{money(total)}</strong>
           </div>
@@ -1149,28 +1159,35 @@ export function ShoppingWorkspace({
               onOpen={() => setComparing(true)}
             />
           )}
-          <button
-            className="transfer-button"
-            disabled={busy || !rows.length || missing.length === rows.length}
-            onClick={async () => {
-              if (await call("prepare", { allowMissing: true })) review();
-            }}
-          >
-            {state.context.providerId === "s-kaupat" ? (
-              tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
-            ) : (
-              <>
-                {tr("Siirrä", "Transfer to")}{" "}
-                {state.context.providerId === "k-ruoka"
-                  ? "K-Ruoan"
-                  : tr("kaupan", "store")}{" "}
-                {tr("ostoskoriin", "cart")}
-              </>
-            )}
-            {total > 0 && (
-              <span className="transfer-total"> · {money(total)}</span>
-            )}
-          </button>
+          {!confirming && (
+            <button
+              className="transfer-button"
+              disabled={busy || !rows.length || missing.length === rows.length}
+              onClick={async () => {
+                // An interrupted transfer is shown for recovery instead of a new review.
+                if (
+                  snapshot.journal?.status === "partial" ||
+                  (await call("prepare", { allowMissing: true }))
+                )
+                  setConfirming(true);
+              }}
+            >
+              {state.context.providerId === "s-kaupat" ? (
+                tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+              ) : (
+                <>
+                  {tr("Siirrä", "Transfer to")}{" "}
+                  {state.context.providerId === "k-ruoka"
+                    ? "K-Ruoan"
+                    : tr("kaupan", "store")}{" "}
+                  {tr("ostoskoriin", "cart")}
+                </>
+              )}
+              {total > 0 && (
+                <span className="transfer-total"> · {money(total)}</span>
+              )}
+            </button>
+          )}
         </div>
       </aside>
     </div>

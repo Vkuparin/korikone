@@ -84,10 +84,7 @@ export const en = {
     "Signed out locally. Remote revocation was not confirmed; disconnect the app in ChatGPT settings.",
   recoverFirst:
     "An interrupted transfer needs review before starting another transfer.",
-  acknowledgeReview:
-    "Confirm the review, dietary suitability and any budget overrun before transferring.",
-  confirmRealReview:
-    "I checked product suitability, pack sizes and the displayed total, including any budget overrun. Fees and unreported deposits are still unknown.",
+  acknowledgeReview: "Accept the budget overrun before transferring.",
   confirmBudget: "I accept the displayed budget overrun.",
   cancelled: "Transfer stopped. Changes already made remain in the cart.",
   liveStore: "Real store · Checkout is always manual",
@@ -329,10 +326,7 @@ export const fi: Record<Key, string> = {
   revocationUnconfirmed:
     "Kirjauduit ulos paikallisesti. Palvelimen valtuutuksen perumista ei varmistettu; poista sovelluksen yhteys ChatGPT:n asetuksista.",
   recoverFirst: "Keskeytynyt siirto on tarkistettava ennen uutta siirtoa.",
-  acknowledgeReview:
-    "Vahvista tuotteiden sopivuus, korin tarkistus ja mahdollinen budjetin ylitys.",
-  confirmRealReview:
-    "Tarkistin tuotteiden sopivuuden, pakkauskoot ja summan, myös mahdollisen budjetin ylityksen. Maksut ja ilmoittamattomat pantit eivät ole tiedossa.",
+  acknowledgeReview: "Hyväksy budjetin ylitys ennen siirtoa.",
   confirmBudget: "Hyväksyn näytetyn budjetin ylityksen.",
   cancelled: "Siirto pysäytettiin. Jo tehdyt muutokset säilyvät korissa.",
   liveStore: "Oikea kauppa · Viimeistelet tilauksen itse",

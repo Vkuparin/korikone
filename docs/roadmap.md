@@ -91,9 +91,9 @@ The total and a "Siirrä S-kauppaan · 25,39 €" button stay pinned at the bott
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
 | U1.1 | Pinned total and transfer bar; the list column scrolls independently of the note column | | Done: the list column is sticky and fits the window, the total and "Siirrä … · total" bar stays at its bottom; `tests/ui/pinned.spec.ts` |
-| U1.2 | Confirmation panel on the list page with attention items only, built on the existing review and journal code | U1.1 | Planned |
-| U1.3 | Replace the checkbox with the labelled confirm button; keep an explicit acknowledgement only when over budget or a price rose since quoting. Update [design.md](design.md) and [ux.md](ux.md) | U1.2 | Planned |
-| U1.4 | Show the transfer result in the same panel: verified count, what was left out, next step | U1.2 | Planned |
+| U1.2 | Confirmation panel on the list page with attention items only, built on the existing review and journal code | U1.1 | Done: `src/ui/confirm.tsx` in the pinned bar; attention items are excluded rows, products already in the cart, cheaper alternatives of the same ingredient and a budget overrun; `tests/ui/confirm.spec.ts` |
+| U1.3 | Replace the checkbox with the labelled confirm button; keep an explicit acknowledgement only when over budget or a price rose since quoting. Update [design.md](design.md) and [ux.md](ux.md) | U1.2 | Done: the service asks for an acknowledgement only over budget. A changed price or pack already stops the review in `createReview`, so it never reaches the panel |
+| U1.4 | Show the transfer result in the same panel: verified count, what was left out, next step | U1.2 | Done: an interrupted transfer shows its recovery action there too. The Ostoskori page still works until U2.2 |
 | U1.5 | Move the F2 comparison into the pinned bar, for example "K-Ruoka 2,10 € halvempi · Vertaa", opening the existing panel | U1.1 | Done: the bar shows "Vertaa kauppoja" and, after comparing, the result such as "S-kaupat 0,30 € halvempi · Vertaa" until the list changes. Comparing still runs only when pressed, since it searches the other chain for every row |
 
 ### U2. One basket view instead of three

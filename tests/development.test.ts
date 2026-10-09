@@ -347,3 +347,40 @@ test("comparing stores prices the list at the other chain without changing anyth
   });
   expect(service.snapshot().comparison).toBeNull();
 });
+
+test("confirming is the approval for a live store unless the budget is exceeded", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const s = new DemoProvider("s-kaupat");
+  const service = await createService(db, true, [s]);
+  const [store] = await s.searchStores();
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }],
+    context: store,
+    household: { ...service.state.household, budget: 10000 },
+  });
+  await service.buildBasket();
+  await service.prepare();
+  const done = await service.execute({
+    id: service.review!.id,
+    acknowledged: false,
+  });
+  expect(done.journal!.status).toBe("verified");
+  await service.save({
+    ...service.state,
+    household: { ...service.state.household, budget: 100 },
+  });
+  await service.buildBasket();
+  await service.prepare();
+  await expect(
+    service.execute({ id: service.review!.id, acknowledged: false }),
+  ).rejects.toThrow("acknowledgeReview");
+});

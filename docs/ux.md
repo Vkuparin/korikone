@@ -42,9 +42,9 @@ Clear-list appears once, in the list menu. Copy/save are under the total. Text f
 
 Show the quoted total and explicitly count missing prices/products. Excluded home items are separate. Fees and unreported deposits are unknown. Never label an incomplete quote as the full basket cost.
 
-The transfer button opens one review with destination, before/after quantities, retained unrelated cart items, total and omitted unresolved requirements. The user can transfer available products while the missing ones remain on the list. Keep explicit live-product and budget acknowledgement in that review.
+The total and transfer button stay pinned under the list. The transfer button opens a confirmation panel in the same column that shows only what needs attention: omitted unresolved requirements, products already in the cart, cheaper alternatives and a budget overrun. When nothing needs attention it says so in one line and the confirm button has focus. Before/after quantities and retained cart items are under "Näytä kaikki rivit". The confirm button names the product count, chain and total and is the approval; only a budget overrun needs a separate checkbox. The user can transfer available products while the missing ones remain on the list.
 
-The result shows verified counts, omitted requirements and a return-to-list action. K-Ruoka opens the default browser. S-kaupat opens its authenticated site and explains that the user must add the Korikone account list to the cart. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
+The result shows in the same panel: verified counts, omitted requirements, the next step and a close action. K-Ruoka opens the default browser. S-kaupat opens its authenticated site and explains that the user must add the Korikone account list to the cart. Interrupted transfers offer reconciliation before retry. Never describe a partial transfer as a complete list. Do not turn a transfer into purchase history; checkout and purchase confirmation remain separate.
 
 ## Receipts
 

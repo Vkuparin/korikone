@@ -184,8 +184,7 @@ export function ComparePanel({
         <button
           disabled={busy}
           onClick={async () => {
-            if (await call("save", { ...state, context: other }))
-              onClose();
+            if (await call("save", { ...state, context: other })) onClose();
           }}
         >
           {tr("Käytä tätä kauppaa", "Use this store")}: {b}

@@ -333,7 +333,6 @@ function App() {
                 call={call}
                 save={save}
                 settings={() => setPage("settings")}
-                review={() => setPage("basket")}
                 view={
                   page === "weekPlan"
                     ? "schedule"
@@ -705,19 +704,14 @@ function App() {
                       {t("total")}: {money(snapshot.review.total)} ·{" "}
                       {t("budget")}: {money(state.household.budget)}
                     </p>
-                    {(isLive(snapshot.review.context.providerId) ||
-                      snapshot.review.total > state.household.budget) && (
+                    {snapshot.review.total > state.household.budget && (
                       <label className="check">
                         <input
                           type="checkbox"
                           checked={acknowledged}
                           onChange={(e) => setAcknowledged(e.target.checked)}
                         />
-                        {t(
-                          isLive(snapshot.review.context.providerId)
-                            ? "confirmRealReview"
-                            : "confirmBudget",
-                        )}
+                        {t("confirmBudget")}
                       </label>
                     )}
                     {state.household.exclusions && (
@@ -728,8 +722,7 @@ function App() {
                     <button
                       disabled={
                         busy ||
-                        ((isLive(snapshot.review.context.providerId) ||
-                          snapshot.review.total > state.household.budget) &&
+                        (snapshot.review.total > state.household.budget &&
                           !acknowledged)
                       }
                       onClick={() =>
