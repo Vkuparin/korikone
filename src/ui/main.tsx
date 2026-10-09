@@ -202,7 +202,6 @@ function App() {
           korikone<span>{t("tagline")}</span>
         </a>
         <div className="language-control">
-          <span>{t("language")}</span>
           <Choice
             label={t("language")}
             value={state.language}

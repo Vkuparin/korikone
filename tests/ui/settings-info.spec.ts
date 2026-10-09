@@ -45,6 +45,7 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Unsaved note");
     const language = page.getByLabel("Kieli", { exact: true });
+    await expect(page.locator(".language-control")).toHaveText("Suomi");
     await language.focus();
     await page.keyboard.press("ArrowDown");
     const menu = page.getByRole("listbox", { name: "Kieli", exact: true });
