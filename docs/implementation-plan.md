@@ -35,6 +35,8 @@ Offline preparation is separate from the live checks below. The original nakkike
 
 ## Deferred product work
 
-Automatic OCR for scanned receipts; frequency-based purchase learning; direct phone sync; embedded retailer sessions; a persistent editable meal calendar; and broader purchase-learning features. Do not imply these work in this pre-release. Checkout and payment are always performed by the user.
+Planned work up to 1.0.0 is in the [roadmap](roadmap.md).
+
+Direct phone sync and embedded retailer sessions. OCR for scanned receipts, recurring-item suggestions from purchases and a saved, editable meal calendar are now planned in the [roadmap](roadmap.md). Do not imply any of these work in this pre-release. Checkout and payment are always performed by the user.
 
 S-kaupat v1.2.0 is integrated and its offline contract tests are retained. Live login and a three-product account-list transfer passed on 9 October 2026. Authenticated handoff remains open in issue #3. The S-kaupat project retains its own [plan and release gates](s-kaupat-mcp-plan.md). It does not block this K-Ruoka feedback iteration. Keep dependency licensing, account protection, backup compatibility, language switching and journal recovery checks for future changes.

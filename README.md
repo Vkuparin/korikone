@@ -61,6 +61,6 @@ npm run package
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 
-See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [implementation plan](docs/implementation-plan.md).
+See [the pre-release scope](docs/pre-release.md), [design](docs/design.md), [implementation plan](docs/implementation-plan.md) and [roadmap to 1.0.0](docs/roadmap.md).
 
 Licensed under Apache-2.0. Copyright 2026 Vkuparin.
