@@ -112,7 +112,7 @@ The Ostoskori page leaves the navigation. Its decision details (why a product wa
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| U7.1 | Raise secondary text (hints, store name, "Korissa nyt", help lines) to WCAG AA contrast, 4.5:1, in Finnish and English. This covers colour for F14.4 | | Planned |
+| U7.1 | Raise secondary text (hints, store name, "Korissa nyt", help lines) to WCAG AA contrast, 4.5:1, in Finnish and English. This covers colour for F14.4 | | Done: 15 grey-green text colours darkened to at least 4.5:1 on every light background; `tests/contrast.test.ts` checks the stylesheet. Faded "at home" rows and disabled buttons are inactive states and keep their lower contrast |
 
 ## 0.5.0: Stores inside the app
 
