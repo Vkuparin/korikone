@@ -126,7 +126,7 @@ test("automatically chooses available products and respects explicit swaps and b
   provider.searchProducts = async (...args) => {
     const products = await search(...args);
     return products.flatMap((p) => [
-      { ...p, id: p.id + "-brand", name: "Brand coffee", price: 500 },
+      { ...p, id: p.id + "-brand", name: "Brand kahvi", price: 500 },
       { ...p, id: p.id + "-store", name: "Pirkka kahvi", price: 600 },
       { ...p, id: p.id + "-unavailable", price: 1, available: false },
     ]);
@@ -261,7 +261,7 @@ test("automatic choices cannot bypass household exclusions through saved product
   provider.searchProducts = async (...args) =>
     (await search(...args)).flatMap((p) => [
       { ...p, id: "excluded", name: "Pirkka kahvi", price: 100 },
-      { ...p, id: "allowed", name: "Other coffee", price: 600 },
+      { ...p, id: "allowed", name: "Other kahvi", price: 600 },
     ]);
   service.state.productPreference = "storeBrand";
   service.state.household.exclusions = "pirkka";
@@ -309,4 +309,63 @@ test("a language change during transfer-history persistence retains both updates
   expect(service.state.language).toBe("en");
   expect(service.state.listHistory).toHaveLength(1);
   expect(await storage.get("state")).toEqual(service.state);
+});
+
+test("live stores choose the ingredient itself, not a cheaper compound, variant or ready meal", async () => {
+  const service = new Service(memory());
+  await service.init();
+  const context = {
+    providerId: "s-kaupat",
+    storeId: "631940293",
+    storeName: "S-market Herttoniemi",
+    fulfillment: "pickup" as const,
+  };
+  const names: Record<string, [string, number, number, "g" | "pcs"][]> = {
+    sipuli: [
+      ["Coop valkosipuli 100 g", 89, 100, "g"],
+      ["Kotimaista sipuli 500 g", 89, 500, "g"],
+    ],
+    jauheliha: [
+      ["Kotimaista kanan jauheliha 4% 400 g", 329, 400, "g"],
+      ["Kotimaista sika-nauta jauheliha 23 % 400 g", 385, 400, "g"],
+    ],
+    kananmuna: [["Kotimaista vapaan kanan munat M6 348 g", 175, 6, "pcs"]],
+  };
+  service.registry.register({
+    id: "s-kaupat",
+    capabilities: { catalogue: true, cart: true, orderHistory: false },
+    searchStores: async () => [context],
+    searchProducts: async (_c, _q, ingredientId) =>
+      names[ingredientId].map(([name, price, packAmount, unit], i) => ({
+        id: `${ingredientId}-${i}`,
+        providerId: "s-kaupat",
+        storeId: context.storeId,
+        ingredientId,
+        name,
+        packAmount,
+        unit,
+        price,
+        available: true,
+        deposit: 0,
+        nativeUnit: "kpl",
+        increment: 1,
+        observedAt: new Date().toISOString(),
+      })),
+    getCart: async () => ({ accountId: "s-kaupat:x", context, lines: [] }),
+    setQuantity: async () => {},
+  });
+  service.state.context = context;
+  service.state.meals = [];
+  service.state.staples = [];
+  service.state.extras = [
+    { id: "sipuli", name: "Sipuli", amount: 100, unit: "g" },
+    { id: "jauheliha", name: "Jauheliha", amount: 400, unit: "g" },
+    { id: "kananmuna", name: "Kananmuna", amount: 2, unit: "pcs" },
+  ];
+  await service.buildBasket();
+  expect(service.basket.map((l) => l.product?.name)).toEqual([
+    "Kotimaista sipuli 500 g",
+    "Kotimaista sika-nauta jauheliha 23 % 400 g",
+    "Kotimaista vapaan kanan munat M6 348 g",
+  ]);
 });

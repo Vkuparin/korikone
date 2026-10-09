@@ -37,6 +37,11 @@ export function packFromName(
   name: string,
 ): { amount: number; unit: Unit } | null {
   // A label is a suggestion only. The shopper explicitly confirms it when selecting.
+  // Egg packs carry a size class and count, such as "M10" or "M/L15", often next to grams.
+  const eggs = /muna|munia/i.test(name)
+    ? name.match(/(?:^|\s)(?:XS|S|M|L|XL)(?:\/(?:S|M|L|XL))?(\d{1,2})(?=\s|$)/)
+    : null;
+  if (eggs) return { amount: Number(eggs[1]), unit: "pcs" };
   const matches = [
     ...name.matchAll(
       /(?:^|\s)(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|dl|l|kpl)(?=\s|$)/gi,

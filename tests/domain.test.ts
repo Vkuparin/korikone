@@ -1,11 +1,17 @@
 import { describe, it, expect, test } from "vitest";
+import { packFromName } from "../src/stores/k-ruoka";
 import {
   initialState,
   parseAmount,
   stateSchema,
   type Journal,
 } from "../src/domain/model";
-import { requirements, match, exclusionTerms } from "../src/domain/planner";
+import {
+  requirements,
+  match,
+  exclusionTerms,
+  relevant,
+} from "../src/domain/planner";
 import { DemoProvider } from "../src/stores/demo";
 import {
   createReview,
@@ -285,4 +291,61 @@ test("profiles with earlier-week history remain compatible with shopping-list hi
   expect(restored.history[0].meals[0].recipeId).toBe("pasta");
   expect(restored.listHistory).toEqual([]);
   expect(restored.extras).toEqual([]);
+});
+test("treats compounds and ready meals as different products", () => {
+  expect(relevant("Coop valkosipuli 100 g", "Sipuli")).toBe(false);
+  expect(relevant("Santa Maria 33G Sitruunapippuri", "Mustapippuri")).toBe(
+    false,
+  );
+  expect(relevant("Santa Maria Jauhelihamauste 28g", "Jauheliha")).toBe(false);
+  expect(relevant("Kokkikartano Lihamakaronilaatikko 400g", "Makaroni")).toBe(
+    false,
+  );
+  expect(relevant("Rainbow keltasipuli 1 kg", "Keltasipuli")).toBe(true);
+  expect(relevant("Kotimaista kananmunat M10 630 g", "Kananmuna")).toBe(true);
+  expect(relevant("Myllyn Paras Makaroni 400g", "makaroni")).toBe(true);
+  expect(
+    relevant("Kotimaista kanan jauheliha 4% 400 g", "Naudan jauheliha"),
+  ).toBe(false);
+  expect(
+    relevant("Atria Sika-nauta jauheliha 23% 400g", "Sika-nauta jauheliha"),
+  ).toBe(true);
+});
+test("reads egg pack counts and plain-ingredient variants from live S-kaupat names", () => {
+  expect(packFromName("Kotimaista vapaan kanan munat M10")).toEqual({
+    amount: 10,
+    unit: "pcs",
+  });
+  expect(packFromName("Kultamuna vapaa kananmuna M/L15 945g")).toEqual({
+    amount: 15,
+    unit: "pcs",
+  });
+  expect(
+    packFromName("Kotimaista vapaan kanan munat omega-3 M6 348 g"),
+  ).toEqual({ amount: 6, unit: "pcs" });
+  expect(packFromName("Myllyn Paras Makaroni 400g")).toEqual({
+    amount: 400,
+    unit: "g",
+  });
+  expect(relevant("Kotimaista vapaan kanan munat M10", "Kananmuna")).toBe(true);
+  expect(
+    relevant("Coop Lasagne pasta, sisältää kananmunaa 500 g", "Kananmuna"),
+  ).toBe(true);
+  expect(relevant("Kotimaista sipuli 500 g", "Sipuli")).toBe(true);
+  expect(relevant("Kotimaista sipulimix 1 kg", "Sipuli")).toBe(false);
+  expect(relevant("Kotimaista kanan jauheliha 4% 400 g", "Jauheliha")).toBe(
+    false,
+  );
+  expect(relevant("Atria Nauta-Kana Jauheliha 10% 400g", "Jauheliha")).toBe(
+    false,
+  );
+  expect(
+    relevant("Kotimaista sika-nauta jauheliha 23 % 400 g", "Jauheliha"),
+  ).toBe(true);
+  expect(
+    relevant("Kotimaista kanan jauheliha 4% 400 g", "Kanan jauheliha"),
+  ).toBe(true);
+  expect(relevant("Meira Mustapippuri jauhettu 25g", "Mustapippuri")).toBe(
+    true,
+  );
 });

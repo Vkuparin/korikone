@@ -49,6 +49,55 @@ export function exclusionTerms(text: string): string[] {
     .map((t) => t.trim().toLocaleLowerCase("fi"))
     .filter((t) => t.length >= 3);
 }
+const words = (text: string) =>
+  text
+    .toLocaleLowerCase("fi")
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+/**
+ * Whether a product is the ingredient itself rather than a compound or ready meal
+ * that merely contains its name. Finnish compounds put the head word last, so
+ * "valkosipuli" is not "sipuli" and "jauhelihamauste" is not "jauheliha". Each
+ * word of the ingredient must begin a word of the product name, allowing only a
+ * short inflection ending such as "kananmunat" or "sipulit".
+ */
+// Variants a shopper would name explicitly; never chosen for a plain ingredient.
+const variants = [
+  "kana",
+  "kanan",
+  "broileri",
+  "broilerin",
+  "kalkkuna",
+  "kalkkunan",
+  "kasvis",
+  "herne",
+  "soija",
+  "nyhtökaura",
+];
+export function relevant(productName: string, ingredientName: string) {
+  const split = words(productName);
+  // Stores also write compounds apart: "kanan munat" for "kananmunat".
+  const name = [...split, ...split.slice(1).map((w, i) => split[i] + w)];
+  const wanted = words(ingredientName);
+  if (
+    split.some((w) => variants.includes(w) && !wanted.includes(w)) &&
+    !wanted.some((w) => variants.some((v) => w.startsWith(v)))
+  )
+    return false;
+  return (
+    wanted.length > 0 &&
+    wanted.every((w) =>
+      name.some((n) => {
+        if (n.startsWith(w)) return n.length - w.length <= 2;
+        // Stem change before an ending: kananmuna → kananmunia.
+        const stem = w.slice(0, -1);
+        return (
+          w.length >= 5 && n.startsWith(stem) && n.length - stem.length <= 3
+        );
+      }),
+    )
+  );
+}
 export function match(
   requirement: Requirement,
   products: Product[],
@@ -62,6 +111,12 @@ export function match(
   const candidates = matching.filter(
     (p) =>
       !exclusions.some((term) => p.name.toLocaleLowerCase("fi").includes(term)),
+  );
+  // Products that are the ingredient itself come first among the alternatives.
+  candidates.sort(
+    (a, b) =>
+      Number(relevant(b.name, requirement.name)) -
+      Number(relevant(a.name, requirement.name)),
   );
   const eligible = candidates.filter(
     (p) =>

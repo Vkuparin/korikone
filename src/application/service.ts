@@ -8,7 +8,12 @@ import {
   type Review,
   type StoreContext,
 } from "../domain/model";
-import { requirements, match, exclusionTerms } from "../domain/planner";
+import {
+  requirements,
+  match,
+  exclusionTerms,
+  relevant,
+} from "../domain/planner";
 import { ProviderRegistry, isLive } from "../stores/provider";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
@@ -218,14 +223,20 @@ export class Service {
       );
       const storeBrand = (name: string) =>
         /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
-      const preferred = available.filter((p) =>
+      // Automatic choice only among products that are the ingredient itself;
+      // the shopper can still accept any other candidate by hand.
+      // Demo catalogues match by ingredient ID only, so they skip this check.
+      const fitting = isLive(context.providerId)
+        ? available.filter((p) => relevant(p.name, requirement.name))
+        : available;
+      const preferred = fitting.filter((p) =>
         this.state.productPreference === "storeBrand"
           ? storeBrand(p.name)
           : this.state.productPreference === "avoidStoreBrand"
             ? !storeBrand(p.name)
             : true,
       );
-      const auto = (preferred.length ? preferred : available).map((p) => p.id);
+      const auto = (preferred.length ? preferred : fitting).map((p) => p.id);
       const selected = accepted.filter((id) =>
         available.some((p) => p.id === id),
       );
