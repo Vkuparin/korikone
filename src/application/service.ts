@@ -549,6 +549,17 @@ export class Service {
                 skipped: [...this.state.skipped],
                 removed: [...this.state.removed],
                 quantities: { ...this.state.quantities },
+                prices: Object.fromEntries(
+                  this.journal!.review.quotes.flatMap((line) =>
+                    line.product &&
+                    this.journal!.review.targets.some(
+                      (t) => t.productId === line.product!.id,
+                    ) &&
+                    line.product.price !== null
+                      ? [[line.product.id, line.product.price]]
+                      : [],
+                  ),
+                ),
               },
               ...this.state.listHistory.filter(
                 (h) => h.id !== this.journal!.review.id,

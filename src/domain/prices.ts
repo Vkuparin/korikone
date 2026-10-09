@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Product } from "./model";
+import type { BasketLine, Product } from "./model";
 
 /** One price seen at one store on one day. Kept outside AppState, under the `prices:` key prefix. */
 export const priceObservationSchema = z.object({
@@ -70,4 +70,32 @@ export function limitPrices(
   return kept.length > MAX_PRICE_ENTRIES
     ? kept.slice(kept.length - MAX_PRICE_ENTRIES)
     : kept;
+}
+
+export type PriceRise = {
+  productId: string;
+  name: string;
+  before: number;
+  now: number;
+};
+
+/** A rise over this share of the price paid at the last verified transfer is worth a look. */
+export const PRICE_RISE_LIMIT = 0.05;
+
+/**
+ * Products whose pack price is now more than 5 % above what the last verified transfer
+ * that included them paid. `history` is newest first. Falls and products never bought are left out.
+ */
+export function priceRises(
+  quotes: BasketLine[],
+  history: { prices: Record<string, number> }[],
+): PriceRise[] {
+  return quotes.flatMap((line) => {
+    const p = line.product;
+    if (!p || p.price === null) return [];
+    const before = history.find((h) => p.id in h.prices)?.prices[p.id];
+    return before !== undefined && p.price > before * (1 + PRICE_RISE_LIMIT)
+      ? [{ productId: p.id, name: p.name, before, now: p.price }]
+      : [];
+  });
 }

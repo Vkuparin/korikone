@@ -90,6 +90,10 @@ export const stateSchema = z
           quantities: z
             .record(z.string(), z.number().int().positive())
             .default({}),
+          // Pack price in cents of each product transferred, by product ID.
+          prices: z
+            .record(z.string(), z.number().int().nonnegative())
+            .default({}),
         }),
       )
       .max(52)

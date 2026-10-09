@@ -1,6 +1,8 @@
 import { test, expect } from "vitest";
 import { Service } from "../src/application/service";
 import { DemoProvider } from "../src/stores/demo";
+import { priceRises } from "../src/domain/prices";
+import { attention } from "../src/ui/confirm";
 import { diagnostics } from "../src/application/diagnostics";
 function memory() {
   const entries = new Map<string, unknown>();
@@ -378,4 +380,48 @@ test("live stores choose the ingredient itself, not a cheaper compound, variant 
     "Kotimaista sika-nauta jauheliha 23 % 400 g",
     "Kotimaista vapaan kanan munat M6 348 g",
   ]);
+});
+
+test("a verified transfer remembers what it paid, and only a rise of more than 5 % is reported", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  const [latest] = service.state.listHistory;
+  const paid = Object.entries(latest.prices);
+  expect(paid.length).toBe(
+    service.review ? 0 : service.basket.filter((l) => l.product).length,
+  );
+
+  const lines = service.basket.filter((l) => l.product);
+  const at = (price: number) =>
+    lines.map((l) => ({ ...l, product: { ...l.product!, price } }));
+  const [id, price] = paid[0];
+  const one = (p: number) => at(p).filter((l) => l.product!.id === id);
+  expect(priceRises(one(Math.floor(price * 1.05)), [latest])).toEqual([]);
+  expect(
+    priceRises(one(price + Math.ceil(price * 0.06)), [latest]),
+  ).toHaveLength(1);
+  // A fall is not a rise.
+  expect(priceRises(one(Math.floor(price * 0.5)), [latest])).toEqual([]);
+  // A product the history never included is left out; an empty history reports nothing.
+  expect(priceRises(one(price * 3), [{ prices: {} }])).toEqual([]);
+  expect(priceRises(one(price * 3), [])).toEqual([]);
+  // The newest transfer that included the product decides.
+  expect(
+    priceRises(one(price * 3), [{ prices: { [id]: price * 3 } }, latest]),
+  ).toEqual([]);
+
+  // The demo store's small price change (3 %) stays below the limit.
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  provider.priceChange = true;
+  await service.buildBasket();
+  await service.prepare();
+  const small = attention(service.review!, 100000, service.state.listHistory);
+  expect(small.risen).toEqual([]);
+  const big = attention(
+    { ...service.review!, quotes: at(price * 2) },
+    100000,
+    service.state.listHistory,
+  );
+  expect(big.risen.map((r) => r.productId)).toEqual([id]);
 });

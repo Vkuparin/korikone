@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Review } from "../domain/model";
 import { relevant } from "../domain/planner";
+import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { en, fi, unitLabel, type Key } from "./i18n";
 
@@ -13,7 +14,11 @@ const chainName = (review: Review) =>
       : review.context.storeName;
 
 /** Rows the shopper should look at before confirming; everything else is in "Show all rows". */
-export function attention(review: Review, budget: number) {
+export function attention(
+  review: Review,
+  budget: number,
+  history: { prices: Record<string, number> }[] = [],
+) {
   const cheaper = review.quotes.flatMap((line) => {
     if (!line.product || line.total === null) return [];
     const best = line.candidates
@@ -43,6 +48,7 @@ export function attention(review: Review, budget: number) {
     overBudget: Math.max(review.total - budget, 0),
     inCart: review.targets.filter((target) => target.before > 0),
     cheaper,
+    risen: priceRises(review.quotes, history),
   };
 }
 
@@ -77,13 +83,15 @@ export function ConfirmPanel({
   const [accepted, setAccepted] = useState(false);
   useEffect(() => setAccepted(false), [review?.id]);
   const section = useRef<HTMLElement>(null);
-  const items = review && attention(review, state.household.budget);
+  const items =
+    review && attention(review, state.household.budget, state.listHistory);
   const quiet =
     !!items &&
     !items.unresolved.length &&
     !items.overBudget &&
     !items.inCart.length &&
-    !items.cheaper.length;
+    !items.cheaper.length &&
+    !items.risen.length;
   useEffect(() => {
     section.current?.scrollIntoView({ block: "nearest" });
     if (quiet) confirm.current?.focus();
@@ -128,6 +136,12 @@ export function ConfirmPanel({
               <li key={`cart:${target.productId}`}>
                 {tr("Jo korissa:", "Already in the cart:")} {target.name}{" "}
                 {target.before} → {target.quantity} {u(target.unit)}
+              </li>
+            ))}
+            {items.risen.map((rise) => (
+              <li key={`rise:${rise.productId}`}>
+                {tr("Hinta noussut:", "Price rose:")} {rise.name}{" "}
+                {money(rise.before)} → {money(rise.now)}
               </li>
             ))}
             {items.cheaper.map(({ line, product, saving }) => (

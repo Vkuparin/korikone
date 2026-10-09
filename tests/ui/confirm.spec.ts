@@ -97,6 +97,29 @@ test("the transfer is confirmed and reported in the list column", async () => {
     ).toBeVisible();
     await result.getByRole("button", { name: "Sulje" }).click();
     await expect(result).toHaveCount(0);
+
+    // The store raises its prices after that purchase: the next confirmation names the rise.
+    await page.evaluate(async () => {
+      await window.korikone.scenario("price");
+      await window.korikone.buildBasket();
+    });
+    await page.reload();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    await expect(panel).toContainText(
+      "Hinta noussut: Myllyn Paras Makaroni 400g",
+    );
+    await expect(panel).toContainText("0,65 € → 0,85 €");
+    // Falling back to the earlier prices is not a rise.
+    await panel.getByRole("button", { name: "Peru" }).click();
+    await page.evaluate(async () => {
+      await window.korikone.scenario("price");
+      await window.korikone.buildBasket();
+    });
+    await page.reload();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    await expect(panel).not.toContainText("Hinta noussut");
   } finally {
     await app.close();
   }
