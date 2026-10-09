@@ -1,6 +1,6 @@
 # Korikone 0.4.0 release candidate
 
-Prepared on 9 October 2026 from implementation commit `af18a6d`, including the U12/U13 work in `9d5bbb4` and earlier transfer/model changes. This is an unsigned Windows x64 pre-release candidate. Publication waits for the remaining U10 and U11 live owner observations recorded in [acceptance.md](acceptance.md).
+Prepared on 9 October 2026 from implementation commit `af18a6d`, including the U12/U13 work in `9d5bbb4` and earlier transfer/model changes. This unsigned Windows x64 candidate is ready for publication as a pre-release. U10 and U11 live acceptance passed and is recorded in [acceptance.md](acceptance.md).
 
 ## Changes
 
@@ -24,16 +24,16 @@ Installer SHA-256: `813833a28364b95ebef83857a27e2abb3b19fa319e0236500046a9c734e4
 
 The executable reports Korikone 0.4.0 and includes K-Ruoka worker 0.1.3 and S-kaupat worker 1.2.0, each prepared from checksum-pinned files. The installer is unsigned and uses the existing application icon.
 
-## Remaining acceptance
+## Owner acceptance and limitations
 
 The first owner fixture walkthrough found unclear development-mode opening feedback. The rebuilt candidate explains that no real retailer window opens and displays a count of tested openings. It also includes the model-menu style requested during that walkthrough. Both affected packaged checks passed, and the candidate was reopened with the same isolated acceptance profile.
 
-For U10, transfer a small displayed batch to each chain, compare the resulting quantities, check automatic opening, reopen without adding products, and verify manual checkout. This changes retailer baskets/lists and needs no ChatGPT generations.
+For U10, the final packaged app transferred one 500 g coffee pack from quantity 0 to 1 at each chain. Readback verified both transfers. The owner confirmed that both destinations opened signed in with the expected coffee. Reopening and repeating the action preserved quantity 1; K-Ruoka's repeat also passed after restart. Checkout remained manual, with no order or payment.
 
-For U11, find and change both model selectors, restart, then validate Automatic and an explicit choice. Live validation requires two successful ChatGPT generations, with at most one corrective validation retry per request. The [testing checklist](testing.md#one-action-transfer-and-model-checks-040) also describes fixture-only observation.
+For U11, the owner accepted shared selection and the rounded menus. Live Automatic used `gpt-6-luna`; the explicit request used `gpt-5.6-luna`. Both returned validated drafts without changing the saved plan, and the explicit choice survived restart. Exactly two requests completed, with zero corrective retries. The original plan and Automatic preference were restored and verified after restart; both retailer store entries were retained. Coffee remains in the retailer destinations at quantity 1.
 
-The owner reported on 9 October 2026 that signing is unavailable. This candidate will remain unsigned; signing is not a v0.4.0 gate. Clean-account installation, upgrade over existing data, uninstall, varied real receipts and K-Ruoka browser account continuity remain the earlier acceptance gates. Packaged executable checks do not establish installer acceptance. Scanned receipts still require OCR outside Korikone; catalogue matching and weighted pricing require shopper review.
+The owner reported on 9 October 2026 that signing is unavailable. This candidate will remain unsigned; signing is not a v0.4.0 gate. Clean-account installation, upgrade over existing data, uninstall, varied real receipts and broader household use remain stable-release gates. Packaged executable checks do not establish installer acceptance. Scanned receipts still require OCR outside Korikone; catalogue matching and weighted pricing require shopper review.
 
 ## Publication
 
-After owner acceptance, commit its evidence, rerun checks affected by any fixes, and rebuild if application code changes. Publish a GitHub pre-release tagged `v0.4.0` with the installer and checksum, using these notes. Keep the stable-release gates in [pre-release.md](pre-release.md) open until observed. This preparation does not create a tag or publish a release.
+Owner acceptance is recorded and no application code changed during the live checks, so the tested installer and checksum remain valid. Publish a GitHub pre-release tagged `v0.4.0` from this candidate's source with the installer and checksum, using these notes. Keep the stable-release gates in [pre-release.md](pre-release.md) open until observed. This preparation does not create a tag or publish a release. The checkout has diverged from `origin/main`, which contains separate later-roadmap work; merging that work would require a new build and release checks.
