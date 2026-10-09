@@ -33,21 +33,17 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
     const list = page.getByRole("complementary");
-    // Rows without a product are resolved from their details.
-    const needing = list.locator(".grocery-row", {
-      hasText: "Needs a product",
-    });
-    for (let i = 0; i < 6 && (await needing.count()); i++) {
-      const count = await needing.count();
-      const row = needing.first();
-      await row.locator(".row-name").click();
-      await row
-        .getByRole("button", { name: /^Choose this product: / })
-        .and(page.locator(":enabled"))
-        .first()
-        .click();
-      await expect(needing).toHaveCount(count - 1);
-    }
+    // The meals render before pricing finishes. Wait for all quoted rows rather
+    // than treating transient "Needs a product" labels as manual choices.
+    await expect(list.locator(".grocery-row")).toHaveCount(6);
+    await expect(list.locator(".grocery-row .row-name")).toHaveCount(6);
+    await expect(
+      list.locator(".grocery-row", { hasText: "Needs a product" }),
+    ).toHaveCount(0);
+    // The unavailable 1 kg carrot pack must use the available alternative.
+    await expect(
+      list.getByRole("button", { name: "Porkkana 500 g", exact: true }),
+    ).toBeVisible();
     await list.getByText("Demo", { exact: true }).click();
     await list
       .getByRole("button", { name: "Demo: interrupt next transfer" })
