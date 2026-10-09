@@ -5,6 +5,7 @@ import { requirements } from "../domain/planner";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
+import { isLive } from "../stores/provider";
 import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
 
 export function ShoppingWorkspace({
@@ -1157,6 +1158,28 @@ export function ShoppingWorkspace({
               "Check the fee and any unreported deposits at the store.",
             )}
           </small>
+          {!isLive(state.context.providerId) && (
+            <details className="demo-controls">
+              <summary>{tr("Esimerkki", "Demo")}</summary>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("scenario", "interrupt")}
+              >
+                {tr(
+                  "Esimerkki: keskeytä seuraava siirto",
+                  "Demo: interrupt next transfer",
+                )}
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("scenario", "price")}
+              >
+                {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
+              </button>
+            </details>
+          )}
         </div>
         {/* Stays at the bottom of the list column while the rows scroll. */}
         <div
@@ -1173,6 +1196,14 @@ export function ShoppingWorkspace({
               onClose={() => setConfirming(false)}
               onRecover={() => void call("recover")}
             />
+          )}
+          {!confirming && snapshot.journal?.status === "partial" && (
+            <p className="warning" role="status">
+              {tr("Edellinen siirto keskeytyi.", "The last transfer stopped.")}{" "}
+              <button className="text" onClick={() => setConfirming(true)}>
+                {tr("Tarkista", "Check it")}
+              </button>
+            </p>
           )}
           <div className="total-line">
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>

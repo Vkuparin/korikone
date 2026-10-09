@@ -4,7 +4,7 @@ Revised 9 October 2026. Follow the first-round refined feedback and redesign PDF
 
 ## Navigation and first use
 
-Use a left rail: Ostoslista, Viikkosuunnitelma, Reseptit, Vakiotuotteet, Historia, Ostoskori and Asetukset. Keep Finnish/English switching available. Use the native Windows title-bar overlay. Keep the existing optional store/ChatGPT setup and a working manual path.
+Use a left rail: Ostoslista, Viikkosuunnitelma, Reseptit, Vakiotuotteet, Historia and Asetukset. There is no separate basket page: product details open from a list row, and the transfer is confirmed in the list column. Keep Finnish/English switching available. Use the native Windows title-bar overlay. Keep the existing optional store/ChatGPT setup and a working manual path.
 
 The everyday entry is the shopping list. Avoid a large hero, photo or weekday-entry grid. An empty note has starter ideas in one place. An empty list explains that groceries and their meal sources will appear there. Show only real local history and recurring items, never the mockup's invented weeks, prices or user name.
 

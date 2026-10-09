@@ -1095,3 +1095,11 @@ body:has(.app-main) > #root > .progress {
   padding: 4px 8px;
   font-size: 10px;
 }
+.demo-controls {
+  font-size: 11px;
+}
+.demo-controls button {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+}
