@@ -288,6 +288,7 @@ else
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) {
+          await service.fixtureLogin(chain, true);
           service.storeLogins[chain] = "signedIn";
           return service.snapshot();
         }
@@ -304,7 +305,13 @@ else
       checkStoreLogin: async (input) => {
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
-        if (development) return service.snapshot();
+        if (development) {
+          if (service.storeLogins[chain] !== "waiting")
+            service.storeLogins[chain] = (await service.fixtureLogin(chain))
+              ? "signedIn"
+              : "notStarted";
+          return service.snapshot();
+        }
         if (chain === "s-kaupat") {
           if (!sLogin)
             service.storeLogins["s-kaupat"] = (await sSession.signedIn())
@@ -347,6 +354,7 @@ else
       logoutStore: async (input) => {
         const chain = chainOf(input);
         if (development) {
+          await service.fixtureLogin(chain, false);
           service.storeLogins[chain] = "notStarted";
           return service.snapshot();
         }

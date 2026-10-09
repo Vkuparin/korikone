@@ -74,6 +74,19 @@ export class Service {
     );
     return result;
   }
+  /**
+   * Development mode stands in for the stores' saved logins: a fixture sign-in is kept in the
+   * profile, so a restart behaves like the real stores, which stay signed in between launches.
+   */
+  async fixtureLogin(chain: string, signedIn?: boolean) {
+    const saved = ((await this.db.get("fixtureLogins")) ?? {}) as Record<
+      string,
+      boolean
+    >;
+    if (signedIn !== undefined)
+      await this.db.set("fixtureLogins", { ...saved, [chain]: signedIn });
+    return signedIn ?? !!saved[chain];
+  }
   async setLanguage(input: unknown) {
     const language = z.enum(["fi", "en"]).parse(input);
     return this.writeState(async () => {

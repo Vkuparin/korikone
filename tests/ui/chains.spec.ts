@@ -12,7 +12,7 @@ test("both chains stay signed in and switching keeps each chain's store", async 
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-chains-"));
-  const app = await electron.launch({ args: ["."], env });
+  let app = await electron.launch({ args: ["."], env });
   try {
     const page = await app.firstWindow();
     await page
@@ -63,6 +63,18 @@ test("both chains stay signed in and switching keeps each chain's store", async 
     );
     await expect(sKaupat).toContainText("S-kaupat · Helsinki (fixture)");
     await expect(sKaupat.getByRole("status")).toHaveText("Kirjautunut");
+
+    // Saved logins are found again after a restart, without pressing the check button.
+    await app.close();
+    app = await electron.launch({ args: ["."], env });
+    const restarted = await app.firstWindow();
+    await restarted
+      .getByRole("button", { name: "Asetukset", exact: true })
+      .click();
+    for (const name of ["K-Ruoka", "S-kaupat"])
+      await expect(
+        restarted.getByRole("listitem", { name }).getByRole("status"),
+      ).toHaveText("Kirjautunut");
   } finally {
     await app.close();
   }

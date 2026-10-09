@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
 import {
@@ -13,7 +13,7 @@ import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { Chains } from "./chains";
-import { isLive } from "../stores/provider";
+import { isLive, liveProviders } from "../stores/provider";
 declare global {
   interface Window {
     korikone: Record<
@@ -42,6 +42,7 @@ function App() {
     draft: null,
   });
   const [page, setPage] = useState<Key>("week");
+  const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -109,6 +110,31 @@ function App() {
     }, 1500);
     return () => clearInterval(timer);
   }, [snapshot.ai.state]);
+  // Sign-in state lives only in the main process's memory, so after a launch, and when
+  // Asetukset opens, ask each chain with a chosen store whether its saved login still holds.
+  useEffect(() => {
+    if (!loaded) return;
+    if (page !== "settings" && checkedLogins.current) return;
+    checkedLogins.current = true;
+    const chains = liveProviders.filter(
+      (id) =>
+        (state.stores[id] || state.context.providerId === id) &&
+        snapshot.storeLogins[id] !== "waiting",
+    );
+    void (async () => {
+      for (const id of chains) {
+        const result = await window.korikone
+          .checkStoreLogin(id)
+          .catch(() => null);
+        if (result?.ok)
+          setSnapshot((current) => ({
+            ...current,
+            storeLogin: result.value.storeLogin,
+            storeLogins: result.value.storeLogins,
+          }));
+      }
+    })();
+  }, [loaded, page]);
   // Either chain may be waiting for its login window, not only the active one.
   const waitingChain =
     snapshot.storeLogin === "waiting"
