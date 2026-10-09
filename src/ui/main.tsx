@@ -75,6 +75,12 @@ function App() {
       if (!result.ok) throw new Error(result.error);
       if (method === "setDevelopmentMode")
         sessionStorage.removeItem("shopping-note");
+      // A store whose sign-in happens in its own tab: show that tab.
+      const openStore = (result.value as { openStore?: Chain }).openStore;
+      if (openStore) {
+        setStoreChain(openStore);
+        setPage("store");
+      }
       setSnapshot((current) => {
         // Language changes run beside queued operations. Their older snapshots
         // must not undo the latest selection in the renderer.

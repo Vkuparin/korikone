@@ -77,9 +77,9 @@ else
       join(app.getPath("userData"), "retailers/k-ruoka/profile"),
       findChrome(),
     );
-    // KORIKONE_K_RUOKA=site uses Korikone's own client through the K-Ruoka store tab's session
-    // (U3.7) instead of the worker's Chrome. The worker stays the default until the owner checks it.
-    const kRuokaViaSite = process.env.KORIKONE_K_RUOKA === "site";
+    // Korikone's own client through the K-Ruoka store tab's session (U3.7), checked live by the
+    // owner on 9 October 2026. KORIKONE_K_RUOKA=worker goes back to the pinned worker's Chrome.
+    const kRuokaViaSite = process.env.KORIKONE_K_RUOKA !== "worker";
     const kRuokaSite = new KRuokaSite(
       (request) =>
         stores.evaluate(
@@ -334,9 +334,9 @@ else
           return service.snapshot();
         }
         if (kRuokaViaSite) {
-          // Sign-in happens in the Kauppa tab; Asetukset checks it afterwards.
+          // Sign-in happens in the Kauppa tab; Asetukset checks it when it is opened again.
           await stores.open("k-ruoka", "login");
-          return service.snapshot();
+          return { ...service.snapshot(), openStore: "k-ruoka" };
         }
         const result = z
           .object({ state: z.string() })

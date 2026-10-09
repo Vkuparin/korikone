@@ -35,7 +35,7 @@ Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and c
 
 Use **Settings > Development mode** for development and testing. It replaces ChatGPT and both retailer connections with local fixtures and saves planning data and transfer journals in a separate profile. The banner identifies the active mode. Switching back restores your live profile. Fixture sign-in never opens a browser or uses ChatGPT allowance.
 
-For a forced development launch, set `KORIKONE_DEVELOPMENT=1` before `npm start`. `KORIKONE_DATA_DIR` selects an optional separate user-data directory. Automated Electron tests use a temporary `KORIKONE_TEST_DATA` directory, which forces development mode and rejects attempts to disable it. The setting is stored locally and is not changed by backup imports.
+For a forced development launch, set `KORIKONE_DEVELOPMENT=1` before `npm start`. `KORIKONE_DATA_DIR` selects an optional separate user-data directory. `KORIKONE_K_RUOKA=worker` uses the pinned k-ruoka-mcp worker instead of the K-Ruoka store tab. Automated Electron tests use a temporary `KORIKONE_TEST_DATA` directory, which forces development mode and rejects attempts to disable it. The setting is stored locally and is not changed by backup imports.
 
 AI fixtures recognize pasta, soup/keitto, porridge/puuro, coffee/kahvi and frozen pizza/pakastepizza. Other notes return a pasta example; fixtures do not provide general language understanding. Settings includes success, delayed success, invalid JSON (once or always), usage-limit, incomplete-response and AI-failure scenarios. The basket's demo controls exercise price changes and interrupted transfers. Receipt parsing, file exports, backups, diagnostics and clipboard actions stay local and use the real app code.
 
