@@ -6,7 +6,7 @@ The current source includes explicitly requested note interpretation, automatic 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The published v0.4.0 pre-release is recorded in the roadmap; this source prepares **0.5.0**. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.5.0 candidate checks](docs/release-0.5.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.5.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.5.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.5.0 verification](docs/release-0.5.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -55,11 +55,12 @@ npm run package
 ## Current status and limits
 
 - Korikone is an alpha pre-release for early testing. Remaining release gates are listed in [acceptance](docs/acceptance.md).
-- The owner confirmed earlier K-Ruoka catalogue, sign-in and small-cart transfers. Final acceptance of the integrated v0.5.0 candidate remains pending.
-- S-kaupat has no online cart that apps can fill. Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks. Earlier live login, list transfers and authenticated handoff were accepted by the owner on 9 October 2026. The integrated candidate still needs its final owner check. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
+- Authorized live checks confirmed both embedded sessions after restart, small transfers and duplicate-safe reopening. They used zero ChatGPT requests. Fresh sign-in and expiry have fixture coverage and earlier owner observations.
+- Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks, and live acceptance confirmed the account list and retained quantities after restart. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
 - Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
-- ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. The owner confirmed sign-in and a meal draft. Automatic model selection has offline coverage; its live check remains outstanding. The app retains one registration per app profile. Manual planning works without it.
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Final candidate owner checks are listed in [v0.5.0 acceptance](docs/release-0.5.0.md).
+- ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
+- Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Complete price handling remains in v0.6.0.
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.5.0 acceptance](docs/release-0.5.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

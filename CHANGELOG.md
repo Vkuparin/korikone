@@ -1,11 +1,12 @@
 # Release notes
 
-## 0.5.0 — release candidate, 9 October 2026
+## 0.5.0 — pre-release, 10 October 2026
 
 - Integrate the published v0.4.0 explicit-update, retained-price and one-approval transfer flow with embedded K-Ruoka and S-kaupat tabs. Verified transfers open the selected basket or account list automatically; reopening does not add products again.
 - Keep one persistent session per chain. Setup connects one store on one screen; a hint under the total leads to Settings for the second chain.
 - Use the released s-kaupat-mcp v1.3.0 library for requests, session handling, renewal and errors. Retain version, tool and schema checks, private host transport and disabled ordering/payment tools.
-- Retailer pages run sandboxed without access to Korikone or Node. Popups stay in the same tab; navigation outside the retailer and payment domains asks first. An explicit browser fallback remains available.
+- Retailer pages run sandboxed without access to Korikone or Node. Popups stay in the same tab; top-level navigation outside the retailer and payment domains asks first. Embedded-frame redirects stay in their frames. An explicit browser fallback remains available.
+- K-Ruoka handoff selects the reviewed store and opens its basket together. It rejects missing or mismatched store metadata before navigation.
 - Settings has store search for each chain, and saved sessions are checked at launch and when Settings opens. Development mode can reopen setup without clearing its isolated profile.
 - Reject K-Ruoka account or quantity changes at the final write boundary.
 - Exercise real local sign-in forms, rejection, expiry, restart and both complete setup-to-destination journeys with deterministic development fixtures.

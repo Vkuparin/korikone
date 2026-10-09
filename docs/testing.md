@@ -12,6 +12,10 @@ The v0.5.0 embedded sign-in fixtures use real local HTTP forms and cookies in ea
 
 `tests/s-kaupat-library.test.ts` exercises the released library with deterministic data. `tests/s-kaupat-tab.test.ts` runs the same mocked host-session contract against library and worker. K-Ruoka site tests also reject account or quantity changes between review and the final write boundary.
 
+The store desktop test sends both main-frame and embedded-frame redirect events through the real store view: embedded advertising redirects leave the store page alone, while unknown top-level redirects remain refused in development mode. K-Ruoka request fixtures cover the native store-slug/basket URL, a mismatched store ID, an unavailable endpoint and missing or invalid slugs. Opening failures preserve the verified transfer and its open-only retry.
+
+Packaged shopping tests wait for the fixture window to load, then show it before capturing screenshots. Hidden packaged Windows windows can complete application assertions while screenshot capture times out. The visible window still uses isolated `KORIKONE_TEST_DATA` and development fixtures. The affected handoff assertion allows 15 seconds for the store tab to open on CI.
+
 | Feature | Fixture checks |
 | --- | --- |
 | Onboarding, store selection, AI sign-in and settings | `tests/ui/setup.spec.ts`, `tests/ui/development.spec.ts` |
