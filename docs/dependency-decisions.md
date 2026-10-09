@@ -12,6 +12,8 @@ Fixture tests exercise the library's reviewed transfer and the same host-session
 
 ## K-Ruoka
 
+The default in v0.5.0 is the embedded site client described below. The pinned binary and its separate browser profile remain available only through `KORIKONE_K_RUOKA=worker`. The worker evidence in this section is retained for that fallback.
+
 Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`, source revision `558a22e526057f35c7804081a77c19659cc3e671`.
 
 - Release wheel SHA-256: `2bda8fd257286da6554b65375d0fa878211ffc8b48f13e5c6d2d1365276c09db`.
@@ -30,7 +32,7 @@ Decision for U3.7 (U3.2 spike, 9 October 2026): replace the worker with a Koriko
 - k-ruoka-mcp is a third-party Rust binary that launches and drives its own Chrome over the DevTools protocol. A host-page mode would need an upstream change and either an open debugging port in Korikone or a new bridge protocol.
 - The client returns the same tool-shaped results, so `KRuokaProvider` and its review binding stay unchanged.
 - It must keep the worker's safeguards: the build-number header with a retry on 409, at least 500 ms between calls, a null account treated as signed out, item IDs validated before a write, and rollback of an unknown EAN.
-- The owner checked one cart write from the view on 9 October 2026, and the client became the default. The worker stays pinned behind `KORIKONE_K_RUOKA=worker` until U3.5 removes its login window. The client (`src/stores/k-ruoka-site.ts`) passes `tests/k-ruoka-site.test.ts` against anonymised responses captured from the site (`tests/fixtures/k-ruoka/`). The cart write format (a JSON array of events to `PATCH /kr-api/basket/by-id/{basketId}`: `ADD-ITEM` with `item: {ean, allowSubstitutes, amountInfo}`, `SET-ITEM-AMOUNT` with `itemId` and `value: {amount, unit}`) was read from the site's own code, not yet sent. The client builds only those two events and adds only EANs returned by a search in the same session.
+- The owner checked one cart write from the view on 9 October 2026, and the client became the default. The worker stays pinned behind `KORIKONE_K_RUOKA=worker` as an explicit fallback. The client (`src/stores/k-ruoka-site.ts`) passes `tests/k-ruoka-site.test.ts` against anonymised responses captured from the site (`tests/fixtures/k-ruoka/`). The cart write format (a JSON array of events to `PATCH /kr-api/basket/by-id/{basketId}`: `ADD-ITEM` with `item: {ean, allowSubstitutes, amountInfo}`, `SET-ITEM-AMOUNT` with `itemId` and `value: {amount, unit}`) was read from the site's own code and exercised in the earlier owner check. The client builds only those two events and adds only EANs returned by a search in the same session.
 
 ## S-kaupat
 

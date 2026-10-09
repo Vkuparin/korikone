@@ -17,7 +17,9 @@ The candidate is an unsigned Windows x64 NSIS installer. Export a backup in Sett
 
 ## Verification
 
-All 160 unit tests and the production build pass. Full desktop tests, formatting and packaged-app checks are in progress. Tests use local fixtures and isolated development data; they make no live ChatGPT or retailer requests.
+All 162 unit tests, all 38 source desktop tests, the production build and formatting pass. All 18 packaged checks pass, followed by the affected second-chain hint/restart check on the final rebuilt installer. The first full desktop run exposed a stale-result reload bug and an assertion for the former navigation; both are fixed and the final full rerun passes. Tests use local fixtures and isolated development data; they make no live ChatGPT or retailer requests. The production npm audit reports no vulnerabilities.
+
+Installer: `release/Korikone-0.5.0-x64-setup.exe`. SHA-256: `860a54f3fae528401c8e0917f470ba1e4f1ad8563512b45a824cd3635a305746`. The checksum file is `release/SHA256SUMS-0.5.0.txt`. Archive inspection confirms the shared library v1.3.0 runtime and Apache license are included.
 
 ## Final owner check
 
