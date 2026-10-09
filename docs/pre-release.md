@@ -23,6 +23,6 @@ The 0.4.0 candidate includes the accepted smooth-flow roadmap work: U1, U2, U7, 
 - Observe a small K-Ruoka cart transfer and confirm the checkout browser shows the same cart.
 - Test a clean Windows install, an upgrade with existing data, and uninstall behavior. A packaged executable smoke test does not establish installer acceptance.
 - Observe real multi-dish notes, varied receipts and household use without coaching.
-- Decide on signing and verify the distribution process before broad release.
+- Signing is unavailable, as reported by the owner on 9 October 2026. v0.4.0 will remain unsigned. Revisit signing and verify the distribution process before broad release.
 
 Checkout and payment remain manual. Scanned receipts require OCR outside Korikone. Phone sync, an embedded retailer browser, automatic OCR and broader purchase-learning features stay deferred. Detailed evidence is in [acceptance.md](acceptance.md).

@@ -1,6 +1,6 @@
 # Korikone 0.4.0 release candidate
 
-Prepared on 9 October 2026 from implementation commit `48d594c`. This is an unsigned Windows x64 pre-release candidate. Publication waits for the U10 and U11 owner observations recorded in [acceptance.md](acceptance.md).
+Prepared on 9 October 2026 from implementation commits `48d594c` and `64ea745`. This is an unsigned Windows x64 pre-release candidate. Publication waits for the U10 and U11 owner observations recorded in [acceptance.md](acceptance.md), and the newly added U12/U13 roadmap work.
 
 ## Changes
 
@@ -16,9 +16,9 @@ The candidate installer is `release/v0.4.0/Korikone-0.4.0-x64-setup.exe`, with `
 
 ## Verification
 
-The build, formatting check, all 124 unit tests and all 29 source desktop tests passed. All eight final packaged checks passed: backup/model restore, exception cancellation and one-action transfer, real fixture IPC through both chains, development-profile isolation, interrupted-transfer recovery/restart, keyboard model selectors and persistence, PDF receipt import/failure, and open-only handoff retry. All automated Electron checks use temporary development-mode profiles and local fixtures. They do not use live ChatGPT generations or retailer accounts.
+The build, formatting check, all 124 unit tests and all 30 source desktop tests passed. All nine final packaged checks passed: backup/model restore, exception cancellation and one-action transfer, real fixture IPC through both chains, development-profile isolation, interrupted-transfer recovery/restart, keyboard model selectors and persistence, PDF receipt import/failure, open-only handoff retry, and cancellation during both model catalogue lookups for note and recipe requests. The 20 focused AI/model/development unit tests also passed after the final cancellation changes. All automated Electron checks use temporary development-mode profiles and local fixtures. They do not use live ChatGPT generations or retailer accounts.
 
-Installer SHA-256: `585b5b496ca03767583497f132e54818800f582161e69e87c59f19bb06a2cc2d`.
+Installer SHA-256: `b6cf87a7bdb25fa0fc5cf1278217ff87de25566050a6575c076dc2ddf1dfdfb5`.
 
 The executable reports Korikone 0.4.0 and includes K-Ruoka worker 0.1.3 and S-kaupat worker 1.2.0, each prepared from checksum-pinned files. The installer is unsigned and uses the existing application icon.
 
@@ -28,7 +28,7 @@ For U10, transfer a small displayed batch to each chain, compare the resulting q
 
 For U11, find and change both model selectors, restart, then validate Automatic and an explicit choice. Live validation requires two successful ChatGPT generations, with at most one corrective validation retry per request. The [testing checklist](testing.md#one-action-transfer-and-model-checks-040) also describes fixture-only observation.
 
-Clean-account installation, upgrade over existing data, uninstall, varied real receipts, K-Ruoka browser account continuity and signing remain the earlier acceptance gates. Packaged executable checks do not establish installer acceptance. Scanned receipts still require OCR outside Korikone; catalogue matching and weighted pricing require shopper review.
+The owner reported on 9 October 2026 that signing is unavailable. This candidate will remain unsigned; signing is not a v0.4.0 gate. Clean-account installation, upgrade over existing data, uninstall, varied real receipts and K-Ruoka browser account continuity remain the earlier acceptance gates. Packaged executable checks do not establish installer acceptance. Scanned receipts still require OCR outside Korikone; catalogue matching and weighted pricing require shopper review.
 
 ## Publication
 
