@@ -223,7 +223,7 @@ Today the schedule is a suggestion that is not saved. After F9, meals sit on day
 
 | ID | Task, and done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| F9.1 | A `calendar` field in `stateSchema` (`src/domain/model.ts`): date (ISO) to a list of meal IDs plus a leftovers flag, with a schema default of empty so older profiles and backups load. Done when `tests/persistence.test.ts` loads an older profile and round-trips a backup with a calendar | Simple | | Planned |
+| F9.1 | A `calendar` field in `stateSchema` (`src/domain/model.ts`): date (ISO) to a list of meal IDs plus a leftovers flag, with a schema default of empty so older profiles and backups load. Done when `tests/persistence.test.ts` loads an older profile and round-trips a backup with a calendar | Simple | | In progress (Roadmap coder, Sonnet) |
 | F9.2 | Viikkosuunnitelma shows 7 days from today with the cooked meals on the list. Meals move by drag and drop and by keyboard (focus a meal, arrow keys change the day). A day can be marked "Tähteitä". Done when a desktop test moves a meal by both methods, restarts the app, and checks the shopping list total is unchanged | Strong | F9.1 | Planned |
 | F9.3 | "Kopioi viikko" puts a plain-text week (day name, date, meals) on the clipboard, using the existing clipboard path. Done when a desktop test checks the text in Finnish and English | Simple | F9.2 | Planned |
 
