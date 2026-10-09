@@ -201,3 +201,36 @@ test("a profile saved before pack sizes existed still loads, and confirmed sizes
     await database.close();
   }
 }, 30000);
+
+test("a profile saved before the calendar existed loads, and a calendar survives a backup", async () => {
+  const { calendar: _omitted, ...older } = initialState();
+  expect(stateSchema.parse(older).calendar).toEqual({});
+  expect(() =>
+    stateSchema.parse({
+      ...older,
+      calendar: { tomorrow: { mealIds: [], leftovers: false } },
+    }),
+  ).toThrow();
+  const directory = await mkdtemp(join(tmpdir(), "korikone-calendar-"));
+  const database = new Database(join(directory, "saved.sqlite"), workerURL);
+  try {
+    const service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    const calendar = {
+      "2026-10-12": { mealIds: ["a", "b"], leftovers: false },
+      "2026-10-13": { mealIds: [], leftovers: true },
+    };
+    await service.save({ ...service.state, calendar });
+    const backup = JSON.parse(JSON.stringify(await service.exportBackup()));
+    expect(backup.calendar).toEqual(calendar);
+    await service.save({ ...service.state, calendar: {} });
+    await service.importBackup(backup);
+    expect(service.state.calendar).toEqual(calendar);
+    const restored = new Service(database);
+    await restored.init();
+    expect(restored.state.calendar).toEqual(calendar);
+  } finally {
+    await database.close();
+  }
+}, 30000);

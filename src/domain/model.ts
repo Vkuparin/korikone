@@ -62,6 +62,17 @@ export const stateSchema = z
     quantities: z
       .record(z.string(), z.number().int().positive().max(10_000_000))
       .default({}),
+    // The week plan by calendar date (YYYY-MM-DD): the meals cooked that day and whether it is a leftovers day.
+    calendar: z
+      .record(
+        z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        z.object({
+          mealIds: z.array(z.string()).max(20),
+          leftovers: z.boolean(),
+        }),
+      )
+      .refine((days) => Object.keys(days).length <= 400)
+      .default({}),
     // Pack sizes the shopper confirmed for products whose label the store does not state, by product ID.
     packSizes: z
       .record(
