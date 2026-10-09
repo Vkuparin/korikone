@@ -27,6 +27,11 @@ const PATHS: Record<Chain, Record<StorePage, string>> = {
   "s-kaupat": { home: "/", cart: "/ostoslistat", login: "/" },
   "k-ruoka": { home: "/", cart: "/kauppa/ostoskori", login: "/" },
 };
+/** The page the hidden background page loads: it must run the site's own start-up code. */
+const BACKGROUND_PATH: Record<Chain, string> = {
+  "s-kaupat": "/",
+  "k-ruoka": "/kauppa",
+};
 /** Payment providers and banks a checkout may redirect to; they open without asking. */
 const PAYMENT_DOMAINS = [
   "paytrail.com",
@@ -211,33 +216,79 @@ export class StoreViews {
     }
   }
 
-  /** Development mode switched: the tabs belong to the other set of sessions now. */
   /**
    * Runs a script in a hidden page of the chain's site, in the same session as its tab, so
    * Korikone's own calls carry the sign-in the shopper made there. Live mode only.
    */
   async evaluate(chain: Chain, script: string): Promise<unknown> {
     if (this.development()) throw new Error("developmentRequired");
-    const home = `${SITES[chain].origin}/kauppa`;
-    this.backgrounds.get(chain) ??
-      this.backgrounds.set(
-        chain,
-        new WebContentsView({
-          webPreferences: {
-            session: session.fromPartition(`persist:${chain}`),
-            nodeIntegration: false,
-            contextIsolation: true,
-            sandbox: true,
-          },
-        }),
-      );
-    const contents = this.backgrounds.get(chain)!.webContents;
-    contents.setWindowOpenHandler(() => ({ action: "deny" }));
+    const contents = await this.background(chain);
+    return contents.executeJavaScript(script, true);
+  }
+
+  /** The hidden page of a chain's site, loaded on first use. It shares the tab's session and storage. */
+  private async background(chain: Chain) {
+    if (this.development()) throw new Error("developmentRequired");
+    const home = `${SITES[chain].origin}${BACKGROUND_PATH[chain]}`;
+    let view = this.backgrounds.get(chain);
+    if (!view) {
+      view = new WebContentsView({
+        webPreferences: {
+          session: session.fromPartition(`persist:${chain}`),
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+        },
+      });
+      view.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      this.backgrounds.set(chain, view);
+    }
+    const contents = view.webContents;
     if (
       new URL(contents.getURL() || "about:blank").origin !== SITES[chain].origin
     )
       await contents.loadURL(home);
-    return contents.executeJavaScript(script, true);
+    return contents;
+  }
+
+  /** Reloads the hidden page and waits for it, so the site's own start-up code runs again (it renews its login). */
+  async reloadBackground(chain: Chain) {
+    const contents = await this.background(chain);
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        contents.removeListener("did-stop-loading", done);
+        resolve();
+      };
+      const timer = setTimeout(done, 15_000);
+      contents.once("did-stop-loading", done);
+      contents.reload();
+    });
+  }
+
+  /** Shows a page of the chain's own site in its tab; anything else is refused. */
+  async openUrl(chain: Chain, url: string) {
+    if (
+      !this.allowed(chain, url) ||
+      !within(new URL(url).hostname, SITES[chain].domains)
+    )
+      throw new Error("hostRefused");
+    await this.navigate(chain, this.view(chain), url);
+  }
+
+  /** Signs the chain out of this session: its storage and cookies go, and open pages start over. */
+  async forget(chain: Chain) {
+    const storeSession = session.fromPartition(
+      this.development() ? `persist:development-${chain}` : `persist:${chain}`,
+    );
+    await storeSession.clearStorageData();
+    await storeSession.clearCache();
+    this.views
+      .get(chain)
+      ?.webContents.loadURL(`${SITES[chain].origin}/`)
+      .catch(() => {});
+    this.backgrounds.get(chain)?.webContents.close();
+    this.backgrounds.delete(chain);
   }
 
   reset() {

@@ -17,6 +17,7 @@ import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { shoppingList } from "../domain/planner";
 import { stateSchema } from "../domain/model";
 import { z } from "zod";
+import { SKaupatHost } from "./s-kaupat-host";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
 import {
@@ -96,12 +97,23 @@ else
     const kRuoka = new KRuokaProvider((name, args) =>
       kRuokaViaSite ? kRuokaSite.call(name, args) : worker.call(name, args),
     );
+    // S-kaupat's server calls from the Kauppa tab's session (U3.5), so one sign-in there serves
+    // both. KORIKONE_S_KAUPAT=browser goes back to the server's own Edge or Chrome window.
+    const sKaupatViaTab = process.env.KORIKONE_S_KAUPAT !== "browser";
+    const sHost = new SKaupatHost({
+      evaluate: (script) => stores.evaluate("s-kaupat", script),
+      reload: () => stores.reloadBackground("s-kaupat"),
+      open: (url) => stores.openUrl("s-kaupat", url),
+      forget: () => stores.forget("s-kaupat"),
+    });
+    if (sKaupatViaTab) await sHost.start();
     const sWorker = sKaupatWorker({
       script: join(
         app.isPackaged ? process.resourcesPath : app.getAppPath(),
         "vendor/s-kaupat/s-kaupat-mcp.cjs",
       ),
       dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+      host: sKaupatViaTab ? { url: sHost.url, key: sHost.key } : undefined,
     });
     const sKaupat = new SKaupatProvider((name, args) =>
       sWorker.call(name, args),
@@ -109,6 +121,7 @@ else
     const sSession = new SKaupatSession(
       (name, args, timeout) => sWorker.call(name, args, timeout),
       db,
+      sKaupatViaTab,
     );
     let service = await createService(db, development, [kRuoka, sKaupat]);
     service.ai = ai.status();
@@ -364,6 +377,11 @@ else
           return service.snapshot();
         }
         if (chain === "s-kaupat") {
+          if (sKaupatViaTab) {
+            // Sign-in happens in the Kauppa tab; Asetukset checks it when it is opened again.
+            await stores.open("s-kaupat", "login");
+            return { ...service.snapshot(), openStore: "s-kaupat" };
+          }
           loginSKaupat();
           return service.snapshot();
         }
@@ -629,6 +647,7 @@ else
       ai.cancel();
       ai.cancelRequest();
       stores.close();
+      sHost.close();
       void Promise.allSettled([worker.close(), sWorker.close()])
         .finally(() => db.close())
         .finally(() => app.quit());

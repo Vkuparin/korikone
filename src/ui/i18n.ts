@@ -214,7 +214,7 @@ export const en = {
   noDate: "Not recorded",
   storeConnection: "Store connection",
   sKaupatStatus:
-    'S-kaupat signs in and searches through its own small Microsoft Edge or Chrome window on this device. S-kaupat has no online cart that apps can fill, so Korikone writes approved products to the shopping list "Korikone" on your account. Weighed products and products without a clear pack size need manual store review.',
+    'S-kaupat signs in and searches through the S-kaupat site in the Kauppa view, so you sign in there once. S-kaupat has no online cart that apps can fill, so Korikone writes approved products to the shopping list "Korikone" on your account. Weighed products and products without a clear pack size need manual store review.',
   sKaupatListInfo:
     'These products go to the shopping list "Korikone" on your S-kaupat account. Existing list rows are kept and substitutes are not allowed.',
   sKaupatHandoff:
@@ -465,7 +465,7 @@ export const fi: Record<Key, string> = {
   noDate: "Ei kirjattu",
   storeConnection: "Kauppayhteys",
   sKaupatStatus:
-    'S-kaupat kirjautuu ja hakee tuotteet omassa pienessä Microsoft Edge- tai Chrome-ikkunassaan tällä laitteella. S-kaupoissa ei ole verkko-ostoskoria, jota sovellus voisi täyttää, joten Korikone kirjoittaa hyväksytyt tuotteet tilisi ostoslistaan "Korikone". Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.',
+    'S-kaupat kirjautuu ja hakee tuotteet S-kaupan sivuston kautta Kauppa-näkymässä, joten kirjaudut siellä kerran. S-kaupoissa ei ole verkko-ostoskoria, jota sovellus voisi täyttää, joten Korikone kirjoittaa hyväksytyt tuotteet tilisi ostoslistaan "Korikone". Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.',
   sKaupatListInfo:
     'Nämä tuotteet lisätään S-kaupat-tilisi ostoslistaan "Korikone". Listan muut rivit säilyvät, eikä korvaavia tuotteita sallita.',
   sKaupatHandoff:
