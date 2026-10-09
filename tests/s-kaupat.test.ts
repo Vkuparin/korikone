@@ -189,6 +189,8 @@ test("transfers a reviewed basket to the pinned server's shopping list", async (
   );
   expect(journal).toMatchObject({ status: "verified", error: null });
   expect(review.baseline.accountId).toMatch(/^s-kaupat:sk_/);
+  expect(review.baseline.accountName).toBeTruthy();
+  expect(review.baseline.accountName).not.toContain("sk_");
   expect((await provider.getCart(store)).lines).toEqual([
     { productId: milk.id, name: milk.name, quantity: 2, unit: "kpl" },
   ]);

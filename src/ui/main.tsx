@@ -630,7 +630,8 @@ function App() {
                     )}
                     {isLive(snapshot.review.context.providerId) && (
                       <p>
-                        {t("account")}: {snapshot.review.baseline.accountId}
+                        {t("account")}:{" "}
+                        {snapshot.review.baseline.accountName || t("signedIn")}
                       </p>
                     )}
                     {snapshot.review.context.providerId === "s-kaupat" && (

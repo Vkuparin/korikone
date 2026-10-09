@@ -124,7 +124,10 @@ export type CartLine = {
   name: string;
 };
 export type Cart = {
+  /** Internal account binding; never shown to the user. */
   accountId: string;
+  /** What the shopper recognises, such as their first name; display only. */
+  accountName?: string | null;
   context: StoreContext;
   lines: CartLine[];
 };

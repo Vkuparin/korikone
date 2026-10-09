@@ -199,7 +199,11 @@ export class SKaupatProvider implements StoreProvider {
   }
   private async read(context: StoreContext) {
     const login = z
-      .object({ status: z.string(), accountId: z.string().nullish() })
+      .object({
+        status: z.string(),
+        accountId: z.string().nullish(),
+        displayName: z.string().nullish(),
+      })
       .parse(await this.call("login_status", {}));
     if (login.status !== "logged_in") throw new Error("loginRequired");
     // An opaque, stable hash of the S-kaupat user ID (since server 1.1.0).
@@ -217,12 +221,17 @@ export class SKaupatProvider implements StoreProvider {
       new Set(list.items.map((i) => i.productId)).size !== list.items.length
     )
       throw new Error("unsupportedCart");
-    return { account: `s-kaupat:${login.accountId}`, list };
+    return {
+      account: `s-kaupat:${login.accountId}`,
+      name: login.displayName ?? null,
+      list,
+    };
   }
   async getCart(context: StoreContext): Promise<Cart> {
-    const { account, list } = await this.read(context);
+    const { account, name, list } = await this.read(context);
     return {
       accountId: account,
+      accountName: name,
       context,
       lines: (list?.items ?? []).map((i) => ({
         productId: i.productId,
