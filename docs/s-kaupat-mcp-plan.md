@@ -54,7 +54,7 @@ Observed on the owner's PC on 9 October 2026, live store search, product search 
 Not yet observed in Korikone on the owner's PC:
 
 - Store search, login and a priced basket from the packaged app (observed from a development build on 9 October 2026).
-- `open_site` handoff: it opened a session that was not logged in ([#3](https://github.com/Vkuparin/korikone/issues/3)). Still to observe after the fix: *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
+- `open_site` handoff: it opened a session that was not logged in ([#3](https://github.com/Vkuparin/korikone/issues/3)). Cause, from reading the v1.1.0 release: on Windows the server keeps its refresh token in Credential Manager under one name for the whole PC, but the site's own login lives in the browser profile inside each data folder (`login-browser`), and `start_login` returns at once when a token exists. A new or reset data folder, or a token saved by another s-kaupat-mcp client on the same PC, therefore gives working API calls and a signed-out site window. Until the server keeps the two together, the handoff text tells the shopper to sign in once in that window, which the profile then remembers. Still to observe: *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
 - Combined onboarding with K-Ruoka, which uses Chrome while S-kaupat prefers Edge.
 
 ## Earlier prerequisite plan (summary)
