@@ -92,6 +92,28 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
     expect(await run(tab.id, "typeof window.korikone")).toBe("undefined");
     expect(await run(tab.id, "typeof require")).toBe("undefined");
 
+    // A third-party iframe redirect must not prompt or replace the store page.
+    // Emit the external navigation boundary without contacting the external host.
+    const redirect = (isMainFrame: boolean) =>
+      app.evaluate(
+        ({ webContents }, { id, isMainFrame }) => {
+          let prevented = false;
+          webContents.fromId(id)!.emit("will-redirect", {
+            url: "https://advertising.example.invalid/pixel",
+            isMainFrame,
+            preventDefault: () => {
+              prevented = true;
+            },
+          });
+          return prevented;
+        },
+        { id: tab.id, isMainFrame },
+      );
+    expect(await redirect(false)).toBe(false);
+    expect((await store())?.url).toBe(tab.url);
+    // Unknown top-level redirects remain refused in development mode.
+    expect(await redirect(true)).toBe(true);
+
     // A popup opens in the same tab, not as a new window.
     const windows = await app.evaluate(
       ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,

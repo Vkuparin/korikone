@@ -187,6 +187,8 @@ export class StoreViews {
       void this.navigate(chain, view, event.url).catch(() => {});
     });
     contents.on("will-redirect", (event) => {
+      // Advertising and other embedded frames may redirect independently of the page.
+      if (!event.isMainFrame) return;
       if (this.allowed(chain, event.url)) return;
       event.preventDefault();
       void this.navigate(chain, view, event.url).catch(() => {});
