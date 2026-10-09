@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Review } from "../domain/model";
 import { relevant } from "../domain/planner";
+import { compareTransfers, hasChanges } from "../domain/changes";
 import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { en, fi, unitLabel, type Key } from "./i18n";
@@ -83,6 +84,7 @@ export function ConfirmPanel({
   const [accepted, setAccepted] = useState(false);
   useEffect(() => setAccepted(false), [review?.id]);
   const section = useRef<HTMLElement>(null);
+  const changes = review && compareTransfers(review, state.listHistory);
   const items =
     review && attention(review, state.household.budget, state.listHistory);
   const quiet =
@@ -157,6 +159,48 @@ export function ConfirmPanel({
         )}
         {review.context.providerId === "s-kaupat" && (
           <p className="muted">{t("sKaupatListInfo")}</p>
+        )}
+        {changes && (
+          <details open={hasChanges(changes)} key={review.id}>
+            <summary>
+              {tr("Muutokset edelliseen", "Changes since last time")}
+            </summary>
+            {changes.storeChanged ? (
+              <p className="muted">
+                {tr(
+                  "Edellinen siirto meni toiseen kauppaan.",
+                  "The last transfer went to another store.",
+                )}
+              </p>
+            ) : !hasChanges(changes) ? (
+              <p className="muted">{tr("Ei muutoksia.", "No changes.")}</p>
+            ) : (
+              <ul>
+                {changes.added.map((l) => (
+                  <li key={`new:${l.productId}`}>
+                    {tr("Uusi:", "New:")} {l.name}
+                  </li>
+                ))}
+                {changes.dropped.map((l) => (
+                  <li key={`gone:${l.productId}`}>
+                    {tr("Pois:", "Dropped:")} {l.name}
+                  </li>
+                ))}
+                {changes.quantity.map((c) => (
+                  <li key={`qty:${c.name}`}>
+                    {tr("Määrä:", "Quantity:")} {c.name} {c.before} → {c.now}{" "}
+                    {u(c.unit)}
+                  </li>
+                ))}
+                {changes.price.map((c) => (
+                  <li key={`price:${c.name}`}>
+                    {tr("Hinta:", "Price:")} {c.name} {money(c.before)} →{" "}
+                    {money(c.now)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </details>
         )}
         <details>
           <summary>{tr("Näytä kaikki rivit", "Show all rows")}</summary>

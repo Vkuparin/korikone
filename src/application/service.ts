@@ -554,9 +554,12 @@ export class Service {
                 transferred: this.journal!.review.targets.map((t) => ({
                   productId: t.productId,
                   name: t.name,
-                  quantity: t.quantity,
+                  quantity: t.quantity - t.before,
                   unit: t.unit,
-                  price: t.price,
+                  price:
+                    t.quantity > t.before
+                      ? Math.round(t.price / (t.quantity - t.before))
+                      : 0,
                 })),
                 prices: Object.fromEntries(
                   this.journal!.review.quotes.flatMap((line) =>

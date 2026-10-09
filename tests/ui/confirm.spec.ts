@@ -98,6 +98,34 @@ test("the transfer is confirmed and reported in the list column", async () => {
     await result.getByRole("button", { name: "Sulje" }).click();
     await expect(result).toHaveCount(0);
 
+    // A second transfer names what changed: one new, one dropped and one changed product.
+    await page.getByLabel("Lisää tuote", { exact: true }).fill("Kahvi");
+    await page.getByLabel("Tuotteen määrä").fill("500");
+    await page.getByLabel("Tuotteen yksikkö").selectOption("g");
+    await page
+      .getByRole("button", { name: "Lisää tuote listaan", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Poista: Suola", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Lisää: Makaroni", exact: true })
+      .click();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    const changes = panel.locator("details", {
+      hasText: "Muutokset edelliseen",
+    });
+    await expect(changes).toHaveAttribute("open", "");
+    await expect(changes).toContainText("Uusi: Kahvi 500 g");
+    await expect(changes).toContainText(
+      "Pois: JOZO 125g suola jodioitu sirotin",
+    );
+    await expect(changes).toContainText(
+      "Määrä: Myllyn Paras Makaroni 400g 1 → 2",
+    );
+    await panel.getByRole("button", { name: "Peru" }).click();
+
     // The store raises its prices after that purchase: the next confirmation names the rise.
     await page.evaluate(async () => {
       await window.korikone.scenario("price");

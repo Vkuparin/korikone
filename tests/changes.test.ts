@@ -12,7 +12,8 @@ const target = (productId: string, quantity: number, price: number) => ({
   name: `Tuote ${productId}`,
   quantity,
   unit: "kpl",
-  price,
+  // Like a real target: the price is for the packs added.
+  price: price * quantity,
   before: 0,
 });
 const last = (lines: [string, number, number][], storeKey = "s-kaupat:1") => ({
@@ -72,4 +73,12 @@ test("an identical basket has no changes, and another store is reported as such"
   const other = compareTransfers(review, [last([["a", 1, 100]], "k-ruoka:9")])!;
   expect(other.storeChanged).toBe(true);
   expect(hasChanges(other)).toBe(false);
+});
+
+test("packs already in the cart do not count as a change", () => {
+  const inCart = { ...target("a", 3, 100), before: 1, price: 200 };
+  const changes = compareTransfers({ context, targets: [inCart] }, [
+    last([["a", 2, 100]]),
+  ])!;
+  expect(hasChanges(changes)).toBe(false);
 });

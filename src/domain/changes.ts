@@ -34,9 +34,20 @@ export function compareTransfers(
   if (last.storeKey !== storeKey(review.context))
     return { storeChanged: true, ...empty };
   const before = new Map(last.transferred.map((l) => [l.productId, l]));
-  const now = new Map(review.targets.map((t) => [t.productId, t]));
+  // A target holds the whole cart quantity and the price of the packs added, so work from the packs.
+  const lines = review.targets.map((t) => {
+    const packs = t.quantity - t.before;
+    return {
+      productId: t.productId,
+      name: t.name,
+      unit: t.unit,
+      quantity: packs,
+      price: packs > 0 ? Math.round(t.price / packs) : 0,
+    };
+  });
+  const now = new Map(lines.map((l) => [l.productId, l]));
   const changes: Changes = { storeChanged: false, ...empty };
-  for (const t of review.targets) {
+  for (const t of lines) {
     const old = before.get(t.productId);
     if (!old) {
       changes.added.push(t);
