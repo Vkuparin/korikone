@@ -150,7 +150,7 @@ Start with the spikes. If a chain refuses Electron's built-in Chromium, or its l
 
 | ID | Task, and done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| U6.1 | One setup screen in `src/ui/setup.tsx`: store search by town or postcode, sign in through the store tab, an optional "Continue with ChatGPT" button, and "Valmis". Heading at most 32 px so every action is visible at 1280 × 800 without scrolling. Done when `tests/ui/setup.spec.ts` goes from first launch to the empty list in one screen and asserts the actions are inside the viewport | Simple | U3.5 | Planned |
+| U6.1 | One setup screen in `src/ui/setup.tsx`: store search by town or postcode, sign in through the store tab, an optional "Continue with ChatGPT" button, and "Valmis". Heading at most 32 px so every action is visible at 1280 × 800 without scrolling. Done when `tests/ui/setup.spec.ts` goes from first launch to the empty list in one screen and asserts the actions are inside the viewport | Simple | U3.5 | In progress |
 | U6.2 | Remove the second-chain section from setup. Offer it in two places: a one-line hint under the pinned total ("Vertaa K-Ruokaan: kirjaudu sisään") shown only when one chain is signed in, and in Asetukset. Done when `tests/ui/chains.spec.ts` covers both entry points and the hint disappears once both chains are signed in | Simple | U6.1 | Planned |
 | U6.3 | A fixture desktop test from first launch to a transferred list, counting clicks: setup, note, transfer, confirm. Done when it passes and asserts no external window or `shell.openExternal` call happens in development mode | Simple | U6.1, U3.6 | Planned |
 
