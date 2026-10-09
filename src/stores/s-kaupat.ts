@@ -5,10 +5,10 @@ import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
 
 /** Pinned s-kaupat-mcp release. Update together with scripts/prepare-s-kaupat.mjs. */
-export const S_KAUPAT_VERSION = "1.2.0";
+export const S_KAUPAT_VERSION = "1.3.0";
 export const S_KAUPAT_SCHEMA = "1.0";
 export const S_KAUPAT_CHECKSUM =
-  "17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a";
+  "ebbeb08f1904c33e69c90304ef394b863f3a0235b059929f4e917742f4c72cdd";
 /** S-kaupat has no server-side cart. Korikone transfers to this shopping list on the account. */
 export const S_KAUPAT_LIST = "Korikone";
 // Checkout, payment, time choice and list deletion tools are deliberately absent.

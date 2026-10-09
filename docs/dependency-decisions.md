@@ -24,10 +24,10 @@ Decision for U3.7 (U3.2 spike, 9 October 2026): replace the worker with a Koriko
 
 ## S-kaupat
 
-Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.2.0`, source revision `0cf3228449a0e47b359d77978b6dcd151bfdd737` (previously `v1.1.0`, `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`).
+Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.3.0`, source revision `c2b0ada4383a86bca3b7725407783135a078b08c` (previously `v1.2.0`, `0cf3228449a0e47b359d77978b6dcd151bfdd737`; `v1.1.0`, `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`). 1.3.0 adds the host transport for the in-app store tab; Korikone does not enable it until U3.5.
 
 - `s-kaupat-mcp.cjs` SHA-256: `17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a`; `tools.json` SHA-256: `a45d418363b3439cee9ddc1919ab2437d377db3e0395883c7f931c72b92461c4`; both match the release's `SHA256SUMS`.
-- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.2.0`, the required tool names and `schemaVersion` `1.0` on each result.
+- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.3.0`, the required tool names and `schemaVersion` `1.0` on each result.
 - The `.cjs` (about 5 MB) was chosen over the 110 MB standalone exe because Electron already contains Node.js; Korikone runs it with `ELECTRON_RUN_AS_NODE`.
 - The server uses its own Edge or Chrome profile under Korikone's data folder and keeps the refresh token in Windows Credential Manager, shared with other apps using s-kaupat-mcp on the same PC.
 - `SKAUPAT_ORDERING=false`, and the adapter allows only catalogue, login, shopping-list and site-handoff tools. No order, payment, list deletion or delivery-slot command is exposed.
