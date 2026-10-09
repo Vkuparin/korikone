@@ -235,8 +235,8 @@ Paste a recipe's text in Reseptit and get a recipe with ingredients and portions
 
 | ID | Task, and done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| F10.1 | "Tuo resepti tekstistä" sends the pasted text to the AI provider as untrusted data with a prompt that returns one recipe in the existing `recipeSchema` shape, validated with the same single corrective retry as notes in `src/ai/draft.ts`. Add AI fixtures for success, invalid output and usage limit in `src/ai/fixtures.ts`. Done when `tests/ai.test.ts` covers all three | Strong | | Planned |
-| F10.2 | The draft opens in the existing recipe form in `src/ui/main.tsx` for review; nothing is saved until "Tallenna". Done when a desktop test imports a fixture recipe, edits one amount and saves it | Simple | F10.1 | Planned |
+| F10.1 | "Tuo resepti tekstistä" sends the pasted text to the AI provider as untrusted data with a prompt that returns one recipe in the existing `recipeSchema` shape, validated with the same single corrective retry as notes in `src/ai/draft.ts`. Add AI fixtures for success, invalid output and usage limit in `src/ai/fixtures.ts`. Done when `tests/ai.test.ts` covers all three | Strong | | Done (71615cc): `recipePrompt`, `validateRecipe` and shared `generateValidated` in `src/ai/draft.ts`; `importRecipe` IPC returns a temporary `recipeDraft`; unit and real IPC fixture checks pass |
+| F10.2 | Add "Tuo resepti tekstistä" in Reseptit in `src/ui/main.tsx`; call `importRecipe` with `{ text, model: "auto", consent: true }`. On success, open `snapshot.recipeDraft` in the existing recipe form for review; nothing is saved until "Tallenna". Use `cancelAI` to cancel; errors are `invalidDraft`, `usageLimit` or the existing AI errors. Development scenarios `success`, `invalidOnce`, `invalidDraft`, `usageLimit` and `delayedSuccess` also work for imports; "Nakkikeitto" returns the deterministic soup fixture. Done when a desktop test imports a fixture recipe, edits one amount and saves it | Simple | F10.1 | Planned |
 
 ### F11. Meal ideas from offers
 
