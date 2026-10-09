@@ -49,13 +49,12 @@ Code: [`src/stores/s-kaupat.ts`](../src/stores/s-kaupat.ts), generic worker in [
 
 ## Outstanding live acceptance
 
-Observed on the owner's PC on 9 October 2026, with the pinned server driven directly rather than through the app: live store search, product search with per-item prices and parsable packs, and `check_basket` stock answers. Details are in [acceptance.md](acceptance.md).
+Observed on the owner's PC on 9 October 2026, live store search, product search with per-item prices and parsable packs, `check_basket` stock answers, and one reviewed transfer of three products to the Korikone list with before (no list) and after (three lines at quantity 1) read back from the account. Details are in [acceptance.md](acceptance.md).
 
 Not yet observed in Korikone on the owner's PC:
 
-- Store search, login and a priced basket against the live site from the packaged app.
-- One small reviewed transfer to the Korikone list, with exact before/after quantities read back.
-- `open_site` handoff, *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
+- Store search, login and a priced basket from the packaged app (observed from a development build on 9 October 2026).
+- `open_site` handoff: it opened a session that was not logged in ([#3](https://github.com/Vkuparin/korikone/issues/3)). Still to observe after the fix: *Lisää kaikki ostoskoriin* on the site and manual checkout from that list.
 - Combined onboarding with K-Ruoka, which uses Chrome while S-kaupat prefers Edge.
 
 ## Earlier prerequisite plan (summary)
