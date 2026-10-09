@@ -55,7 +55,7 @@ Today the app has one store selection, so using the other chain means switching 
 | --- | --- | --- | --- |
 | F1.1 | Saved state keeps one store per chain plus the active chain. Older profiles and backups migrate without losing the current store; the backup format stays readable by the previous release where possible | | Done (5cadf2c): `stores` keeps one store per chain beside the active `context`, which earlier releases still read |
 | F1.2 | Settings and setup show both chains with sign-in status, store and a "Use this store" action | F1.1 | Done: shared chain list in Settings and setup, sign-in actions name a chain, `tests/ui/chains.spec.ts` |
-| F1.3 | Both retailer workers run side by side (K-Ruoka uses Chrome, S-kaupat prefers Edge). Fixture test switching chains with a list in progress, including saved product choices per chain | F1.1 | Planned |
+| F1.3 | Both retailer workers run side by side (K-Ruoka uses Chrome, S-kaupat prefers Edge). Fixture test switching chains with a list in progress, including saved product choices per chain | F1.1 | Done: the two workers are separate processes with their own browser profiles, so nothing closes one when the other chain is active; fixture test in `tests/development.test.ts` switches chains with a list in progress and keeps each chain's product choice. Live check pending |
 
 ### F2. Compare the basket between S-kaupat and K-Ruoka
 

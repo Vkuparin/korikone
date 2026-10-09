@@ -215,3 +215,62 @@ test("the live acceptance note picks the ingredient itself among store look-alik
     dev.review!.baseline.accountId,
   );
 });
+
+test("switching chains with a list in progress keeps the list and each chain's product choices", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  const service = await createService(db, true, [
+    new DemoProvider("k-ruoka"),
+    new DemoProvider("s-kaupat"),
+  ]);
+  const [kStore] = await service.registry.get("k-ruoka").searchStores("x");
+  const [sStore] = await service.registry.get("s-kaupat").searchStores("x");
+  service.storeLogins = { "k-ruoka": "signedIn", "s-kaupat": "signedIn" };
+  await service.save({
+    ...service.state,
+    meals: [],
+    staples: [],
+    extras: [{ id: "jauheliha", name: "Jauheliha", amount: 400, unit: "g" }],
+    context: kStore,
+  });
+  await service.buildBasket();
+  expect(service.basket[0].product?.id).toBe("mince");
+  await service.accept({
+    ingredientId: "jauheliha",
+    productId: "mince-chicken",
+  });
+  expect(service.basket[0].product?.id).toBe("mince-chicken");
+
+  await service.save({ ...service.state, context: sStore });
+  expect(service.state.extras.map((e) => e.id)).toEqual(["jauheliha"]);
+  await service.buildBasket();
+  // The other chain makes its own choice and prices at its own store.
+  expect(service.basket[0].product).toMatchObject({
+    id: "mince",
+    providerId: "s-kaupat",
+  });
+
+  await service.save({
+    ...service.state,
+    context: service.state.stores["k-ruoka"],
+  });
+  await service.buildBasket();
+  expect(service.basket[0].product).toMatchObject({
+    id: "mince-chicken",
+    providerId: "k-ruoka",
+  });
+  expect(service.snapshot().storeLogins).toEqual({
+    "k-ruoka": "signedIn",
+    "s-kaupat": "signedIn",
+  });
+  expect(Object.keys(service.state.stores).sort()).toEqual([
+    "demo-k",
+    "k-ruoka",
+    "s-kaupat",
+  ]);
+});
