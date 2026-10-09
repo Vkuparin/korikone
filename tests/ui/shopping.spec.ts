@@ -173,3 +173,107 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
     await app.close();
   }
 });
+
+test("multi-dish debounce, cancellation and usage failure preserve the saved list", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    const state = initialState();
+    state.onboarded = true;
+    state.setupComplete = true;
+    state.staples = [];
+    await page.evaluate(async (state) => {
+      await window.korikone.save(state);
+      await window.korikone.signInAI();
+    }, state);
+    await page.reload();
+    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    await note.fill("Nakkikeitto");
+    await page.waitForTimeout(400);
+    await note.fill("Nakkikeitto ja kanapasta");
+    await page.waitForTimeout(400);
+    const fullNote =
+      "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.";
+    await note.fill(fullNote);
+    await expect(page.locator(".interpretation")).toHaveCount(4, {
+      timeout: 15000,
+    });
+    await expect(page.locator(".grocery-row")).toHaveCount(10);
+    await expect(page.locator(".shopping-total .warning")).toHaveCount(0);
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    expect((await load()).developmentRequests).toBe(1);
+    const queued = await page.evaluate(async () => {
+      const api = window.korikone;
+      await api.developmentScenario("delayedSuccess");
+      const first = api.generate({
+        prompt: "pasta",
+        model: "auto",
+        consent: true,
+      });
+      while ((await api.load()).value.developmentRequests !== 1)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      const second = api.generate({
+        prompt: "soup",
+        model: "auto",
+        consent: true,
+      });
+      await api.cancelAI();
+      return Promise.all([first, second]);
+    });
+    expect(queued).toEqual([
+      { ok: false, error: "aiCancelled" },
+      { ok: false, error: "aiCancelled" },
+    ]);
+    expect((await load()).developmentRequests).toBe(1);
+    await page.screenshot({
+      path: "test-results/multi-dish-fixture.png",
+      fullPage: true,
+    });
+
+    await page.evaluate(() =>
+      window.korikone.developmentScenario("delayedSuccess"),
+    );
+    await note.fill("pasta");
+    await note.press("Control+Enter");
+    await expect(page.locator(".note-box")).toHaveClass(/is-working/);
+    await expect.poll(async () => (await load()).developmentRequests).toBe(1);
+    await note.fill("Pakastepizza");
+    await page
+      .getByRole("button", { name: "Peruuta listan päivitys", exact: true })
+      .click();
+    await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+    await expect(
+      page.getByText("Listan päivitys peruutettu", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await page.waitForTimeout(2100);
+    const cancelled = await load();
+    expect(cancelled.developmentRequests).toBe(1);
+    expect(cancelled.state.note).toBe(fullNote);
+    expect(cancelled.draft).toBeNull();
+    await expect(page.locator(".interpretation")).toHaveCount(4);
+
+    await page.evaluate(() =>
+      window.korikone.developmentScenario("usageLimit"),
+    );
+    await note.press("Control+Enter");
+    await expect(page.getByRole("alert")).toBeVisible();
+    await page.waitForTimeout(2100);
+    const failed = await load();
+    expect(failed.developmentRequests).toBe(1);
+    expect(failed.state.note).toBe(fullNote);
+    await expect(page.locator(".interpretation")).toHaveCount(4);
+
+    await page.evaluate(() => window.korikone.developmentScenario("success"));
+    await note.press("Control+Enter");
+    await expect
+      .poll(async () => (await load()).state.note)
+      .toBe("Pakastepizza");
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.locator(".grocery-row")).toHaveCount(1);
+    expect((await load()).developmentRequests).toBe(1);
+  } finally {
+    await app.close();
+  }
+});

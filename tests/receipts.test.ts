@@ -29,3 +29,28 @@ test("text receipt import preserves Finnish text and rejects oversized input", a
   await writeFile(path, "a".repeat(50001));
   await expect(readReceipt(path, worker)).rejects.toThrow("receiptTooLarge");
 });
+
+test("PDF fixtures preserve Finnish WinAnsi text, punctuation and page order in both fonts", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-receipt-fonts-"));
+  const path = join(directory, "receipt.pdf");
+  for (const font of ["Helvetica", "Courier"] as const) {
+    await writeFile(
+      path,
+      pdf(["Jäätelö (vanilja) 3,99 €", "Ruisleipä 2,49 €"], font),
+    );
+    const text = await readReceipt(path, worker);
+    const words = text.replace(/\s+/g, " ");
+    expect(words).toContain("Jäätelö (vanilja) 3,99 €");
+    expect(words).toContain("Ruisleipä 2,49 €");
+    expect(text.indexOf("Jäätelö")).toBeLessThan(text.indexOf("Ruisleipä"));
+  }
+}, 30000);
+
+test("PDF page and file limits reject oversized fixtures before using their text", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-receipt-limits-"));
+  const path = join(directory, "receipt.pdf");
+  await writeFile(path, pdf(Array.from({ length: 101 }, () => "Kuitti")));
+  await expect(readReceipt(path, worker)).rejects.toThrow("receiptTooLarge");
+  await writeFile(path, Buffer.alloc(20 * 1024 * 1024 + 1));
+  await expect(readReceipt(path, worker)).rejects.toThrow("receiptTooLarge");
+}, 30000);

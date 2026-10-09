@@ -6,7 +6,11 @@ Do not use the owner's ChatGPT allowance or retailer accounts for routine testin
 
 Every feature must be testable with local fixtures. Add success and relevant failure cases at the external boundary, then exercise the real application validation, persistence and UI paths. Do not replace app IPC handlers to cover behavior already supported by development mode. Mock network responses for protocol and adapter unit tests; never contact live accounts. Keep fixtures deterministic and extend them when adding supported foods or workflows.
 
-Run `npm test`, `npm run test:ui`, `npm run build` and `npm run format:check` before reporting a feature finished. Local file dialogs may be stubbed to select test files. Receipt parsing, backup import/export, diagnostics and clipboard operations stay real and local in development mode.
+Use focused unit tests for each task or feature. Select the affected files or test names, for example `npm test -- tests/receipts.test.ts` or `npm test -- tests/development.test.ts -t "multi-dish"`. Run a focused UI test only when the change needs application or interaction coverage, for example `npm run test:ui -- tests/ui/shopping.spec.ts -g "cancellation"`. Use type checking, builds and formatting checks when relevant to the change. Do not broaden passing checks without a new failure, change or unresolved concern.
+
+Run full unit and desktop suites only when preparing a release. Release preparation requires `npm test`, `npm run test:ui`, `npm run build` and `npm run format:check`, plus the relevant packaged-app checks. Routine implementation, debugging and feature completion do not authorize a full-suite run.
+
+Local file dialogs may be stubbed to select test files. Receipt parsing, backup import/export, diagnostics and clipboard operations stay real and local in development mode.
 
 # Writing preferences
 

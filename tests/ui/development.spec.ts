@@ -70,6 +70,11 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     await expect(page.locator(".interpretation")).toHaveCount(2, {
       timeout: 15000,
     });
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentRequests,
+      ),
+    ).toBe(2);
     const result = await page.evaluate(async () => {
       const api = window.korikone;
       const search = await api.searchStores("Helsinki");

@@ -10,6 +10,11 @@ const catalogue: [string, string, number, "g" | "ml" | "pcs", number][] = [
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi 500 g", 500, "g", 599],
   ["pizza", "Pakastepizza 350 g", 350, "g", 249],
+  ["sausage", "Nakki 400 g", 400, "g", 299],
+  ["chicken", "Broilerin fileesuikale 400 g", 400, "g", 449],
+  ["yoghurt", "Jogurtti 1 kg", 1000, "g", 199],
+  ["banana", "Banaani 6 kpl", 6, "pcs", 199],
+  ["chocolate", "Suklaa 200 g", 200, "g", 249],
 ];
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };

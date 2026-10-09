@@ -4,6 +4,46 @@ import { draftPrompt, validateDraft } from "../src/ai/draft";
 import { initialState } from "../src/domain/model";
 import { createService } from "../src/application/development";
 import { DemoProvider } from "../src/stores/demo";
+import { Service } from "../src/application/service";
+
+test("original multi-dish note retains cooked meals, ready food, breakfast and treats", async () => {
+  const ai = new FixtureAI();
+  await ai.signIn();
+  const state = initialState();
+  state.household.servings = 2;
+  state.staples = [];
+  state.receiptText = "Jogurtti 1 kg, Banaani 6 kpl, Suklaa 200 g";
+  const note =
+    "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.";
+  const prompt = draftPrompt(note, state);
+  expect(prompt).toContain(JSON.stringify(state.receiptText));
+  const draft = validateDraft(await ai.generate("auto", prompt), state);
+  expect(draft.recipes.map((r) => r.kind)).toEqual([
+    "meal",
+    "meal",
+    "breakfast",
+    "snack",
+  ]);
+  expect(draft.items).toEqual([
+    { id: "pakastepizza", name: "Pakastepizza", amount: 700, unit: "g" },
+  ]);
+  expect(draft.meals.every((m) => m.servings === 2)).toBe(true);
+  const service = new Service({ get: async () => null, set: async () => {} });
+  service.state = state;
+  service.draft = draft;
+  service.draftRevision = state.revision;
+  service.draftNote = note;
+  await service.approveDraft();
+  await service.buildBasket();
+  expect(service.basket).toHaveLength(10);
+  expect(
+    service.basket.every((line) => line.product && line.total !== null),
+  ).toBe(true);
+  expect(
+    service.basket.find((line) => line.requirement.name === "Peruna")
+      ?.requirement.amount,
+  ).toBe(400);
+});
 
 test("AI fixtures cover valid responses and failure cases without a network request", async () => {
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {

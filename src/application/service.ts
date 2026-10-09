@@ -26,6 +26,7 @@ export interface Storage {
 export class Service {
   developmentMode = false;
   developmentScenario = "success";
+  developmentRequests = 0;
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
@@ -83,6 +84,7 @@ export class Service {
     return {
       developmentMode: this.developmentMode,
       developmentScenario: this.developmentScenario,
+      developmentRequests: this.developmentRequests,
       state: this.state,
       basket: this.basket,
       journal: this.journal,

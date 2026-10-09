@@ -27,6 +27,8 @@ The store search includes both chains. S-kaupat uses the pinned v1.1.0 worker wi
 
 Write meals and groceries in one note. After a short pause, Korikone interprets it and selects products. Ctrl+Enter updates immediately. Adjust portions, mark items already at home, remove rows or choose alternatives. Transfer opens a summary of actual cart changes, including any unresolved items excluded from the batch.
 
+In the current source build, **Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press Ctrl+Enter or the arrow to retry it explicitly.
+
 Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and can be edited before use in future ChatGPT suggestions. Scanned PDFs require OCR first. Copy or save the list for manual shopping; direct phone sync is not implemented.
 
 ## Build and check

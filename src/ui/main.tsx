@@ -27,6 +27,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>({
     developmentMode: false,
     developmentScenario: "success",
+    developmentRequests: 0,
     state: initialState(),
     basket: [],
     review: null,
@@ -60,6 +61,7 @@ function App() {
     setError("");
     try {
       const result = await window.korikone[method](input);
+      if (!result.ok && result.error === "aiCancelled") return false;
       if (!result.ok) throw new Error(result.error);
       if (method === "setDevelopmentMode")
         sessionStorage.removeItem("shopping-note");
@@ -194,6 +196,7 @@ function App() {
             className="text"
             onClick={() => {
               void window.korikone.cancelTransfer();
+              window.dispatchEvent(new Event("korikone:cancel-ai"));
               void window.korikone.cancelAI();
             }}
           >

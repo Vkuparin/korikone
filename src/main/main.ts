@@ -123,8 +123,12 @@ else
     });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
+    let generationRun = 0;
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
-      load: async () => service.snapshot(),
+      load: async () => {
+        service.developmentRequests = development ? fixtureAI.requestCount : 0;
+        return service.snapshot();
+      },
       setDevelopmentMode: async (input) => {
         const enabled = z.boolean().parse(input);
         if (forcedDevelopment && !enabled)
@@ -145,12 +149,14 @@ else
         service = next;
         ai = enabled ? fixtureAI : liveAI;
         service.developmentScenario = fixtureAI.scenario;
+        service.developmentRequests = enabled ? fixtureAI.requestCount : 0;
         service.ai = ai.status();
         return service.snapshot();
       },
       developmentScenario: async (input) => {
         if (!development) throw new Error("developmentRequired");
         fixtureAI.setScenario(z.enum(aiScenarios).parse(input));
+        service.developmentRequests = 0;
         service.developmentScenario = fixtureAI.scenario;
         return service.snapshot();
       },
@@ -178,6 +184,9 @@ else
         return service.snapshot();
       },
       cancelAI: async () => {
+        generationRun++;
+        service.draft = null;
+        service.draftRevision = null;
         ai.cancel();
         ai.cancelRequest();
         return service.snapshot();
@@ -205,17 +214,34 @@ else
           })
           .parse(input);
         const revision = service.state.revision;
-        let text = await ai.generate(
-          request.model,
-          draftPrompt(request.prompt, service.state),
-        );
+        const run = ++generationRun;
+        service.draft = null;
+        service.draftRevision = null;
+        const generate = async (prompt: string) => {
+          try {
+            const text = await ai.generate(request.model, prompt);
+            if (run !== generationRun) throw new Error("aiCancelled");
+            return text;
+          } catch (error) {
+            if (
+              run !== generationRun ||
+              (error instanceof Error && error.name === "AbortError")
+            )
+              throw new Error("aiCancelled");
+            throw error;
+          } finally {
+            service.developmentRequests = development
+              ? fixtureAI.requestCount
+              : 0;
+          }
+        };
+        let text = await generate(draftPrompt(request.prompt, service.state));
         try {
           service.draft = validateDraft(text, service.state);
         } catch (error) {
           if (!(error instanceof Error) || error.message !== "invalidDraft")
             throw error;
-          text = await ai.generate(
-            request.model,
+          text = await generate(
             draftPrompt(request.prompt, service.state) +
               " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
           );
@@ -446,7 +472,12 @@ else
             service.ai = ai.status();
             return { ok: true, value: { ...value, ai: service.ai } };
           }
-          const pending = queue.then(() => handler(input));
+          const submittedRun = generationRun;
+          const pending = queue.then(() => {
+            if (name === "generate" && submittedRun !== generationRun)
+              throw new Error("aiCancelled");
+            return handler(input);
+          });
           queue = pending.catch(() => {});
           const value = (await pending) as object;
           service.ai = ai.status();

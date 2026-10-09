@@ -2,6 +2,7 @@ import type { AIStatus } from "./chatgpt";
 import { initialState } from "../domain/model";
 import { chooseModel } from "./models";
 import { setTimeout as delay } from "node:timers/promises";
+import { mealFixtures } from "./meal-fixtures";
 
 export const aiScenarios = [
   "success",
@@ -18,6 +19,9 @@ export class FixtureAI {
   scenario: (typeof aiScenarios)[number] = "success";
   private signedIn = false;
   private calls = 0;
+  get requestCount() {
+    return this.calls;
+  }
   private request: AbortController | null = null;
   private catalogue = [{ slug: "fixture-mini", name: "Local fixture" }];
   async init() {}
@@ -68,7 +72,7 @@ export class FixtureAI {
     )
       return "{invalid";
     if (this.scenario === "delayedSuccess")
-      await delay(900, undefined, { signal });
+      await delay(2500, undefined, { signal });
     if (
       this.scenario !== "success" &&
       this.scenario !== "delayedSuccess" &&
@@ -82,10 +86,16 @@ export class FixtureAI {
     );
     const recipes = initialState().recipes.filter((r) =>
       r.id === "pasta"
-        ? /pasta/.test(request)
+        ? /pasta/.test(request) && !/kanapasta|chicken pasta/.test(request)
         : r.id === "soup"
-          ? /keitto|soup/.test(request)
+          ? /keitto|soup/.test(request) &&
+            !/nakkikeitto|sausage soup/.test(request)
           : /puuro|porridge/.test(request),
+    );
+    recipes.push(
+      ...mealFixtures
+        .filter((f) => f.pattern.test(request))
+        .map((f) => structuredClone(f.recipe)),
     );
     const items = initialState()
       .staples.filter(() => /kahvi|coffee/.test(request))

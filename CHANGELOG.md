@@ -1,5 +1,13 @@
 # Release notes
 
+## Unreleased
+
+- Cancel a pending note interpretation beside the input. Cancellation preserves the saved list and typed note, invalidates pending drafts, and suppresses automatic resubmission.
+- Added the original nakkikeitto/kanapasta/ready-food/breakfast/treats fixture and regression checks for debounce, request counts, cancellation, usage failures and explicit retry.
+- Updated the implementation plan and acceptance preparation for the published alpha.2 release. Live model and retailer acceptance remain separate.
+- Expanded synthetic PDF checks for Finnish characters, euro signs, fonts, page order and extraction limits.
+- Agent instructions use focused feature checks during implementation and reserve full suites for release preparation.
+
 ## 0.2.0-alpha.2 — 9 October 2026
 
 - Settings development mode uses local AI and retailer fixtures with a separate saved profile. Automated Electron tests force this mode and cannot disable it.

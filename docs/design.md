@@ -4,7 +4,7 @@ Revised 9 October 2026 after the first user feedback round. The current directio
 
 Korikone turns a household's plain-language shopping note into an editable, priced shopping list. Meals, ready foods, breakfasts, evening foods and treats belong in the same note. Product choices happen automatically; the user corrects exceptions and reviews the resulting cart changes. Checkout stays in the retailer.
 
-Current delivery stage: **0.2.0-alpha.1 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance.
+Current published delivery: **0.2.0-alpha.2 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
 
 ## Product decisions
 
@@ -38,6 +38,8 @@ Saved recipes are added through a disclosure, without choosing a day. Recurring 
 Recipe-ID collisions are remapped with their references. Ingredient identities are reused for matching Finnish names and units, so shared ingredients add together. Markdown-wrapped JSON is accepted. Unknown references, duplicate incoming recipe IDs, invalid quantities and incomplete JSON are rejected. Validation failure triggers at most one corrective generation attempt. Network, authorization and usage failures do not trigger that retry.
 
 On successful interpretation, replace the current generated list, persist the note and assumptions, and retain saved recipes. Manual list changes made after generation started invalidate its revision. The renderer ignores responses for an obsolete note or an unmounted workspace. Failures leave the saved list intact and show a persistent error. Users can retry with Ctrl+Enter or the arrow.
+
+Cancel is available beside the note while generation runs. It aborts the request, invalidates pending drafts and suppresses automatic submission of the current note. The saved list stays intact and the typed note remains available for an explicit retry. Cancellation has its own status rather than a network-failure alert. Development mode exposes request counts in its snapshots for automated debounce, retry and cancellation checks.
 
 The app discovers a suitable available model automatically. OAuth, credentials, streaming completion checks and usage errors stay in the local AI provider. The renderer never receives tokens. There is no automatic paid API fallback.
 

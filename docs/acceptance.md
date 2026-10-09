@@ -2,6 +2,12 @@
 
 Evidence through 9 October 2026. Current scope is defined in [pre-release.md](pre-release.md). Earlier prototype evidence is retained below; it does not establish stable-release acceptance.
 
+## Current source acceptance preparation
+
+Development mode is the default for automated and agent testing. The current source adds cancellation beside the note input, invalidates running and queued drafts, preserves the saved list and typed note, and requires an explicit retry of the cancelled note. Fixture request counts check debounce, the bounded validation retry, cancellation of queued requests and usage-failure behavior. The original multi-dish example has cooked-meal, ready-food, breakfast and snack fixtures through the real validation and matching paths.
+
+Synthetic receipt coverage includes Finnish WinAnsi text and euro signs in Helvetica and Courier, multiple-page order, malformed/textless documents and the page/file limits. This is offline evidence only; varied real receipts and live model quality remain acceptance work. Routine work uses focused feature checks. Full suites are reserved for release preparation.
+
 | Requirement | Evidence | Status |
 | --- | --- | --- |
 | Public repository and open-source license | Vkuparin/korikone, Apache-2.0, staged commits pushed to main | Done |
@@ -49,3 +55,7 @@ Live S-kaupat run on 9 October 2026: the read-only catalogue smoke above passed.
 ## 0.2.0-alpha.1 release verification, 9 October 2026
 
 The production build and formatting checks passed. All 58 unit tests and all eight source desktop tests passed. The unsigned Windows x64 NSIS installer was built with both pinned retailer workers. Two tests against its packaged executable passed: demo transfer/recovery/restart and PDF import, including malformed-PDF rejection without losing saved text. Windows metadata identifies Korikone and version 0.2.0-alpha.1. These checks used isolated profiles and did not modify real retailer accounts. Clean-machine installation, existing-profile upgrade and live K-Ruoka transfer remain unverified. S-kaupat authenticated handoff remains open in #3.
+
+## 0.2.0-alpha.2 release verification, 9 October 2026
+
+Published from commit `72a22fc` with an unsigned Windows x64 installer and SHA-256 checksum. GitHub CI passed build, formatting, 60 unit tests and 10 source desktop tests. Five packaged-app checks passed: backup export/restore, development-mode setup and transfers, mode persistence, transfer recovery/restart, and PDF receipt import. No live ChatGPT request or retailer mutation was used for these checks. The release preserves the selected UI language when a pending operation returns an older snapshot. Clean-machine installation, upgrade and live acceptance gates remain open.

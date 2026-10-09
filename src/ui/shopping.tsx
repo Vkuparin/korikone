@@ -28,6 +28,9 @@ export function ShoppingWorkspace({
     () => sessionStorage.getItem("shopping-note") ?? state.note,
   );
   const [working, setWorking] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+  const stopRequested = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [scheduled, setScheduled] = useState(false);
@@ -40,8 +43,16 @@ export function ShoppingWorkspace({
   const savedNote = useRef(state.note);
   useEffect(() => {
     active.current = true;
+    const stop = () => {
+      if (!running.current) return;
+      stopRequested.current = true;
+      attempted.current = currentNote.current;
+      setCancelled(true);
+    };
+    window.addEventListener("korikone:cancel-ai", stop);
     return () => {
       active.current = false;
+      window.removeEventListener("korikone:cancel-ai", stop);
     };
   }, []);
   useEffect(() => {
@@ -54,6 +65,7 @@ export function ShoppingWorkspace({
     attempted.current = state.note;
   }, [state.note]);
   const changeNote = (value: string) => {
+    setCancelled(false);
     sessionStorage.setItem("shopping-note", value);
     currentNote.current = value;
     setNote(value);
@@ -69,21 +81,31 @@ export function ShoppingWorkspace({
     const requested = note;
     attempted.current = requested;
     running.current = true;
+    stopRequested.current = false;
+    setCancelled(false);
     setWorking(true);
+    setRequesting(true);
     try {
-      if (
-        await call("generate", {
-          prompt: requested,
-          model: "auto",
-          consent: true,
-        })
-      ) {
-        if (active.current && currentNote.current === requested)
+      const generated = await call("generate", {
+        prompt: requested,
+        model: "auto",
+        consent: true,
+      });
+      setRequesting(false);
+      if (generated) {
+        if (
+          !stopRequested.current &&
+          active.current &&
+          currentNote.current === requested
+        )
           await call("approveDraft");
       }
     } finally {
       running.current = false;
-      if (active.current) setWorking(false);
+      if (active.current) {
+        setWorking(false);
+        setRequesting(false);
+      }
     }
   }
   useEffect(() => {
@@ -361,13 +383,27 @@ export function ShoppingWorkspace({
             <span className="note-status" role="status">
               {working
                 ? tr("Muodostetaan listaa…", "Building your list…")
-                : busy
-                  ? tr("Haetaan tuotteita…", "Finding products…")
-                  : tr(
-                      "Ctrl + Enter päivittää heti",
-                      "Ctrl + Enter to update now",
-                    )}
+                : cancelled
+                  ? tr("Listan päivitys peruutettu", "List update cancelled")
+                  : busy
+                    ? tr("Haetaan tuotteita…", "Finding products…")
+                    : tr(
+                        "Ctrl + Enter päivittää heti",
+                        "Ctrl + Enter to update now",
+                      )}
             </span>
+            {requesting && (
+              <button
+                className="secondary"
+                onClick={() => {
+                  window.dispatchEvent(new Event("korikone:cancel-ai"));
+                  void call("cancelAI");
+                }}
+                disabled={cancelled}
+              >
+                {tr("Peruuta listan päivitys", "Cancel list update")}
+              </button>
+            )}
             <button
               className="refresh-note"
               aria-label={tr("Päivitä ostoslista", "Update shopping list")}
@@ -384,7 +420,12 @@ export function ShoppingWorkspace({
           </div>
         </div>
         <p className="input-notice">
-          {snapshot.ai.state === "connected" ? (
+          {snapshot.developmentMode ? (
+            tr(
+              "Kehitystila käyttää paikallista testiaineistoa. Muistiinpanoa tai kuitteja ei lähetetä ChatGPT:lle.",
+              "Development mode uses local fixtures. Your note and receipts are not sent to ChatGPT.",
+            )
+          ) : snapshot.ai.state === "connected" ? (
             tr(
               "Lista päivittyy kirjoitustauon jälkeen. Muistiinpano, reseptit, talouden tiedot ja tuodut kuitit lähetetään ChatGPT:lle.",
               "The list updates after a pause. Your note, recipes, household preferences and imported receipts are sent to ChatGPT.",
