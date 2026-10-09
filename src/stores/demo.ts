@@ -55,19 +55,32 @@ export class DemoProvider implements StoreProvider {
   writes = 0;
   searchRequests = 0;
   failSearch = false;
+  failContext = false;
   constructor(
     public id: string,
     private save?: () => void,
   ) {}
-  async searchStores(): Promise<StoreContext[]> {
+  async searchStores(query = ""): Promise<StoreContext[]> {
     return [
       {
         providerId: this.id,
-        storeId: "demo-helsinki",
+        storeId: /alternate/i.test(query)
+          ? "demo-alternate"
+          : /pickup-only/i.test(query)
+            ? "demo-pickup-only"
+            : "demo-helsinki",
         storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · Helsinki (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
         fulfillment: "pickup",
       },
     ];
+  }
+  async fulfillments(
+    context: StoreContext,
+  ): Promise<StoreContext["fulfillment"][]> {
+    if (this.failContext) throw new Error("storeBusy");
+    return context.storeId === "demo-pickup-only"
+      ? ["pickup"]
+      : ["pickup", "delivery"];
   }
   async searchProducts(
     context: StoreContext,

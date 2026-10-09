@@ -20,6 +20,7 @@ The app never initializes the live AI connection in development mode. AI sign-in
 | Copy saved week | `tests/calendar.test.ts` checks Finnish and English text and omitted meal references; `tests/ui/calendar-copy.spec.ts` uses the real clipboard for both languages and an empty calendar, with no saved-state or basket changes |
 | Mode persistence, profile isolation and forbidden live calls | `tests/development.test.ts`, `tests/ui/development.spec.ts` |
 | Retained quotes (U8.2) | `tests/quotes.test.ts` covers compatibility, invalid cache, failed fetch/cache writes, stale responses and fresh transfer validation; `tests/persistence-quotes.test.ts` exercises real SQLite restart; `tests/ui/quotes.spec.ts` covers no quote, navigation, restart, Finnish/English labels, explicit store/list updates, a price rise and failed pricing with retry |
+| Confirmed context API (U9.1) | `tests/context.test.ts` covers capabilities, no-op, remembered chains, pickup/delivery, unavailable choices, failed reads/writes and concurrent confirmation; `tests/ui/context-api.spec.ts` exercises real IPC, deterministic adapter failures, preserved note/groceries and restart |
 
 Fixtures recognize pasta, soup/keitto, porridge/puuro, coffee/kahvi, frozen pizza/pakastepizza, nakkikeitto/sausage soup, kanapasta/chicken pasta, yoghurt-and-banana breakfast, and chocolate treats. The original multi-dish acceptance note retains its cooked meals, direct ready food, breakfast and snack groups. Unrecognized notes return a pasta example. This tests app behavior, not language-model quality. Add fixtures for new input cases and failure paths when adding features.
 
@@ -40,7 +41,7 @@ During implementation, run focused unit tests for the changed feature, such as `
 Use the current source build with an existing priced list. Development mode uses local fixtures and no ChatGPT allowance. A live check requires an explicit request and two successful ChatGPT generations, one for each update action; invalid output can cause one corrective retry per action. Typing, navigation and restart should use no generations or catalogue requests. Explicit updates also read the retailer catalogue; this check transfers no products.
 
 1. Note the current meals, rows, total and quote time. Edit the note without updating. Check the unapplied-edit hint and unchanged list and prices; no update progress should appear.
-2. Open Recipes and return to Shopping list. Restart the app. Check that the edited note, saved rows, total and quote time remain, without interpretation or pricing progress.
+2. Open Recipes and return to Shopping list; check that the edited note remains. Restart the app. Check that the saved rows, total and quote time remain, without interpretation or pricing progress. Unsaved note edits stay in the current window session; restart restores the saved note.
 3. Press “Päivitä lista” / “Update list”. Check that update progress and cancellation appear while it runs, then that the completed list matches the applied note and has a quote time.
 4. Edit the note again and press Ctrl+Enter. Check the same progress and completed-list behavior. Record the build/commit, mode, date, observations and any failures in `docs/acceptance.md`.
 

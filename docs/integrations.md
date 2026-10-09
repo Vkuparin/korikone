@@ -57,6 +57,16 @@ The current ChatGPT plan-usage preview excludes hosted MCP/connectors. It permit
 
 There is no public MCP endpoint, hosted worker or shared retailer session in v1. A new AI connection is not a new grocery connection. A store login does not authorize AI usage.
 
+## Confirmed planning context (U9.1, 9 October 2026)
+
+`Service.getContextOptions(context?)` returns a snapshot with `contextOptions: { context, fulfillments }`, without catalogue or AI requests. Only the active store, a per-chain remembered store or a result from `searchStores` can be proposed. The service uses that store's known name rather than trusting a supplied display name. `changeContext({ context, revision })` checks that the confirmation still refers to the saved list, reads supported fulfillment choices, then prices the unchanged requirements at the proposed store before saving. Lookup or state-save failure leaves the previous context, quote and approval intact. Concurrent transfers are blocked during confirmation. A successful change updates the active context and its per-chain remembered store, invalidates the review/comparison and stores a compatible quote. A failed quote-cache write after the state save returns the saved context as unpriced with `pricingError`, rather than claiming a durable quote.
+
+These methods are exposed through restricted Electron IPC. They change Korikone's local planning context and read catalogue prices and pickup fees. They do not change a retailer basket/list, select a time, choose an address, generate a note or sign out either chain. K-Ruoka catalogue and cart calls already pass the store explicitly; cart reads reject a mismatched store. S-kaupat catalogue/list calls also pass the store explicitly. The new context path does not call S-kaupat's `select_store`, so it does not claim to change the retailer site's own selected store. The existing Settings `save` path still makes that session selection best effort; U9.2 must use the confirmed API for the new header controls.
+
+The live fulfillment select was disabled because the adapters do not establish a complete delivery choice. Both live adapters currently expose pickup only through the confirmed API. K-Ruoka search reports pickup/home-delivery flags but Korikone retains only pickup-capable web stores; those flags do not establish an address or selected delivery session. S-kaupat delivery needs an address that Korikone does not collect. Delivery therefore returns `fulfillmentUnavailable` before fetching prices or changing state. Pickup remains a local planning choice; time selection and checkout stay in the retailer. Missing or failed fee readings remain unknown, never zero.
+
+Development providers expose pickup and delivery locally. Search terms `alternate` and `pickup-only` provide another store and a pickup-only store. The `context` scenario fails fulfillment reads and `catalogue` fails product searches. `tests/context.test.ts` and `tests/ui/context-api.spec.ts` cover those boundaries, real validation/persistence, remembered chains, note preservation, failure and restart without live accounts. U9.2 remains responsible for selectors, unavailable-option explanations and updating the renderer with returned snapshots.
+
 ## Delivery and pickup fees (F3.1, 9 October 2026)
 
 What each pinned worker reports about fees without choosing a time:

@@ -288,6 +288,8 @@ else
       reuseWeek: () => service.refreshAfterChange(() => service.reuseWeek()),
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
+      getContextOptions: (input) => service.getContextOptions(input),
+      changeContext: (input) => service.changeContext(input),
       accept: (input) => service.accept(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),

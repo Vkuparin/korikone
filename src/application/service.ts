@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   initialState,
+  contextSchema,
   stateSchema,
   type AppState,
   type BasketLine,
@@ -49,6 +50,10 @@ export class Service {
   draftRevision: number | null = null;
   draftNote = "";
   storeResults: StoreContext[] = [];
+  contextOptions: {
+    context: StoreContext;
+    fulfillments: StoreContext["fulfillment"][];
+  } | null = null;
   storeLogins: Record<string, string> = {};
   /** The last store comparison for the current list revision; never saved. */
   comparison: {
@@ -132,6 +137,7 @@ export class Service {
       journal: this.journal,
       review: this.review,
       storeResults: this.storeResults,
+      contextOptions: this.contextOptions,
       storeLogin:
         this.storeLogins[this.state.context.providerId] ?? "notStarted",
       storeLogins: { ...this.storeLogins },
@@ -177,6 +183,100 @@ export class Service {
         this.pricingError = null;
       }
       return this.snapshot();
+    });
+  }
+  private knownContext(input: unknown): StoreContext {
+    const requested = contextSchema.parse(input);
+    this.registry.get(requested.providerId);
+    const known = [
+      this.state.context,
+      ...Object.values(this.state.stores),
+      ...this.storeResults,
+    ].find(
+      (context) =>
+        context.providerId === requested.providerId &&
+        context.storeId === requested.storeId,
+    );
+    if (!known) throw new Error("storeUnavailable");
+    return { ...known, fulfillment: requested.fulfillment };
+  }
+  private async supportedFulfillments(context: StoreContext) {
+    const provider = this.registry.get(context.providerId);
+    return z
+      .array(z.enum(["pickup", "delivery"]))
+      .parse(
+        provider.fulfillments
+          ? await provider.fulfillments(context)
+          : ["pickup"],
+      );
+  }
+  /** Opening a selector reads capabilities only; it never prices or interprets the note. */
+  async getContextOptions(input?: unknown) {
+    if (this.busy) throw new Error("busy");
+    const revision = this.state.revision;
+    const context = this.knownContext(input ?? this.state.context);
+    const fulfillments = await this.supportedFulfillments(context);
+    if (this.busy || revision !== this.state.revision)
+      throw new Error("draftStale");
+    this.contextOptions = { context, fulfillments };
+    return this.snapshot();
+  }
+  /** Confirm a known store/fulfillment after pricing succeeds, before publishing any change. */
+  async changeContext(input: unknown) {
+    const requested = z
+      .object({
+        context: contextSchema,
+        revision: z.number().int().nonnegative(),
+      })
+      .parse(input);
+    if (this.busy) throw new Error("busy");
+    return this.writeState(async () => {
+      if (this.busy) throw new Error("busy");
+      if (requested.revision !== this.state.revision)
+        throw new Error("draftStale");
+      const context = this.knownContext(requested.context);
+      if (JSON.stringify(context) === JSON.stringify(this.state.context))
+        return this.snapshot();
+      this.busy = true;
+      try {
+        if (
+          !(await this.supportedFulfillments(context)).includes(
+            context.fulfillment,
+          )
+        )
+          throw new Error("fulfillmentUnavailable");
+        const next = stateSchema.parse({
+          ...this.state,
+          context,
+          revision: this.state.revision + 1,
+        });
+        const basket = await this.price(context, next);
+        this.fees.delete(`${context.providerId}:${context.storeId}`);
+        const pickupFee = basket.length ? await this.readFee(context) : null;
+        await this.db.set("state", next);
+        this.state = next;
+        this.review = null;
+        this.comparison = null;
+        this.contextOptions = null;
+        this.basket = [];
+        this.pickupFee = null;
+        this.quotedAt = null;
+        this.pricingError = null;
+        try {
+          return await this.storeQuote(
+            pricingKey(next),
+            context,
+            basket,
+            pickupFee,
+          );
+        } catch {
+          // The context is saved, but its cache is not durable. Return it honestly as unpriced.
+          this.pricingError = "storageFailed";
+          return this.snapshot();
+        }
+      } finally {
+        this.busy = false;
+      }
     });
   }
   async approveDraft() {
@@ -277,22 +377,30 @@ export class Service {
     basket: BasketLine[],
     pickupFee: FeeRange | null,
   ) {
-    return this.writeState(async () => {
-      if (key !== pricingKey(this.state)) throw new Error("draftStale");
-      const quotedAt = new Date().toISOString();
-      await this.db.set("last-quote", {
-        key,
-        context,
-        basket,
-        pickupFee,
-        quotedAt,
-      });
-      this.basket = basket;
-      this.pickupFee = pickupFee;
-      this.quotedAt = quotedAt;
-      this.pricingError = null;
-      return this.snapshot();
+    return this.writeState(() =>
+      this.storeQuote(key, context, basket, pickupFee),
+    );
+  }
+  private async storeQuote(
+    key: string,
+    context: StoreContext,
+    basket: BasketLine[],
+    pickupFee: FeeRange | null,
+  ) {
+    if (key !== pricingKey(this.state)) throw new Error("draftStale");
+    const quotedAt = new Date().toISOString();
+    await this.db.set("last-quote", {
+      key,
+      context,
+      basket,
+      pickupFee,
+      quotedAt,
     });
+    this.basket = basket;
+    this.pickupFee = pickupFee;
+    this.quotedAt = quotedAt;
+    this.pricingError = null;
+    return this.snapshot();
   }
   /** Explicit list operations refresh incompatible quotes; opening a view never calls this. */
   async refreshAfterChange(operation: () => Promise<unknown>) {
@@ -324,20 +432,23 @@ export class Service {
     return fee;
   }
   /** Prices the current list at a store, reading only: nothing saved, reviewed or journalled. */
-  private async price(context: StoreContext): Promise<BasketLine[]> {
+  private async price(
+    context: StoreContext,
+    state = this.state,
+  ): Promise<BasketLine[]> {
     const provider = this.registry.get(context.providerId);
     const result = [];
-    for (const requirement of requirements(this.state)) {
+    for (const requirement of requirements(state)) {
       const products = await provider.searchProducts(
         context,
         requirement.name,
         requirement.id,
       );
       const accepted =
-        this.state.accepted[
+        state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
         ] ?? [];
-      const exclusions = exclusionTerms(this.state.household.exclusions);
+      const exclusions = exclusionTerms(state.household.exclusions);
       const available = products.filter(
         (p) =>
           p.available &&
@@ -357,9 +468,9 @@ export class Service {
         ? available.filter((p) => relevant(p.name, requirement.name))
         : available;
       const preferred = fitting.filter((p) =>
-        this.state.productPreference === "storeBrand"
+        state.productPreference === "storeBrand"
           ? storeBrand(p.name)
-          : this.state.productPreference === "avoidStoreBrand"
+          : state.productPreference === "avoidStoreBrand"
             ? !storeBrand(p.name)
             : true,
       );
@@ -575,12 +686,16 @@ export class Service {
   }
   async scenario(value: unknown) {
     if (this.busy) throw new Error("busy");
-    const scenario = z.enum(["interrupt", "price", "catalogue"]).parse(value);
+    const scenario = z
+      .enum(["interrupt", "price", "catalogue", "context"])
+      .parse(value);
     const provider = this.registry.get(this.state.context.providerId);
     if (!(provider instanceof DemoProvider)) throw new Error("unsupported");
     if (scenario === "interrupt") provider.failAfter = provider.writes + 1;
     else if (scenario === "price") provider.priceChange = !provider.priceChange;
-    else provider.failSearch = !provider.failSearch;
+    else if (scenario === "catalogue")
+      provider.failSearch = !provider.failSearch;
+    else provider.failContext = !provider.failContext;
     return this.snapshot();
   }
 }

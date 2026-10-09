@@ -11,6 +11,8 @@ const methods = [
   "cancelTransfer",
   "buildBasket",
   "compareStores",
+  "getContextOptions",
+  "changeContext",
   "accept",
   "omit",
   "prepare",

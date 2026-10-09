@@ -37,6 +37,7 @@ function App() {
     review: null,
     journal: null,
     storeResults: [],
+    contextOptions: null,
     storeLogin: "notStarted",
     storeLogins: {},
     comparison: null,
