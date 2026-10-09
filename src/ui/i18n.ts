@@ -8,6 +8,11 @@ export function packCount(count: number, language: string): string {
   return `${count} ${count === 1 ? "pack" : "packs"}`;
 }
 export const en = {
+  developmentMode: "Development mode",
+  developmentModeInfo:
+    "Use local ChatGPT and store fixtures. No ChatGPT usage or retailer requests. Development data is saved separately; switching modes opens that mode's profile.",
+  developmentScenario: "AI fixture scenario",
+  developmentRequired: "This test launch requires development mode.",
   receiptNoText:
     "This PDF has no readable text. For a scanned receipt, export a searchable PDF with OCR first, or paste its purchase lines.",
   receiptUnreadable:
@@ -244,6 +249,11 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  developmentMode: "Kehitystila",
+  developmentModeInfo:
+    "Käytä paikallisia ChatGPT- ja kauppatestiaineistoja. ChatGPT-käyttöä ei kulu eikä kauppoihin lähetetä pyyntöjä. Kehitystilan tiedot tallennetaan erikseen; tilan vaihtaminen avaa kyseisen tilan profiilin.",
+  developmentScenario: "Tekoälyn testitapaus",
+  developmentRequired: "Tämä testikäynnistys edellyttää kehitystilaa.",
   receiptNoText:
     "PDF ei sisällä luettavaa tekstiä. Tee skannatulle kuitille tekstintunnistus (OCR) tai liitä ostosrivit tekstinä.",
   receiptUnreadable:

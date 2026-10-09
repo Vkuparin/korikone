@@ -11,6 +11,7 @@ export function diagnostics(
   return {
     generatedAt: new Date().toISOString(),
     runtime,
+    developmentMode: snapshot.developmentMode,
     language: state.language,
     setupComplete: state.setupComplete,
     store: {

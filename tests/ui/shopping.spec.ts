@@ -103,40 +103,10 @@ test("debounced notes discard an obsolete response and apply only the latest not
     state.onboarded = true;
     state.setupComplete = true;
     state.staples = [];
-    await app.evaluate(({ ipcMain }, state) => {
-      const snapshot = {
-        state,
-        basket: [],
-        journal: null,
-        review: null,
-        storeResults: [],
-        storeLogin: "notStarted",
-        ai: { state: "connected", email: "test", models: [], error: null },
-        draft: null,
-      };
-      let request = "";
-      const methods: Record<string, (input: any) => Promise<void>> = {
-        load: async () => {},
-        generate: async (input) => {
-          request = input.prompt;
-          await new Promise((resolve) => setTimeout(resolve, 900));
-        },
-        approveDraft: async () => {
-          snapshot.state.note = request;
-          snapshot.state.revision++;
-          snapshot.state.extras = [
-            { id: "pizza", name: request, amount: 700, unit: "g" },
-          ];
-        },
-        buildBasket: async () => {},
-      };
-      for (const [name, handler] of Object.entries(methods)) {
-        ipcMain.removeHandler(`app:${name}`);
-        ipcMain.handle(`app:${name}`, async (_event, input) => {
-          await handler(input);
-          return { ok: true, value: snapshot };
-        });
-      }
+    await page.evaluate(async (state) => {
+      await window.korikone.save(state);
+      await window.korikone.signInAI();
+      await window.korikone.developmentScenario("delayedSuccess");
     }, state);
     await page.reload();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");

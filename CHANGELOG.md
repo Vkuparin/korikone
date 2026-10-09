@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.2.0-alpha.2 — 9 October 2026
+
+- Settings development mode uses local AI and retailer fixtures with a separate saved profile. Automated Electron tests force this mode and cannot disable it.
+- Added AI success, delayed-response, validation-retry and failure fixtures. Setup and stale-note UI tests now use real application handlers.
+- Agent instructions require fixture testing for development and an explicit user request for live ChatGPT tests.
+
+Development mode can be enabled in Settings. Switching modes opens a separate saved profile. Existing live data and ChatGPT credentials are preserved. The installer remains unsigned; the earlier pre-release limitations still apply.
+
+Verification: build, formatting, 60 unit tests and 10 source desktop tests passed. Four packaged-app checks passed: development-mode setup and transfers, mode persistence, transfer recovery and restart, and PDF receipt import. These checks used local fixtures without live ChatGPT requests.
+
 ## 0.2.0-alpha.1 — 9 October 2026
 
 First Windows pre-release for early testing, following the prototype feedback round.

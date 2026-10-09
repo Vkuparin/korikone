@@ -1,0 +1,109 @@
+import type { AIStatus } from "./chatgpt";
+import { initialState } from "../domain/model";
+import { chooseModel } from "./models";
+import { setTimeout as delay } from "node:timers/promises";
+
+export const aiScenarios = [
+  "success",
+  "delayedSuccess",
+  "invalidOnce",
+  "invalidDraft",
+  "usageLimit",
+  "incompleteDraft",
+  "aiFailed",
+] as const;
+
+/** Local responses exercise the same validation and approval path as live AI. */
+export class FixtureAI {
+  scenario: (typeof aiScenarios)[number] = "success";
+  private signedIn = false;
+  private calls = 0;
+  private request: AbortController | null = null;
+  private catalogue = [{ slug: "fixture-mini", name: "Local fixture" }];
+  async init() {}
+  status(): AIStatus {
+    return {
+      state: this.signedIn ? "connected" : "disconnected",
+      email: this.signedIn ? "fixture@korikone.local" : "",
+      error: null,
+      models: this.signedIn ? this.catalogue : [],
+    };
+  }
+  async signIn() {
+    this.signedIn = true;
+  }
+  async signOut() {
+    this.cancelRequest();
+    this.signedIn = false;
+  }
+  cancel() {}
+  cancelRequest() {
+    this.request?.abort();
+  }
+  async models() {
+    if (!this.signedIn) throw new Error("notConnected");
+    return this.catalogue;
+  }
+  setScenario(scenario: (typeof aiScenarios)[number]) {
+    this.scenario = scenario;
+    this.calls = 0;
+  }
+  async generate(model: string, input: string) {
+    if (this.request) throw new Error("busy");
+    const controller = new AbortController();
+    this.request = controller;
+    try {
+      return await this.respond(model, input, controller.signal);
+    } finally {
+      this.request = null;
+    }
+  }
+  private async respond(model: string, input: string, signal: AbortSignal) {
+    chooseModel(await this.models(), model);
+    signal.throwIfAborted();
+    this.calls++;
+    if (
+      this.scenario === "invalidDraft" ||
+      (this.scenario === "invalidOnce" && this.calls === 1)
+    )
+      return "{invalid";
+    if (this.scenario === "delayedSuccess")
+      await delay(900, undefined, { signal });
+    if (
+      this.scenario !== "success" &&
+      this.scenario !== "delayedSuccess" &&
+      this.scenario !== "invalidOnce"
+    )
+      throw new Error(this.scenario);
+    const note = input.match(/User note: ("(?:[^"\\]|\\.)*")/)?.[1];
+    const request = note ? JSON.parse(note).toLocaleLowerCase("fi") : "";
+    const servings = Number(
+      input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4,
+    );
+    const recipes = initialState().recipes.filter((r) =>
+      r.id === "pasta"
+        ? /pasta/.test(request)
+        : r.id === "soup"
+          ? /keitto|soup/.test(request)
+          : /puuro|porridge/.test(request),
+    );
+    const items = initialState()
+      .staples.filter(() => /kahvi|coffee/.test(request))
+      .map(({ id, name, amount, unit }) => ({ id, name, amount, unit }));
+    if (/pakastepizza|frozen pizza/.test(request))
+      items.push({ id: "pizza", name: "Pakastepizza", amount: 700, unit: "g" });
+    if (!recipes.length && !items.length)
+      recipes.push(initialState().recipes[0]);
+    return JSON.stringify({
+      recipes,
+      meals: recipes.map((r, day) => ({
+        recipeId: r.id,
+        day,
+        servings,
+        leftovers: false,
+      })),
+      items,
+      notes: "Development mode: local fixture response.",
+    });
+  }
+}

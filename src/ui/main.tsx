@@ -25,6 +25,8 @@ declare global {
 }
 function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>({
+    developmentMode: false,
+    developmentScenario: "success",
     state: initialState(),
     basket: [],
     review: null,
@@ -59,6 +61,8 @@ function App() {
     try {
       const result = await window.korikone[method](input);
       if (!result.ok) throw new Error(result.error);
+      if (method === "setDevelopmentMode")
+        sessionStorage.removeItem("shopping-note");
       setSnapshot(result.value);
       return true;
     } catch (e) {
@@ -159,8 +163,13 @@ function App() {
           </select>,
         )}
       </header>
+      {snapshot.developmentMode && (
+        <div className="demo" data-testid="development-banner">
+          {t("developmentMode")}
+        </div>
+      )}
       <div className="demo">
-        {isLive(state.context.providerId)
+        {isLive(state.context.providerId) && !snapshot.developmentMode
           ? `${state.context.storeName} · ${t("liveStore")}`
           : t("demo")}
       </div>
@@ -289,7 +298,7 @@ function App() {
             </div>
             {(page === "week" || page === "weekPlan" || page === "history") && (
               <ShoppingWorkspace
-                key={page}
+                key={`${page}:${snapshot.developmentMode}`}
                 snapshot={snapshot}
                 busy={busy}
                 call={call}
@@ -891,6 +900,46 @@ function App() {
             {page === "settings" && (
               <>
                 <h1>{t("settings")}</h1>
+                <section className="card">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={snapshot.developmentMode}
+                      disabled={busy}
+                      onChange={(e) =>
+                        void call("setDevelopmentMode", e.target.checked)
+                      }
+                    />
+                    {t("developmentMode")}
+                  </label>
+                  <p>{t("developmentModeInfo")}</p>
+                  {snapshot.developmentMode && (
+                    <label>
+                      {t("developmentScenario")}
+                      <select
+                        value={snapshot.developmentScenario}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void call("developmentScenario", e.target.value)
+                        }
+                      >
+                        {[
+                          "success",
+                          "delayedSuccess",
+                          "invalidOnce",
+                          "invalidDraft",
+                          "usageLimit",
+                          "incompleteDraft",
+                          "aiFailed",
+                        ].map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </section>
                 <form
                   className="card form"
                   onSubmit={(e) => {

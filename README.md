@@ -6,7 +6,7 @@ The pre-release includes automatic note interpretation and product choices, edit
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The current version is **0.2.0-alpha.1**, intended for early testing. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The current version is **0.2.0-alpha.2**, intended for early testing. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -30,6 +30,14 @@ Write meals and groceries in one note. After a short pause, Korikone interprets 
 Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and can be edited before use in future ChatGPT suggestions. Scanned PDFs require OCR first. Copy or save the list for manual shopping; direct phone sync is not implemented.
 
 ## Build and check
+
+Use **Settings > Development mode** for development and testing. It replaces ChatGPT and both retailer connections with local fixtures and saves planning data and transfer journals in a separate profile. The banner identifies the active mode. Switching back restores your live profile. Fixture sign-in never opens a browser or uses ChatGPT allowance.
+
+For a forced development launch, set `KORIKONE_DEVELOPMENT=1` before `npm start`. `KORIKONE_DATA_DIR` selects an optional separate user-data directory. Automated Electron tests use a temporary `KORIKONE_TEST_DATA` directory, which forces development mode and rejects attempts to disable it. The setting is stored locally and is not changed by backup imports.
+
+AI fixtures recognize pasta, soup/keitto, porridge/puuro, coffee/kahvi and frozen pizza/pakastepizza. Other notes return a pasta example; fixtures do not provide general language understanding. Settings includes success, delayed success, invalid JSON (once or always), usage-limit, incomplete-response and AI-failure scenarios. The basket's demo controls exercise price changes and interrupted transfers. Receipt parsing, file exports, backups, diagnostics and clipboard actions stay local and use the real app code.
+
+Run fixture checks first. Request live acceptance testing only when the feature is finished and its offline checks pass. Live ChatGPT requests require the user's explicit request. See [fixture coverage](docs/testing.md) and [agent instructions](AGENTS.md).
 
 ```powershell
 npm test

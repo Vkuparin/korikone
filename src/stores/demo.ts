@@ -9,6 +9,7 @@ const catalogue: [string, string, number, "g" | "ml" | "pcs", number][] = [
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi 500 g", 500, "g", 599],
+  ["pizza", "Pakastepizza 350 g", 350, "g", 249],
 ];
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };
@@ -25,30 +26,34 @@ export class DemoProvider implements StoreProvider {
       {
         providerId: this.id,
         storeId: "demo-helsinki",
-        storeName: `${this.id === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
+        storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · Helsinki (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
         fulfillment: "pickup",
       },
     ];
   }
   async searchProducts(
     context: StoreContext,
-    _query: string,
+    query: string,
     ingredientId: string,
   ): Promise<Product[]> {
     return catalogue
-      .filter((p) => p[0] === ingredientId)
+      .filter(
+        (p) =>
+          p[0] === ingredientId ||
+          p[1].toLocaleLowerCase("fi").includes(query.toLocaleLowerCase("fi")),
+      )
       .flatMap(([id, name, packAmount, unit, price]) => [
         {
           id,
           providerId: this.id,
           storeId: context.storeId,
-          ingredientId: id,
+          ingredientId,
           name,
           packAmount,
           unit,
           price:
             price +
-            (this.id === "demo-s" ? 10 : 0) +
+            (["demo-s", "s-kaupat"].includes(this.id) ? 10 : 0) +
             (this.priceChange ? 20 : 0),
           available: id !== "carrot",
           deposit: 0,
@@ -62,7 +67,7 @@ export class DemoProvider implements StoreProvider {
                 id: "carrot-alt",
                 providerId: this.id,
                 storeId: context.storeId,
-                ingredientId: id,
+                ingredientId,
                 name: "Porkkana 500 g",
                 packAmount: 500,
                 unit,

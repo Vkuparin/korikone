@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
-import { Service } from "../application/service";
+import { createService } from "../application/development";
+import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { shoppingList } from "../domain/planner";
 import { stateSchema } from "../domain/model";
 import { z } from "zod";
@@ -24,12 +25,18 @@ import { readReceipt } from "../receipts/read";
 import { diagnostics } from "../application/diagnostics";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
+else if (process.env.KORIKONE_DATA_DIR)
+  app.setPath("userData", process.env.KORIKONE_DATA_DIR);
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.whenReady().then(async () => {
     const db = new Database(join(app.getPath("userData"), "korikone.sqlite"));
-    const service = new Service(db);
-    const ai = new ChatGPT(
+    const forcedDevelopment =
+      !!process.env.KORIKONE_TEST_DATA ||
+      process.env.KORIKONE_DEVELOPMENT === "1";
+    let development =
+      forcedDevelopment || (await db.get("development-mode")) === true;
+    const liveAI = new ChatGPT(
       db,
       {
         encrypt: (text) => {
@@ -45,8 +52,13 @@ else
       },
       (url) => shell.openExternal(url),
     );
-    await ai.init();
-    service.ai = ai.status();
+    const fixtureAI = new FixtureAI();
+    let ai = development ? fixtureAI : liveAI;
+    let liveAIInitialized = false;
+    if (!development) {
+      await liveAI.init();
+      liveAIInitialized = true;
+    }
     const worker = new KRuokaWorker(
       join(
         app.isPackaged ? process.resourcesPath : app.getAppPath(),
@@ -55,9 +67,7 @@ else
       join(app.getPath("userData"), "retailers/k-ruoka/profile"),
       findChrome(),
     );
-    service.registry.register(
-      new KRuokaProvider((name, args) => worker.call(name, args)),
-    );
+    const kRuoka = new KRuokaProvider((name, args) => worker.call(name, args));
     const sWorker = sKaupatWorker({
       script: join(
         app.isPackaged ? process.resourcesPath : app.getAppPath(),
@@ -68,7 +78,8 @@ else
     const sKaupat = new SKaupatProvider((name, args) =>
       sWorker.call(name, args),
     );
-    service.registry.register(sKaupat);
+    let service = await createService(db, development, [kRuoka, sKaupat]);
+    service.ai = ai.status();
     // start_login waits for the user, so it runs beside the serialized operations.
     let sLogin: Promise<void> | null = null;
     let sLoginRun = 0;
@@ -92,7 +103,6 @@ else
           sLogin = null;
         });
     };
-    await service.init();
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
@@ -115,11 +125,41 @@ else
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       load: async () => service.snapshot(),
+      setDevelopmentMode: async (input) => {
+        const enabled = z.boolean().parse(input);
+        if (forcedDevelopment && !enabled)
+          throw new Error("developmentRequired");
+        if (service.busy || sLogin || ai.status().state === "waiting")
+          throw new Error("busy");
+        if (enabled === development) return service.snapshot();
+        ai.cancel();
+        ai.cancelRequest();
+        await Promise.all([worker.close(), sWorker.close()]);
+        if (!enabled && !liveAIInitialized) {
+          await liveAI.init();
+          liveAIInitialized = true;
+        }
+        const next = await createService(db, enabled, [kRuoka, sKaupat]);
+        await db.set("development-mode", enabled);
+        development = enabled;
+        service = next;
+        ai = enabled ? fixtureAI : liveAI;
+        service.developmentScenario = fixtureAI.scenario;
+        service.ai = ai.status();
+        return service.snapshot();
+      },
+      developmentScenario: async (input) => {
+        if (!development) throw new Error("developmentRequired");
+        fixtureAI.setScenario(z.enum(aiScenarios).parse(input));
+        service.developmentScenario = fixtureAI.scenario;
+        return service.snapshot();
+      },
       save: async (input) => {
         const before = service.state.context;
         const result = await service.save(input);
         const context = service.state.context;
         if (
+          !development &&
           context.providerId === "s-kaupat" &&
           (before.providerId !== context.providerId ||
             before.storeId !== context.storeId)
@@ -152,7 +192,8 @@ else
         return service.snapshot();
       },
       usageAI: async () => {
-        await shell.openExternal("https://chatgpt.com/settings/usage");
+        if (!development)
+          await shell.openExternal("https://chatgpt.com/settings/usage");
         return service.snapshot();
       },
       generate: async (input) => {
@@ -213,6 +254,10 @@ else
       },
       loginStore: async () => {
         if (service.busy) throw new Error("busy");
+        if (development) {
+          service.storeLogins[service.state.context.providerId] = "signedIn";
+          return service.snapshot();
+        }
         if (service.state.context.providerId === "s-kaupat") {
           loginSKaupat();
           return service.snapshot();
@@ -225,6 +270,7 @@ else
       },
       checkStoreLogin: async () => {
         if (service.busy) throw new Error("busy");
+        if (development) return service.snapshot();
         if (service.state.context.providerId === "s-kaupat") {
           if (!sLogin) {
             const { status } = z
@@ -250,6 +296,10 @@ else
         return service.snapshot();
       },
       cancelStoreLogin: async () => {
+        if (development) {
+          service.storeLogins[service.state.context.providerId] = "notStarted";
+          return service.snapshot();
+        }
         if (service.state.context.providerId === "s-kaupat") {
           // Stopping the server closes its login window; the next call restarts it.
           sLoginRun++;
@@ -263,6 +313,10 @@ else
         return service.snapshot();
       },
       logoutStore: async () => {
+        if (development) {
+          service.storeLogins[service.state.context.providerId] = "notStarted";
+          return service.snapshot();
+        }
         // K-Ruoka's pinned worker has no sign-out tool.
         if (service.busy || service.state.context.providerId !== "s-kaupat")
           throw new Error("unsupported");
@@ -278,6 +332,7 @@ else
           (providerId !== "k-ruoka" && providerId !== "s-kaupat")
         )
           throw new Error("reviewRequired");
+        if (development) return service.snapshot();
         if (providerId === "s-kaupat")
           await sWorker.call("open_site", { applyChoice: false });
         else
@@ -363,7 +418,10 @@ else
           const next = stateSchema.parse(
             JSON.parse(await readFile(filePaths[0], "utf8")),
           );
-          await db.set(`backup-${Date.now()}`, service.state);
+          await db.set(
+            `${development ? "development:" : ""}backup-${Date.now()}`,
+            service.state,
+          );
           return service.save({ ...next, revision: service.state.revision });
         }
         return service.snapshot();

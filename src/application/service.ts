@@ -24,6 +24,8 @@ export interface Storage {
   set(key: string, value: unknown): Promise<any>;
 }
 export class Service {
+  developmentMode = false;
+  developmentScenario = "success";
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
@@ -68,13 +70,19 @@ export class Service {
       this.journal.error = "interrupted";
       await this.db.set("journal", this.journal);
     }
-    for (const id of ["demo-k", "demo-s"]) {
+    for (const id of [
+      "demo-k",
+      "demo-s",
+      ...(this.developmentMode ? ["k-ruoka", "s-kaupat"] : []),
+    ]) {
       const carts = await this.db.get(id);
       if (carts) (this.registry.get(id) as DemoProvider).carts = new Map(carts);
     }
   }
   snapshot() {
     return {
+      developmentMode: this.developmentMode,
+      developmentScenario: this.developmentScenario,
       state: this.state,
       basket: this.basket,
       journal: this.journal,
