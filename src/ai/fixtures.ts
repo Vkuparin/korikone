@@ -7,11 +7,17 @@ import { mealFixtures } from "./meal-fixtures";
 export const aiScenarios = [
   "success",
   "delayedSuccess",
+  "delayedModels",
   "invalidOnce",
   "invalidDraft",
   "usageLimit",
   "incompleteDraft",
   "aiFailed",
+  "noSmallModel",
+  "removedModel",
+  "emptyModels",
+  "modelsFailed",
+  "handoffFailed",
 ] as const;
 
 /** Local responses exercise the same validation and approval path as live AI. */
@@ -19,11 +25,28 @@ export class FixtureAI {
   scenario: (typeof aiScenarios)[number] = "success";
   private signedIn = false;
   private calls = 0;
+  lastModel: string | null = null;
+  catalogueRequests = 0;
   get requestCount() {
     return this.calls;
   }
   private request: AbortController | null = null;
-  private catalogue = [{ slug: "fixture-mini", name: "Local fixture" }];
+  private get catalogue() {
+    if (this.scenario === "emptyModels") return [];
+    if (this.scenario === "noSmallModel")
+      return [{ slug: "fixture-large", name: "Local large model" }];
+    return [
+      { slug: "fixture-mini", name: "Local mini model" },
+      ...(this.scenario === "removedModel"
+        ? []
+        : [
+            {
+              slug: "fixture-large",
+              name: "Local large model with a very long display name for layout checks",
+            },
+          ]),
+    ];
+  }
   async init() {}
   status(): AIStatus {
     return {
@@ -44,13 +67,19 @@ export class FixtureAI {
   cancelRequest() {
     this.request?.abort();
   }
-  async models() {
+  async models(signal?: AbortSignal) {
     if (!this.signedIn) throw new Error("notConnected");
+    this.catalogueRequests++;
+    if (this.scenario === "delayedModels")
+      await delay(2500, undefined, { signal });
+    if (this.scenario === "modelsFailed") throw new Error("modelsUnavailable");
     return this.catalogue;
   }
   setScenario(scenario: (typeof aiScenarios)[number]) {
     this.scenario = scenario;
     this.calls = 0;
+    this.catalogueRequests = 0;
+    this.lastModel = null;
   }
   async generate(model: string, input: string) {
     if (this.request) throw new Error("busy");
@@ -63,7 +92,7 @@ export class FixtureAI {
     }
   }
   private async respond(model: string, input: string, signal: AbortSignal) {
-    chooseModel(await this.models(), model);
+    this.lastModel = chooseModel(await this.models(signal), model);
     signal.throwIfAborted();
     this.calls++;
     if (
@@ -76,9 +105,19 @@ export class FixtureAI {
     if (
       this.scenario !== "success" &&
       this.scenario !== "delayedSuccess" &&
-      this.scenario !== "invalidOnce"
+      this.scenario !== "delayedModels" &&
+      this.scenario !== "invalidOnce" &&
+      !["noSmallModel", "removedModel"].includes(this.scenario)
     )
       throw new Error(this.scenario);
+    const recipeText = input.match(/Recipe text: ("(?:[^"\\]|\\.)*")/)?.[1];
+    if (recipeText) {
+      const request = JSON.parse(recipeText).toLocaleLowerCase("fi");
+      const recipe =
+        mealFixtures.find((fixture) => fixture.pattern.test(request))?.recipe ??
+        initialState().recipes[0];
+      return JSON.stringify(structuredClone(recipe));
+    }
     const note = input.match(/User note: ("(?:[^"\\]|\\.)*")/)?.[1];
     const request = note ? JSON.parse(note).toLocaleLowerCase("fi") : "";
     const servings = Number(

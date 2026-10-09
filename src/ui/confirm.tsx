@@ -246,6 +246,26 @@ export function ConfirmPanel({
     );
   }
 
+  if (
+    snapshot.transferException === "priceChanged" ||
+    snapshot.transferException === "unresolved"
+  )
+    return (
+      <section className="confirm-panel" role="alert">
+        <p>{t(snapshot.transferException)}</p>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            if (await call("buildBasket")) onClose();
+          }}
+        >
+          {tr("Hae tuotteet ja hinnat", "Get products and prices")}
+        </button>
+        <button className="text" onClick={onClose}>
+          {tr("Peru", "Cancel")}
+        </button>
+      </section>
+    );
   if (!journal) return null;
   const left = journal.review.unresolved ?? [];
   const live = isLive(journal.review.context.providerId);
@@ -275,14 +295,33 @@ export function ConfirmPanel({
       )}
       {journal.status === "verified" ? (
         <>
+          {snapshot.handoffError && (
+            <p role="alert">
+              {tr(
+                "Siirto tarkistettu, mutta kaupan avaaminen epäonnistui. Avaa kauppa uudelleen alla.",
+                "Transfer verified, but the store could not open. Retry opening below.",
+              )}
+            </p>
+          )}
           <p className="muted">
-            {journal.review.context.providerId === "s-kaupat"
-              ? t("sKaupatHandoff")
-              : tr(
-                  "Seuraavaksi: avaa kaupan ostoskori ja tee tilaus siellä.",
-                  "Next: open the store cart and check out there.",
-                )}
+            {snapshot.developmentMode
+              ? tr(
+                  "Kehitystila: siirto tarkistettiin testikorissa. Oikeaa kaupan ikkunaa ei avata. Avauspainike testaa avaamisen lisäämättä tuotteita.",
+                  "Development mode: transfer verified in the test basket. No real store window opens. The open button tests opening without adding products.",
+                )
+              : journal.review.context.providerId === "s-kaupat"
+                ? t("sKaupatHandoff")
+                : tr(
+                    "Viimeistele tilaus kaupan ostoskorissa. Tarvittaessa voit avata sen uudelleen.",
+                    "Complete checkout in the store basket. You can reopen it if needed.",
+                  )}
           </p>
+          {snapshot.developmentMode && (
+            <p aria-live="polite">
+              {tr("Testatut avaukset", "Tested openings")}:{" "}
+              {snapshot.developmentHandoffs.length}
+            </p>
+          )}
           <div className="actions">
             {live && (
               <button
@@ -296,7 +335,12 @@ export function ConfirmPanel({
                     onOpenStore(chain);
                 }}
               >
-                {t("openStoreCart")}
+                {journal.review.context.providerId === "s-kaupat"
+                  ? tr("Avaa S-kaupat-lista uudelleen", "Reopen S-kaupat list")
+                  : tr(
+                      "Avaa K-Ruoan ostoskori uudelleen",
+                      "Reopen K-Ruoka basket",
+                    )}
               </button>
             )}
             <button
@@ -305,6 +349,13 @@ export function ConfirmPanel({
               onClick={() => void call("confirmPurchase")}
             >
               {t("ordered")}
+            </button>
+            <button
+              className="text"
+              disabled={busy}
+              onClick={() => void call("prepare", { allowMissing: true })}
+            >
+              {tr("Siirrä sama lista uudelleen…", "Transfer this list again…")}
             </button>
             <button className="text" onClick={onClose}>
               {tr("Sulje", "Close")}

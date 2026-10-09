@@ -8,6 +8,8 @@ export function packCount(count: number, language: string): string {
   return `${count} ${count === 1 ? "pack" : "packs"}`;
 }
 export const en = {
+  modelSelectionRequired:
+    "Automatic could not identify a suitable small model. Choose an available AI model.",
   developmentMode: "Development mode",
   developmentModeInfo:
     "Use local ChatGPT and store fixtures. No ChatGPT usage or retailer requests. Development data is saved separately; switching modes opens that mode's profile.",
@@ -58,7 +60,7 @@ export const en = {
     "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. Korikone retains one account registration per local profile.",
   waitingAI: "Complete authorization in your browser.",
   signOut: "Sign out",
-  manageUsage: "Manage ChatGPT usage",
+  manageUsage: "Open ChatGPT usage",
   permissionMissing:
     "ChatGPT plan-use permission is missing. Reconnect and enable it, or continue manually.",
   permissionDenied:
@@ -71,7 +73,7 @@ export const en = {
   modelsUnavailable:
     "The model catalogue is unavailable. Reconnect or try again.",
   usageLimit:
-    "ChatGPT usage is unavailable or exhausted. Manage usage or continue manually.",
+    "ChatGPT limited this request. Check usage settings or continue manually.",
   aiFailed:
     "ChatGPT could not complete the request. Your saved plan is unchanged.",
   incompleteDraft: "The response was interrupted. No changes were applied.",
@@ -187,7 +189,7 @@ export const en = {
   aiStatus:
     "Connect ChatGPT in Settings for meal drafts. You can also add meals manually below.",
   realStatus:
-    "Uses a separate Chrome profile on this device. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
+    "Sign in to K-Ruoka once in the Store tab. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
   ordered: "I completed the purchase",
   unsupported: "This provider does not support this operation.",
   invalidQuantity:
@@ -264,6 +266,8 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  modelSelectionRequired:
+    "Automaattinen ei löytänyt sopivaa pientä mallia. Valitse saatavilla oleva AI-malli.",
   developmentMode: "Kehitystila",
   developmentModeInfo:
     "Käytä paikallisia ChatGPT- ja kauppatestiaineistoja. ChatGPT-käyttöä ei kulu eikä kauppoihin lähetetä pyyntöjä. Kehitystilan tiedot tallennetaan erikseen; tilan vaihtaminen avaa kyseisen tilan profiilin.",
@@ -313,7 +317,7 @@ export const fi: Record<Key, string> = {
     "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Korikone säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
   waitingAI: "Viimeistele valtuutus selaimessa.",
   signOut: "Kirjaudu ulos",
-  manageUsage: "Hallitse ChatGPT:n käyttöä",
+  manageUsage: "Avaa ChatGPT:n käyttö",
   permissionMissing:
     "Lupa ChatGPT-tilauksen käyttöön puuttuu. Yhdistä uudelleen ja salli käyttö tai jatka käsin.",
   permissionDenied: "Valtuutus hylättiin. Voit jatkaa suunnittelua käsin.",
@@ -326,7 +330,7 @@ export const fi: Record<Key, string> = {
   modelsUnavailable:
     "Malliluetteloa ei saada. Yhdistä uudelleen tai yritä myöhemmin.",
   usageLimit:
-    "ChatGPT:n käyttöraja on täynnä tai käyttö ei ole saatavilla. Hallitse käyttöä tai jatka käsin.",
+    "ChatGPT rajoitti tätä pyyntöä. Tarkista käyttöasetukset tai jatka käsin.",
   aiFailed: "ChatGPT-pyyntö epäonnistui. Tallennettu suunnitelma säilyi.",
   incompleteDraft: "Vastaus keskeytyi. Muutoksia ei tehty.",
   invalidDraft:
@@ -437,7 +441,7 @@ export const fi: Record<Key, string> = {
   aiStatus:
     "Yhdistä ChatGPT asetuksissa aterialuonnoksia varten. Voit myös lisätä ateriat käsin alta.",
   realStatus:
-    "Käyttää erillistä Chrome-profiilia tällä laitteella. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
+    "Kirjaudu K-Ruokaan kerran Kauppa-näkymässä. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
   ordered: "Olen tehnyt ostoksen",
   unsupported: "Kauppa ei tue tätä toimintoa.",
   invalidQuantity:

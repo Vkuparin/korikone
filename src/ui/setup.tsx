@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
 import { isLive } from "../stores/provider";
-import { Chains } from "./chains";
 
 export function Setup({
   snapshot,
@@ -93,23 +92,6 @@ export function Setup({
                   >
                     {t("loginStore")}
                   </button>
-                </>
-              )}
-              {isLive(state.context.providerId) && (
-                <>
-                  <h3>{t("otherChain")}</h3>
-                  <p className="muted">{t("chainsHelp")}</p>
-                  <Chains
-                    snapshot={snapshot}
-                    t={t}
-                    busy={busy}
-                    call={call}
-                    only={[
-                      state.context.providerId === "s-kaupat"
-                        ? "k-ruoka"
-                        : "s-kaupat",
-                    ]}
-                  />
                 </>
               )}
             </>

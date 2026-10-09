@@ -65,9 +65,9 @@ export const stateSchema = z
     // The week plan by calendar date (YYYY-MM-DD): the meals cooked that day and whether it is a leftovers day.
     calendar: z
       .record(
-        z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        z.iso.date(),
         z.object({
-          mealIds: z.array(z.string()).max(20),
+          mealIds: z.array(z.string().min(1)).max(20),
           leftovers: z.boolean(),
         }),
       )
@@ -86,6 +86,7 @@ export const stateSchema = z
     productPreference: z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
+    aiModel: z.string().min(1).max(200).default("auto"),
     receiptText: z.string().max(50000).default(""),
     listHistory: z
       .array(
@@ -201,6 +202,7 @@ export type Review = {
   unresolved?: Requirement[];
 };
 export type Journal = {
+  batchKey?: string;
   review: Review;
   status: "ready" | "transferring" | "partial" | "verified";
   verified: string[];

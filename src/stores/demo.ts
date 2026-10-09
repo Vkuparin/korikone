@@ -55,25 +55,44 @@ export class DemoProvider implements StoreProvider {
   failAfter: number | null = null;
   priceChange = false;
   writes = 0;
+  searchRequests = 0;
+  failSearch = false;
+  failContext = false;
   constructor(
     public id: string,
     private save?: () => void,
   ) {}
-  async searchStores(): Promise<StoreContext[]> {
+  async searchStores(query = ""): Promise<StoreContext[]> {
+    if (/search-error/i.test(query)) throw new Error("storeBusy");
+    if (/no-results/i.test(query)) return [];
     return [
       {
         providerId: this.id,
-        storeId: "demo-helsinki",
-        storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · Helsinki (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
+        storeId: /alternate/i.test(query)
+          ? "demo-alternate"
+          : /pickup-only/i.test(query)
+            ? "demo-pickup-only"
+            : "demo-helsinki",
+        storeName: `${["demo-k", "k-ruoka"].includes(this.id) ? "K-Ruoka" : "S-kaupat"} · ${/alternate/i.test(query) ? "Alternate" : /pickup-only/i.test(query) ? "Pickup only" : "Helsinki"} (${this.id.startsWith("demo-") ? "demo" : "fixture"})`,
         fulfillment: "pickup",
       },
     ];
+  }
+  async fulfillments(
+    context: StoreContext,
+  ): Promise<StoreContext["fulfillment"][]> {
+    if (this.failContext) throw new Error("storeBusy");
+    return context.storeId === "demo-pickup-only"
+      ? ["pickup"]
+      : ["pickup", "delivery"];
   }
   async searchProducts(
     context: StoreContext,
     query: string,
     ingredientId: string,
   ): Promise<Product[]> {
+    this.searchRequests++;
+    if (this.failSearch) throw new Error("storeBusy");
     const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
     return catalogue
       .filter((p) => adjust[p[0]] !== null)

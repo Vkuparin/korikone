@@ -4,7 +4,7 @@ import type { ToolCall } from "./k-ruoka";
 
 /** One request run by the k-ruoka.fi page itself, so the store tab's session cookie goes with it. */
 export type PageRequest = (request: {
-  method: "POST" | "PATCH";
+  method: "GET" | "POST" | "PATCH";
   path: string;
   body?: unknown;
   build: string | null;
@@ -106,6 +106,7 @@ export class KRuokaSite {
   private queue: Promise<unknown> = Promise.resolve();
   // Only EANs the store returned in a search are ever added.
   private known = new Set<string>();
+  private reviewed: ReturnType<KRuokaSite["cart"]> | null = null;
 
   constructor(
     private request: PageRequest,
@@ -118,7 +119,29 @@ export class KRuokaSite {
     return run;
   };
 
-  private async api(method: "POST" | "PATCH", path: string, body?: unknown) {
+  /** The site's own query parameters select the reviewed store and open its basket. */
+  cartUrl(storeId: string): Promise<string> {
+    const run = this.queue.then(async () => {
+      const store = z
+        .object({ id: z.string(), slug: z.string().regex(/^k-[a-z0-9-]+$/) })
+        .parse(
+          await this.api("GET", `/kr-api/store/${encodeURIComponent(storeId)}`),
+        );
+      if (store.id !== storeId) throw new Error("contextChanged");
+      const url = new URL("https://www.k-ruoka.fi/kauppa");
+      url.searchParams.set("kauppa", store.slug);
+      url.searchParams.set("ostoskori", "");
+      return url.toString();
+    });
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  private async api(
+    method: "GET" | "POST" | "PATCH",
+    path: string,
+    body?: unknown,
+  ) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const pause = this.last + this.spacing - Date.now();
       if (pause > 0) await wait(pause);
@@ -177,9 +200,15 @@ export class KRuokaSite {
   }
 
   private async write(storeId: string, event: object) {
+    const expected = this.reviewed;
     const before = await this.basket(storeId);
     if (before.store.id !== storeId) throw new Error("contextChanged");
     if (!before.userInfo?.email) throw new Error("loginRequired");
+    if (!expected) throw new Error("reviewRequired");
+    const current = this.cart(before);
+    if (current.account !== expected.account) throw new Error("accountChanged");
+    if (JSON.stringify(current.items) !== JSON.stringify(expected.items))
+      throw new Error("cartChanged");
     return basketSchema.parse(
       await this.api(
         "PATCH",
@@ -255,7 +284,10 @@ export class KRuokaSite {
       for (const product of results.results) this.known.add(product.ean);
       return results;
     }
-    if (name === "get_cart") return this.cart(await this.basket(storeId()));
+    if (name === "get_cart") {
+      this.reviewed = this.cart(await this.basket(storeId()));
+      return this.reviewed;
+    }
     if (name === "update_cart_item") {
       const { item_id, quantity, unit } = z
         .object({

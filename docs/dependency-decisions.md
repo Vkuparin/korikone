@@ -1,6 +1,18 @@
 # Prototype dependency decisions
 
+## v0.5.0 shared S-kaupat library
+
+The default S-kaupat connection uses the Apache-2.0 npm library from upstream release v1.3.0, source revision `c2b0ada4383a86bca3b7725407783135a078b08c`. The release tarball SHA-256 is `0fa73e9952aa0c944d753da677a5a5c4aef34aa1bb0cfd4a33f605fe4cca6d77`. The dependency URL and npm integrity are pinned, and `prepare-s-kaupat.mjs` checks the tarball alongside the standalone worker.
+
+`SKaupatLibrary` calls the released `loadConfig` and `createRuntime`, connects an MCP client through `InMemoryTransport`, and validates the server version, required tools and result schemas. The shared runtime supplies requests, host authentication, renewal and error handling. Korikone retains product normalization, planning and transfer review. Ordering is disabled, and the adapter exposes only its fixed allowed tools.
+
+The private loopback host accepts five fixed operations with a random key. Store requests and session reads stay in the tab. Korikone stores no refresh token. Shutdown closes the MCP client and runtime. The build keeps `s-kaupat-mcp` as a production dependency so the packaged app includes the same released library. `KORIKONE_S_KAUPAT=browser` retains the pinned standalone fallback.
+
+Fixture tests exercise the library's reviewed transfer and the same host-session contract against both library and worker. Adapter and service tests cover expiry, uncertain writes and recovery. Earlier live observations are recorded below; final acceptance of the integrated candidate is pending.
+
 ## K-Ruoka
+
+The default in v0.5.0 is the embedded site client described below. The pinned binary and its separate browser profile remain available only through `KORIKONE_K_RUOKA=worker`. The worker evidence in this section is retained for that fallback.
 
 Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`, source revision `558a22e526057f35c7804081a77c19659cc3e671`.
 
@@ -20,7 +32,7 @@ Decision for U3.7 (U3.2 spike, 9 October 2026): replace the worker with a Koriko
 - k-ruoka-mcp is a third-party Rust binary that launches and drives its own Chrome over the DevTools protocol. A host-page mode would need an upstream change and either an open debugging port in Korikone or a new bridge protocol.
 - The client returns the same tool-shaped results, so `KRuokaProvider` and its review binding stay unchanged.
 - It must keep the worker's safeguards: the build-number header with a retry on 409, at least 500 ms between calls, a null account treated as signed out, item IDs validated before a write, and rollback of an unknown EAN.
-- The owner checked one cart write from the view on 9 October 2026, and the client became the default. The worker stays pinned behind `KORIKONE_K_RUOKA=worker` until U3.5 removes its login window. The client (`src/stores/k-ruoka-site.ts`) passes `tests/k-ruoka-site.test.ts` against anonymised responses captured from the site (`tests/fixtures/k-ruoka/`). The cart write format (a JSON array of events to `PATCH /kr-api/basket/by-id/{basketId}`: `ADD-ITEM` with `item: {ean, allowSubstitutes, amountInfo}`, `SET-ITEM-AMOUNT` with `itemId` and `value: {amount, unit}`) was read from the site's own code, not yet sent. The client builds only those two events and adds only EANs returned by a search in the same session.
+- The owner checked one cart write from the view on 9 October 2026, and the client became the default. The worker stays pinned behind `KORIKONE_K_RUOKA=worker` as an explicit fallback. The client (`src/stores/k-ruoka-site.ts`) passes `tests/k-ruoka-site.test.ts` against anonymised responses captured from the site (`tests/fixtures/k-ruoka/`). The cart write format (a JSON array of events to `PATCH /kr-api/basket/by-id/{basketId}`: `ADD-ITEM` with `item: {ean, allowSubstitutes, amountInfo}`, `SET-ITEM-AMOUNT` with `itemId` and `value: {amount, unit}`) was read from the site's own code and exercised in the earlier owner check. The client builds only those two events and adds only EANs returned by a search in the same session.
 
 ## S-kaupat
 

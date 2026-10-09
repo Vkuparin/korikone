@@ -288,11 +288,13 @@ export class ChatGPT {
       throw new Error("permissionMissing");
     return this.connection!.accessToken;
   }
-  async models() {
+  async models(signal?: AbortSignal) {
     const token = await this.access();
     const response = await fetch(`${resource}/models`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(30000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
+        : AbortSignal.timeout(30000),
     });
     if (!response.ok) throw new Error("modelsUnavailable");
     const result = z
@@ -319,7 +321,7 @@ export class ChatGPT {
     const controller = new AbortController();
     this.request = controller;
     try {
-      model = chooseModel(await this.models(), model);
+      model = chooseModel(await this.models(controller.signal), model);
       controller.signal.throwIfAborted();
       const token = await this.access();
       const response = await fetch(`${resource}/responses`, {

@@ -14,7 +14,7 @@ await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  external: ["electron", "@modelcontextprotocol/sdk/*"],
+  external: ["electron", "@modelcontextprotocol/sdk/*", "s-kaupat-mcp"],
   target: "node24",
 });
 await build({

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   initialState,
+  contextSchema,
   stateSchema,
   unitSchema,
   type AppState,
@@ -9,6 +10,7 @@ import {
   type Product,
   type Review,
   type StoreContext,
+  type Recipe,
 } from "../domain/model";
 import {
   requirements,
@@ -42,6 +44,7 @@ import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
 import type { MealDraft } from "../ai/draft";
+import { pricingKey, restoredQuote } from "./quotes";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -50,19 +53,32 @@ export class Service {
   developmentMode = false;
   developmentScenario = "success";
   developmentRequests = 0;
+  developmentModel: string | null = null;
+  developmentModelCatalogueRequests = 0;
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
+  quotedAt: string | null = null;
+  pricingError: string | null = null;
   journal: Journal | null = null;
   review: Review | null = null;
   busy = false;
+  private transferPending = false;
+  transferException: string | null = null;
+  handoffError: string | null = null;
+  developmentHandoffs: string[] = [];
   /** A newer release found by the daily update check; shown as a link, never downloaded. */
   update: { version: string; url: string } | null = null;
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
+  recipeDraft: Recipe | null = null;
   draftRevision: number | null = null;
   draftNote = "";
   storeResults: StoreContext[] = [];
+  contextOptions: {
+    context: StoreContext;
+    fulfillments: StoreContext["fulfillment"][];
+  } | null = null;
   storeLogins: Record<string, string> = {};
   /** The last store comparison for the current list revision; never saved. */
   comparison: {
@@ -102,6 +118,15 @@ export class Service {
     const language = z.enum(["fi", "en"]).parse(input);
     return this.writeState(async () => {
       const next = { ...this.state, language };
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
+  }
+  async setAIModel(input: unknown) {
+    const aiModel = z.string().min(1).max(200).parse(input);
+    return this.writeState(async () => {
+      const next = { ...this.state, aiModel };
       await this.db.set("state", next);
       this.state = next;
       return this.snapshot();
@@ -185,17 +210,44 @@ export class Service {
       const carts = await this.db.get(id);
       if (carts) (this.registry.get(id) as DemoProvider).carts = new Map(carts);
     }
+    const quote = restoredQuote(await this.db.get("last-quote"), this.state);
+    if (quote) {
+      this.basket = quote.basket;
+      this.pickupFee = quote.pickupFee;
+      this.quotedAt = quote.quotedAt;
+    }
   }
   snapshot() {
     return {
       developmentMode: this.developmentMode,
       developmentScenario: this.developmentScenario,
       developmentRequests: this.developmentRequests,
+      developmentModel: this.developmentModel,
+      developmentModelCatalogueRequests: this.developmentModelCatalogueRequests,
+      developmentCatalogueRequests: this.developmentMode
+        ? this.registry
+            .all()
+            .reduce(
+              (sum, provider) =>
+                sum +
+                (provider instanceof DemoProvider
+                  ? provider.searchRequests
+                  : 0),
+              0,
+            )
+        : 0,
       state: this.state,
       basket: this.basket,
+      quotedAt: this.quotedAt,
+      pricingError: this.pricingError,
       journal: this.journal,
       review: this.review,
+      transferException: this.transferException,
+      handoffError: this.handoffError,
+      transferBatchKey: this.batchKey(),
+      developmentHandoffs: this.developmentHandoffs,
       storeResults: this.storeResults,
+      contextOptions: this.contextOptions,
       storeLogin:
         this.storeLogins[this.state.context.providerId] ?? "notStarted",
       storeLogins: { ...this.storeLogins },
@@ -204,11 +256,12 @@ export class Service {
       ai: this.ai,
       update: this.update,
       draft: this.draft,
+      recipeDraft: this.recipeDraft,
     };
   }
   async save(input: unknown) {
     return this.writeState(async () => {
-      if (this.busy) throw new Error("busy");
+      if (this.busy || this.transferPending) throw new Error("busy");
       const next = stateSchema.parse(input);
       this.registry.get(next.context.providerId);
       if (next.revision !== this.state.revision) throw new Error("draftStale");
@@ -216,20 +269,126 @@ export class Service {
       for (const meal of next.meals)
         if (!next.recipes.some((r) => r.id === meal.recipeId))
           throw new Error("missingRecipe");
-      const oldWithoutLanguage = { ...this.state, language: next.language };
+      // Scheduling is independent of the shopping list and its current approval.
+      const previousShoppingState = {
+        ...this.state,
+        language: next.language,
+        calendar: next.calendar,
+        aiModel: next.aiModel,
+      };
       const changed =
-        JSON.stringify(oldWithoutLanguage) !== JSON.stringify(next);
+        JSON.stringify(previousShoppingState) !== JSON.stringify(next);
       if (changed) {
         next.revision = this.state.revision + 1;
       }
+      const pricingChanged = pricingKey(next) !== pricingKey(this.state);
       await this.db.set("state", next);
       this.state = next;
       if (changed) {
-        this.basket = [];
         this.review = null;
         this.comparison = null;
       }
+      if (pricingChanged) {
+        this.basket = [];
+        this.pickupFee = null;
+        this.quotedAt = null;
+        this.pricingError = null;
+      }
       return this.snapshot();
+    });
+  }
+  private knownContext(input: unknown): StoreContext {
+    const requested = contextSchema.parse(input);
+    this.registry.get(requested.providerId);
+    const known = [
+      this.state.context,
+      ...Object.values(this.state.stores),
+      ...this.storeResults,
+    ].find(
+      (context) =>
+        context.providerId === requested.providerId &&
+        context.storeId === requested.storeId,
+    );
+    if (!known) throw new Error("storeUnavailable");
+    return { ...known, fulfillment: requested.fulfillment };
+  }
+  private async supportedFulfillments(context: StoreContext) {
+    const provider = this.registry.get(context.providerId);
+    return z
+      .array(z.enum(["pickup", "delivery"]))
+      .parse(
+        provider.fulfillments
+          ? await provider.fulfillments(context)
+          : ["pickup"],
+      );
+  }
+  /** Opening a selector reads capabilities only; it never prices or interprets the note. */
+  async getContextOptions(input?: unknown) {
+    if (this.busy) throw new Error("busy");
+    const revision = this.state.revision;
+    const context = this.knownContext(input ?? this.state.context);
+    const fulfillments = await this.supportedFulfillments(context);
+    if (this.busy || revision !== this.state.revision)
+      throw new Error("draftStale");
+    this.contextOptions = { context, fulfillments };
+    return this.snapshot();
+  }
+  /** Confirm a known store/fulfillment after pricing succeeds, before publishing any change. */
+  async changeContext(input: unknown) {
+    const requested = z
+      .object({
+        context: contextSchema,
+        revision: z.number().int().nonnegative(),
+      })
+      .parse(input);
+    if (this.busy) throw new Error("busy");
+    return this.writeState(async () => {
+      if (this.busy) throw new Error("busy");
+      if (requested.revision !== this.state.revision)
+        throw new Error("draftStale");
+      const context = this.knownContext(requested.context);
+      if (JSON.stringify(context) === JSON.stringify(this.state.context))
+        return this.snapshot();
+      this.busy = true;
+      try {
+        if (
+          !(await this.supportedFulfillments(context)).includes(
+            context.fulfillment,
+          )
+        )
+          throw new Error("fulfillmentUnavailable");
+        const next = stateSchema.parse({
+          ...this.state,
+          context,
+          revision: this.state.revision + 1,
+        });
+        const basket = await this.price(context, next);
+        this.fees.delete(`${context.providerId}:${context.storeId}`);
+        const pickupFee = basket.length ? await this.readFee(context) : null;
+        await this.db.set("state", next);
+        this.state = next;
+        this.review = null;
+        this.comparison = null;
+        this.contextOptions = null;
+        this.basket = [];
+        this.pickupFee = null;
+        this.quotedAt = null;
+        this.pricingError = null;
+        try {
+          return await this.storeQuote(
+            pricingKey(next),
+            context,
+            basket,
+            pickupFee,
+          );
+        } catch {
+          // The context is saved, but its cache is not durable. Return it honestly as unpriced.
+          this.pricingError = "storageFailed";
+          return this.snapshot();
+        }
+      } finally {
+        this.busy = false;
+      }
     });
   }
   async approveDraft() {
@@ -316,10 +475,62 @@ export class Service {
     return this.snapshot();
   }
   async buildBasket() {
-    if (this.busy) throw new Error("busy");
+    if (this.busy || this.transferPending) throw new Error("busy");
+    this.transferException = null;
     this.review = null;
-    this.basket = await this.price(this.state.context);
-    this.pickupFee = await this.readFee(this.state.context);
+    const context = this.state.context;
+    const key = pricingKey(this.state);
+    const basket = await this.price(context);
+    await this.recordPrices(basket.flatMap((line) => line.candidates));
+    const pickupFee = basket.length ? await this.readFee(context) : null;
+    return this.retainQuote(key, context, basket, pickupFee);
+  }
+  private retainQuote(
+    key: string,
+    context: StoreContext,
+    basket: BasketLine[],
+    pickupFee: FeeRange | null,
+  ) {
+    return this.writeState(() =>
+      this.storeQuote(key, context, basket, pickupFee),
+    );
+  }
+  private async storeQuote(
+    key: string,
+    context: StoreContext,
+    basket: BasketLine[],
+    pickupFee: FeeRange | null,
+  ) {
+    if (key !== pricingKey(this.state)) throw new Error("draftStale");
+    const quotedAt = new Date().toISOString();
+    await this.db.set("last-quote", {
+      key,
+      context,
+      basket,
+      pickupFee,
+      quotedAt,
+    });
+    this.basket = basket;
+    this.pickupFee = pickupFee;
+    this.quotedAt = quotedAt;
+    this.pricingError = null;
+    return this.snapshot();
+  }
+  /** Explicit list operations refresh incompatible quotes; opening a view never calls this. */
+  async refreshAfterChange(operation: () => Promise<unknown>) {
+    const key = pricingKey(this.state);
+    await operation();
+    if (key !== pricingKey(this.state)) {
+      try {
+        return await this.buildBasket();
+      } catch (error) {
+        // The list operation was already saved; show that list with unpriced rows.
+        this.pricingError =
+          error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+            ? error.message
+            : "operationFailed";
+      }
+    }
     return this.snapshot();
   }
   /** Fees change with the time of day, so a reading is reused for 15 minutes at most. A failed read is unknown. */
@@ -335,25 +546,26 @@ export class Service {
     return fee;
   }
   /** Prices the current list at a store, reading only: nothing saved, reviewed or journalled. */
-  private async price(context: StoreContext): Promise<BasketLine[]> {
+  private async price(
+    context: StoreContext,
+    state = this.state,
+  ): Promise<BasketLine[]> {
     const provider = this.registry.get(context.providerId);
     const result = [];
-    const observed: Product[] = [];
-    for (const requirement of requirements(this.state)) {
+    for (const requirement of requirements(state)) {
       const products = applyPackSizes(
         await provider.searchProducts(
           context,
           requirement.name,
           requirement.id,
         ),
-        this.state.packSizes,
+        state.packSizes,
       );
-      observed.push(...products);
       const accepted =
-        this.state.accepted[
+        state.accepted[
           `${context.providerId}:${context.storeId}:${requirement.id}`
         ] ?? [];
-      const exclusions = exclusionTerms(this.state.household.exclusions);
+      const exclusions = exclusionTerms(state.household.exclusions);
       const available = products.filter(
         (p) =>
           p.available &&
@@ -373,9 +585,9 @@ export class Service {
         ? available.filter((p) => relevant(p.name, requirement.name))
         : available;
       const preferred = fitting.filter((p) =>
-        this.state.productPreference === "storeBrand"
+        state.productPreference === "storeBrand"
           ? storeBrand(p.name)
-          : this.state.productPreference === "avoidStoreBrand"
+          : state.productPreference === "avoidStoreBrand"
             ? !storeBrand(p.name)
             : true,
       );
@@ -392,7 +604,6 @@ export class Service {
         ),
       );
     }
-    await this.recordPrices(observed);
     return result;
   }
   /**
@@ -412,7 +623,9 @@ export class Service {
     )
       throw new Error("compareUnavailable");
     const revision = this.state.revision;
-    const lines = this.basket.length ? this.basket : await this.price(active);
+    const hasQuote = this.quotedAt !== null;
+    const key = pricingKey(this.state);
+    const lines = hasQuote ? this.basket : await this.price(active);
     const otherLines = await this.price(other);
     const fees = {
       a: await this.readFee(active),
@@ -421,6 +634,7 @@ export class Service {
     // A list edited meanwhile makes the comparison stale; show none rather than a wrong one.
     if (this.state.revision !== revision || this.state.context !== active)
       throw new Error("draftStale");
+    if (!hasQuote) await this.retainQuote(key, active, lines, fees.a);
     this.basket = lines;
     this.pickupFee = fees.a;
     this.comparison = {
@@ -472,16 +686,17 @@ export class Service {
     )
       throw new Error("unresolved");
     const context = this.state.context;
-    await this.save({
-      ...this.state,
-      accepted: {
-        ...this.state.accepted,
-        [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
-          productId,
-        ],
-      },
-    });
-    return this.buildBasket();
+    return this.refreshAfterChange(() =>
+      this.save({
+        ...this.state,
+        accepted: {
+          ...this.state.accepted,
+          [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
+            productId,
+          ],
+        },
+      }),
+    );
   }
   /** "Already have this" from the basket: skip the requirement and rematch. */
   async omit(input: unknown) {
@@ -493,8 +708,9 @@ export class Service {
       )
     )
       throw new Error("unresolved");
-    await this.save({ ...this.state, skipped: [...this.state.skipped, key] });
-    return this.buildBasket();
+    return this.refreshAfterChange(() =>
+      this.save({ ...this.state, skipped: [...this.state.skipped, key] }),
+    );
   }
   async prepare(input?: unknown) {
     if (this.busy) throw new Error("busy");
@@ -517,6 +733,93 @@ export class Service {
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
   }
+  /** The initial click approves exactly the quoted batch, never a newly priced substitute. */
+  private batchKey() {
+    return JSON.stringify({
+      context: this.state.context,
+      lines: this.basket.map((line) => [
+        line.requirement,
+        line.product && [
+          line.product.id,
+          line.product.price,
+          line.product.deposit,
+          line.product.packAmount,
+          line.product.unit,
+          line.product.nativeUnit,
+          line.product.increment,
+        ],
+        line.packs,
+        line.total,
+      ]),
+    });
+  }
+  async transferDisplayed(input: unknown) {
+    const { revision, quotedAt, batchKey } = z
+      .object({
+        revision: z.number().int(),
+        quotedAt: z.string(),
+        batchKey: z.string(),
+      })
+      .parse(input);
+    if (this.busy || this.transferPending) throw new Error("busy");
+    if (
+      revision !== this.state.revision ||
+      quotedAt !== this.quotedAt ||
+      batchKey !== this.batchKey()
+    )
+      throw new Error("draftStale");
+    this.transferPending = true;
+    this.transferException = null;
+    this.review = null;
+    try {
+      if (this.journal?.status === "partial") {
+        this.transferException = "recoverFirst";
+        return this.snapshot();
+      }
+      if (
+        this.journal?.status === "verified" &&
+        this.journal.batchKey === this.batchKey()
+      ) {
+        const cart = await this.registry
+          .get(this.state.context.providerId)
+          .getCart(this.state.context);
+        if (cart.accountId !== this.journal.review.baseline.accountId)
+          throw new Error("accountChanged");
+        return this.snapshot();
+      }
+      try {
+        await this.prepare({ allowMissing: true });
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !["priceChanged", "unresolved"].includes(error.message)
+        )
+          throw error;
+        this.transferException = error.message;
+        return this.snapshot();
+      }
+      if (
+        revision !== this.state.revision ||
+        quotedAt !== this.quotedAt ||
+        batchKey !== this.batchKey()
+      ) {
+        this.review = null;
+        throw new Error("draftStale");
+      }
+      const review = this.review!;
+      if (
+        review.unresolved?.length ||
+        review.total > this.state.household.budget ||
+        review.targets.some((target) => target.before > 0)
+      ) {
+        this.transferException = "acknowledgeReview";
+        return this.snapshot();
+      }
+      return await this.execute({ id: review.id, acknowledged: false });
+    } finally {
+      this.transferPending = false;
+    }
+  }
   async execute(input: unknown) {
     const { id, acknowledged } = z
       .object({ id: z.string(), acknowledged: z.boolean() })
@@ -538,6 +841,10 @@ export class Service {
     try {
       const provider = this.registry.get(this.review.context.providerId);
       const journal: Journal = {
+        batchKey:
+          this.journal?.status === "partial"
+            ? this.journal.batchKey
+            : this.batchKey(),
         review: this.review,
         status: "ready",
         verified: [],
@@ -639,11 +946,16 @@ export class Service {
   }
   async scenario(value: unknown) {
     if (this.busy) throw new Error("busy");
-    const scenario = z.enum(["interrupt", "price"]).parse(value);
+    const scenario = z
+      .enum(["interrupt", "price", "catalogue", "context"])
+      .parse(value);
     const provider = this.registry.get(this.state.context.providerId);
     if (!(provider instanceof DemoProvider)) throw new Error("unsupported");
     if (scenario === "interrupt") provider.failAfter = provider.writes + 1;
-    else provider.priceChange = !provider.priceChange;
+    else if (scenario === "price") provider.priceChange = !provider.priceChange;
+    else if (scenario === "catalogue")
+      provider.failSearch = !provider.failSearch;
+    else provider.failContext = !provider.failContext;
     return this.snapshot();
   }
 }

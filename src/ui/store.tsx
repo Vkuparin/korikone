@@ -33,6 +33,7 @@ export function StorePage({
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
   const chains = storeChains(snapshot);
+  if (chain && !chains.includes(chain)) chains.push(chain);
   const current =
     chain && chains.includes(chain)
       ? chain

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { SKaupatHost, type SKaupatPage } from "../src/main/s-kaupat-host";
 import { SKaupatSession, sKaupatWorker } from "../src/stores/s-kaupat";
+import { SKaupatLibrary } from "../src/stores/s-kaupat-library";
 
 const part = (value: unknown) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -12,6 +13,7 @@ const token = `${part({ alg: "none" })}.${part({ exp: Math.floor(Date.now() / 10
 // A stand-in for the signed-in S-kaupat tab: it answers the scripts the bridge sends.
 let entries: [string, string][] = [];
 const requests: { url: string; authorization?: string }[] = [];
+let onReload = () => {};
 const page: SKaupatPage = {
   evaluate: async (script) => {
     if (script.includes("localStorage"))
@@ -32,7 +34,7 @@ const page: SKaupatPage = {
       }),
     };
   },
-  reload: async () => {},
+  reload: async () => onReload(),
   open: async () => {},
   forget: async () => {
     entries = [];
@@ -47,41 +49,103 @@ const worker = sKaupatWorker({
   host: { url: host.url, key: host.key },
 });
 const marker = { get: async () => null, set: async () => null };
-const session = new SKaupatSession(
-  (name, args, timeout) => worker.call(name, args, timeout),
-  marker,
-  true,
-);
+const library = new SKaupatLibrary({
+  dataDir: data,
+  host: { url: host.url, key: host.key },
+});
 afterAll(async () => {
   await worker.close();
+  await library.close();
   host.close();
   rmSync(data, { recursive: true, force: true });
 });
 
-test("the pinned server uses the tab's login and signs out through the tab", async () => {
-  expect(await session.signedIn()).toBe(false);
-  entries = [
-    [
-      "session-storage",
-      JSON.stringify({
-        state: {
-          authTokens: {
-            accessToken: token,
-            refreshToken: "refresh-1",
-            idToken: "id",
+test.each([worker, library])(
+  "the shared client and standalone server use the tab's login and sign out through it",
+  async (client) => {
+    requests.length = 0;
+    const session = new SKaupatSession(
+      (name, args, timeout) => client.call(name, args, timeout),
+      marker,
+      true,
+    );
+    expect(await session.signedIn()).toBe(false);
+    entries = [
+      [
+        "session-storage",
+        JSON.stringify({
+          state: {
+            authTokens: {
+              accessToken: token,
+              refreshToken: "refresh-1",
+              idToken: "id",
+            },
           },
-        },
-      }),
-    ],
-  ];
-  expect(await session.signedIn()).toBe(true);
-  // The call goes out from the tab with the site's own token, and only to S-kaupat.
-  expect(requests.length).toBeGreaterThan(0);
-  for (const request of requests) {
-    expect(request.url).toMatch(/^https:\/\/(api|www)\.s-kaupat\.fi\//);
-    expect(request.authorization).toBe(token);
-  }
-  await session.logout();
-  expect(entries).toEqual([]);
-  expect(await session.signedIn()).toBe(false);
-}, 60_000);
+        }),
+      ],
+    ];
+    expect(await session.signedIn()).toBe(true);
+    // The call goes out from the tab with the site's own token, and only to S-kaupat.
+    expect(requests.length).toBeGreaterThan(0);
+    for (const request of requests) {
+      expect(request.url).toMatch(/^https:\/\/(api|www)\.s-kaupat\.fi\//);
+      expect(request.authorization).toBe(token);
+    }
+    await session.logout();
+    expect(entries).toEqual([]);
+    expect(await session.signedIn()).toBe(false);
+  },
+  60_000,
+);
+
+test.each([worker, library])(
+  "an expired token is renewed by the page; failed renewal reports expiry without a retailer write",
+  async (client) => {
+    const session = new SKaupatSession(
+      (name, args, timeout) => client.call(name, args, timeout),
+      marker,
+      true,
+    );
+    const expired = `${part({ alg: "none" })}.${part({ exp: 1 })}.sig`;
+    const setToken = (accessToken: string, refreshToken: string) => {
+      entries = [
+        [
+          "session-storage",
+          JSON.stringify({
+            state: {
+              authTokens: { accessToken, refreshToken, idToken: "id" },
+            },
+          }),
+        ],
+      ];
+    };
+    await session.logout();
+    requests.length = 0;
+    setToken(expired, "renewed-session");
+    let reloads = 0;
+    onReload = () => {
+      reloads++;
+      setToken(token, "renewed-session");
+    };
+    try {
+      expect(await session.signedIn()).toBe(true);
+      expect(reloads).toBe(1);
+      expect(requests.every((request) => request.authorization === token)).toBe(
+        true,
+      );
+      await session.logout();
+      requests.length = 0;
+      setToken(expired, "failed-session");
+      onReload = () => {
+        reloads++;
+      };
+      expect(await session.signedIn()).toBe(false);
+      expect(requests).toEqual([]);
+      expect(reloads).toBe(2);
+    } finally {
+      onReload = () => {};
+      await session.logout();
+    }
+  },
+  60_000,
+);

@@ -14,7 +14,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
+import { chooseModel } from "../ai/models";
 import { shoppingList } from "../domain/planner";
+import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
 import { z } from "zod";
 import { SKaupatHost } from "./s-kaupat-host";
@@ -26,10 +28,17 @@ import {
   sKaupatWorker,
 } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
-import { draftPrompt, validateDraft } from "../ai/draft";
+import {
+  draftPrompt,
+  validateDraft,
+  generateValidated,
+  recipePrompt,
+  validateRecipe,
+} from "../ai/draft";
 import { readReceipt } from "../receipts/read";
 import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
+import { SKaupatLibrary } from "../stores/s-kaupat-library";
 import { StoreViews } from "./store-view";
 import {
   KRuokaSite,
@@ -107,14 +116,19 @@ else
       forget: () => stores.forget("s-kaupat"),
     });
     if (sKaupatViaTab) await sHost.start();
-    const sWorker = sKaupatWorker({
-      script: join(
-        app.isPackaged ? process.resourcesPath : app.getAppPath(),
-        "vendor/s-kaupat/s-kaupat-mcp.cjs",
-      ),
-      dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
-      host: sKaupatViaTab ? { url: sHost.url, key: sHost.key } : undefined,
-    });
+    const sWorker = sKaupatViaTab
+      ? new SKaupatLibrary({
+          dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+          host: { url: sHost.url, key: sHost.key },
+        })
+      : sKaupatWorker({
+          script: join(
+            app.isPackaged ? process.resourcesPath : app.getAppPath(),
+            "vendor/s-kaupat/s-kaupat-mcp.cjs",
+          ),
+          dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+          host: sKaupatViaTab ? { url: sHost.url, key: sHost.key } : undefined,
+        });
     const sKaupat = new SKaupatProvider((name, args) =>
       sWorker.call(name, args),
     );
@@ -214,8 +228,62 @@ else
       height: z.number().int().min(0),
     });
     let generationRun = 0;
+    let modelLookup: AbortController | null = null;
+    const requestModel = async (run: number) => {
+      const preference = service.state.aiModel;
+      const controller = new AbortController();
+      modelLookup = controller;
+      try {
+        const models = await ai.models(controller.signal);
+        if (run !== generationRun) throw new Error("aiCancelled");
+        return chooseModel(models, preference);
+      } catch (error) {
+        if (run !== generationRun) throw new Error("aiCancelled");
+        throw error;
+      } finally {
+        if (modelLookup === controller) modelLookup = null;
+      }
+    };
+    const handoff = async () => {
+      try {
+        const result = await handlers.openStoreCart(undefined);
+        service.handoffError = null;
+        return result;
+      } catch (error) {
+        service.handoffError =
+          error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+            ? error.message
+            : "operationFailed";
+      }
+      return service.snapshot();
+    };
+    const generateAI =
+      (model: string, run: number) => async (prompt: string) => {
+        try {
+          const text = await ai.generate(model, prompt);
+          if (run !== generationRun) throw new Error("aiCancelled");
+          return text;
+        } catch (error) {
+          if (
+            run !== generationRun ||
+            (error instanceof Error && error.name === "AbortError")
+          )
+            throw new Error("aiCancelled");
+          throw error;
+        } finally {
+          service.developmentModel = development ? fixtureAI.lastModel : null;
+          service.developmentRequests = development
+            ? fixtureAI.requestCount
+            : 0;
+        }
+      };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
+      getAppInfo: async () => ({ version: app.getVersion() }),
       load: async () => {
+        service.developmentModelCatalogueRequests = development
+          ? fixtureAI.catalogueRequests
+          : 0;
+        service.developmentModel = development ? fixtureAI.lastModel : null;
         updateChecked ??= checkUpdate().catch(() => {});
         // A saved answer is instant; a daily network check may finish after the first snapshot.
         await Promise.race([
@@ -273,19 +341,21 @@ else
       },
       save: async (input) => {
         const before = service.state.context;
-        const result = await service.save(input);
-        const context = service.state.context;
-        if (
-          !development &&
-          context.providerId === "s-kaupat" &&
-          (before.providerId !== context.providerId ||
-            before.storeId !== context.storeId)
-        )
-          // Best effort: Korikone always passes the store explicitly.
-          await sKaupat.selectStore(context).catch(() => {});
-        return result;
+        return service.refreshAfterChange(async () => {
+          await service.save(input);
+          const context = service.state.context;
+          if (
+            !development &&
+            context.providerId === "s-kaupat" &&
+            (before.providerId !== context.providerId ||
+              before.storeId !== context.storeId)
+          )
+            // Best effort: Korikone always passes the store explicitly.
+            await sKaupat.selectStore(context).catch(() => {});
+        });
       },
       setLanguage: (input) => service.setLanguage(input),
+      setAIModel: (input) => service.setAIModel(input),
       cancelTransfer: async () => {
         service.controller?.abort();
         return service.snapshot();
@@ -296,6 +366,8 @@ else
       },
       cancelAI: async () => {
         generationRun++;
+        modelLookup?.abort();
+        service.recipeDraft = null;
         service.draft = null;
         service.draftRevision = null;
         ai.cancel();
@@ -304,6 +376,7 @@ else
       },
       signOutAI: async () => {
         await ai.signOut();
+        service.recipeDraft = null;
         service.draft = null;
         return service.snapshot();
       },
@@ -332,54 +405,69 @@ else
           .parse(input);
         const revision = service.state.revision;
         const run = ++generationRun;
+        const model = await requestModel(run);
         service.draft = null;
         service.draftRevision = null;
-        const generate = async (prompt: string) => {
-          try {
-            const text = await ai.generate(request.model, prompt);
-            if (run !== generationRun) throw new Error("aiCancelled");
-            return text;
-          } catch (error) {
-            if (
-              run !== generationRun ||
-              (error instanceof Error && error.name === "AbortError")
-            )
-              throw new Error("aiCancelled");
-            throw error;
-          } finally {
-            service.developmentRequests = development
-              ? fixtureAI.requestCount
-              : 0;
-          }
-        };
-        let text = await generate(draftPrompt(request.prompt, service.state));
-        try {
-          service.draft = validateDraft(text, service.state);
-        } catch (error) {
-          if (!(error instanceof Error) || error.message !== "invalidDraft")
-            throw error;
-          text = await generate(
-            draftPrompt(request.prompt, service.state) +
-              " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
-          );
-          service.draft = validateDraft(text, service.state);
-        }
+        service.recipeDraft = null;
+        service.draft = await generateValidated(
+          generateAI(model, run),
+          draftPrompt(request.prompt, service.state),
+          (text) => validateDraft(text, service.state),
+          " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
+        );
         service.draftRevision = revision;
         service.draftNote = request.prompt;
         return service.snapshot();
       },
-      approveDraft: () => service.approveDraft(),
-      confirmPurchase: () => service.confirmPurchase(),
-      newWeek: () => service.newWeek(),
-      reuseWeek: () => service.reuseWeek(),
+      importRecipe: async (input) => {
+        const request = z
+          .object({
+            text: z.string().trim().min(1).max(10000),
+            model: z.string().default("auto"),
+            consent: z.literal(true),
+          })
+          .parse(input);
+        const run = ++generationRun;
+        const model = await requestModel(run);
+        service.recipeDraft = null;
+        service.recipeDraft = await generateValidated(
+          generateAI(model, run),
+          recipePrompt(request.text, service.state),
+          (text) => validateRecipe(text, service.state),
+          " The previous response failed validation. Return one complete recipe object with positive integer g, ml or pcs quantities, servings from 1 to 100, and at least one ingredient. Return JSON only.",
+        );
+        return service.snapshot();
+      },
+      approveDraft: () =>
+        service.refreshAfterChange(() => service.approveDraft()),
+      confirmPurchase: () =>
+        service.refreshAfterChange(() => service.confirmPurchase()),
+      newWeek: () => service.refreshAfterChange(() => service.newWeek()),
+      reuseWeek: () => service.refreshAfterChange(() => service.reuseWeek()),
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
+      getContextOptions: (input) => service.getContextOptions(input),
+      changeContext: (input) => service.changeContext(input),
       recordError: (input) => service.recordError(input),
       accept: (input) => service.accept(input),
       setPackSize: (input) => service.setPackSize(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),
-      execute: (input) => service.execute(input),
+      transferDisplayed: async (input) => {
+        const result = await service.transferDisplayed(input);
+        if (
+          result.journal?.status === "verified" &&
+          !result.review &&
+          !result.transferException
+        )
+          return handoff();
+        return result;
+      },
+      execute: async (input) => {
+        const result = await service.execute(input);
+        if (result.journal?.status === "verified") return handoff();
+        return result;
+      },
       recover: () => service.recover(),
       scenario: (input) => service.scenario(input),
       searchStores: async (input) => {
@@ -402,7 +490,10 @@ else
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) {
-          await service.fixtureLogin(chain, true);
+          if (chain === "k-ruoka" || chain === "s-kaupat") {
+            await stores.open(chain, "login");
+            return { ...service.snapshot(), openStore: chain };
+          }
           service.storeLogins[chain] = "signedIn";
           return service.snapshot();
         }
@@ -430,8 +521,8 @@ else
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) {
-          if (service.storeLogins[chain] !== "waiting")
-            service.storeLogins[chain] = (await service.fixtureLogin(chain))
+          if (chain === "k-ruoka" || chain === "s-kaupat")
+            service.storeLogins[chain] = (await stores.fixtureAccount(chain))
               ? "signedIn"
               : "notStarted";
           return service.snapshot();
@@ -491,7 +582,8 @@ else
       logoutStore: async (input) => {
         const chain = chainOf(input);
         if (development) {
-          await service.fixtureLogin(chain, false);
+          if (chain === "k-ruoka" || chain === "s-kaupat")
+            await stores.forget(chain);
           service.storeLogins[chain] = "notStarted";
           return service.snapshot();
         }
@@ -507,15 +599,49 @@ else
         if (
           service.busy ||
           service.journal?.status !== "verified" ||
-          (providerId !== "k-ruoka" && providerId !== "s-kaupat")
+          !providerId
         )
           throw new Error("reviewRequired");
-        // The K-Ruoka cart, or the S-kaupat "Korikone" list where the transfer went (the page where
-        // the shopper presses the site's own add-all button), in the store tab.
+        const currentCart = await service.registry
+          .get(providerId)
+          .getCart(service.journal.review.context);
+        if (currentCart.accountId !== service.journal.review.baseline.accountId)
+          throw new Error("accountChanged");
+
+        if (development && service.developmentScenario === "handoffFailed")
+          throw new Error("operationFailed");
+        if (providerId.startsWith("demo-")) {
+          service.developmentHandoffs.push(`${providerId}:basket`);
+          service.handoffError = null;
+          return service.snapshot();
+        }
+        if (providerId !== "k-ruoka" && providerId !== "s-kaupat")
+          throw new Error("unsupported");
+        if (!development && providerId === "s-kaupat" && !sKaupatViaTab) {
+          if (!(await sSession.signedIn())) throw new Error("loginRequired");
+          await sWorker.call("open_site", { applyChoice: false });
+          service.handoffError = null;
+          return service.snapshot();
+        }
+        if (!development && providerId === "k-ruoka" && !kRuokaViaSite) {
+          await worker.handoff();
+          service.handoffError = null;
+          return service.snapshot();
+        }
         const listId = providerId === "s-kaupat" ? await sKaupatListId() : null;
         if (listId) await stores.openList("s-kaupat", listId);
+        else if (!development && providerId === "k-ruoka")
+          await stores.openUrl(
+            "k-ruoka",
+            await kRuokaSite.cartUrl(service.journal.review.context.storeId),
+          );
         else await stores.open(providerId, "cart");
-        return service.snapshot();
+        if (development)
+          service.developmentHandoffs.push(
+            providerId === "s-kaupat" ? "s-kaupat:list" : "k-ruoka:basket",
+          );
+        service.handoffError = null;
+        return { ...service.snapshot(), openStore: providerId };
       },
       storeView: async (input) => {
         const { chain, area } = z
@@ -540,6 +666,10 @@ else
       },
       copyList: async () => {
         clipboard.writeText(shoppingList(service.state));
+        return service.snapshot();
+      },
+      copyWeek: async () => {
+        clipboard.writeText(calendarText(service.state));
         return service.snapshot();
       },
       importReceipt: async () => {
@@ -653,7 +783,10 @@ else
           }
           const submittedRun = generationRun;
           const pending = queue.then(() => {
-            if (name === "generate" && submittedRun !== generationRun)
+            if (
+              (name === "generate" || name === "importRecipe") &&
+              submittedRun !== generationRun
+            )
               throw new Error("aiCancelled");
             return handler(input);
           });
@@ -679,9 +812,9 @@ else
       closing = true;
       ai.cancel();
       ai.cancelRequest();
-      stores.close();
       sHost.close();
-      void Promise.allSettled([worker.close(), sWorker.close()])
+      void Promise.allSettled([worker.close(), sWorker.close(), stores.flush()])
+        .finally(() => stores.close())
         .finally(() => db.close())
         .finally(() => app.quit());
     });

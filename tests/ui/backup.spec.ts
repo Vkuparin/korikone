@@ -26,7 +26,8 @@ test("backup export and restore preserve recipes and reject broken references", 
     await page
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByText("Backups and data", { exact: true }).click();
     await app.evaluate(({ dialog }, filePath) => {
@@ -36,6 +37,10 @@ test("backup export and restore preserve recipes and reject broken references", 
         filePaths: [filePath],
       });
     }, backupPath);
+    await page.evaluate(async () => {
+      const result = await window.korikone.setAIModel("fixture-large");
+      if (!result.ok) throw new Error(result.error);
+    });
     await page.getByRole("button", { name: "Export backup" }).click();
     await expect
       .poll(async () => {
@@ -48,6 +53,8 @@ test("backup export and restore preserve recipes and reject broken references", 
       .toBe(1);
     const exported = JSON.parse(await readFile(backupPath, "utf8"));
     expect(exported.recipes.length).toBeGreaterThan(0);
+    expect(exported.aiModel).toBe("fixture-large");
+    await page.evaluate(() => window.korikone.setAIModel("auto"));
     expect(Object.keys(exported)).not.toContain("chatgpt-credentials");
     exported.recipes[0].name = "Restored pasta";
     await writeFile(backupPath, JSON.stringify(exported));
@@ -56,6 +63,11 @@ test("backup export and restore preserve recipes and reject broken references", 
     await expect(
       page.getByRole("heading", { name: "Restored pasta" }),
     ).toBeVisible();
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.state.aiModel,
+      ),
+    ).toBe("fixture-large");
     exported.meals = [
       {
         id: "broken",

@@ -77,7 +77,7 @@ test("uses catalogue order for unfamiliar names and rejects unavailable override
     { slug: "new-default", name: "New" },
     { slug: "other", name: "Other" },
   ];
-  expect(chooseModel(models)).toBe("new-default");
+  expect(() => chooseModel(models)).toThrow("modelSelectionRequired");
   expect(chooseModel(models, "other")).toBe("other");
   expect(() => chooseModel(models, "retired-luna")).toThrow("modelUnavailable");
   expect(() => chooseModel([])).toThrow("modelsUnavailable");

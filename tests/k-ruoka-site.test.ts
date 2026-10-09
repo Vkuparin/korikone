@@ -19,6 +19,49 @@ const context: StoreContext = {
   fulfillment: "pickup",
 };
 type Sent = Parameters<PageRequest>[0];
+
+test("basket opening selects the reviewed store using the retailer's query parameters", async () => {
+  const sent: Sent[] = [];
+  const site = new KRuokaSite(async (request) => {
+    sent.push(request);
+    return {
+      status: 200,
+      build: "42",
+      cfMitigated: null,
+      body: JSON.stringify({
+        id: "N190",
+        slug: "k-citymarket-helsinki-easton",
+      }),
+    };
+  }, 0);
+  expect(await site.cartUrl("N190")).toBe(
+    "https://www.k-ruoka.fi/kauppa?kauppa=k-citymarket-helsinki-easton&ostoskori=",
+  );
+  expect(sent).toEqual([
+    { method: "GET", path: "/kr-api/store/N190", build: null },
+  ]);
+  await expect(site.cartUrl("S222")).rejects.toThrow("contextChanged");
+});
+
+test("basket opening refuses unavailable stores and invalid store slugs", async () => {
+  for (const [status, body] of [
+    [503, {}],
+    [200, { id: "N190", slug: "https://example.invalid" }],
+    [200, { id: "N190" }],
+  ] as const) {
+    const site = new KRuokaSite(
+      async () => ({
+        status,
+        build: "42",
+        cfMitigated: null,
+        body: JSON.stringify(body),
+      }),
+      0,
+    );
+    await expect(site.cartUrl("N190")).rejects.toThrow();
+  }
+});
+
 /** A fake store page: answers by path and records what was sent. */
 function page(
   answer: (request: Sent) => {
@@ -199,3 +242,37 @@ test("calls are spaced out", async () => {
   ]);
   expect(times[1] - times[0]).toBeGreaterThanOrEqual(45);
 });
+
+test.each(["account", "quantity"])(
+  "a %s change at the final page boundary prevents the write",
+  async (change) => {
+    let reads = 0;
+    const normal = fixture("basket-active");
+    const { provider, sent } = page((request) => {
+      if (request.path === "/kr-api/basket/active") {
+        reads++;
+        const basket = structuredClone(normal);
+        if (reads === 3) {
+          if (change === "account")
+            basket.userInfo.email = "other@example.invalid";
+          else basket.items[0].amountInfo.amount = 9;
+        }
+        return { body: basket };
+      }
+      return routes()(request);
+    });
+    const cart = await provider.getCart(context);
+    await expect(
+      provider.setQuantity(context, {
+        accountId: cart.accountId,
+        productId: cart.lines[0].productId,
+        name: "Peruna",
+        before: 2,
+        quantity: 3,
+        unit: "kpl",
+        price: 99,
+      }),
+    ).rejects.toThrow(change === "account" ? "accountChanged" : "cartChanged");
+    expect(sent.filter((request) => request.method === "PATCH")).toEqual([]);
+  },
+);

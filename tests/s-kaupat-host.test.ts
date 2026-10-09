@@ -73,9 +73,9 @@ describe("S-kaupat host bridge", () => {
         authorization: `Bearer ${host!.key}`,
         origin: "https://evil.example",
       },
-    ).catch(() => null);
-    // Node's fetch may drop the forbidden header; either way nothing runs for a browser origin.
-    if (response && response.status === 403) expect(calls).toEqual([]);
+    );
+    expect(response.status).toBe(403);
+    expect(calls).toEqual([]);
   });
 
   it("runs only the five operations", async () => {

@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -12,7 +13,13 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-store-"));
   env.KORIKONE_TEST_HIDDEN = "1";
-  const app = await electron.launch({ args: ["."], env });
+  const app = await electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
   // The store tab's page, seen from the main process.
   const store = () =>
     app.evaluate(({ webContents }) => {
@@ -41,6 +48,7 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await expect(
       page.getByRole("button", { name: "Continue with ChatGPT" }),
@@ -53,17 +61,8 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
       .getByRole("complementary")
       .getByRole("region", { name: "Yhteensä ja siirto" });
     await bar
-      .getByRole("button", { name: /^Siirrä S-kauppojen listalle/ })
+      .getByRole("button", { name: /^Siirrä ja avaa S-kaupat-lista/ })
       .click({ timeout: 15000 });
-    const panel = bar.getByRole("region", { name: "Siirron vahvistus" });
-    const budget = panel.getByLabel("Hyväksyn näytetyn budjetin ylityksen.");
-    if (await budget.isVisible()) await budget.check();
-    await panel.getByRole("button", { name: /^Vahvista:/ }).click();
-    await bar
-      .getByRole("region", { name: "Siirron tulos" })
-      .getByRole("button", { name: "Avaa kaupan ostoskori" })
-      .click();
-
     // The Kauppa view shows the "Korikone" list where the transfer went, with the site's own
     // add-all button scrolled into view and not pressed.
     await expect(
@@ -92,6 +91,28 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
     // Store pages get no Korikone bridge and no Node.
     expect(await run(tab.id, "typeof window.korikone")).toBe("undefined");
     expect(await run(tab.id, "typeof require")).toBe("undefined");
+
+    // A third-party iframe redirect must not prompt or replace the store page.
+    // Emit the external navigation boundary without contacting the external host.
+    const redirect = (isMainFrame: boolean) =>
+      app.evaluate(
+        ({ webContents }, { id, isMainFrame }) => {
+          let prevented = false;
+          webContents.fromId(id)!.emit("will-redirect", {
+            url: "https://advertising.example.invalid/pixel",
+            isMainFrame,
+            preventDefault: () => {
+              prevented = true;
+            },
+          });
+          return prevented;
+        },
+        { id: tab.id, isMainFrame },
+      );
+    expect(await redirect(false)).toBe(false);
+    expect((await store())?.url).toBe(tab.url);
+    // Unknown top-level redirects remain refused in development mode.
+    expect(await redirect(true)).toBe(true);
 
     // A popup opens in the same tab, not as a new window.
     const windows = await app.evaluate(

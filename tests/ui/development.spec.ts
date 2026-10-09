@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -52,12 +53,14 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await expect(
       page.getByRole("button", { name: "Continue with ChatGPT" }),
     ).toBeHidden();
     await page.getByRole("button", { name: "Valmis", exact: true }).click();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(
       page.getByLabel("Development mode", { exact: true }),
@@ -69,6 +72,14 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     await page
       .getByLabel("What would you like to cook?")
       .fill("pasta and soup");
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentRequests,
+      ),
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Update list", exact: true })
+      .click();
     await expect(page.locator(".interpretation")).toHaveCount(2, {
       timeout: 15000,
     });
@@ -204,6 +215,7 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await expect(
       page.getByRole("button", { name: "Continue with ChatGPT" }),
@@ -229,10 +241,14 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
     await expect(list).not.toContainText("pcs");
     await expect(page.locator("body")).not.toContainText("MakaronI");
     await list
-      .getByRole("button", { name: "Siirrä S-kauppojen listalle" })
+      .getByRole("button", { name: /^Siirrä ja avaa S-kaupat-lista/ })
       .click();
-    const panel = list.getByRole("region", { name: "Siirron vahvistus" });
-    await expect(panel).toContainText("Tili: Testi");
+    await expect(
+      page.getByRole("button", { name: "Kauppa", exact: true }),
+    ).toHaveAttribute("aria-current", "page", { timeout: 15000 });
+    await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
+    const panel = list.getByRole("region", { name: "Siirron tulos" });
+    await expect(panel).toContainText("Ostoskori päivitetty ja tarkistettu");
     await expect(panel).not.toContainText("demo-household");
   } finally {
     await app.close();

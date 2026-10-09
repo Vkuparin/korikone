@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 // Pinned s-kaupat-mcp release. Update together with src/stores/s-kaupat.ts.
 const version = "1.3.0";
 const files = {
+  "s-kaupat-mcp-1.3.0.tgz": [
+    `https://github.com/Vkuparin/s-kaupat-mcp/releases/download/v${version}/s-kaupat-mcp-${version}.tgz`,
+    "0fa73e9952aa0c944d753da677a5a5c4aef34aa1bb0cfd4a33f605fe4cca6d77",
+  ],
   "s-kaupat-mcp.cjs": [
     `https://github.com/Vkuparin/s-kaupat-mcp/releases/download/v${version}/s-kaupat-mcp.cjs`,
     "ebbeb08f1904c33e69c90304ef394b863f3a0235b059929f4e917742f4c72cdd",

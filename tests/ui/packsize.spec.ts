@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -27,6 +28,7 @@ test("a product without a stated pack size can be confirmed from the row details
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await expect(
       page.getByRole("button", { name: "Continue with ChatGPT" }),

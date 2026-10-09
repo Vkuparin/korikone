@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -30,6 +31,7 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
     await expect(
       page.getByRole("button", { name: "Continue with ChatGPT" }),
@@ -45,7 +47,7 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
     );
     const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
     const transfer = bar.getByRole("button", {
-      name: /^Siirrä S-kauppojen listalle · \d+,\d\d €$/,
+      name: /^Siirrä ja avaa S-kaupat-lista · 7 tuotetta · \d+,\d\d €$/,
     });
     const inView = async () => {
       const box = (await transfer.boundingBox())!;

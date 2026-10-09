@@ -1,7 +1,17 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+const launch = (env: Record<string, string>) =>
+  electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
 
 test("guided setup allows manual planning and remembers completion", async () => {
   const env = Object.fromEntries(
@@ -12,7 +22,7 @@ test("guided setup allows manual planning and remembers completion", async () =>
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-setup-"));
-  let app = await electron.launch({ args: ["."], env });
+  let app = await launch(env);
   try {
     const page = await app.firstWindow();
     await page
@@ -47,6 +57,7 @@ test("guided setup allows manual planning and remembers completion", async () =>
         .getByRole("heading", { name: "Aloitetaan" })
         .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
     ).toBeLessThanOrEqual(32);
+    await page.screenshot({ path: "test-results/setup-v050.png" });
     await page.getByRole("button", { name: "Valmis", exact: true }).click();
     await expect(
       page.getByText("Lisää valmiita reseptejä", { exact: true }),
@@ -64,7 +75,7 @@ test("guided setup allows manual planning and remembers completion", async () =>
       page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
     ).toBeHidden();
     await app.close();
-    app = await electron.launch({ args: ["."], env });
+    app = await launch(env);
     await expect(
       (await app.firstWindow()).getByText("Lisää valmiita reseptejä", {
         exact: true,
@@ -86,7 +97,7 @@ test("setup can change branch and detects completed sign-in without a check butt
   env.KORIKONE_TEST_DATA = await mkdtemp(
     join(tmpdir(), "korikone-setup-connected-"),
   );
-  const app = await electron.launch({ args: ["."], env });
+  const app = await launch(env);
   try {
     const page = await app.firstWindow();
     await page
@@ -108,6 +119,7 @@ test("setup can change branch and detects completed sign-in without a check butt
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await expect(
       page
         .getByRole("region", { name: "Missä teet ruokaostokset?" })

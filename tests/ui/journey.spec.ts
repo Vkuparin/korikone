@@ -27,7 +27,8 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Mitä tällä viikolla syödään?" }),
     ).toBeVisible();
-    await page.getByLabel("Kieli", { exact: true }).selectOption("en");
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Try the example" }).click();
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
@@ -49,7 +50,9 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
       .getByRole("button", { name: "Demo: interrupt next transfer" })
       .click();
     const bar = list.getByRole("region", { name: "Total and transfer" });
-    await bar.getByRole("button", { name: /^Transfer to store cart/ }).click();
+    await bar
+      .getByRole("button", { name: /^Transfer and open store basket/ })
+      .click();
     const panel = bar.getByRole("region", { name: "Transfer confirmation" });
     await expect(panel).toContainText(
       "Already in the cart: Pasta 500 g 1 → 2 kpl",
@@ -57,6 +60,11 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await panel.getByRole("button", { name: /^Confirm: / }).click();
     const result = bar.getByRole("region", { name: "Transfer result" });
     await expect(result.getByRole("status")).toHaveText("Transfer interrupted");
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentHandoffs,
+      ),
+    ).toEqual([]);
     await result
       .getByRole("button", { name: "Check cart and review remaining changes" })
       .click();
@@ -64,6 +72,11 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(result.getByRole("status")).toHaveText(
       "Cart updated and verified",
     );
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value.developmentHandoffs,
+      ),
+    ).toHaveLength(1);
     // Visual capture is covered by the source build. A packaged hidden window
     // may not produce compositor frames even when DOM interaction works.
     if (!process.env.KORIKONE_EXECUTABLE)
@@ -80,8 +93,8 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await expect(
       page.getByRole("heading", { name: "Tomaattipasta" }),
     ).toBeVisible();
-    await expect(page.getByLabel("Language", { exact: true })).toHaveValue(
-      "en",
+    await expect(page.getByLabel("Language", { exact: true })).toHaveText(
+      "English",
     );
     if (!process.env.KORIKONE_EXECUTABLE)
       await page.screenshot({ path: "test-results/week.png" });

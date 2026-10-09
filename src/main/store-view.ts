@@ -69,13 +69,6 @@ const PAYMENT_DOMAINS = [
   "klarna.com",
   "svea.com",
 ];
-const REAL_HOSTS = [
-  "s-kaupat.fi",
-  "s-ryhma.fi",
-  "voikukka.fi",
-  "k-ruoka.fi",
-  "kesko.fi",
-];
 const within = (host: string, domains: string[]) =>
   domains.some((d) => host === d || host.endsWith(`.${d}`));
 
@@ -126,9 +119,10 @@ export class StoreViews {
   /** Leaving the chain's own and payment domains asks first; the answer holds for that one page. */
   private async navigate(chain: Chain, view: WebContentsView, url: string) {
     if (this.allowOnce.delete(url) || this.allowed(chain, url)) {
-      await view.webContents.loadURL(url).catch(() => {});
+      await view.webContents.loadURL(url);
       return;
     }
+    if (this.development()) throw new Error("hostRefused");
     let parsed: URL;
     try {
       parsed = new URL(url);
@@ -151,7 +145,7 @@ export class StoreViews {
     });
     if (response !== 0) return;
     this.allowOnce.add(url);
-    await view.webContents.loadURL(url).catch(() => {});
+    await view.webContents.loadURL(url);
   }
 
   private view(chain: Chain) {
@@ -167,7 +161,9 @@ export class StoreViews {
         try {
           host = new URL(details.url).hostname;
         } catch {}
-        callback({ cancel: within(host, REAL_HOSTS) });
+        callback({
+          cancel: host !== "127.0.0.1" && details.url !== "about:blank",
+        });
       });
     const view = new WebContentsView({
       webPreferences: {
@@ -181,14 +177,21 @@ export class StoreViews {
     const contents = view.webContents;
     contents.setWindowOpenHandler(({ url }) => {
       // Popups and payment redirects stay in this tab.
-      void this.navigate(chain, view, url);
+      void this.navigate(chain, view, url).catch(() => {});
       return { action: "deny" };
     });
     contents.on("will-navigate", (event) => {
       if (this.allowOnce.delete(event.url) || this.allowed(chain, event.url))
         return;
       event.preventDefault();
-      void this.navigate(chain, view, event.url);
+      void this.navigate(chain, view, event.url).catch(() => {});
+    });
+    contents.on("will-redirect", (event) => {
+      // Advertising and other embedded frames may redirect independently of the page.
+      if (!event.isMainFrame) return;
+      if (this.allowed(chain, event.url)) return;
+      event.preventDefault();
+      void this.navigate(chain, view, event.url).catch(() => {});
     });
     this.views.set(chain, view);
     return view;
@@ -222,7 +225,23 @@ export class StoreViews {
   /** Loads a page in the chain's tab; the renderer shows the tab. */
   async open(chain: Chain, page: StorePage) {
     const view = this.view(chain);
-    await this.navigate(chain, view, await this.url(chain, page));
+    const url =
+      this.development() && page === "login"
+        ? `${await this.origin(chain)}/kirjaudu`
+        : await this.url(chain, page);
+    await this.navigate(chain, view, url);
+  }
+
+  /** The fixture account is read through the same partition that the sign-in page uses. */
+  async fixtureAccount(chain: Chain): Promise<boolean> {
+    if (!this.development()) throw new Error("developmentRequired");
+    this.view(chain);
+    const response = await session
+      .fromPartition(`persist:development-${chain}`)
+      .fetch(`${await this.origin(chain)}/session`);
+    if (!response.ok) throw new Error("storeUnavailable");
+    const account = await response.json();
+    return account.accountId === `fixture:${chain}`;
   }
 
   /**
@@ -323,10 +342,8 @@ export class StoreViews {
     );
     await storeSession.clearStorageData();
     await storeSession.clearCache();
-    this.views
-      .get(chain)
-      ?.webContents.loadURL(`${SITES[chain].origin}/`)
-      .catch(() => {});
+    const view = this.views.get(chain);
+    if (view) await view.webContents.loadURL(await this.url(chain, "home"));
     this.backgrounds.get(chain)?.webContents.close();
     this.backgrounds.delete(chain);
   }
@@ -342,6 +359,20 @@ export class StoreViews {
   close() {
     this.reset();
     this.server?.close();
+  }
+
+  async flush() {
+    await Promise.all(
+      [...this.views.keys()].map((chain) =>
+        session
+          .fromPartition(
+            this.development()
+              ? `persist:development-${chain}`
+              : `persist:${chain}`,
+          )
+          .cookies.flushStore(),
+      ),
+    );
   }
 }
 
@@ -363,16 +394,31 @@ export function fixtureSite(): Promise<{ server: Server; origin: string }> {
     const signedIn = /(^|;\s*)fixture-login=1/.test(
       request.headers.cookie ?? "",
     );
+    if (name && path === "session") {
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(
+          JSON.stringify({ accountId: signedIn ? `fixture:${chain}` : null }),
+        );
+      return;
+    }
     const pages: Record<string, () => string> = {
       "": () =>
-        page(name, `<p>${signedIn ? "Kirjautunut" : "Ei kirjautunut"}</p>`),
+        page(
+          name,
+          `<p>${signedIn ? "Kirjautunut" : "Ei kirjautunut"}</p>${signedIn ? '<form method="post" action="vanhenna"><button>Vanhennna kirjautuminen</button></form>' : ""}`,
+        ),
       kirjaudu: () =>
         page(
           `${name}: Kirjaudu`,
-          `<form method="post" action="kirjaudu"><button>Kirjaudu sisään</button></form>`,
+          `<form method="post" action="kirjaudu"><button>Kirjaudu sisään</button></form><form method="post" action="hylkaa"><button>Hylkää kirjautuminen</button></form>`,
         ),
+      hylkaa: () => page(`${name}: Hylätty`, "<p>Kirjautuminen hylättiin</p>"),
+      vanhenna: () =>
+        page(`${name}: Vanhentunut`, "<p>Kirjautuminen vanhentui</p>"),
       tuote: () => page(`${name}: Tuote`, "<p>Jauheliha 400 g · 4,99 €</p>"),
       ostoskori: () => page(`${name}: Ostoskori`, "<p>Ostoskori</p>"),
+      "kauppa/ostoskori": () => page(`${name}: Ostoskori`, "<p>Ostoskori</p>"),
       ostoslistat: () =>
         page(`${name}: Ostoslistat`, "<ul><li>Korikone</li></ul>"),
       ikkuna: () => page(`${name}: Ikkuna`, "<p>Ponnahdusikkuna</p>"),
@@ -386,11 +432,14 @@ export function fixtureSite(): Promise<{ server: Server; origin: string }> {
       response.writeHead(404, { "content-type": "text/plain" }).end();
       return;
     }
-    if (request.method === "POST" && path === "kirjaudu") {
+    if (
+      request.method === "POST" &&
+      ["kirjaudu", "hylkaa", "vanhenna"].includes(path)
+    ) {
       response
         .writeHead(303, {
-          location: `/${chain}/`,
-          "set-cookie": "fixture-login=1; Path=/; HttpOnly",
+          location: `/${chain}/${path === "kirjaudu" ? "" : path}`,
+          "set-cookie": `fixture-login=${path === "kirjaudu" ? "1" : ""}; Path=/${chain}/; HttpOnly; SameSite=Lax; Max-Age=${path === "kirjaudu" ? "31536000" : "0"}`,
         })
         .end();
       return;

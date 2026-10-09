@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
+import { ModelSelector } from "./model";
 import { relevant, requirements } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
-import { isLive } from "../stores/provider";
+import { isLive, liveProviders } from "../stores/provider";
 import {
   ComparePanel,
   CompareSummary,
@@ -15,6 +16,7 @@ import {
   compareBlocker,
   feeRange,
 } from "./compare";
+import { MealCalendarView } from "./calendar";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -48,14 +50,16 @@ export function ShoppingWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [groceryError, setGroceryError] = useState(false);
-  const [scheduled, setScheduled] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
-  const attempted = useRef(state.note);
-  const quoted = useRef(-1);
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(
+    !!snapshot.journal &&
+      (snapshot.journal.status === "partial" ||
+        snapshot.journal.batchKey === snapshot.transferBatchKey),
+  );
+  const [transferring, setTransferring] = useState(false);
   // The list row whose details are open.
   const [opened, setOpened] = useState<string | null>(null);
   // The list column is as tall as the window below its current top, so the total and
@@ -87,7 +91,6 @@ export function ShoppingWorkspace({
     const stop = () => {
       if (!running.current) return;
       stopRequested.current = true;
-      attempted.current = currentNote.current;
       setCancelled(true);
     };
     window.addEventListener("korikone:cancel-ai", stop);
@@ -103,7 +106,6 @@ export function ShoppingWorkspace({
     setNote(state.note);
     sessionStorage.setItem("shopping-note", state.note);
     currentNote.current = state.note;
-    attempted.current = state.note;
   }, [state.note]);
   const changeNote = (value: string) => {
     setCancelled(false);
@@ -120,7 +122,6 @@ export function ShoppingWorkspace({
     )
       return;
     const requested = note;
-    attempted.current = requested;
     running.current = true;
     stopRequested.current = false;
     setCancelled(false);
@@ -149,25 +150,6 @@ export function ShoppingWorkspace({
       }
     }
   }
-  useEffect(() => {
-    if (
-      view !== "list" ||
-      busy ||
-      working ||
-      note === attempted.current ||
-      !note.trim() ||
-      snapshot.ai.state !== "connected"
-    )
-      return;
-    const timer = setTimeout(() => void update(), 1800);
-    return () => clearTimeout(timer);
-  }, [note, busy, working, snapshot.ai.state, view]);
-  useEffect(() => {
-    if (view !== "list" || busy || working || quoted.current === state.revision)
-      return;
-    quoted.current = state.revision;
-    if (requirements(state).length) void call("buildBasket");
-  }, [state.revision, busy, working]);
   const all = requirements(state, new Date(), true);
   const rows = requirements(state);
   const money = (cents: number) =>
@@ -322,58 +304,15 @@ export function ShoppingWorkspace({
         )}
       </section>
     );
-  if (view === "schedule") {
-    const meals = groups.filter(
-      (g) => !g.recipe.kind || g.recipe.kind === "meal",
-    );
+  if (view === "schedule")
     return (
-      <section>
-        <h1>{tr("Viikkosuunnitelma", "Meal schedule")}</h1>
-        <p>
-          {tr(
-            "Jaa ostoslistan ateriat tuleville päiville. Suunnitelma ei lisää aineksia ostoslistaan.",
-            "Place the shopping list’s meals on upcoming days. This does not add ingredients to the list.",
-          )}
-        </p>
-        <button disabled={!meals.length} onClick={() => setScheduled(true)}>
-          {tr("Luonnostele viikko", "Plan the week")}
-        </button>
-        {!meals.length && (
-          <p>
-            {tr(
-              "Lisää ensin aterioita ostoslistaan.",
-              "Add meals to your shopping list first.",
-            )}
-          </p>
-        )}
-        {scheduled && (
-          <div className="schedule-grid">
-            {Array.from({ length: Math.max(7, meals.length) }, (_, i) => {
-              const date = new Date();
-              date.setDate(date.getDate() + i);
-              return (
-                <article className="card" key={i}>
-                  <small>
-                    {date.toLocaleDateString(fi ? "fi-FI" : "en-FI", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "numeric",
-                    })}
-                  </small>
-                  <h2>{meals[i]?.recipe.name ?? tr("Vapaa", "Open")}</h2>
-                  {meals[i] && (
-                    <p>
-                      {meals[i].meal.servings} {tr("annosta", "portions")}
-                    </p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <MealCalendarView
+        state={state}
+        busy={busy}
+        save={save}
+        copy={() => call("copyWeek")}
+      />
     );
-  }
   return (
     <div className="shopping-workspace">
       <section className="planning-pane">
@@ -394,6 +333,11 @@ export function ShoppingWorkspace({
           </label>
           <textarea
             id="shopping-note"
+            aria-describedby={
+              note !== state.note
+                ? "note-update-help note-unapplied"
+                : "note-update-help"
+            }
             value={note}
             maxLength={10000}
             placeholder={tr(
@@ -421,17 +365,15 @@ export function ShoppingWorkspace({
             <button className="chip store-chip" onClick={settings}>
               {state.context.storeName}
             </button>
-            <span className="note-status" role="status">
+            <span id="note-update-help" className="note-status" role="status">
               {working
                 ? tr("Muodostetaan listaa…", "Building your list…")
                 : cancelled
                   ? tr("Listan päivitys peruutettu", "List update cancelled")
-                  : busy
-                    ? tr("Haetaan tuotteita…", "Finding products…")
-                    : tr(
-                        "Ctrl + Enter päivittää heti",
-                        "Ctrl + Enter to update now",
-                      )}
+                  : tr(
+                      "Ctrl + Enter päivittää listan",
+                      "Ctrl + Enter to update the list",
+                    )}
             </span>
             {requesting && (
               <button
@@ -446,8 +388,7 @@ export function ShoppingWorkspace({
               </button>
             )}
             <button
-              className="refresh-note"
-              aria-label={tr("Päivitä ostoslista", "Update shopping list")}
+              className="update-note"
               disabled={
                 busy ||
                 working ||
@@ -456,10 +397,19 @@ export function ShoppingWorkspace({
               }
               onClick={() => void update()}
             >
-              ↑
+              {tr("Päivitä lista", "Update list")}
             </button>
           </div>
         </div>
+        <ModelSelector snapshot={snapshot} busy={busy} call={call} />
+        {note !== state.note && (
+          <p id="note-unapplied" className="muted" role="status">
+            {tr(
+              "Muistiinpanoa ei ole päivitetty listaan",
+              "Note changes have not been applied to the list",
+            )}
+          </p>
+        )}
         <p className="input-notice">
           {snapshot.developmentMode ? (
             tr(
@@ -468,8 +418,8 @@ export function ShoppingWorkspace({
             )
           ) : snapshot.ai.state === "connected" ? (
             tr(
-              "Lista päivittyy kirjoitustauon jälkeen. Muistiinpano, reseptit, talouden tiedot ja tuodut kuitit lähetetään ChatGPT:lle.",
-              "The list updates after a pause. Your note, recipes, household preferences and imported receipts are sent to ChatGPT.",
+              "Päivitä lista lähettää muistiinpanon, reseptit, talouden tiedot ja tuodut kuitit ChatGPT:lle. Kirjoittaminen ei lähetä niitä.",
+              "Update list sends your note, recipes, household preferences and imported receipts to ChatGPT. Typing does not send them.",
             )
           ) : (
             <>
@@ -1201,25 +1151,52 @@ export function ShoppingWorkspace({
           )}
           <div className="total-line">
             <span>{tr("Arvio yhteensä", "Estimated total")}</span>
-            <strong>{money(total)}</strong>
+            <strong>
+              {snapshot.quotedAt || !rows.length
+                ? money(total)
+                : tr("Ei hinnoiteltu", "Not priced")}
+            </strong>
           </div>
-          {compareBlocker(snapshot) && (
-            <p className="compare-hint">
-              {compareBlocker(snapshot)!.need === "store"
-                ? tr(
-                    "Vertailua varten valitse kauppa ketjulle",
-                    "To compare stores, choose a store for",
-                  )
-                : tr(
-                    "Vertailua varten kirjaudu ketjuun",
-                    "To compare stores, sign in to",
-                  )}{" "}
-              {compareBlocker(snapshot)!.chain}.{" "}
-              <button className="text" onClick={settings}>
-                {tr("Avaa Asetukset", "Open Settings")}
-              </button>
+          {snapshot.pricingError && (
+            <p className="warning" role="alert">
+              {tr(
+                "Tuotteiden ja hintojen haku epäonnistui. Yritä uudelleen.",
+                "Could not retrieve products and prices. Try again.",
+              )}
             </p>
           )}
+          {snapshot.quotedAt ? (
+            <p className="muted">
+              {tr("Viimeksi haetut hinnat", "Last quoted prices")} ·{" "}
+              {new Date(snapshot.quotedAt).toLocaleString(
+                fi ? "fi-FI" : "en-FI",
+              )}
+            </p>
+          ) : (
+            rows.length > 0 && (
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void call("buildBasket")}
+              >
+                {tr("Hae tuotteet ja hinnat", "Get products and prices")}
+              </button>
+            )
+          )}
+          {liveProviders.filter(
+            (chain) => snapshot.storeLogins[chain] === "signedIn",
+          ).length === 1 &&
+            isLive(state.context.providerId) && (
+              <p className="compare-hint">
+                <button className="text" onClick={settings}>
+                  {tr("Vertaa", "Compare with")}{" "}
+                  {snapshot.storeLogins["k-ruoka"] === "signedIn"
+                    ? "S-kaupat"
+                    : "K-Ruoka"}
+                  : {tr("kirjaudu sisään", "sign in")}
+                </button>
+              </p>
+            )}
           {canCompare(snapshot) && (
             <CompareSummary
               snapshot={snapshot}
@@ -1236,24 +1213,48 @@ export function ShoppingWorkspace({
               disabled={busy || !rows.length || missing.length === rows.length}
               onClick={async () => {
                 // An interrupted transfer is shown for recovery instead of a new review.
-                if (
-                  snapshot.journal?.status === "partial" ||
-                  (await call("prepare", { allowMissing: true }))
-                )
-                  setConfirming(true);
+                setTransferring(true);
+                try {
+                  if (
+                    snapshot.journal?.status === "partial" ||
+                    (await call("transferDisplayed", {
+                      revision: state.revision,
+                      quotedAt: snapshot.quotedAt,
+                      batchKey: snapshot.transferBatchKey,
+                    }))
+                  )
+                    setConfirming(true);
+                } finally {
+                  setTransferring(false);
+                }
               }}
             >
+              {transferring && (
+                <span role="status">
+                  {tr(
+                    "Tarkistetaan ja siirretään…",
+                    "Checking and transferring…",
+                  )}{" "}
+                </span>
+              )}
               {state.context.providerId === "s-kaupat" ? (
-                tr("Siirrä S-kauppojen listalle", "Transfer to S-kaupat list")
+                tr(
+                  "Siirrä ja avaa S-kaupat-lista",
+                  "Transfer and open S-kaupat list",
+                )
               ) : (
                 <>
-                  {tr("Siirrä", "Transfer to")}{" "}
+                  {tr("Siirrä ja avaa", "Transfer and open")}{" "}
                   {state.context.providerId === "k-ruoka"
                     ? "K-Ruoan"
                     : tr("kaupan", "store")}{" "}
-                  {tr("ostoskoriin", "cart")}
+                  {tr("ostoskori", "basket")}
                 </>
               )}
+              <span>
+                {" "}
+                · {rows.length - missing.length} {tr("tuotetta", "products")}
+              </span>
               {total > 0 && (
                 <span className="transfer-total"> · {money(total)}</span>
               )}
