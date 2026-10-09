@@ -241,6 +241,19 @@ else
           liveAIInitialized = true;
         }
         const next = await createService(db, enabled, [kRuoka, sKaupat]);
+        // Fresh development data starts with setup done when the real profile finished it, so
+        // ticking the checkbox does not send the user to the setup screen.
+        if (
+          enabled &&
+          !next.state.onboarded &&
+          service.state.onboarded &&
+          service.state.setupComplete
+        )
+          await next.save({
+            ...next.state,
+            onboarded: true,
+            setupComplete: true,
+          });
         await db.set("development-mode", enabled);
         development = enabled;
         service = next;

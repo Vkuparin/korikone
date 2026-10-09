@@ -156,13 +156,17 @@ test("settings enable and persist development mode with separate profiles", asyn
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toBeVisible();
+    // The development profile starts with setup done, as in the real profile.
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Asetukset", exact: true }),
+    ).toBeVisible();
     await app.close();
     app = await launch(env);
     page = await app.firstWindow();
     await expect(page.getByTestId("development-banner")).toBeVisible();
-    await page
-      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
-      .click();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toHaveCount(0);
