@@ -14,7 +14,13 @@ test("backup export and restore preserve recipes and reject broken references", 
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_DATA = path;
   env.KORIKONE_TEST_HIDDEN = "1";
-  const app = await electron.launch({ args: ["."], env });
+  const app = await electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
   try {
     const page = await app.firstWindow();
     await page

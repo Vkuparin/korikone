@@ -63,7 +63,16 @@ function App() {
       if (!result.ok) throw new Error(result.error);
       if (method === "setDevelopmentMode")
         sessionStorage.removeItem("shopping-note");
-      setSnapshot(result.value);
+      setSnapshot((current) => {
+        // Language changes run beside queued operations. Their older snapshots
+        // must not undo the latest selection in the renderer.
+        if (method === "setDevelopmentMode" || (method === "load" && !loaded))
+          return result.value;
+        return {
+          ...result.value,
+          state: { ...result.value.state, language: current.state.language },
+        };
+      });
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "operationFailed");

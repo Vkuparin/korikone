@@ -5,6 +5,7 @@
 - Settings development mode uses local AI and retailer fixtures with a separate saved profile. Automated Electron tests force this mode and cannot disable it.
 - Added AI success, delayed-response, validation-retry and failure fixtures. Setup and stale-note UI tests now use real application handlers.
 - Agent instructions require fixture testing for development and an explicit user request for live ChatGPT tests.
+- Pending operations preserve the selected UI language when returning an older snapshot.
 
 Development mode can be enabled in Settings. Switching modes opens a separate saved profile. Existing live data and ChatGPT credentials are preserved. The installer remains unsigned; the earlier pre-release limitations still apply.
 
