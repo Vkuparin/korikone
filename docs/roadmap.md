@@ -74,7 +74,7 @@ Today fees are shown as unknown. s-kaupat-mcp has a read-only delivery options t
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| F3.1 | Spike: what each worker reports about fees without choosing a slot. Record findings in [integrations.md](integrations.md) | | Planned |
+| F3.1 | Spike: what each worker reports about fees without choosing a slot. Record findings in [integrations.md](integrations.md) | | Done: S-kaupat reports pickup fees per store and per time without a login or a choice; delivery needs the home address; the K-Ruoka worker reports no fees |
 | F3.2 | If F3.1 finds usable data: allow only the read-only fee tool, show the fee or fee range by the total and in the comparison. Otherwise mark F3 Dropped with the reason | F3.1, F2.3 | Planned |
 
 ## 0.4.0: Complete prices
