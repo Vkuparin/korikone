@@ -2,7 +2,7 @@
 
 Agreed direction on 9 October 2026: move from prototype to pre-release while keeping scope focused. The first version is **0.2.0-alpha.1**, distributed as an unsigned Windows x64 installer and marked as a GitHub pre-release.
 
-**0.2.0-alpha.2** is the current published pre-release. It adds Settings development mode, separate fixture data, offline AI scenarios and agent testing instructions. Its source and packaged checks passed. Further source work completes behaviors already specified in the design; deferred product features remain deferred.
+**0.2.0-alpha.3** is the current published pre-release. It adds cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. Further source work completes behaviors already specified in the design; deferred product features remain deferred.
 
 ## Included
 

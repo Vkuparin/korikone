@@ -1,12 +1,16 @@
 # Release notes
 
-## Unreleased
+## 0.2.0-alpha.3 — 9 October 2026
 
 - Cancel a pending note interpretation beside the input. Cancellation preserves the saved list and typed note, invalidates pending drafts, and suppresses automatic resubmission.
 - Added the original nakkikeitto/kanapasta/ready-food/breakfast/treats fixture and regression checks for debounce, request counts, cancellation, usage failures and explicit retry.
 - Updated the implementation plan and acceptance preparation for the published alpha.2 release. Live model and retailer acceptance remain separate.
 - Expanded synthetic PDF checks for Finnish characters, euro signs, fonts, page order and extraction limits.
 - Agent instructions use focused feature checks during implementation and reserve full suites for release preparation.
+
+The installer remains unsigned; the earlier pre-release limitations still apply. This release does not include the S-kaupat sign-in change for [#3](https://github.com/Vkuparin/korikone/issues/3), which awaits a live check.
+
+Verification: build, formatting, 63 unit tests and 11 source desktop tests passed. Five packaged-app checks passed: backup export and restore, development-mode setup and transfers, mode persistence, transfer recovery and restart, and PDF receipt import. These checks used local fixtures without live ChatGPT requests.
 
 ## 0.2.0-alpha.2 — 9 October 2026
 
