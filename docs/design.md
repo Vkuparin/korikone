@@ -4,7 +4,7 @@ Revised 9 October 2026 after the first user feedback round. The current directio
 
 Korikone turns a household's plain-language shopping note into an editable, priced shopping list. Meals, ready foods, breakfasts, evening foods and treats belong in the same note. Product choices happen automatically; the user corrects exceptions and reviews the resulting cart changes. Checkout stays in the retailer.
 
-Current published delivery: **0.2.0-alpha.2 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
+Current published delivery: **0.2.0-alpha.3 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
 
 ## Product decisions
 
@@ -26,6 +26,8 @@ Use a quiet green/white palette, a compact heading, a left navigation rail, a no
 The note footer shows household size, current date and selected branch. Settings remain one click away. Explain that the note, recipes, household preferences and imported receipt text are sent to ChatGPT. Do not fabricate prices, history, account names or connection states from the mockup.
 
 Every list row includes the chosen product or unresolved ingredient, source meals, required amount, quantity controls, price when known, a home marker, removal, and an optional product picker. Shared ingredients appear once with additive amounts and all source meals. “Löytyy kotoa” leaves a visible row but excludes it from matching and totals. Removal hides the row independently; restoring home items does not restore removed rows.
+
+Manual additions accept decimal commas or points for kg and l, converted to integer g and ml. Base units and pieces require whole numbers. Matching names and units reuse the existing ingredient identity, so manual additions and recipe amounts share one row. Additions increase an explicit row quantity too, restore a removed row, and preserve its home marker. Invalid amounts leave the list and input intact.
 
 Put clear-list and text export in the list menu. Put transfer below the running total, with copy/save actions beside it. Keep all rows available; do not collapse a long list behind “show more.” A missing quote is shown as unknown and excluded from the estimate.
 

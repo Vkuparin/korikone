@@ -22,6 +22,71 @@ async function launch() {
   });
 }
 
+test("manual groceries accept decimal units and merge into quoted ingredient rows", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    const state = initialState();
+    state.onboarded = true;
+    state.setupComplete = true;
+    state.staples = [];
+    state.meals = [
+      { id: "meal", recipeId: "soup", day: 0, servings: 4, leftovers: false },
+    ];
+    await page.evaluate(async (state) => {
+      await window.korikone.save(state);
+    }, state);
+    await page.reload();
+    const add = async (name: string, amount: string, unit: string) => {
+      await page.getByLabel("Lisää tuote", { exact: true }).fill(name);
+      await page.getByLabel("Tuotteen määrä").fill(amount);
+      await page.getByLabel("Tuotteen yksikkö").selectOption(unit);
+      await page
+        .getByRole("button", { name: "Lisää tuote listaan", exact: true })
+        .click();
+    };
+    await expect(page.locator(".grocery-row")).toHaveCount(3);
+    await add("PERUNA", "0,5", "kg");
+    const potato = page
+      .locator(".grocery-row")
+      .filter({ hasText: "Peruna 1 kg" });
+    await expect(page.locator(".grocery-row")).toHaveCount(3);
+    await expect(potato).toContainText("1300 g");
+    await expect(potato.locator(".quantity-control span")).toHaveText("2");
+    await expect(page.locator(".shopping-total .warning")).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Lisää: Peruna", exact: true })
+      .click();
+    await expect(potato).toContainText("2300 g");
+    await add("Peruna", "200", "g");
+    await expect(potato).toContainText("2500 g");
+    await add("Maito", "1.25", "l");
+    await expect(page.locator(".grocery-row")).toHaveCount(4);
+    await expect(
+      page.locator(".grocery-row").filter({ hasText: "Maito 1 l" }),
+    ).toContainText("1250 ml");
+    await add("Banaani", "1,5", "pcs");
+    await expect(page.getByRole("alert")).toContainText(
+      "Anna positiivinen määrä",
+    );
+    await expect(page.locator(".grocery-row")).toHaveCount(4);
+    await expect(page.getByLabel("Tuotteen määrä")).toHaveValue("1,5");
+    await add("Banaani", "2", "pcs");
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.locator(".grocery-row")).toHaveCount(5);
+    await page.reload();
+    await expect(page.locator(".grocery-row")).toHaveCount(5);
+    await expect(potato).toContainText("2500 g");
+    expect(
+      await page.evaluate(
+        async () => (await window.korikone.load()).value!.developmentRequests,
+      ),
+    ).toBe(0);
+  } finally {
+    await app.close();
+  }
+});
+
 test("shopping workspace adds recipes, marks home items, removes rows, schedules and clears", async () => {
   const app = await launch();
   try {

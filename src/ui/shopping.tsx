@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { requirements } from "../domain/planner";
+import { addGrocery } from "../domain/groceries";
+import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 
 export function ShoppingWorkspace({
@@ -33,6 +35,7 @@ export function ShoppingWorkspace({
   const stopRequested = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [groceryError, setGroceryError] = useState(false);
   const [scheduled, setScheduled] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
@@ -715,22 +718,20 @@ export function ShoppingWorkspace({
             e.preventDefault();
             const form = e.currentTarget;
             const data = new FormData(form);
-            const name = String(data.get("item")).trim();
-            const amount = Number(data.get("amount"));
-            const unit = String(data.get("unit")) as "g" | "ml" | "pcs";
-            if (name)
-              void save({
-                ...state,
-                extras: [
-                  ...state.extras,
-                  { id: name.toLocaleLowerCase("fi"), name, amount, unit },
-                ],
-                removed: state.removed.filter(
-                  (k) => k !== `${name.toLocaleLowerCase("fi")}:${unit}`,
-                ),
-              }).then((ok) => {
+            try {
+              const next = addGrocery(
+                state,
+                String(data.get("item")),
+                String(data.get("amount")),
+                String(data.get("unit")) as Unit | "kg" | "l",
+              );
+              setGroceryError(false);
+              void save(next).then((ok) => {
                 if (ok) form.reset();
               });
+            } catch {
+              setGroceryError(true);
+            }
           }}
         >
           <input
@@ -746,9 +747,7 @@ export function ShoppingWorkspace({
           <input
             name="amount"
             aria-label={tr("Tuotteen määrä", "Grocery amount")}
-            type="number"
-            min="1"
-            max="10000000"
+            inputMode="decimal"
             defaultValue="1"
             required
           />
@@ -758,7 +757,9 @@ export function ShoppingWorkspace({
           >
             <option value="pcs">{tr("kpl", "pcs")}</option>
             <option value="g">g</option>
+            <option value="kg">kg</option>
             <option value="ml">ml</option>
+            <option value="l">l</option>
           </select>
           <button
             disabled={busy}
@@ -767,6 +768,14 @@ export function ShoppingWorkspace({
             +
           </button>
         </form>
+        {groceryError && (
+          <p role="alert">
+            {tr(
+              "Anna positiivinen määrä. Kilot ja litrat voivat sisältää enintään kolme desimaalia; grammat, millilitrat ja kappaleet ovat kokonaislukuja.",
+              "Enter a positive amount. Kilograms and litres accept up to three decimal places; grams, millilitres and pieces must be whole numbers.",
+            )}
+          </p>
+        )}
         <label className="product-preference">
           {tr("Tuotevalinnat", "Product choices")}
           <select

@@ -4,9 +4,9 @@ Revised 9 October 2026. The current work follows [design.md](design.md) and [ux.
 
 ## Current delivery stage
 
-0.2.0-alpha.2 is published for early Windows testing under [the pre-release scope](pre-release.md). Keep the current feature boundaries. Continue acceptance preparation with development-mode fixtures; live ChatGPT requests and retailer-account tests require an explicit user request.
+0.2.0-alpha.3 is published for early Windows testing under [the pre-release scope](pre-release.md). Keep the current feature boundaries. Continue acceptance preparation with development-mode fixtures; live ChatGPT requests and retailer-account tests require an explicit user request.
 
-The current source iteration completes note-request cancellation and automates the original multi-dish example, debounce request counts, failure preservation and manual retry. Development fixtures cover these paths through the real application handlers. They do not establish live model quality.
+Alpha.3 includes note-request cancellation and automated checks for the original multi-dish example, debounce request counts, failure preservation and manual retry. The current source iteration adds decimal kg/l manual input and additive merging with existing ingredient rows. Development fixtures cover these paths through the real application handlers. They do not establish live model quality.
 
 ## First feedback implementation
 
@@ -29,7 +29,7 @@ Offline preparation is separate from the live checks below. The original nakkike
 
 1. Try a real multi-dish note including nakkikeitto, frozen pizza, breakfast and treats. Check inclusion, quantities and assumptions, including a note based on imported receipts.
 2. Observe a small real K-Ruoka transfer and compare exact before/after quantities. Verify the default browser shows the same account's cart after login.
-3. Test a wider variety of real PDFs and font encodings. The 0.2.0-alpha.2 installer is published; packaged PDF extraction and malformed-PDF handling passed automated checks.
+3. Test a wider variety of real PDFs and font encodings. The 0.2.0-alpha.3 installer is published; packaged PDF extraction and malformed-PDF handling passed automated checks.
 4. Test a clean Windows installation and observe household use without coaching.
 5. With an explicitly requested live session, measure whether the 1.8-second pause creates too many paid-plan inference requests. Offline fixture counts already check one request after a typing burst, no automatic retry after cancellation or a usage failure, and a single request for manual retry. Tune the pause from observed use rather than fixture response timing.
 
