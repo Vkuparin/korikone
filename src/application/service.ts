@@ -3,9 +3,11 @@ import {
   initialState,
   contextSchema,
   stateSchema,
+  unitSchema,
   type AppState,
   type BasketLine,
   type Journal,
+  type Product,
   type Review,
   type StoreContext,
   type Recipe,
@@ -15,6 +17,7 @@ import {
   match,
   exclusionTerms,
   relevant,
+  applyPackSizes,
 } from "../domain/planner";
 import {
   ProviderRegistry,
@@ -23,6 +26,20 @@ import {
   type FeeRange,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
+import { storeKey } from "../domain/changes";
+import {
+  ERROR_KEY,
+  ERROR_LIMIT,
+  errorLogSchema,
+  type ErrorEntry,
+} from "./errors";
+import {
+  PRICE_KEY,
+  limitPrices,
+  priceObservationsSchema,
+  recordPrices,
+  type PriceObservation,
+} from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
@@ -50,6 +67,8 @@ export class Service {
   transferException: string | null = null;
   handoffError: string | null = null;
   developmentHandoffs: string[] = [];
+  /** A newer release found by the daily update check; shown as a link, never downloaded. */
+  update: { version: string; url: string } | null = null;
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
   recipeDraft: Recipe | null = null;
@@ -82,6 +101,19 @@ export class Service {
     );
     return result;
   }
+  /**
+   * Development mode stands in for the stores' saved logins: a fixture sign-in is kept in the
+   * profile, so a restart behaves like the real stores, which stay signed in between launches.
+   */
+  async fixtureLogin(chain: string, signedIn?: boolean) {
+    const saved = ((await this.db.get("fixtureLogins")) ?? {}) as Record<
+      string,
+      boolean
+    >;
+    if (signedIn !== undefined)
+      await this.db.set("fixtureLogins", { ...saved, [chain]: signedIn });
+    return signedIn ?? !!saved[chain];
+  }
   async setLanguage(input: unknown) {
     const language = z.enum(["fi", "en"]).parse(input);
     return this.writeState(async () => {
@@ -103,6 +135,63 @@ export class Service {
   constructor(private db: Storage) {
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
+  }
+  /** Adds the prices just read to the saved price history. A storage failure never stops pricing. */
+  private recordPrices(products: Product[]) {
+    return this.writeState(async () => {
+      const saved = priceObservationsSchema.safeParse(
+        (await this.db.get(PRICE_KEY)) ?? [],
+      );
+      await this.db.set(
+        PRICE_KEY,
+        recordPrices(saved.success ? saved.data : [], products),
+      );
+    }).catch(() => {});
+  }
+  /** The last 50 errors the shopper saw: a code, the time and the view. Nothing else is kept. */
+  async recordError(input: unknown) {
+    const { code, view } = z
+      .object({ code: z.string().max(100), view: z.string().max(100) })
+      .parse(input);
+    const entry = {
+      // Codes are short identifiers; anything else could carry text from a product or a note.
+      code: /^[a-zA-Z]{1,40}$/.test(code) ? code : "operationFailed",
+      time: new Date().toISOString(),
+      view: /^[a-zA-Z]{1,20}$/.test(view) ? view : "unknown",
+    };
+    await this.writeState(async () => {
+      const saved = await this.errorLog();
+      await this.db.set(ERROR_KEY, [...saved, entry].slice(-ERROR_LIMIT));
+    });
+    return this.snapshot();
+  }
+  async errorLog(): Promise<ErrorEntry[]> {
+    const saved = errorLogSchema.safeParse(
+      (await this.db.get(ERROR_KEY)) ?? [],
+    );
+    return saved.success ? saved.data : [];
+  }
+  async priceHistory(): Promise<PriceObservation[]> {
+    const saved = priceObservationsSchema.safeParse(
+      (await this.db.get(PRICE_KEY)) ?? [],
+    );
+    return saved.success ? saved.data : [];
+  }
+  /** The backup file: the saved state plus the price history, which earlier releases ignore. */
+  async exportBackup() {
+    return { ...this.state, priceHistory: await this.priceHistory() };
+  }
+  /** Replaces the state and, when the file carries one, the price history. */
+  async importBackup(raw: unknown) {
+    const next = stateSchema.parse(raw);
+    const prices =
+      raw && typeof raw === "object" && "priceHistory" in raw
+        ? priceObservationsSchema.parse(raw.priceHistory)
+        : null;
+    const saved = await this.save({ ...next, revision: this.state.revision });
+    if (prices)
+      await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
+    return saved;
   }
   async init() {
     const state = await this.db.get("state");
@@ -165,6 +254,7 @@ export class Service {
       comparison: this.comparison,
       pickupFee: this.pickupFee,
       ai: this.ai,
+      update: this.update,
       draft: this.draft,
       recipeDraft: this.recipeDraft,
     };
@@ -391,6 +481,7 @@ export class Service {
     const context = this.state.context;
     const key = pricingKey(this.state);
     const basket = await this.price(context);
+    await this.recordPrices(basket.flatMap((line) => line.candidates));
     const pickupFee = basket.length ? await this.readFee(context) : null;
     return this.retainQuote(key, context, basket, pickupFee);
   }
@@ -462,10 +553,13 @@ export class Service {
     const provider = this.registry.get(context.providerId);
     const result = [];
     for (const requirement of requirements(state)) {
-      const products = await provider.searchProducts(
-        context,
-        requirement.name,
-        requirement.id,
+      const products = applyPackSizes(
+        await provider.searchProducts(
+          context,
+          requirement.name,
+          requirement.id,
+        ),
+        state.packSizes,
       );
       const accepted =
         state.accepted[
@@ -552,6 +646,33 @@ export class Service {
     };
     return this.snapshot();
   }
+  /**
+   * Saves the pack size the shopper read from the shelf or the product page for a product whose
+   * label the store does not state, then prices the list again.
+   */
+  async setPackSize(input: unknown) {
+    if (this.busy) throw new Error("busy");
+    const { productId, amount, unit } = z
+      .object({
+        productId: z.string().min(1),
+        amount: z.number().int().positive().max(1_000_000),
+        unit: unitSchema,
+      })
+      .parse(input);
+    const known = this.basket.some((l) =>
+      l.candidates.some(
+        (p) =>
+          p.id === productId &&
+          (!p.packAmount || productId in this.state.packSizes),
+      ),
+    );
+    if (!known) throw new Error("unresolved");
+    await this.save({
+      ...this.state,
+      packSizes: { ...this.state.packSizes, [productId]: { amount, unit } },
+    });
+    return this.buildBasket();
+  }
   async accept(input: unknown) {
     if (this.busy) throw new Error("busy");
     const { ingredientId, productId } = z
@@ -607,6 +728,7 @@ export class Service {
       allowMissing
         ? this.basket.filter((line) => line.product && line.total !== null)
         : this.basket,
+      this.state.packSizes,
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
@@ -743,6 +865,7 @@ export class Service {
             await this.db.set(provider.id, [...provider.carts]);
         },
         this.controller.signal,
+        this.state.packSizes,
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
@@ -766,6 +889,28 @@ export class Service {
                 skipped: [...this.state.skipped],
                 removed: [...this.state.removed],
                 quantities: { ...this.state.quantities },
+                storeKey: storeKey(this.journal!.review.context),
+                transferred: this.journal!.review.targets.map((t) => ({
+                  productId: t.productId,
+                  name: t.name,
+                  quantity: t.quantity - t.before,
+                  unit: t.unit,
+                  price:
+                    t.quantity > t.before
+                      ? Math.round(t.price / (t.quantity - t.before))
+                      : 0,
+                })),
+                prices: Object.fromEntries(
+                  this.journal!.review.quotes.flatMap((line) =>
+                    line.product &&
+                    this.journal!.review.targets.some(
+                      (t) => t.productId === line.product!.id,
+                    ) &&
+                    line.product.price !== null
+                      ? [[line.product.id, line.product.price]]
+                      : [],
+                  ),
+                ),
               },
               ...this.state.listHistory.filter(
                 (h) => h.id !== this.journal!.review.id,
@@ -793,6 +938,7 @@ export class Service {
     this.review = await resumeReview(
       this.registry.get(this.journal.review.context.providerId),
       this.journal,
+      this.state.packSizes,
     );
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;

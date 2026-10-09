@@ -1,3 +1,4 @@
+import type { ErrorEntry } from "./errors";
 import type { Snapshot } from "./service";
 /**
  * A support report without personal data: no recipes, product names, account IDs,
@@ -6,6 +7,7 @@ import type { Snapshot } from "./service";
 export function diagnostics(
   snapshot: Snapshot,
   runtime: Record<string, string>,
+  errors: ErrorEntry[] = [],
 ) {
   const { state, journal } = snapshot;
   return {
@@ -40,5 +42,7 @@ export function diagnostics(
         }
       : null,
     ai: { state: snapshot.ai.state, error: snapshot.ai.error },
+    // Code, time and view only; never the text of an error.
+    errors: errors.map(({ code, time, view }) => ({ code, time, view })),
   };
 }

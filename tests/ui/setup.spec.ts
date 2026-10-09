@@ -1,7 +1,17 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+const launch = (env: Record<string, string>) =>
+  electron.launch({
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  });
 
 test("guided setup allows manual planning and remembers completion", async () => {
   const env = Object.fromEntries(
@@ -12,25 +22,60 @@ test("guided setup allows manual planning and remembers completion", async () =>
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
   env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-setup-"));
-  let app = await electron.launch({ args: ["."], env });
+  let app = await launch(env);
   try {
     const page = await app.firstWindow();
     await page
       .getByRole("button", { name: "Ota käyttöön", exact: true })
       .click();
+    // One screen: every action is inside a 1280 × 800 window without scrolling.
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setContentSize(1280, 800),
+    );
     await expect(
       page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Ohita toistaiseksi" }).click();
     await expect(
       page.getByRole("heading", { name: "Apua aterioiden suunnitteluun" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Ohita toistaiseksi" }).click();
+    const size = await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }));
+    for (const control of [
+      page.getByRole("button", { name: "Etsi", exact: true }),
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+      page.getByRole("button", { name: "Valmis", exact: true }),
+    ]) {
+      const box = (await control.boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(size.height);
+      expect(box.x + box.width).toBeLessThanOrEqual(size.width);
+    }
+    expect(
+      await page
+        .getByRole("heading", { name: "Aloitetaan" })
+        .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+    ).toBeLessThanOrEqual(32);
+    await page.screenshot({ path: "test-results/setup-v050.png" });
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     await expect(
       page.getByText("Lisää valmiita reseptejä", { exact: true }),
     ).toBeVisible();
+    // Development mode can show the setup screen again without a fresh data folder.
+    await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Näytä aloitusnäyttö uudelleen" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toBeHidden();
     await app.close();
-    app = await electron.launch({ args: ["."], env });
+    app = await launch(env);
     await expect(
       (await app.firstWindow()).getByText("Lisää valmiita reseptejä", {
         exact: true,
@@ -52,7 +97,7 @@ test("setup can change branch and detects completed sign-in without a check butt
   env.KORIKONE_TEST_DATA = await mkdtemp(
     join(tmpdir(), "korikone-setup-connected-"),
   );
-  const app = await electron.launch({ args: ["."], env });
+  const app = await launch(env);
   try {
     const page = await app.firstWindow();
     await page
@@ -74,12 +119,18 @@ test("setup can change branch and detects completed sign-in without a check butt
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
+    await completeFixtureLogin(app, page);
     await expect(
-      page.getByRole("button", { name: "Jatka", exact: true }),
-    ).toBeVisible({ timeout: 10000 });
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+      page
+        .getByRole("region", { name: "Missä teet ruokaostokset?" })
+        .getByRole("status")
+        .first(),
+    ).toHaveText("Kirjautunut", { timeout: 10000 });
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     await expect(page.locator(".context")).toContainText(
       "S-kaupat · Helsinki (fixture)",
     );

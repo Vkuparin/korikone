@@ -31,14 +31,13 @@ export const en = {
   setupStoreInfo:
     "Connect K-Ruoka or S-kaupat to review real products and prices and send your shopping list to the store. Search by town or store name. You can also plan without connecting a store.",
   setupLoginInfo:
-    "Sign in in the browser that opens. Korikone will check the connection automatically when you finish.",
+    "Sign in in the store view that opens, then come back here. Korikone checks the connection when you do.",
   setupAI: "Get help planning meals",
   setupAIInfo:
     "Connect ChatGPT to describe what you want to cook. Korikone chooses a suitable small model automatically. You can always plan manually.",
-  setupNext: "Continue",
-  setupLater: "Skip for now",
-  setupBack: "Back",
-  setupFinish: "Plan my week",
+  setupDone: "Done",
+  restartSetup: "Show the setup screen again",
+  setupBackToSetup: "Back to setup",
   duplicateStaple:
     "This regular item already exists. Edit the existing item instead.",
   advancedSettings: "Advanced settings",
@@ -156,6 +155,10 @@ export const en = {
   choose: "Choose this product",
   unavailable: "Unavailable",
   unknown: "Unknown",
+  updateAvailable: "New version available",
+  packSizeUnknown: "Pack size not stated",
+  packSizeAmount: "Pack size",
+  confirmPackSize: "Confirm pack size",
   packs: "Packs",
   required: "Needed",
   bought: "Bought",
@@ -212,11 +215,11 @@ export const en = {
   noDate: "Not recorded",
   storeConnection: "Store connection",
   sKaupatStatus:
-    'S-kaupat signs in and searches through its own small Microsoft Edge or Chrome window on this device. S-kaupat has no online cart that apps can fill, so Korikone writes approved products to the shopping list "Korikone" on your account. Weighed products and products without a clear pack size need manual store review.',
+    'S-kaupat signs in and searches through the S-kaupat site in the Kauppa view, so you sign in there once. S-kaupat has no online cart that apps can fill, so Korikone writes approved products to the shopping list "Korikone" on your account. Weighed products and products without a clear pack size need manual store review.',
   sKaupatListInfo:
     'These products go to the shopping list "Korikone" on your S-kaupat account. Existing list rows are kept and substitutes are not allowed.',
   sKaupatHandoff:
-    'S-kaupat opens in its own window, signed in to the same account. Open the list "Korikone", press "Lisää kaikki ostoskoriin", choose the store and time, and complete the order there.',
+    'S-kaupat opens in Korikone at Shopping lists. Sign in there with the same account if asked, open the list "Korikone", press "Lisää kaikki ostoskoriin", choose the store and time, and complete the order there.',
   browserRequired:
     "S-kaupat needs Microsoft Edge or Google Chrome on this computer.",
   storeBusy: "The store connection is busy. Try again shortly.",
@@ -249,6 +252,10 @@ export const en = {
   activeStore: "Active",
   noStoreChosen: "No store chosen",
   useThisStore: "Use this store",
+  pickStore: "Choose a store",
+  repickStore: "Change store",
+  searchStore: "town or store name",
+  noStoresFound: "No stores found for this chain.",
   signInChain: "Sign in",
   otherChain: "The other chain",
   diagnostics: "Save a diagnostic report (no personal data)",
@@ -282,14 +289,13 @@ export const fi: Record<Key, string> = {
   setupStoreInfo:
     "Yhdistä K-Ruoka tai S-kaupat, niin voit tarkistaa oikeat tuotteet ja hinnat ja siirtää ostoslistan kauppaan. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
   setupLoginInfo:
-    "Kirjaudu avautuvassa selaimessa. Korikone tarkistaa yhteyden automaattisesti, kun olet valmis.",
+    "Kirjaudu avautuvassa kauppanäkymässä ja palaa tänne. Korikone tarkistaa yhteyden, kun palaat.",
   setupAI: "Apua aterioiden suunnitteluun",
   setupAIInfo:
     "Yhdistä ChatGPT ja kerro, mitä haluaisit valmistaa. Korikone valitsee sopivan pienen mallin automaattisesti. Voit aina suunnitella myös itse.",
-  setupNext: "Jatka",
-  setupLater: "Ohita toistaiseksi",
-  setupBack: "Takaisin",
-  setupFinish: "Suunnittele viikko",
+  setupDone: "Valmis",
+  restartSetup: "Näytä aloitusnäyttö uudelleen",
+  setupBackToSetup: "Takaisin aloitukseen",
   duplicateStaple: "Tämä vakiotuote on jo olemassa. Muokkaa nykyistä tuotetta.",
   advancedSettings: "Lisäasetukset",
   automaticModel: "Automaattinen (ensisijaisesti pieni malli)",
@@ -401,6 +407,10 @@ export const fi: Record<Key, string> = {
   choose: "Valitse tuote",
   unavailable: "Ei saatavilla",
   unknown: "Ei tiedossa",
+  updateAvailable: "Uusi versio saatavilla",
+  packSizeUnknown: "Pakkauskokoa ei ilmoiteta",
+  packSizeAmount: "Pakkauskoko",
+  confirmPackSize: "Vahvista pakkauskoko",
   packs: "Pakkaukset",
   required: "Tarvitaan",
   bought: "Ostetaan",
@@ -457,11 +467,11 @@ export const fi: Record<Key, string> = {
   noDate: "Ei kirjattu",
   storeConnection: "Kauppayhteys",
   sKaupatStatus:
-    'S-kaupat kirjautuu ja hakee tuotteet omassa pienessä Microsoft Edge- tai Chrome-ikkunassaan tällä laitteella. S-kaupoissa ei ole verkko-ostoskoria, jota sovellus voisi täyttää, joten Korikone kirjoittaa hyväksytyt tuotteet tilisi ostoslistaan "Korikone". Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.',
+    'S-kaupat kirjautuu ja hakee tuotteet S-kaupan sivuston kautta Kauppa-näkymässä, joten kirjaudut siellä kerran. S-kaupoissa ei ole verkko-ostoskoria, jota sovellus voisi täyttää, joten Korikone kirjoittaa hyväksytyt tuotteet tilisi ostoslistaan "Korikone". Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.',
   sKaupatListInfo:
     'Nämä tuotteet lisätään S-kaupat-tilisi ostoslistaan "Korikone". Listan muut rivit säilyvät, eikä korvaavia tuotteita sallita.',
   sKaupatHandoff:
-    'S-kaupat avautuu omaan ikkunaansa samalle tilille kirjautuneena. Avaa lista "Korikone", paina "Lisää kaikki ostoskoriin", valitse kauppa ja aika ja viimeistele tilaus siellä.',
+    'S-kaupat avautuu Korikoneen Ostoslistat-sivulle. Kirjaudu tarvittaessa samalla tilillä, avaa lista "Korikone", paina "Lisää kaikki ostoskoriin", valitse kauppa ja aika ja viimeistele tilaus siellä.',
   browserRequired:
     "S-kaupat tarvitsee tälle koneelle Microsoft Edgen tai Google Chromen.",
   storeBusy: "Kauppayhteys on varattu. Yritä hetken päästä uudelleen.",
@@ -493,6 +503,10 @@ export const fi: Record<Key, string> = {
   activeStore: "Käytössä",
   noStoreChosen: "Kauppaa ei ole valittu",
   useThisStore: "Käytä tätä kauppaa",
+  pickStore: "Valitse kauppa",
+  repickStore: "Vaihda kauppa",
+  searchStore: "paikkakunta tai kaupan nimi",
+  noStoresFound: "Tältä ketjulta ei löytynyt kauppoja.",
   signInChain: "Kirjaudu sisään",
   otherChain: "Toinen kauppaketju",
   diagnostics: "Tallenna vianetsintätiedot (ei henkilötietoja)",

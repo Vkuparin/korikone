@@ -1,0 +1,67 @@
+{
+  "result": [
+    {
+      "id": "6410405082657",
+      "product": {
+        "type": "product",
+        "id": "6410405082657",
+        "ean": "6410405082657",
+        "localizedName": {
+          "finnish": "Pirkka suomalainen kevytmaito 1l",
+          "swedish": "Pirkka finsk lättmjölk 1l",
+          "english": "Pirkka milk semi skimmed 1 l"
+        },
+        "store": { "id": "N190", "isLocal": false },
+        "availability": { "store": true, "web": true },
+        "isAvailable": true,
+        "mobilescan": {
+          "pricing": {
+            "normal": {
+              "unit": "kpl",
+              "localizedUnit": { "fi": "kpl", "sv": "st" },
+              "isApproximate": false,
+              "soldBy": { "kind": "piece" },
+              "price": 0.99,
+              "unitPrice": { "value": 0.99, "unit": "l", "contentSize": 1 }
+            },
+            "libraryVersion": "4.0.2"
+          },
+          "discountLimited": false,
+          "vat": 13.5
+        },
+        "brand": { "id": "1", "name": "Pirkka", "slug": "pirkka-1" }
+      },
+      "score": 24.493042,
+      "type": "product",
+      "source": "primary_1"
+    },
+    {
+      "id": "2000000000001",
+      "product": {
+        "type": "product",
+        "id": "2000000000001",
+        "ean": "2000000000001",
+        "localizedName": { "finnish": "Synteettinen irtojuusto" },
+        "isAvailable": true,
+        "mobilescan": {
+          "pricing": {
+            "normal": {
+              "unit": "kg",
+              "isApproximate": true,
+              "soldBy": { "kind": "weight" },
+              "price": 12.9
+            }
+          }
+        }
+      },
+      "type": "product"
+    }
+  ],
+  "hasGoodResults": true,
+  "totalHits": 2488,
+  "language": "fi",
+  "searchQuery": "maito",
+  "storeId": "N190",
+  "queryId": "<queryId>",
+  "type": "product-search"
+}

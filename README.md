@@ -6,7 +6,7 @@ The current source includes explicitly requested note interpretation, automatic 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The latest published pre-release is **0.2.0-alpha.3**; this source prepares **0.4.0**. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [GitHub Releases](https://github.com/Vkuparin/korikone/releases). The published v0.4.0 pre-release is recorded in the roadmap; this source prepares **0.5.0**. The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.5.0 candidate checks](docs/release-0.5.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -19,13 +19,13 @@ npm run build
 npm start
 ```
 
-Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. The K-Ruoka adapter uses installed Google Chrome with its own profile; it never imports your usual browser cookies.
+Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. Retailer sign-in uses the embedded store tabs. Korikone never imports your usual browser cookies.
 
-The store search includes both chains. S-kaupat uses the pinned v1.2.0 worker with its own Edge or Chrome profile and authenticated site handoff.
+The store search includes both chains. Each retailer opens in the Kauppa view with its own persistent session. Sign in once in each tab. K-Ruoka uses the site's API in that session; S-kaupat uses the pinned v1.3.0 shared library with calls from the signed-in tab. Setup connects one chain. The hint under the shopping total leads to Settings to connect the second chain.
 
 ## Shopping and receipts
 
-Write meals and groceries in one note. In the current source, press **Päivitä lista** / **Update list** or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. Transfer opens a summary of actual cart changes, including any unresolved items excluded from the batch.
+Write meals and groceries in one note. In the current source, press **Päivitä lista** / **Update list** or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. A normal transfer opens the verified retailer destination. Missing products, existing quantities and budget overruns show an exception panel before a write.
 
 **Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press the update button or Ctrl+Enter to retry. Editing during an update discards its obsolete response without starting another request.
 
@@ -37,7 +37,7 @@ Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and c
 
 Use **Settings > Development mode** for development and testing. It replaces ChatGPT and both retailer connections with local fixtures and saves planning data and transfer journals in a separate profile. The banner identifies the active mode. Switching back restores your live profile. Fixture sign-in never opens a browser or uses ChatGPT allowance.
 
-For a forced development launch, set `KORIKONE_DEVELOPMENT=1` before `npm start`. `KORIKONE_DATA_DIR` selects an optional separate user-data directory. Automated Electron tests use a temporary `KORIKONE_TEST_DATA` directory, which forces development mode and rejects attempts to disable it. The setting is stored locally and is not changed by backup imports.
+For a forced development launch, set `KORIKONE_DEVELOPMENT=1` before `npm start`. `KORIKONE_DATA_DIR` selects an optional separate user-data directory. `KORIKONE_K_RUOKA=worker` uses the pinned k-ruoka-mcp worker instead of the K-Ruoka store tab. Automated Electron tests use a temporary `KORIKONE_TEST_DATA` directory, which forces development mode and rejects attempts to disable it. The setting is stored locally and is not changed by backup imports.
 
 AI fixtures recognize pasta, soup/keitto, porridge/puuro, coffee/kahvi and frozen pizza/pakastepizza. Other notes return a pasta example; fixtures do not provide general language understanding. Settings includes success, delayed success, invalid JSON (once or always), usage-limit, incomplete-response and AI-failure scenarios. The basket's demo controls exercise price changes and interrupted transfers. Receipt parsing, file exports, backups, diagnostics and clipboard actions stay local and use the real app code.
 
@@ -55,11 +55,11 @@ npm run package
 ## Current status and limits
 
 - Korikone is an alpha pre-release for early testing. Remaining release gates are listed in [acceptance](docs/acceptance.md).
-- K-Ruoka live catalogue reads passed, and the owner confirmed login. Cart writes and default-browser account continuity still need observed acceptance testing.
-- S-kaupat has no online cart that apps can fill. Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The S-kaupat adapter passes offline tests against the pinned release; Live login and a three-product list transfer were verified on 9 October 2026. The opened site was signed out; sign in there to use the list. Authenticated handoff remains open in [#3](https://github.com/Vkuparin/korikone/issues/3). See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
+- The owner confirmed earlier K-Ruoka catalogue, sign-in and small-cart transfers. Final acceptance of the integrated v0.5.0 candidate remains pending.
+- S-kaupat has no online cart that apps can fill. Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks. Earlier live login, list transfers and authenticated handoff were accepted by the owner on 9 October 2026. The integrated candidate still needs its final owner check. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
 - Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. The owner confirmed sign-in and a meal draft. Automatic model selection has offline coverage; its live check remains outstanding. The app retains one registration per app profile. Manual planning works without it.
-- The installer is unsigned; clean-machine and household usability checks remain outstanding.
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Final candidate owner checks are listed in [v0.5.0 acceptance](docs/release-0.5.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 
@@ -67,6 +67,6 @@ See [the pre-release scope](docs/pre-release.md), [design](docs/design.md) and [
 
 Licensed under Apache-2.0. Copyright 2026 Vkuparin.
 
-## 0.4.0 transfer flow
+## Transfer flow
 
 The pinned button shows the basket or list destination, product count and quoted total. One press approves the displayed batch, checks it, transfers it and opens the retailer destination after verification. Missing products, existing quantities and budget overruns require a decision; changed prices or packs require a refreshed quote. Reopening a verified batch never adds it again. If opening fails, use the open-only retry. S-kaupat still opens the Korikone account list; add it to the basket on the retailer site. Checkout and payment remain manual.

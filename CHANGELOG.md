@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.5.0 — release candidate, 9 October 2026
+
+- Integrate the published v0.4.0 explicit-update, retained-price and one-approval transfer flow with embedded K-Ruoka and S-kaupat tabs. Verified transfers open the selected basket or account list automatically; reopening does not add products again.
+- Keep one persistent session per chain. Setup connects one store on one screen; a hint under the total leads to Settings for the second chain.
+- Use the released s-kaupat-mcp v1.3.0 library for requests, session handling, renewal and errors. Retain version, tool and schema checks, private host transport and disabled ordering/payment tools.
+- Reject K-Ruoka account or quantity changes at the final write boundary.
+- Exercise real local sign-in forms, rejection, expiry, restart and both complete setup-to-destination journeys with deterministic development fixtures.
+- The installer remains unsigned. Final candidate verification and owner checks are recorded in [v0.5.0 release preparation](docs/release-0.5.0.md). S-kaupat's add-all step, checkout and payment remain manual.
+
 ## 0.4.0 — release candidate, 9 October 2026
 
 - Transfer and open the destination with one approval of the displayed batch. Only exceptions ask for another decision. Verified batches stay protected against duplicate additions after refresh and restart; failed storefront opening offers an open-only retry.
@@ -10,6 +19,14 @@
 - Apply shopping notes only with Update list or Ctrl+Enter. Returning to the view and restarting retain compatible last quoted prices without AI or catalogue requests.
 - Change the planning store and supported pickup/delivery choice from the shopping header, preserving the note and groceries.
 
+- Switching on development mode no longer sends you to the setup screen when your real profile has finished setup. A fresh development profile starts with setup done; *Näytä aloitusnäyttö uudelleen* in Asetukset brings the setup screen back.
+- Development mode: Asetukset has *Näytä aloitusnäyttö uudelleen*, which shows the setup screen again without a fresh data folder or losing data.
+- Setup is one screen: choose a store and sign in, optionally connect ChatGPT, and press *Valmis*. Every action is visible without scrolling at 1280 × 800. *Kirjaudu kauppaan* opens the store tab over the setup screen and *Takaisin aloitukseen* brings you back and checks the sign-in.
+- S-kaupat now works through the Kauppa tab: *Kirjaudu kauppaan* opens S-kaupat there, and searches and list writes go out from that tab's session with the login you made, so there is one sign-in and no separate Edge or Chrome window. The login is read from the tab only, a local bridge accepts five fixed requests with a random key and reaches only s-kaupat.fi and its API, and ordering and payment stay off. Needs your live check. `KORIKONE_S_KAUPAT=browser` goes back to the old window.
+- Korikone now pins s-kaupat-mcp 1.3.0, which can run its S-kaupat calls in the store tab's own page instead of its own browser. Korikone does not use that mode yet; it comes with single sign-in through the tab.
+- K-Ruoka through the store tab: Korikone searches products and stores, reads the cart and writes quantities through k-ruoka.fi's own API in the signed-in Kauppa tab instead of the k-ruoka-mcp worker and its Chrome. It only ever adds a product found in a search or sets an existing item's amount, binds the review to a hash of the account, and never sends the account's e-mail anywhere. *Kirjaudu kauppaan* for K-Ruoka opens the Kauppa tab to sign in. Checked live by the owner. `KORIKONE_K_RUOKA=worker` goes back to the worker.
+- Stores inside Korikone: a new *Kauppa* view shows the store's own site in a tab for each chain with a chosen store, each with its own saved sign-in. *Avaa kaupan ostoskori* after a transfer opens the K-Ruoka cart, or S-kaupat's *Ostoslistat* page where the "Korikone" list is, in that tab instead of an external window ([#8](https://github.com/Vkuparin/korikone/issues/8)). Store pages run sandboxed with no access to Korikone, popups stay in the tab, and leaving the store and payment sites asks first. *Avaa selaimessa* opens the page in the default browser. Sign in once in the tab; the order and payment are always done there by you. While a store page is open, the *Kauppa* navigation item is highlighted with the chain name and leads back to it ([#10](https://github.com/Vkuparin/korikone/issues/10)).
+- Each chain card in Asetukset has its own *Valitse kauppa* store search, which lists only that chain's stores and does not change the active chain ([#6](https://github.com/Vkuparin/korikone/issues/6)). When comparing is not possible, the total bar says what is missing. *Vertaa kauppoja* is a full-size button ([#7](https://github.com/Vkuparin/korikone/issues/7)). Saved store sign-ins are detected at launch and when Asetukset opens.
 - Manual grocery additions accept decimal kg/l amounts and merge matching names and units into existing recipe rows. Added quantities also increase an explicit row override. Invalid amounts preserve the list and input.
 - The total and the transfer button, which now shows the total, stay at the bottom of the shopping list while the list scrolls on its own. The list notes, fee and export buttons sit above them.
 - *Vertaa kauppoja* moved into the pinned bar. After a comparison the bar shows the result, for example "K-Ruoka 2,10 € halvempi · Vertaa", which opens the full comparison until the list changes.
@@ -19,7 +36,7 @@
 - Quieter list rows: the home and remove buttons appear on hover or keyboard focus, and alternatives moved into the row details. A row shows only "Edullisempi vaihtoehto" with the saving. At live stores a look-alike, such as chicken mince for mince, is no longer offered as a cheaper option.
 - Vakiotuotteet left the navigation. Edit regular items from Asetukset or from *Muokkaa vakiotuotteita* under "Unohtuiko jotain?".
 - Secondary text (hints, store name, help lines, list details) is darker and meets WCAG AA contrast, 4.5:1, on every background. A unit test checks the stylesheet.
-- Both chains can stay signed in. Settings lists K-Ruoka and S-kaupat with their own store, sign-in and *Use this store*; switching chains keeps the other chain's store and login. Setup offers the other chain after the first sign-in.
+- Both chains can stay signed in. Settings lists K-Ruoka and S-kaupat with their own store, sign-in and *Use this store*; switching chains keeps the other chain's store and login.
 - *Compare stores* under the list total prices the same list at the other chain without touching either cart, the saved list or a pending transfer. It shows the total for the items priced at both, all priced items with the missing count, known deposits and the three largest differences, and can switch to the other chain. Delivery fees are not included.
 - S-kaupat pickup fees: the list total shows the store's pickup fee range, which depends on the pickup time, and the comparison has a pickup fee row. Korikone reads it with s-kaupat-mcp's read-only `get_delivery_options`, without choosing a time. Home delivery fees and all K-Ruoka fees stay "not known"; home delivery would need your address, which Korikone does not ask for.
 - S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. Korikone now pins s-kaupat-mcp 1.2.0 and keeps its S-kaupat login for its own data folder (`SKAUPAT_LOGIN_SCOPE=data-dir`), so *Open store cart* opens the same signed-in window and signing in or out in Korikone no longer touches other apps on the PC. Existing users are asked to sign in once more. Confirmed by the owner on a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).

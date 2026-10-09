@@ -8,8 +8,14 @@ import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
-import { isLive } from "../stores/provider";
-import { ComparePanel, CompareSummary, canCompare, feeRange } from "./compare";
+import { isLive, liveProviders } from "../stores/provider";
+import {
+  ComparePanel,
+  CompareSummary,
+  canCompare,
+  compareBlocker,
+  feeRange,
+} from "./compare";
 import { MealCalendarView } from "./calendar";
 
 export function ShoppingWorkspace({
@@ -19,6 +25,7 @@ export function ShoppingWorkspace({
   save,
   settings,
   staples,
+  openStore,
   view = "list",
 }: {
   snapshot: Snapshot;
@@ -27,6 +34,7 @@ export function ShoppingWorkspace({
   save: (state: AppState) => Promise<boolean>;
   settings: () => void;
   staples: () => void;
+  openStore: (chain: "k-ruoka" | "s-kaupat") => void;
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
@@ -46,7 +54,11 @@ export function ShoppingWorkspace({
   const currentNote = useRef(note);
   const panel = useRef<HTMLElement>(null);
   const [comparing, setComparing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(
+    !!snapshot.journal &&
+      (snapshot.journal.status === "partial" ||
+        snapshot.journal.batchKey === snapshot.transferBatchKey),
+  );
   const [transferring, setTransferring] = useState(false);
   // The list row whose details are open.
   const [opened, setOpened] = useState<string | null>(null);
@@ -995,6 +1007,13 @@ export function ShoppingWorkspace({
                             ? { product: cheaper, total: cost(cheaper) }
                             : null
                         }
+                        confirmPack={(p, amount, unit) =>
+                          void call("setPackSize", {
+                            productId: p.id,
+                            amount,
+                            unit,
+                          })
+                        }
                         choose={(p) => {
                           if (line.product)
                             setUndo({ ...undo, [key]: line.product.id });
@@ -1119,6 +1138,7 @@ export function ShoppingWorkspace({
               money={money}
               onClose={() => setConfirming(false)}
               onRecover={() => void call("recover")}
+              onOpenStore={openStore}
             />
           )}
           {!confirming && snapshot.journal?.status === "partial" && (
@@ -1163,6 +1183,20 @@ export function ShoppingWorkspace({
               </button>
             )
           )}
+          {liveProviders.filter(
+            (chain) => snapshot.storeLogins[chain] === "signedIn",
+          ).length === 1 &&
+            isLive(state.context.providerId) && (
+              <p className="compare-hint">
+                <button className="text" onClick={settings}>
+                  {tr("Vertaa", "Compare with")}{" "}
+                  {snapshot.storeLogins["k-ruoka"] === "signedIn"
+                    ? "S-kaupat"
+                    : "K-Ruoka"}
+                  : {tr("kirjaudu sisään", "sign in")}
+                </button>
+              </p>
+            )}
           {canCompare(snapshot) && (
             <CompareSummary
               snapshot={snapshot}

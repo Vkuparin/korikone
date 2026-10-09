@@ -11,6 +11,25 @@ export const feeRange = (
 ) =>
   fee.min === fee.max ? money(fee.min) : `${money(fee.min)}–${money(fee.max)}`;
 
+/**
+ * Why the comparison is not offered at a live store: the other chain needs a store, or a chain
+ * needs a sign-in. Null when it is offered, or at a demo store.
+ */
+export function compareBlocker(snapshot: Snapshot) {
+  const { state } = snapshot;
+  const active = state.context.providerId;
+  if (!isLive(active) || canCompare(snapshot)) return null;
+  const other = active === "k-ruoka" ? "s-kaupat" : "k-ruoka";
+  if (!state.stores[other])
+    return { need: "store" as const, chain: chainName(other) };
+  const signedOut = [active, other].find(
+    (id) => snapshot.storeLogins[id] !== "signedIn",
+  );
+  return signedOut
+    ? { need: "login" as const, chain: chainName(signedOut) }
+    : null;
+}
+
 /** True when both chains are signed in and the other chain has a store chosen. */
 export function canCompare(snapshot: Snapshot) {
   const { state } = snapshot;
@@ -50,7 +69,7 @@ export function CompareSummary({
   if (!comparison)
     return (
       <button
-        className="text compare-summary"
+        className="secondary compare-summary"
         disabled={busy || !snapshot.basket.length}
         onClick={async () => {
           if (await call("compareStores")) onOpen();
@@ -66,7 +85,7 @@ export function CompareSummary({
       ? chainName(state.context.providerId)
       : chainName(other.providerId);
   return (
-    <button className="text compare-summary" onClick={onOpen}>
+    <button className="secondary compare-summary" onClick={onOpen}>
       {result.cheaper === null
         ? result.common.rows
           ? tr("Sama hinta molemmissa", "Same price at both")

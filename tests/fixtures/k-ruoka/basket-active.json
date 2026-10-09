@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 5,
+  "id": "<basketId>",
+  "name": "<name>",
+  "channel": "k-ruoka.fi",
+  "userInfo": {
+    "firstName": "Testi",
+    "lastName": "<lastName>",
+    "email": "testi@example.invalid",
+    "phoneNumber": "<phoneNumber>",
+    "plussaCard": "<plussaCard>"
+  },
+  "items": [
+    {
+      "ean": "6410405195005",
+      "id": "<itemId>",
+      "name": {
+        "finnish": "Pirkka suomalainen kiinteä peruna 1kg",
+        "swedish": "Pirkka Finsk fast potatis 1kg"
+      },
+      "productDetails": {
+        "attributes": { "ean": "6410405195005" },
+        "availability": { "store": true, "web": true },
+        "soldBy": { "kind": "piece" }
+      },
+      "amountInfo": { "amount": 2, "unit": "kpl" },
+      "allowSubstitutes": false,
+      "pricing": { "price": 1.98, "unit": "kpl", "isApproximate": false }
+    }
+  ],
+  "updatedAt": "<updatedAt>",
+  "priceSummary": { "itemsSubTotal": 1.98, "grandTotal": 1.98 },
+  "substitutionDefault": false,
+  "store": { "id": "N190", "name": "K‑Citymarket Helsinki Easton" },
+  "isDeliverySlotClosed": false
+}

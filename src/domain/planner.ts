@@ -105,7 +105,10 @@ export function match(
   exclusions: string[] = [],
 ): BasketLine {
   const matching = products.filter(
-    (p) => p.ingredientId === requirement.id && p.unit === requirement.unit,
+    (p) =>
+      p.ingredientId === requirement.id &&
+      // A product without a readable pack size stays listed so the shopper can confirm it.
+      (p.unit === requirement.unit || p.packAmount === 0),
   );
   // A hard requirement: excluded products never reach ranking or acceptance.
   const candidates = matching.filter(
@@ -159,4 +162,17 @@ export function shoppingList(state: AppState): string {
   return requirements(state)
     .map((r) => `${r.name}: ${r.amount} ${r.unit} (${r.sources.join(", ")})`)
     .join("\n");
+}
+
+/** Fills in the pack size the shopper confirmed for products whose label could not be read. */
+export function applyPackSizes(
+  products: Product[],
+  sizes: AppState["packSizes"],
+): Product[] {
+  return products.map((p) => {
+    const size = sizes[p.id];
+    return !p.packAmount && size
+      ? { ...p, packAmount: size.amount, unit: size.unit }
+      : p;
+  });
 }

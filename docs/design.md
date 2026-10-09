@@ -63,7 +63,9 @@ Transfer flow:
 3. Apply an unchanged batch automatically. For exceptions, the confirm button approves the displayed changes; a separate checkbox accepts a budget overrun. Keep revision, account, store, price and quantity checks.
 4. Journal each operation and read back the cart. A failure stops the batch and offers reconciliation; never blindly repeat an uncertain write.
 5. Show verified and unresolved items in the same panel, with the next step. Save verified runs to local transfer history so they can be reused.
-6. Automatically open the destination only after verification: K-Ruoka's basket in the default browser, or S-kaupat's authenticated Korikone list. A failed opening preserves the verified result and offers an open-only retry. The journal's `batchKey` prevents repeating the same approved batch across view return, refresh and restart. Reopening is safe; adding the same list again requires the explicit repeat action and exception approval. S-kaupat's "Lisää kaikki ostoskoriin" and checkout stay manual. The app does not copy browser cookies or claim K-Ruoka browser session continuity.
+6. Automatically open the destination only after verification: K-Ruoka's basket in the store tab, or S-kaupat's authenticated Korikone list. A failed opening preserves the verified result and offers an open-only retry. The journal's `batchKey` prevents repeating the same approved batch across view return, refresh and restart. Reopening is safe; adding the same list again requires the explicit repeat action and exception approval. S-kaupat's "Lisää kaikki ostoskoriin" and checkout stay manual. Both adapters use the persistent store-tab session.
+
+The Kauppa view (`src/main/store-view.ts`) draws a `WebContentsView` over the frame in `src/ui/store.tsx`. Store pages get no preload, `nodeIntegration: false` and a sandbox. Popups load in the same tab; navigation outside the chain's own and known payment domains asks first. *Avaa selaimessa* opens the current page in the default browser. In development mode the tabs load a local fixture site and their sessions cancel requests to the real store hosts.
 
 Unsupported weighted prices and ambiguous pack labels remain unresolved. A partial batch may transfer the available products only after the review lists what is excluded. It must not imply the complete list was transferred. Fees and unreported deposits remain outside the estimate.
 
@@ -88,7 +90,7 @@ The new `listHistory` records verified transfers, not completed purchases. Exist
 - `src/receipts`: local file reader and isolated PDF extraction worker.
 - `src/stores`: demo providers and the pinned K-Ruoka and S-kaupat MCP adapters.
 - `src/persistence`: SQLite storage and durable operation journal.
-- `src/main`: restricted IPC, file dialogs, clipboard and default-browser handoff.
+- `src/main`: restricted IPC, file dialogs, clipboard, the in-app store view and the development fixture site.
 
 Schema defaults retain compatibility with older saved profiles. Language changes remain presentation-only and preserve quantities, typed notes, approvals and in-flight requests.
 
@@ -96,8 +98,12 @@ The latest successful quote is a separate SQLite document, `last-quote` (`develo
 
 Explicit saved changes that affect this binding refresh prices through `Service.refreshAfterChange`. If the save succeeds but pricing fails, the snapshot retains the changed list, clears incompatible prices and exposes `pricingError` for a visible retry. A failed manual refresh preserves the previous successful quote. Quotes are published only after their cache write succeeds and their binding still matches the saved list. Cached prices never replace fresh transfer validation.
 
+## v0.5.0 retailer sessions
+
+Each chain has a sandboxed store view with its own persistent session. Korikone's catalogue and transfer calls use that session. S-kaupat uses the released library through a private loopback host; K-Ruoka uses its same-origin site API with a final account and cart check before writing. Default transfers verify their result and open the embedded destination. External worker modes remain explicit fallbacks. Setup connects one chain; the total's second-chain hint leads to Settings. Development views use local HTTP sign-in forms and cookies and reject non-local networking.
+
 ## Current boundaries
 
-K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.2.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The meal calendar is editable and saved locally; changes do not alter the shopping list. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, embedded retailer browser, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
+K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.3.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The meal calendar is editable and saved locally; changes do not alter the shopping list. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 
 See [UX behavior](ux.md), [roadmap](roadmap.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.

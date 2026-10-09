@@ -23,6 +23,9 @@ export function pricingKey(state: AppState): string {
     accepted: state.accepted,
     exclusions: state.household.exclusions,
     preference: state.productPreference,
+    ...(Object.keys(state.packSizes).length
+      ? { packSizes: state.packSizes }
+      : {}),
   });
 }
 

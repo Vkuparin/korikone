@@ -1,5 +1,15 @@
 # Prototype dependency decisions
 
+## v0.5.0 shared S-kaupat library
+
+The default S-kaupat connection uses the Apache-2.0 npm library from upstream release v1.3.0, source revision `c2b0ada4383a86bca3b7725407783135a078b08c`. The release tarball SHA-256 is `0fa73e9952aa0c944d753da677a5a5c4aef34aa1bb0cfd4a33f605fe4cca6d77`. The dependency URL and npm integrity are pinned, and `prepare-s-kaupat.mjs` checks the tarball alongside the standalone worker.
+
+`SKaupatLibrary` calls the released `loadConfig` and `createRuntime`, connects an MCP client through `InMemoryTransport`, and validates the server version, required tools and result schemas. The shared runtime supplies requests, host authentication, renewal and error handling. Korikone retains product normalization, planning and transfer review. Ordering is disabled, and the adapter exposes only its fixed allowed tools.
+
+The private loopback host accepts five fixed operations with a random key. Store requests and session reads stay in the tab. Korikone stores no refresh token. Shutdown closes the MCP client and runtime. The build keeps `s-kaupat-mcp` as a production dependency so the packaged app includes the same released library. `KORIKONE_S_KAUPAT=browser` retains the pinned standalone fallback.
+
+Fixture tests exercise the library's reviewed transfer and the same host-session contract against both library and worker. Adapter and service tests cover expiry, uncertain writes and recovery. Earlier live observations are recorded below; final acceptance of the integrated candidate is pending.
+
 ## K-Ruoka
 
 Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`, source revision `558a22e526057f35c7804081a77c19659cc3e671`.
@@ -14,12 +24,20 @@ Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`
 - Products expose normal prices and availability but lack structured pack sizes, deposits and dietary attributes. Pack labels are parsed conservatively. Weighted prices and ambiguous pack labels remain unresolved. Product acceptance must include checking the pack label and dietary suitability. Prices are estimates, with fees and any unreported deposits unresolved until store checkout.
 - Same-profile checkout handoff closes the worker and launches Chrome against that profile. Live account continuity remains an acceptance check; it is not established by the protocol test.
 
+Decision for U3.7 (U3.2 spike, 9 October 2026): replace the worker with a Korikone K-Ruoka client in `src/stores/` that calls the site's API from the `persist:k-ruoka` store tab, rather than asking upstream for a host-page mode.
+
+- The API is four same-origin calls (product search, store search, cart read, cart write) authenticated only by the HttpOnly `session` cookie that the store tab already holds, so a page-context `fetch` is enough ([integrations.md](integrations.md#k-ruoka-inside-an-electron-view-u32-9-october-2026)).
+- k-ruoka-mcp is a third-party Rust binary that launches and drives its own Chrome over the DevTools protocol. A host-page mode would need an upstream change and either an open debugging port in Korikone or a new bridge protocol.
+- The client returns the same tool-shaped results, so `KRuokaProvider` and its review binding stay unchanged.
+- It must keep the worker's safeguards: the build-number header with a retry on 409, at least 500 ms between calls, a null account treated as signed out, item IDs validated before a write, and rollback of an unknown EAN.
+- The owner checked one cart write from the view on 9 October 2026, and the client became the default. The worker stays pinned behind `KORIKONE_K_RUOKA=worker` until U3.5 removes its login window. The client (`src/stores/k-ruoka-site.ts`) passes `tests/k-ruoka-site.test.ts` against anonymised responses captured from the site (`tests/fixtures/k-ruoka/`). The cart write format (a JSON array of events to `PATCH /kr-api/basket/by-id/{basketId}`: `ADD-ITEM` with `item: {ean, allowSubstitutes, amountInfo}`, `SET-ITEM-AMOUNT` with `itemId` and `value: {amount, unit}`) was read from the site's own code, not yet sent. The client builds only those two events and adds only EANs returned by a search in the same session.
+
 ## S-kaupat
 
-Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.2.0`, source revision `0cf3228449a0e47b359d77978b6dcd151bfdd737` (previously `v1.1.0`, `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`).
+Use the Apache-2.0 `Vkuparin/s-kaupat-mcp` single-file release `s-kaupat-mcp.cjs` from `v1.3.0`, source revision `c2b0ada4383a86bca3b7725407783135a078b08c` (previously `v1.2.0`, `0cf3228449a0e47b359d77978b6dcd151bfdd737`; `v1.1.0`, `4667ff1b9c081a2b85d4fd53f655c84fb34f39ad`). 1.3.0 adds the host transport for the in-app store tab; Korikone enables it since U3.5: `src/main/s-kaupat-host.ts` answers the five operations on 127.0.0.1 with a random key per launch, from the Kauppa tab's session (`KORIKONE_S_KAUPAT=browser` keeps the old window).
 
 - `s-kaupat-mcp.cjs` SHA-256: `17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a`; `tools.json` SHA-256: `a45d418363b3439cee9ddc1919ab2437d377db3e0395883c7f931c72b92461c4`; both match the release's `SHA256SUMS`.
-- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.2.0`, the required tool names and `schemaVersion` `1.0` on each result.
+- `scripts/prepare-s-kaupat.mjs` downloads and verifies these files and the license into `vendor/s-kaupat/`. Runtime checks the file checksum, server version `1.3.0`, the required tool names and `schemaVersion` `1.0` on each result.
 - The `.cjs` (about 5 MB) was chosen over the 110 MB standalone exe because Electron already contains Node.js; Korikone runs it with `ELECTRON_RUN_AS_NODE`.
 - The server uses its own Edge or Chrome profile under Korikone's data folder and keeps the refresh token in Windows Credential Manager, shared with other apps using s-kaupat-mcp on the same PC.
 - `SKAUPAT_ORDERING=false`, and the adapter allows only catalogue, login, shopping-list and site-handoff tools. No order, payment, list deletion or delivery-slot command is exposed.

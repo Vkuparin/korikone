@@ -1,6 +1,6 @@
 import React from "react";
 import type { Snapshot } from "../application/service";
-import type { BasketLine, Product } from "../domain/model";
+import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 
 /**
@@ -13,6 +13,7 @@ export function RowDetails({
   busy,
   money,
   choose,
+  confirmPack,
   cheaper,
 }: {
   snapshot: Snapshot;
@@ -20,6 +21,7 @@ export function RowDetails({
   busy: boolean;
   money: (cents: number) => string;
   choose: (product: Product) => void;
+  confirmPack: (product: Product, amount: number, unit: Unit) => void;
   /** A cheaper product for the same ingredient, with its cost for the needed amount. */
   cheaper: { product: Product; total: number } | null;
 }) {
@@ -96,7 +98,9 @@ export function RowDetails({
             <li className="candidate" key={p.id}>
               <span>{p.name}</span>
               <small>
-                {p.packAmount} {u(p.unit)}
+                {p.packAmount
+                  ? `${p.packAmount} ${u(p.unit)}`
+                  : t("packSizeUnknown")}
                 {unitPrice(p) && ` · ${unitPrice(p)}`}
                 {p.deposit > 0 && ` · ${t("deposit")} ${money(p.deposit)}`}
               </small>
@@ -123,10 +127,77 @@ export function RowDetails({
                       ? t("unavailable")
                       : t("stockUnknown")}
               </button>
+              {(!p.packAmount || p.id in state.packSizes) && (
+                <PackSizeForm
+                  key={`${p.id}:${p.packAmount}`}
+                  product={p}
+                  language={language}
+                  busy={busy}
+                  confirm={confirmPack}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+/** Lets the shopper state the pack size of a product whose label the store leaves out. */
+function PackSizeForm({
+  product,
+  language,
+  busy,
+  confirm,
+}: {
+  product: Product;
+  language: string;
+  busy: boolean;
+  confirm: (product: Product, amount: number, unit: Unit) => void;
+}) {
+  const t = (key: Key) => (language === "fi" ? fi : en)[key];
+  const [amount, setAmount] = React.useState(
+    product.packAmount ? String(product.packAmount) : "",
+  );
+  const [unit, setUnit] = React.useState<Unit>(
+    product.packAmount ? product.unit : "g",
+  );
+  const value = Number(amount);
+  return (
+    <form
+      className="pack-size"
+      onSubmit={(event) => {
+        event.preventDefault();
+        confirm(product, value, unit);
+      }}
+    >
+      <input
+        type="number"
+        min={1}
+        step={1}
+        value={amount}
+        aria-label={`${t("packSizeAmount")}: ${product.name}`}
+        onChange={(event) => setAmount(event.target.value)}
+      />
+      <select
+        value={unit}
+        aria-label={`${t("packSizeAmount")}: ${product.name}`}
+        onChange={(event) => setUnit(event.target.value as Unit)}
+      >
+        {(["g", "ml", "pcs"] as const).map((x) => (
+          <option key={x} value={x}>
+            {unitLabel(x, language)}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        className="secondary"
+        disabled={busy || !Number.isInteger(value) || value < 1}
+      >
+        {t("confirmPackSize")}
+      </button>
+    </form>
   );
 }

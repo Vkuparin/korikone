@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Review } from "../domain/model";
 import { relevant } from "../domain/planner";
+import { compareTransfers, hasChanges } from "../domain/changes";
+import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { en, fi, unitLabel, type Key } from "./i18n";
 
@@ -13,7 +15,11 @@ const chainName = (review: Review) =>
       : review.context.storeName;
 
 /** Rows the shopper should look at before confirming; everything else is in "Show all rows". */
-export function attention(review: Review, budget: number) {
+export function attention(
+  review: Review,
+  budget: number,
+  history: { prices: Record<string, number> }[] = [],
+) {
   const cheaper = review.quotes.flatMap((line) => {
     if (!line.product || line.total === null) return [];
     const best = line.candidates
@@ -43,6 +49,7 @@ export function attention(review: Review, budget: number) {
     overBudget: Math.max(review.total - budget, 0),
     inCart: review.targets.filter((target) => target.before > 0),
     cheaper,
+    risen: priceRises(review.quotes, history),
   };
 }
 
@@ -57,6 +64,7 @@ export function ConfirmPanel({
   money,
   onClose,
   onRecover,
+  onOpenStore,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -64,6 +72,8 @@ export function ConfirmPanel({
   money: (cents: number) => string;
   onClose: () => void;
   onRecover: () => void;
+  /** Shows the store tab that "Open store cart" loaded. */
+  onOpenStore: (chain: "k-ruoka" | "s-kaupat") => void;
 }) {
   const { state, review, journal } = snapshot;
   const language = state.language;
@@ -74,12 +84,16 @@ export function ConfirmPanel({
   const [accepted, setAccepted] = useState(false);
   useEffect(() => setAccepted(false), [review?.id]);
   const section = useRef<HTMLElement>(null);
-  const items = review && attention(review, state.household.budget);
+  const changes = review && compareTransfers(review, state.listHistory);
+  const items =
+    review && attention(review, state.household.budget, state.listHistory);
   const quiet =
     !!items &&
     !items.unresolved.length &&
     !items.overBudget &&
-    !items.inCart.length;
+    !items.inCart.length &&
+    !items.cheaper.length &&
+    !items.risen.length;
   useEffect(() => {
     section.current?.scrollIntoView({ block: "nearest" });
     if (quiet) confirm.current?.focus();
@@ -126,10 +140,67 @@ export function ConfirmPanel({
                 {target.before} → {target.quantity} {u(target.unit)}
               </li>
             ))}
+            {items.risen.map((rise) => (
+              <li key={`rise:${rise.productId}`}>
+                {tr("Hinta noussut:", "Price rose:")} {rise.name}{" "}
+                {money(rise.before)} → {money(rise.now)}
+              </li>
+            ))}
+            {items.cheaper.map(({ line, product, saving }) => (
+              <li
+                key={`cheaper:${line.requirement.id}:${line.requirement.unit}`}
+              >
+                {tr("Halvempi vaihtoehto", "Cheaper option")}{" "}
+                {line.requirement.name}: {product.name} ({money(saving)}{" "}
+                {tr("halvempi", "less")})
+              </li>
+            ))}
           </ul>
         )}
         {review.context.providerId === "s-kaupat" && (
           <p className="muted">{t("sKaupatListInfo")}</p>
+        )}
+        {changes && (
+          <details open={hasChanges(changes)} key={review.id}>
+            <summary>
+              {tr("Muutokset edelliseen", "Changes since last time")}
+            </summary>
+            {changes.storeChanged ? (
+              <p className="muted">
+                {tr(
+                  "Edellinen siirto meni toiseen kauppaan.",
+                  "The last transfer went to another store.",
+                )}
+              </p>
+            ) : !hasChanges(changes) ? (
+              <p className="muted">{tr("Ei muutoksia.", "No changes.")}</p>
+            ) : (
+              <ul>
+                {changes.added.map((l) => (
+                  <li key={`new:${l.productId}`}>
+                    {tr("Uusi:", "New:")} {l.name}
+                  </li>
+                ))}
+                {changes.dropped.map((l) => (
+                  <li key={`gone:${l.productId}`}>
+                    {tr("Pois:", "Dropped:")} {l.name}
+                  </li>
+                ))}
+                {changes.quantity.map((c) => (
+                  <li key={`qty:${c.name}`}>
+                    {tr("Määrä:", "Quantity:")} {c.name} {c.before} → {c.now}{" "}
+                    {u(c.unit)}
+                  </li>
+                ))}
+                {changes.price.map((c) => (
+                  <li key={`price:${c.name}`}>
+                    {tr("Hinta:", "Price:")} {c.name} {money(c.before)} →{" "}
+                    {money(c.now)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </details>
         )}
         <details>
           <summary>{tr("Näytä kaikki rivit", "Show all rows")}</summary>
@@ -255,7 +326,14 @@ export function ConfirmPanel({
             {live && (
               <button
                 disabled={busy}
-                onClick={() => void call("openStoreCart")}
+                onClick={async () => {
+                  const chain = journal.review.context.providerId;
+                  if (
+                    (chain === "k-ruoka" || chain === "s-kaupat") &&
+                    (await call("openStoreCart"))
+                  )
+                    onOpenStore(chain);
+                }}
               >
                 {journal.review.context.providerId === "s-kaupat"
                   ? tr("Avaa S-kaupat-lista uudelleen", "Reopen S-kaupat list")

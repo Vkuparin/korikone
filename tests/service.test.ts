@@ -1,6 +1,8 @@
 import { test, expect } from "vitest";
 import { Service } from "../src/application/service";
 import { DemoProvider } from "../src/stores/demo";
+import { priceRises } from "../src/domain/prices";
+import { attention } from "../src/ui/confirm";
 import { diagnostics } from "../src/application/diagnostics";
 function memory() {
   const entries = new Map<string, unknown>();
@@ -403,6 +405,16 @@ test("diagnostics leave out recipes, products and account details", async () => 
   expect(JSON.parse(report).counts.recipes).toBe(3);
 });
 
+test("diagnostics carry no observed prices", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  expect((await service.priceHistory()).length).toBeGreaterThan(0);
+  const report = JSON.stringify(
+    diagnostics(service.snapshot(), { app: "test" }),
+  );
+  expect(report).not.toMatch(/priceHistory|unitPrice|prices:/);
+});
+
 test("automatic choices cannot bypass household exclusions through saved products or brand preferences", async () => {
   const service = new Service(memory());
   const provider = service.registry.get("demo-k") as DemoProvider;
@@ -517,4 +529,80 @@ test("live stores choose the ingredient itself, not a cheaper compound, variant 
     "Kotimaista sika-nauta jauheliha 23 % 400 g",
     "Kotimaista vapaan kanan munat M6 348 g",
   ]);
+});
+
+test("a verified transfer remembers what it paid, and only a rise of more than 5 % is reported", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  const [latest] = service.state.listHistory;
+  const paid = Object.entries(latest.prices);
+  expect(latest.storeKey).toBe("demo-k:demo-helsinki");
+  expect(latest.transferred.map((t) => [t.productId, t.price])).toEqual(paid);
+  expect(paid.length).toBe(
+    service.review ? 0 : service.basket.filter((l) => l.product).length,
+  );
+
+  const lines = service.basket.filter((l) => l.product);
+  const at = (price: number) =>
+    lines.map((l) => ({ ...l, product: { ...l.product!, price } }));
+  const [id, price] = paid[0];
+  const one = (p: number) => at(p).filter((l) => l.product!.id === id);
+  expect(priceRises(one(Math.floor(price * 1.05)), [latest])).toEqual([]);
+  expect(
+    priceRises(one(price + Math.ceil(price * 0.06)), [latest]),
+  ).toHaveLength(1);
+  // A fall is not a rise.
+  expect(priceRises(one(Math.floor(price * 0.5)), [latest])).toEqual([]);
+  // A product the history never included is left out; an empty history reports nothing.
+  expect(priceRises(one(price * 3), [{ prices: {} }])).toEqual([]);
+  expect(priceRises(one(price * 3), [])).toEqual([]);
+  // The newest transfer that included the product decides.
+  expect(
+    priceRises(one(price * 3), [{ prices: { [id]: price * 3 } }, latest]),
+  ).toEqual([]);
+
+  // The demo store's small price change (3 %) stays below the limit.
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  provider.priceChange = true;
+  await service.buildBasket();
+  await service.prepare();
+  const small = attention(service.review!, 100000, service.state.listHistory);
+  expect(small.risen).toEqual([]);
+  const big = attention(
+    { ...service.review!, quotes: at(price * 2) },
+    100000,
+    service.state.listHistory,
+  );
+  expect(big.risen.map((r) => r.productId)).toEqual([id]);
+});
+
+test("the error log keeps the last 50 entries as code, time and view, and diagnostics carry nothing else", async () => {
+  const db = memory();
+  const service = new Service(db);
+  await ready(service);
+  for (let n = 0; n < 55; n++)
+    await service.recordError({
+      code: n % 2 ? "storeUnavailable" : "loginRequired",
+      view: "store",
+    });
+  // Text that could carry a product name, a note or an account is never kept.
+  await service.recordError({
+    code: "Tomaattipasta 500 g, a@b.fi",
+    view: "Reseptit: Tomaattipasta",
+  });
+  const log = await service.errorLog();
+  expect(log).toHaveLength(50);
+  expect(log.at(-1)).toMatchObject({
+    code: "operationFailed",
+    view: "unknown",
+  });
+  expect(Object.keys(log[0]).sort()).toEqual(["code", "time", "view"]);
+  await expect(new Service(db).errorLog()).resolves.toEqual(log);
+  const report = JSON.stringify(
+    diagnostics(service.snapshot(), { app: "test" }, log),
+  );
+  expect(JSON.parse(report).errors).toHaveLength(50);
+  for (const secret of ["Tomaattipasta", "a@b.fi", "Pasta 500 g"])
+    expect(report).not.toContain(secret);
 });

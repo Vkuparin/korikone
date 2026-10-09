@@ -5,10 +5,10 @@ import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
 
 /** Pinned s-kaupat-mcp release. Update together with scripts/prepare-s-kaupat.mjs. */
-export const S_KAUPAT_VERSION = "1.2.0";
+export const S_KAUPAT_VERSION = "1.3.0";
 export const S_KAUPAT_SCHEMA = "1.0";
 export const S_KAUPAT_CHECKSUM =
-  "17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a";
+  "ebbeb08f1904c33e69c90304ef394b863f3a0235b059929f4e917742f4c72cdd";
 /** S-kaupat has no server-side cart. Korikone transfers to this shopping list on the account. */
 export const S_KAUPAT_LIST = "Korikone";
 // Checkout, payment, time choice and list deletion tools are deliberately absent.
@@ -61,18 +61,29 @@ export function sKaupatWorker(options: {
   dataDir: string;
   demo?: boolean;
   node?: string;
+  /** Since 1.3.0: run the calls in the app's own store tab (src/main/s-kaupat-host.ts). */
+  host?: { url: string; key: string };
 }) {
   return new McpWorker({
     // Electron runs the single-file release as plain Node.js; users install nothing else.
     command: options.node ?? process.execPath,
     script: options.script,
-    args: ["--data-dir", options.dataDir, ...(options.demo ? ["--demo"] : [])],
+    args: [
+      "--data-dir",
+      options.dataDir,
+      ...(options.demo ? ["--demo"] : []),
+      ...(options.host
+        ? ["--transport", "host", "--host-url", options.host.url]
+        : []),
+    ],
     env: {
       ELECTRON_RUN_AS_NODE: "1",
       SKAUPAT_ORDERING: "false",
       // Since 1.2.0: the login belongs to this data folder, like the store window's own login,
       // so signing in or out here never touches other apps on the PC.
       SKAUPAT_LOGIN_SCOPE: "data-dir",
+      // The key goes in the environment only, never on the command line.
+      ...(options.host ? { SKAUPAT_HOST_KEY: options.host.key } : {}),
     },
     checksum: S_KAUPAT_CHECKSUM,
     version: S_KAUPAT_VERSION,
@@ -207,8 +218,7 @@ export class SKaupatProvider implements StoreProvider {
       const supported =
         p.priceBasis === "per_item" &&
         !p.approximatePrice &&
-        p.quantityUnit?.toUpperCase() === "KPL" &&
-        pack !== null;
+        p.quantityUnit?.toUpperCase() === "KPL";
       const status = stock.get(p.id);
       return {
         id: p.id,
@@ -345,9 +355,14 @@ const accountSchema = z.object({
  * for the same account, which also covers a folder restored without its browser profile.
  */
 export class SKaupatSession {
+  /**
+   * With `viaTab` the login is the one made in the Kauppa tab, which is also the page the server
+   * calls from, so a login the server sees is a login in the window too and nothing else is kept.
+   */
   constructor(
     private call: TimedCall,
     private marker: Marker,
+    private viaTab = false,
   ) {}
   private async account() {
     const login = accountSchema.parse(await this.call("login_status", {}));
@@ -355,6 +370,7 @@ export class SKaupatSession {
   }
   async signedIn(): Promise<boolean> {
     const account = await this.account();
+    if (this.viaTab) return !!account;
     return !!account && (await this.marker.get(WINDOW_ACCOUNT)) === account;
   }
   async login(timeoutSeconds = 300): Promise<string> {

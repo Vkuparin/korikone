@@ -22,6 +22,7 @@ const productSchema = z.object({
 const cartSchema = z.object({
   basketId: z.string().min(1),
   account: z.string().nullable().optional(),
+  accountName: z.string().nullish(),
   store: z.object({ id: z.string(), name: z.string() }),
   items: z.array(
     z.object({
@@ -103,8 +104,7 @@ export class KRuokaProvider implements StoreProvider {
     return data.results.map((p) => {
       const pack = packFromName(p.name);
       // Weight pricing and missing pack data remain unresolved; never assume a kg is a pack.
-      const supported =
-        !p.priceIsApproximate && p.priceUnit === "kpl" && pack !== null;
+      const supported = !p.priceIsApproximate && p.priceUnit === "kpl";
       return {
         id: p.ean,
         providerId: this.id,
@@ -139,6 +139,7 @@ export class KRuokaProvider implements StoreProvider {
     const data = await this.read(context);
     return {
       accountId: data.account!,
+      ...(data.accountName ? { accountName: data.accountName } : {}),
       context,
       lines: data.items.map((i) => ({
         productId: i.ean,

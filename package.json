@@ -1,6 +1,6 @@
 {
   "name": "korikone",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Pre-release Windows shopping planner with reviewed grocery transfers",
   "author": "Vkuparin",
@@ -27,6 +27,7 @@
     "pdfjs-dist": "6.4.299",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "s-kaupat-mcp": "https://github.com/Vkuparin/s-kaupat-mcp/releases/download/v1.3.0/s-kaupat-mcp-1.3.0.tgz",
     "zod": "4.6.5"
   },
   "devDependencies": {

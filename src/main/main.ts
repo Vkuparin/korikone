@@ -6,6 +6,7 @@ import {
   safeStorage,
   shell,
   clipboard,
+  net,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -18,6 +19,7 @@ import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
 import { z } from "zod";
+import { SKaupatHost } from "./s-kaupat-host";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
 import {
@@ -34,7 +36,15 @@ import {
   validateRecipe,
 } from "../ai/draft";
 import { readReceipt } from "../receipts/read";
+import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
+import { SKaupatLibrary } from "../stores/s-kaupat-library";
+import { StoreViews } from "./store-view";
+import {
+  KRuokaSite,
+  pageScript,
+  type PageRequest,
+} from "../stores/k-ruoka-site";
 if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 else if (process.env.KORIKONE_DATA_DIR)
@@ -79,20 +89,53 @@ else
       join(app.getPath("userData"), "retailers/k-ruoka/profile"),
       findChrome(),
     );
-    const kRuoka = new KRuokaProvider((name, args) => worker.call(name, args));
-    const sWorker = sKaupatWorker({
-      script: join(
-        app.isPackaged ? process.resourcesPath : app.getAppPath(),
-        "vendor/s-kaupat/s-kaupat-mcp.cjs",
-      ),
-      dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+    // Korikone's own client through the K-Ruoka store tab's session (U3.7), checked live by the
+    // owner on 9 October 2026. KORIKONE_K_RUOKA=worker goes back to the pinned worker's Chrome.
+    const kRuokaViaSite = process.env.KORIKONE_K_RUOKA !== "worker";
+    const kRuokaSite = new KRuokaSite(
+      (request) =>
+        stores.evaluate(
+          "k-ruoka",
+          pageScript(request),
+        ) as ReturnType<PageRequest>,
+    );
+    const kRuokaStore = () =>
+      service.state.context.providerId === "k-ruoka"
+        ? service.state.context.storeId
+        : service.state.stores["k-ruoka"]?.storeId;
+    const kRuoka = new KRuokaProvider((name, args) =>
+      kRuokaViaSite ? kRuokaSite.call(name, args) : worker.call(name, args),
+    );
+    // S-kaupat's server calls from the Kauppa tab's session (U3.5), so one sign-in there serves
+    // both. KORIKONE_S_KAUPAT=browser goes back to the server's own Edge or Chrome window.
+    const sKaupatViaTab = process.env.KORIKONE_S_KAUPAT !== "browser";
+    const sHost = new SKaupatHost({
+      evaluate: (script) => stores.evaluate("s-kaupat", script),
+      reload: () => stores.reloadBackground("s-kaupat"),
+      open: (url) => stores.openUrl("s-kaupat", url),
+      forget: () => stores.forget("s-kaupat"),
     });
+    if (sKaupatViaTab) await sHost.start();
+    const sWorker = sKaupatViaTab
+      ? new SKaupatLibrary({
+          dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+          host: { url: sHost.url, key: sHost.key },
+        })
+      : sKaupatWorker({
+          script: join(
+            app.isPackaged ? process.resourcesPath : app.getAppPath(),
+            "vendor/s-kaupat/s-kaupat-mcp.cjs",
+          ),
+          dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
+          host: sKaupatViaTab ? { url: sHost.url, key: sHost.key } : undefined,
+        });
     const sKaupat = new SKaupatProvider((name, args) =>
       sWorker.call(name, args),
     );
     const sSession = new SKaupatSession(
       (name, args, timeout) => sWorker.call(name, args, timeout),
       db,
+      sKaupatViaTab,
     );
     let service = await createService(db, development, [kRuoka, sKaupat]);
     service.ai = ai.status();
@@ -111,11 +154,47 @@ else
           sLogin = null;
         });
     };
+    // The page of the "Korikone" list on S-kaupat; null when it cannot be found, and the lists page opens instead.
+    const sKaupatListId = async () => {
+      if (development) return "lista-1";
+      const storeId = service.journal?.review.context.storeId;
+      if (!storeId) return null;
+      try {
+        const found = z
+          .object({
+            lists: z.array(z.object({ id: z.string(), name: z.string() })),
+          })
+          .parse(await sWorker.call("get_shopping_lists", { storeId }))
+          .lists.filter((l) => l.name === "Korikone");
+        return found.length === 1 ? found[0].id : null;
+      } catch {
+        return null;
+      }
+    };
     // Sign-in actions name a chain, so either chain can be signed in while the other is active.
     const chainOf = (input: unknown) =>
       input === undefined || input === null
         ? service.state.context.providerId
         : z.enum(["k-ruoka", "s-kaupat"]).parse(input);
+    // At most one network check a day; development mode never reaches GitHub and shows a fixture release.
+    const fixtureUpdate = {
+      version: "99.0.0",
+      url: "https://github.com/Vkuparin/korikone/releases/tag/v99.0.0",
+    };
+    const checkUpdate = async () => {
+      const found = development
+        ? fixtureUpdate
+        : await checkForUpdate(app.getVersion(), db, async (url) => {
+            const response = await net.fetch(url, {
+              headers: { Accept: "application/vnd.github+json" },
+              signal: AbortSignal.timeout(5000),
+            });
+            if (!response.ok) throw new Error("updateCheckFailed");
+            return response.json();
+          });
+      service.update = found;
+    };
+    let updateChecked: Promise<void> | null = null;
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
@@ -136,6 +215,18 @@ else
     });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
+    const stores = new StoreViews(
+      window,
+      () => development,
+      () => service.state.language,
+    );
+    const chainInput = z.enum(["k-ruoka", "s-kaupat"]);
+    const bounds = z.object({
+      x: z.number().int().min(0),
+      y: z.number().int().min(0),
+      width: z.number().int().min(0),
+      height: z.number().int().min(0),
+    });
     let generationRun = 0;
     let modelLookup: AbortController | null = null;
     const requestModel = async (run: number) => {
@@ -155,8 +246,9 @@ else
     };
     const handoff = async () => {
       try {
-        await handlers.openStoreCart(undefined);
+        const result = await handlers.openStoreCart(undefined);
         service.handoffError = null;
+        return result;
       } catch (error) {
         service.handoffError =
           error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
@@ -192,6 +284,12 @@ else
           ? fixtureAI.catalogueRequests
           : 0;
         service.developmentModel = development ? fixtureAI.lastModel : null;
+        updateChecked ??= checkUpdate().catch(() => {});
+        // A saved answer is instant; a daily network check may finish after the first snapshot.
+        await Promise.race([
+          updateChecked,
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
         return service.snapshot();
       },
@@ -205,14 +303,29 @@ else
         ai.cancel();
         ai.cancelRequest();
         await Promise.all([worker.close(), sWorker.close()]);
+        stores.reset();
         if (!enabled && !liveAIInitialized) {
           await liveAI.init();
           liveAIInitialized = true;
         }
         const next = await createService(db, enabled, [kRuoka, sKaupat]);
+        // Fresh development data starts with setup done when the real profile finished it, so
+        // ticking the checkbox does not send the user to the setup screen.
+        if (
+          enabled &&
+          !next.state.onboarded &&
+          service.state.onboarded &&
+          service.state.setupComplete
+        )
+          await next.save({
+            ...next.state,
+            onboarded: true,
+            setupComplete: true,
+          });
         await db.set("development-mode", enabled);
         development = enabled;
         service = next;
+        updateChecked = null;
         ai = enabled ? fixtureAI : liveAI;
         service.developmentScenario = fixtureAI.scenario;
         service.developmentRequests = enabled ? fixtureAI.requestCount : 0;
@@ -269,6 +382,12 @@ else
       },
       modelsAI: async () => {
         await ai.models();
+        return service.snapshot();
+      },
+      openRelease: async () => {
+        // Only the release page the update check found, and never in development mode.
+        if (service.update && !development)
+          await shell.openExternal(service.update.url);
         return service.snapshot();
       },
       usageAI: async () => {
@@ -329,7 +448,9 @@ else
       compareStores: () => service.compareStores(),
       getContextOptions: (input) => service.getContextOptions(input),
       changeContext: (input) => service.changeContext(input),
+      recordError: (input) => service.recordError(input),
       accept: (input) => service.accept(input),
+      setPackSize: (input) => service.setPackSize(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),
       transferDisplayed: async (input) => {
@@ -369,12 +490,26 @@ else
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
         if (development) {
+          if (chain === "k-ruoka" || chain === "s-kaupat") {
+            await stores.open(chain, "login");
+            return { ...service.snapshot(), openStore: chain };
+          }
           service.storeLogins[chain] = "signedIn";
           return service.snapshot();
         }
         if (chain === "s-kaupat") {
+          if (sKaupatViaTab) {
+            // Sign-in happens in the Kauppa tab; Asetukset checks it when it is opened again.
+            await stores.open("s-kaupat", "login");
+            return { ...service.snapshot(), openStore: "s-kaupat" };
+          }
           loginSKaupat();
           return service.snapshot();
+        }
+        if (kRuokaViaSite) {
+          // Sign-in happens in the Kauppa tab; Asetukset checks it when it is opened again.
+          await stores.open("k-ruoka", "login");
+          return { ...service.snapshot(), openStore: "k-ruoka" };
         }
         const result = z
           .object({ state: z.string() })
@@ -385,10 +520,29 @@ else
       checkStoreLogin: async (input) => {
         const chain = chainOf(input);
         if (service.busy) throw new Error("busy");
-        if (development) return service.snapshot();
+        if (development) {
+          if (chain === "k-ruoka" || chain === "s-kaupat")
+            service.storeLogins[chain] = (await stores.fixtureAccount(chain))
+              ? "signedIn"
+              : "notStarted";
+          return service.snapshot();
+        }
         if (chain === "s-kaupat") {
           if (!sLogin)
             service.storeLogins["s-kaupat"] = (await sSession.signedIn())
+              ? "signedIn"
+              : "notStarted";
+          return service.snapshot();
+        }
+        if (kRuokaViaSite) {
+          const storeId = kRuokaStore();
+          service.storeLogins["k-ruoka"] =
+            storeId &&
+            z
+              .object({ loggedIn: z.boolean() })
+              .parse(
+                await kRuokaSite.call("auth_status", { store_id: storeId }),
+              ).loggedIn
               ? "signedIn"
               : "notStarted";
           return service.snapshot();
@@ -421,13 +575,15 @@ else
           service.storeLogins["s-kaupat"] = "notStarted";
           return service.snapshot();
         }
-        await worker.call("cancel_login", {});
+        if (!kRuokaViaSite) await worker.call("cancel_login", {});
         service.storeLogins["k-ruoka"] = "notStarted";
         return service.snapshot();
       },
       logoutStore: async (input) => {
         const chain = chainOf(input);
         if (development) {
+          if (chain === "k-ruoka" || chain === "s-kaupat")
+            await stores.forget(chain);
           service.storeLogins[chain] = "notStarted";
           return service.snapshot();
         }
@@ -451,27 +607,56 @@ else
           .getCart(service.journal.review.context);
         if (currentCart.accountId !== service.journal.review.baseline.accountId)
           throw new Error("accountChanged");
-        if (development || providerId.startsWith("demo-")) {
-          if (service.developmentScenario === "handoffFailed")
-            throw new Error("operationFailed");
-          service.developmentHandoffs.push(
-            providerId === "s-kaupat"
-              ? "s-kaupat:list"
-              : `${providerId}:basket`,
-          );
+
+        if (development && service.developmentScenario === "handoffFailed")
+          throw new Error("operationFailed");
+        if (providerId.startsWith("demo-")) {
+          service.developmentHandoffs.push(`${providerId}:basket`);
           service.handoffError = null;
           return service.snapshot();
         }
-        if (providerId === "s-kaupat") {
-          // A token without a login in this folder's window would open the store signed out.
-          if (!(await sSession.signedIn())) {
-            service.storeLogins["s-kaupat"] = "notStarted";
-            throw new Error("loginRequired");
-          }
+        if (providerId !== "k-ruoka" && providerId !== "s-kaupat")
+          throw new Error("unsupported");
+        if (!development && providerId === "s-kaupat" && !sKaupatViaTab) {
+          if (!(await sSession.signedIn())) throw new Error("loginRequired");
           await sWorker.call("open_site", { applyChoice: false });
-        } else
-          await shell.openExternal("https://www.k-ruoka.fi/kauppa/ostoskori");
+          service.handoffError = null;
+          return service.snapshot();
+        }
+        if (!development && providerId === "k-ruoka" && !kRuokaViaSite) {
+          await worker.handoff();
+          service.handoffError = null;
+          return service.snapshot();
+        }
+        const listId = providerId === "s-kaupat" ? await sKaupatListId() : null;
+        if (listId) await stores.openList("s-kaupat", listId);
+        else await stores.open(providerId, "cart");
+        if (development)
+          service.developmentHandoffs.push(
+            providerId === "s-kaupat" ? "s-kaupat:list" : "k-ruoka:basket",
+          );
         service.handoffError = null;
+        return { ...service.snapshot(), openStore: providerId };
+      },
+      storeView: async (input) => {
+        const { chain, area } = z
+          .object({ chain: chainInput, area: bounds })
+          .parse(input);
+        await stores.show(chain, area);
+        return service.snapshot();
+      },
+      hideStore: async () => {
+        stores.hide();
+        return service.snapshot();
+      },
+      storeAction: async (input) => {
+        const { chain, action } = z
+          .object({
+            chain: chainInput,
+            action: z.enum(["back", "reload", "browser"]),
+          })
+          .parse(input);
+        await stores.action(chain, action);
         return service.snapshot();
       },
       copyList: async () => {
@@ -515,19 +700,23 @@ else
         if (filePath)
           await writeFile(
             filePath,
-            JSON.stringify(service.state, null, 2),
+            JSON.stringify(await service.exportBackup(), null, 2),
             "utf8",
           );
         return service.snapshot();
       },
       exportDiagnostics: async () => {
         const report = JSON.stringify(
-          diagnostics(service.snapshot(), {
-            app: app.getVersion(),
-            electron: process.versions.electron,
-            platform: `${process.platform} ${process.arch}`,
-            packaged: String(app.isPackaged),
-          }),
+          diagnostics(
+            service.snapshot(),
+            {
+              app: app.getVersion(),
+              electron: process.versions.electron,
+              platform: `${process.platform} ${process.arch}`,
+              packaged: String(app.isPackaged),
+            },
+            await service.errorLog(),
+          ),
           null,
           2,
         );
@@ -554,14 +743,13 @@ else
           filters: [{ name: "JSON", extensions: ["json"] }],
         });
         if (filePaths[0]) {
-          const next = stateSchema.parse(
-            JSON.parse(await readFile(filePaths[0], "utf8")),
-          );
+          const raw = JSON.parse(await readFile(filePaths[0], "utf8"));
+          stateSchema.parse(raw);
           await db.set(
             `${development ? "development:" : ""}backup-${Date.now()}`,
             service.state,
           );
-          return service.save({ ...next, revision: service.state.revision });
+          return service.importBackup(raw);
         }
         return service.snapshot();
       },
@@ -579,6 +767,9 @@ else
             name === "setLanguage" ||
             name === "cancelTransfer" ||
             name === "cancelAI" ||
+            name === "storeView" ||
+            name === "hideStore" ||
+            name === "storeAction" ||
             name === "load"
           ) {
             const value = (await handler(input)) as object;
@@ -616,7 +807,9 @@ else
       closing = true;
       ai.cancel();
       ai.cancelRequest();
-      void Promise.allSettled([worker.close(), sWorker.close()])
+      sHost.close();
+      void Promise.allSettled([worker.close(), sWorker.close(), stores.flush()])
+        .finally(() => stores.close())
         .finally(() => db.close())
         .finally(() => app.quit());
     });

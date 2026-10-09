@@ -60,10 +60,12 @@ test("prices only fixed packs and takes stock from the basket check", async () =
   expect(products.map((p) => [p.price, p.available, p.deposit])).toEqual([
     [109, true, 0],
     [null, true, 0],
-    [null, null, 0],
+    [109, null, 0],
     [109, false, 15],
   ]);
   expect(products[0]).toMatchObject({ packAmount: 1000, unit: "ml" });
+  // An unreadable pack keeps its price but has no size until the shopper confirms one.
+  expect(products[2].packAmount).toBe(0);
 });
 test("requires a login and a single Korikone list", async () => {
   const signedOut = new SKaupatProvider(async () => ({

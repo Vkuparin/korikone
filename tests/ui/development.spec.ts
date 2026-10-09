@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -52,9 +53,12 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     await page.getByLabel("Kieli", { exact: true }).click();
     await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -163,13 +167,17 @@ test("settings enable and persist development mode with separate profiles", asyn
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toBeVisible();
+    // The development profile starts with setup done, as in the real profile.
+    await expect(
+      page.getByRole("heading", { name: "Missä teet ruokaostokset?" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Asetukset", exact: true }),
+    ).toBeVisible();
     await app.close();
     app = await launch(env);
     page = await app.firstWindow();
     await expect(page.getByTestId("development-banner")).toBeVisible();
-    await page
-      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
-      .click();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toHaveCount(0);
@@ -207,9 +215,12 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Makaronilaatikko");
     await note.press("Control+Enter");
@@ -232,6 +243,10 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
     await list
       .getByRole("button", { name: /^Siirrä ja avaa S-kaupat-lista/ })
       .click();
+    await expect(
+      page.getByRole("button", { name: "Kauppa", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
     const panel = list.getByRole("region", { name: "Siirron tulos" });
     await expect(panel).toContainText("Ostoskori päivitetty ja tarkistettu");
     await expect(panel).not.toContainText("demo-household");

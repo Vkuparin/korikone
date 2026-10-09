@@ -47,15 +47,6 @@ export const stateSchema = z
     }),
     recipes: z.array(recipeSchema).max(1000),
     meals: z.array(mealSchema).max(100),
-    calendar: z
-      .record(
-        z.iso.date(),
-        z.object({
-          mealIds: z.array(z.string().min(1)).max(100),
-          leftovers: z.boolean(),
-        }),
-      )
-      .default({}),
     staples: z.array(stapleSchema).max(500),
     skipped: z.array(z.string()).max(1000),
     // The active store. Earlier releases read only this field.
@@ -70,6 +61,27 @@ export const stateSchema = z
     removed: z.array(z.string()).max(1000).default([]),
     quantities: z
       .record(z.string(), z.number().int().positive().max(10_000_000))
+      .default({}),
+    // The week plan by calendar date (YYYY-MM-DD): the meals cooked that day and whether it is a leftovers day.
+    calendar: z
+      .record(
+        z.iso.date(),
+        z.object({
+          mealIds: z.array(z.string().min(1)).max(20),
+          leftovers: z.boolean(),
+        }),
+      )
+      .refine((days) => Object.keys(days).length <= 400)
+      .default({}),
+    // Pack sizes the shopper confirmed for products whose label the store does not state, by product ID.
+    packSizes: z
+      .record(
+        z.string(),
+        z.object({
+          amount: z.number().int().positive().max(1_000_000),
+          unit: unitSchema,
+        }),
+      )
       .default({}),
     productPreference: z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
@@ -90,6 +102,24 @@ export const stateSchema = z
           quantities: z
             .record(z.string(), z.number().int().positive())
             .default({}),
+          // Pack price in cents of each product transferred, by product ID.
+          prices: z
+            .record(z.string(), z.number().int().nonnegative())
+            .default({}),
+          // The store and the products of the transfer, for "Muutokset edelliseen".
+          storeKey: z.string().default(""),
+          transferred: z
+            .array(
+              z.object({
+                productId: z.string(),
+                name: z.string(),
+                quantity: z.number().int().nonnegative(),
+                unit: z.string(),
+                price: z.number().int().nonnegative(),
+              }),
+            )
+            .max(500)
+            .default([]),
         }),
       )
       .max(52)

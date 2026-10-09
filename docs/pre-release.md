@@ -2,7 +2,7 @@
 
 Agreed direction on 9 October 2026: move from prototype to pre-release while keeping scope focused. The first version is **0.2.0-alpha.1**, distributed as an unsigned Windows x64 installer and marked as a GitHub pre-release.
 
-**0.2.0-alpha.3** is the current published pre-release. It adds cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. Further source work completes behaviors already specified in the design; deferred product features remain deferred.
+**0.2.0-alpha.3** was an earlier published pre-release. The roadmap records the published v0.4.0 release; current source prepares v0.5.0. It adds cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. Further source work completes behaviors already specified in the design; deferred product features remain deferred.
 
 ## Included
 
@@ -25,4 +25,6 @@ The 0.4.0 candidate includes the accepted smooth-flow roadmap work: U1, U2, U7, 
 - Observe real multi-dish notes, varied receipts and household use without coaching.
 - Signing is unavailable, as reported by the owner on 9 October 2026. v0.4.0 will remain unsigned. Revisit signing and verify the distribution process before broad release.
 
-Checkout and payment remain manual. Scanned receipts require OCR outside Korikone. Phone sync, an embedded retailer browser, automatic OCR and broader purchase-learning features stay deferred. Detailed evidence is in [acceptance.md](acceptance.md).
+The v0.5.0 candidate integrates that published v0.4.0 flow with embedded retailer tabs, shared S-kaupat library calls, one-screen setup and second-chain setup in Settings. Source and packaged verification, plus final owner acceptance, are tracked in [release-0.5.0.md](release-0.5.0.md).
+
+Checkout and payment remain manual. Scanned receipts require OCR outside Korikone. Phone sync, automatic OCR and broader purchase-learning features stay deferred. Detailed evidence is in [acceptance.md](acceptance.md).

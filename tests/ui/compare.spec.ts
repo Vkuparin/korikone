@@ -1,3 +1,4 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -27,16 +28,12 @@ test("comparing stores is read-only and can switch to the other chain", async ()
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    // Setup also offers the other chain, which has no store yet.
-    const other = page.getByRole("listitem", { name: "S-kaupat" });
-    await expect(other).toContainText("Kauppaa ei ole valittu");
-    await other
-      .getByRole("button", { name: "S-kaupat: Kirjaudu sisään" })
-      .click();
-    await expect(other.getByRole("status")).toHaveText("Kirjautunut");
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
 
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await page.getByLabel("Etsi K-Ruoka- tai S-kaupat-kauppa").fill("Helsinki");
@@ -47,6 +44,11 @@ test("comparing stores is read-only and can switch to the other chain", async ()
         exact: true,
       })
       .click();
+    await page
+      .getByRole("listitem", { name: "S-kaupat" })
+      .getByRole("button", { name: "S-kaupat: Kirjaudu sisään" })
+      .click();
+    await completeFixtureLogin(app, page, "s-kaupat");
     const kRuoka = page.getByRole("listitem", { name: "K-Ruoka" });
     const sKaupat = page.getByRole("listitem", { name: "S-kaupat" });
     await expect(sKaupat).toContainText("Käytössä");

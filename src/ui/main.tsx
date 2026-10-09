@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
 import {
@@ -16,7 +16,8 @@ import { Chains } from "./chains";
 import { ShoppingContext } from "./context";
 import { ModelSelector } from "./model";
 import { Choice } from "./choice";
-import { isLive } from "../stores/provider";
+import { StorePage, type Chain } from "./store";
+import { isLive, liveProviders } from "../stores/provider";
 declare global {
   interface Window {
     korikone: Record<
@@ -58,10 +59,20 @@ function App() {
     comparison: null,
     pickupFee: null,
     ai: { state: "disconnected", email: "", error: null, models: [] },
+    update: null,
     draft: null,
     recipeDraft: null,
   });
   const [page, setPage] = useState<Key>("week");
+  const [storeChain, setStoreChain] = useState<Chain | null>(null);
+  // A store page stays loaded after leaving the Kauppa view; the navigation says so.
+  const [storeOpen, setStoreOpen] = useState(false);
+  // During setup there is no navigation, so the store tab is shown over the setup screen.
+  const [setupStore, setSetupStore] = useState(false);
+  useEffect(() => {
+    if (page === "store") setStoreOpen(true);
+  }, [page]);
+  const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -92,6 +103,13 @@ function App() {
       if (!result.ok) throw new Error(result.error);
       if (method === "setDevelopmentMode")
         sessionStorage.removeItem("shopping-note");
+      // A store whose sign-in happens in its own tab: show that tab.
+      const openStore = (result.value as { openStore?: Chain }).openStore;
+      if (openStore) {
+        setStoreChain(openStore);
+        if (snapshot.state.setupComplete) setPage("store");
+        else setSetupStore(true);
+      }
       setSnapshot((current) => {
         // Language changes run beside queued operations. Their older snapshots
         // must not undo the latest selection in the renderer.
@@ -104,7 +122,11 @@ function App() {
       });
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "operationFailed");
+      const code = e instanceof Error ? e.message : "operationFailed";
+      setError(code);
+      // The code and the view go to the local error log for the diagnostic export.
+      if (method !== "recordError")
+        void window.korikone.recordError({ code, view: page }).catch(() => {});
       return false;
     } finally {
       setBusy(false);
@@ -137,6 +159,31 @@ function App() {
     }, 1500);
     return () => clearInterval(timer);
   }, [snapshot.ai.state]);
+  // Sign-in state lives only in the main process's memory, so after a launch, and when
+  // Asetukset opens, ask each chain with a chosen store whether its saved login still holds.
+  useEffect(() => {
+    if (!loaded) return;
+    if (page !== "settings" && checkedLogins.current) return;
+    checkedLogins.current = true;
+    const chains = liveProviders.filter(
+      (id) =>
+        (state.stores[id] || state.context.providerId === id) &&
+        snapshot.storeLogins[id] !== "waiting",
+    );
+    void (async () => {
+      for (const id of chains) {
+        const result = await window.korikone
+          .checkStoreLogin(id)
+          .catch(() => null);
+        if (result?.ok)
+          setSnapshot((current) => ({
+            ...current,
+            storeLogin: result.value.storeLogin,
+            storeLogins: result.value.storeLogins,
+          }));
+      }
+    })();
+  }, [loaded, page]);
   // Either chain may be waiting for its login window, not only the active one.
   const waitingChain =
     snapshot.storeLogin === "waiting"
@@ -223,6 +270,16 @@ function App() {
           ? `${state.context.storeName} · ${t("liveStore")}`
           : t("demo")}
       </div>
+      {snapshot.update && (
+        <div className="update-banner" role="status">
+          {t("updateAvailable")}: {snapshot.update.version}{" "}
+          <button className="text" onClick={() => void call("openRelease")}>
+            {state.language === "fi"
+              ? "Avaa julkaisusivu"
+              : "Open release page"}
+          </button>
+        </div>
+      )}
       {error && (
         <div role="alert" className="error">
           {t(error in en ? (error as Key) : "operationFailed")}
@@ -243,7 +300,35 @@ function App() {
           </button>
         </div>
       )}
-      {state.onboarded && !state.setupComplete ? (
+      {state.onboarded && !state.setupComplete && setupStore ? (
+        <main className="setup">
+          <div className="actions">
+            <button
+              onClick={async () => {
+                setSetupStore(false);
+                // The shopper may have signed in: ask the chain again.
+                const result = await window.korikone
+                  .checkStoreLogin(storeChain ?? undefined)
+                  .catch(() => null);
+                if (result?.ok)
+                  setSnapshot((current) => ({
+                    ...current,
+                    storeLogin: result.value.storeLogin,
+                    storeLogins: result.value.storeLogins,
+                  }));
+              }}
+            >
+              {t("setupBackToSetup")}
+            </button>
+          </div>
+          <StorePage
+            snapshot={snapshot}
+            chain={storeChain}
+            setChain={setStoreChain}
+            settings={() => setSetupStore(false)}
+          />
+        </main>
+      ) : state.onboarded && !state.setupComplete ? (
         <Setup
           snapshot={snapshot}
           t={t}
@@ -323,7 +408,14 @@ function App() {
         <>
           <nav>
             {(
-              ["week", "weekPlan", "recipes", "history", "settings"] as Key[]
+              [
+                "week",
+                "weekPlan",
+                "recipes",
+                "history",
+                "store",
+                "settings",
+              ] as Key[]
             ).map((key) => (
               <button
                 key={key}
@@ -332,9 +424,22 @@ function App() {
                     ? "page"
                     : undefined
                 }
+                className={
+                  key === "store" && storeOpen && page !== "store"
+                    ? "store-open"
+                    : undefined
+                }
                 onClick={() => setPage(key)}
               >
                 {t(key)}
+                {key === "store" && storeOpen && page !== "store" && (
+                  <small>
+                    {(storeChain ?? state.context.providerId) === "k-ruoka"
+                      ? "K-Ruoka"
+                      : "S-kaupat"}{" "}
+                    · {state.language === "fi" ? "palaa" : "return"}
+                  </small>
+                )}
               </button>
             ))}
           </nav>
@@ -359,6 +464,10 @@ function App() {
                 save={save}
                 settings={() => setPage("settings")}
                 staples={() => setPage("staples")}
+                openStore={(chain) => {
+                  setStoreChain(chain);
+                  setPage("store");
+                }}
                 view={
                   page === "weekPlan"
                     ? "schedule"
@@ -366,6 +475,14 @@ function App() {
                       ? "history"
                       : "list"
                 }
+              />
+            )}
+            {page === "store" && (
+              <StorePage
+                snapshot={snapshot}
+                chain={storeChain}
+                setChain={setStoreChain}
+                settings={() => setPage("settings")}
               />
             )}
             {page === "recipes" && (
@@ -616,6 +733,17 @@ function App() {
                     {t("developmentMode")}
                   </label>
                   <p>{t("developmentModeInfo")}</p>
+                  {snapshot.developmentMode && (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void save({ ...state, setupComplete: false })
+                      }
+                    >
+                      {t("restartSetup")}
+                    </button>
+                  )}
                   {snapshot.developmentMode && (
                     <label>
                       {t("developmentScenario")}

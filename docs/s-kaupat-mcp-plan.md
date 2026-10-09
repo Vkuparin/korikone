@@ -1,12 +1,12 @@
 # S-kaupat integration: s-kaupat-mcp
 
-Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.2.0**: 1.1.0 added a stable account ID and 1.2.0 a login per data folder. The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
+Updated 8 October 2026. The separate [s-kaupat-mcp](https://github.com/Vkuparin/s-kaupat-mcp) project was released as **v1.0.0**, and Korikone pins **v1.3.0**: 1.1.0 added a stable account ID, 1.2.0 a login per data folder and 1.3.0 a host transport that runs calls in the app's own store tab (used by Korikone since U3.5, awaiting the owner's live check). The prerequisite plan that preceded the release is kept in git history and summarized at the end of this page.
 
 ## What was released
 
 | Item | Value |
 |---|---|
-| Release | `v1.2.0`, source commit `0cf3228449a0e47b359d77978b6dcd151bfdd737` |
+| Release | `v1.3.0`, source commit `c2b0ada4383a86bca3b7725407783135a078b08c` |
 | License | Apache-2.0; bundling and redistribution are permitted |
 | Artifact Korikone ships | `s-kaupat-mcp.cjs`, SHA-256 `17f973844c2216be3f51b7b272351025e5dd1dec0d209b1fce15fb8fd0fc032a` |
 | Schema description | `tools.json`, SHA-256 `a45d418363b3439cee9ddc1919ab2437d377db3e0395883c7f931c72b92461c4` |

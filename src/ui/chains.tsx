@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
 
@@ -23,6 +23,9 @@ export function Chains({
   only?: string[];
 }) {
   const { state } = snapshot;
+  // The chain whose store search is open, and what was searched there.
+  const [picking, setPicking] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
   return (
     <ul className="chains">
       {chains
@@ -41,6 +44,18 @@ export function Chains({
                 <strong>{name}</strong>
                 {active && <span className="badge">{t("activeStore")}</span>}
                 <p>{store ? store.storeName : t("noStoreChosen")}</p>
+                <button
+                  className="text"
+                  disabled={busy}
+                  aria-expanded={picking === id}
+                  aria-label={`${name}: ${t(store ? "repickStore" : "pickStore")}`}
+                  onClick={() => {
+                    setPicking(picking === id ? null : id);
+                    setSearched(false);
+                  }}
+                >
+                  {t(store ? "repickStore" : "pickStore")}
+                </button>
                 <p role="status">
                   {t(
                     login === "signedIn"
@@ -106,6 +121,60 @@ export function Chains({
                   </>
                 )}
               </div>
+              {picking === id && (
+                <div className="store-picker">
+                  <form
+                    className="inline"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const query = String(
+                        new FormData(e.currentTarget).get("query"),
+                      );
+                      if (await call("searchStores", query)) setSearched(true);
+                    }}
+                  >
+                    <label>
+                      {`${name}: ${t("searchStore")}`}
+                      <input
+                        name="query"
+                        minLength={2}
+                        required
+                        placeholder="Herttoniemi"
+                        autoFocus
+                      />
+                    </label>
+                    <button disabled={busy}>{t("search")}</button>
+                  </form>
+                  {searched &&
+                    !snapshot.storeResults.some((s) => s.providerId === id) && (
+                      <p className="muted">{t("noStoresFound")}</p>
+                    )}
+                  {snapshot.storeResults
+                    .filter((s) => s.providerId === id)
+                    .map((result) => (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        key={result.storeId}
+                        onClick={async () => {
+                          // The active chain switches store; the other chain only remembers it.
+                          const saved = await call(
+                            "save",
+                            active
+                              ? { ...state, context: result }
+                              : {
+                                  ...state,
+                                  stores: { ...state.stores, [id]: result },
+                                },
+                          );
+                          if (saved) setPicking(null);
+                        }}
+                      >
+                        {result.storeName}
+                      </button>
+                    ))}
+                </div>
+              )}
             </li>
           );
         })}

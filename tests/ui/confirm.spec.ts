@@ -1,9 +1,11 @@
+import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 test("the transfer is confirmed and reported in the list column", async () => {
+  test.setTimeout(120_000);
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (e): e is [string, string] => typeof e[1] === "string",
@@ -33,9 +35,12 @@ test("the transfer is confirmed and reported in the list column", async () => {
       })
       .click();
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
-    await page.getByRole("button", { name: "Jatka", exact: true }).click();
+    await completeFixtureLogin(app, page);
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await page.getByRole("button", { name: "Suunnittele viikko" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue with ChatGPT" }),
+    ).toBeHidden();
+    await page.getByRole("button", { name: "Valmis", exact: true }).click();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Makaronilaatikko");
     await note.press("Control+Enter");
@@ -86,6 +91,10 @@ test("the transfer is confirmed and reported in the list column", async () => {
     // The initial click approves a normal batch and opens the destination.
     await setBudget("1000");
     await transfer.click();
+    await expect(
+      page.getByRole("button", { name: "Kauppa", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
     const result = bar.getByRole("region", { name: "Siirron tulos" });
     await expect(result.getByRole("status")).toHaveText(
       "Ostoskori päivitetty ja tarkistettu",
@@ -100,6 +109,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
     await result
       .getByRole("button", { name: "Avaa S-kaupat-lista uudelleen" })
       .click();
+    await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
     await expect(result).toContainText("Testatut avaukset: 2");
     const reopened = await page.evaluate(
       async () => (await window.korikone.load()).value,
@@ -115,6 +125,57 @@ test("the transfer is confirmed and reported in the list column", async () => {
     ).toBeVisible();
     await result.getByRole("button", { name: "Sulje" }).click();
     await expect(result).toHaveCount(0);
+
+    // A second transfer names what changed: one new, one dropped and one changed product.
+    await page.getByLabel("Lisää tuote", { exact: true }).fill("Kahvi");
+    await page.getByLabel("Tuotteen määrä").fill("500");
+    await page.getByLabel("Tuotteen yksikkö").selectOption("g");
+    await page
+      .getByRole("button", { name: "Lisää tuote listaan", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Poista: Suola", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Lisää: Makaroni", exact: true })
+      .click();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    const changes = panel.locator("details", {
+      hasText: "Muutokset edelliseen",
+    });
+    await expect(changes).toHaveAttribute("open", "");
+    await expect(changes).toContainText("Uusi: Kahvi 500 g");
+    await expect(changes).toContainText(
+      "Pois: JOZO 125g suola jodioitu sirotin",
+    );
+    await expect(changes).toContainText(
+      "Määrä: Myllyn Paras Makaroni 400g 1 → 2",
+    );
+    await panel.getByRole("button", { name: "Peru" }).click();
+
+    // The store raises its prices after that purchase: the next confirmation names the rise.
+    await page.evaluate(async () => {
+      await window.korikone.scenario("price");
+      await window.korikone.buildBasket();
+    });
+    await page.reload();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    await expect(panel).toContainText(
+      "Hinta noussut: Myllyn Paras Makaroni 400g",
+    );
+    await expect(panel).toContainText("0,65 € → 0,85 €");
+    // Falling back to the earlier prices is not a rise.
+    await panel.getByRole("button", { name: "Peru" }).click();
+    await page.evaluate(async () => {
+      await window.korikone.scenario("price");
+      await window.korikone.buildBasket();
+    });
+    await page.reload();
+    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await transfer.click();
+    await expect(panel).not.toContainText("Hinta noussut");
   } finally {
     await app.close();
   }

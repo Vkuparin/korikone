@@ -307,6 +307,31 @@ aside > button {
   font-size: 64px;
   max-width: 650px;
 }
+.setup {
+  padding-top: 32px;
+  max-width: 1100px;
+}
+.setup h1 {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+.setup h2 {
+  font-size: 20px;
+}
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.setup .actions {
+  margin-top: 24px;
+}
+@media (max-width: 900px) {
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .welcome p {
   max-width: 550px;
   color: #5f6a59;
@@ -1057,9 +1082,9 @@ body:has(.app-main) > #root > .progress {
 }
 .shopping-total .compare-summary {
   display: block;
-  margin-top: 4px;
-  padding: 0;
-  font-size: 11px;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
 }
 .confirm-panel {
   display: grid;
@@ -1142,6 +1167,15 @@ body:has(.app-main) > #root > .progress {
   grid-row: 1 / 3;
   padding: 4px 8px;
   font-size: 10px;
+}
+.row-details .pack-size {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.row-details .pack-size input {
+  width: 72px;
 }
 .demo-controls {
   font-size: 11px;
@@ -1259,4 +1293,59 @@ body:has(.app-main) > #root > .progress {
 .choice-menu button:focus-visible {
   background: #f0f5ef;
   filter: none;
+}
+.shopping-total .compare-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #5d6961;
+}
+.shopping-total .compare-hint .text {
+  padding: 0;
+  font-size: 11px;
+}
+.store-picker {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.store-picker > button {
+  justify-self: start;
+}
+
+/* The store tab: the site is drawn over .store-frame by the main process. */
+.store-page {
+  display: grid;
+  gap: 8px;
+}
+.store-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.store-toolbar [role="tablist"] {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+.store-frame {
+  min-height: 200px;
+  border: 1px solid #c9d4cc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+/* A store page is still open in the Kauppa view. */
+nav button.store-open {
+  background: #23623f;
+  color: #ffffff;
+}
+nav button.store-open small {
+  display: block;
+  font-weight: 400;
+}
+.update-banner {
+  padding: 6px 16px;
+  background: #f3f6f3;
+  font-size: 12px;
 }

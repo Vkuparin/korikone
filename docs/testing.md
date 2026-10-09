@@ -6,6 +6,12 @@ The app never initializes the live AI connection in development mode. AI sign-in
 
 ## Coverage
 
+The v0.5.0 embedded sign-in fixtures use real local HTTP forms and cookies in each retailer's persistent Electron partition. `tests/ui/chains.spec.ts` covers successful and rejected sign-in, expiry, the second-chain hint and restart persistence. `tests/ui/setup.spec.ts` checks the one-screen setup. These paths do not replace login IPC handlers.
+
+`tests/ui/store-journey.spec.ts` runs setup, one explicit note update and one transfer approval through to the selected retailer destination for both chains. It checks ten clicks including fixture sign-in and return, exactly one fixture generation, one application window and no external browser opening. `tests/ui/store.spec.ts` checks sandboxing and the S-kaupat add-all destination. Development store sessions reject non-local networking. Transfer exceptions remain covered separately.
+
+`tests/s-kaupat-library.test.ts` exercises the released library with deterministic data. `tests/s-kaupat-tab.test.ts` runs the same mocked host-session contract against library and worker. K-Ruoka site tests also reject account or quantity changes between review and the final write boundary.
+
 | Feature | Fixture checks |
 | --- | --- |
 | Onboarding, store selection, AI sign-in and settings | `tests/ui/setup.spec.ts`, `tests/ui/development.spec.ts` |

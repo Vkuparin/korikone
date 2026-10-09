@@ -11,6 +11,7 @@ import {
   match,
   exclusionTerms,
   relevant,
+  applyPackSizes,
 } from "../src/domain/planner";
 import { DemoProvider } from "../src/stores/demo";
 import {
@@ -376,4 +377,41 @@ test("remembers one store per chain and migrates profiles that have only the act
     stores: { ...switched.stores, "k-ruoka": sStore },
   });
   expect(tampered.stores["k-ruoka"]).toBeUndefined();
+});
+
+test("a confirmed pack size makes a product without a readable label eligible and priced per pack", () => {
+  const requirement = {
+    id: "meat",
+    name: "Jauheliha",
+    amount: 600,
+    unit: "g" as const,
+    sources: [],
+  };
+  const unlabelled = {
+    id: "u",
+    providerId: "demo-k",
+    storeId: "s",
+    name: "Luomujauheliha",
+    ingredientId: "meat",
+    packAmount: 0,
+    unit: "pcs" as const,
+    price: 300,
+    available: true,
+    deposit: 0,
+    nativeUnit: "kpl",
+    increment: 1,
+    observedAt: "",
+  };
+  const before = match(requirement, [unlabelled], ["u"]);
+  expect(before.candidates.map((p) => p.id)).toEqual(["u"]);
+  expect(before.product).toBeNull();
+  const sized = applyPackSizes([unlabelled], { u: { amount: 300, unit: "g" } });
+  expect(sized[0]).toMatchObject({ packAmount: 300, unit: "g" });
+  const after = match(requirement, sized, ["u"]);
+  expect([after.product?.id, after.packs, after.total]).toEqual(["u", 2, 600]);
+  // A size the store states itself is never overridden.
+  const stated = { ...unlabelled, packAmount: 400, unit: "g" as const };
+  expect(
+    applyPackSizes([stated], { u: { amount: 300, unit: "g" } })[0].packAmount,
+  ).toBe(400);
 });
