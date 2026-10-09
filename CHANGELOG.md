@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.2.0-alpha.3 — 9 October 2026
 
 - S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. If the PC is already signed in through another app or an earlier installation, **Sign in to store** signs that shared login out and opens the login window, so *Open store cart* opens the same signed-in window. Other apps that use the shared S-kaupat login on the PC are signed out by this. Existing users are asked to sign in once more. Not yet observed against a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
 - Added the live acceptance note (makaronilaatikko) as a fixture, with the look-alike products a store search returns: garlic for onion, lemon pepper for black pepper, chicken mince, a ready meal and M10 egg packs. Development-mode checks cover product choice, Finnish units, tidied names and the account name in cart review.
@@ -9,6 +9,10 @@
 - Updated the implementation plan and acceptance preparation for the published alpha.2 release. Live model and retailer acceptance remain separate.
 - Expanded synthetic PDF checks for Finnish characters, euro signs, fonts, page order and extraction limits.
 - Agent instructions use focused feature checks during implementation and reserve full suites for release preparation.
+
+The installer remains unsigned; the earlier pre-release limitations still apply. This release does not include the S-kaupat sign-in change for [#3](https://github.com/Vkuparin/korikone/issues/3), which awaits a live check.
+
+Verification: build, formatting, 63 unit tests and 11 source desktop tests passed. Five packaged-app checks passed: backup export and restore, development-mode setup and transfers, mode persistence, transfer recovery and restart, and PDF receipt import. These checks used local fixtures without live ChatGPT requests.
 
 ## 0.2.0-alpha.2 — 9 October 2026
 
