@@ -94,6 +94,20 @@ export const stateSchema = z
           prices: z
             .record(z.string(), z.number().int().nonnegative())
             .default({}),
+          // The store and the products of the transfer, for "Muutokset edelliseen".
+          storeKey: z.string().default(""),
+          transferred: z
+            .array(
+              z.object({
+                productId: z.string(),
+                name: z.string(),
+                quantity: z.number().int().nonnegative(),
+                unit: z.string(),
+                price: z.number().int().nonnegative(),
+              }),
+            )
+            .max(500)
+            .default([]),
         }),
       )
       .max(52)

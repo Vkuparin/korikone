@@ -24,6 +24,7 @@ import {
   type FeeRange,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
+import { storeKey } from "../domain/changes";
 import {
   PRICE_KEY,
   limitPrices,
@@ -549,6 +550,14 @@ export class Service {
                 skipped: [...this.state.skipped],
                 removed: [...this.state.removed],
                 quantities: { ...this.state.quantities },
+                storeKey: storeKey(this.journal!.review.context),
+                transferred: this.journal!.review.targets.map((t) => ({
+                  productId: t.productId,
+                  name: t.name,
+                  quantity: t.quantity,
+                  unit: t.unit,
+                  price: t.price,
+                })),
                 prices: Object.fromEntries(
                   this.journal!.review.quotes.flatMap((line) =>
                     line.product &&
