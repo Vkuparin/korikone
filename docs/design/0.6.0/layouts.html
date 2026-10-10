@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <title>Korikone 0.6.0 layout review</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font:
+        16px/1.5 "Segoe UI",
+        sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    :root {
+      --bg: #f3f6f3;
+      --surface: #ffffff;
+      --subtle: #e8efe9;
+      --text: #203b2e;
+      --muted: #52665a;
+      --border: #b6c6bb;
+      --action: #256343;
+      --on-action: #ffffff;
+      --focus: #126eab;
+      --warning: #805000;
+      --warning-bg: #fff1d3;
+      --error: #ae303b;
+      --error-bg: #fff0f1;
+    }
+    [data-theme="dark"] {
+      --bg: #141c18;
+      --surface: #1e2b23;
+      --subtle: #293b30;
+      --text: #edf5ef;
+      --muted: #b3c6b9;
+      --border: #607668;
+      --action: #91d7ad;
+      --on-action: #152b1e;
+      --focus: #81c7fa;
+      --warning: #f3c778;
+      --warning-bg: #392f1c;
+      --error: #ffb3ba;
+      --error-bg: #3b2227;
+    }
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+      color: inherit;
+    }
+    button,
+    select,
+    input {
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 6px 12px;
+    }
+    button {
+      cursor: pointer;
+    }
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+    .primary {
+      background: var(--action);
+      color: var(--on-action);
+      border-color: var(--action);
+      font-weight: 600;
+    }
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .toolbar label {
+      font-size: 14px;
+    }
+    .frame {
+      height: calc(100vh - 62px);
+      display: grid;
+      grid-template-columns: 160px 1fr;
+    }
+    .sidebar {
+      padding: 20px 12px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .brand {
+      font-size: 25px;
+      font-weight: 750;
+      margin: 0 8px 16px;
+    }
+    .sidebar button {
+      text-align: left;
+      border: 0;
+      background: transparent;
+    }
+    .sidebar .active {
+      background: var(--subtle);
+      font-weight: 600;
+    }
+    .sidebar .language {
+      margin-top: auto;
+    }
+    .content {
+      overflow: auto;
+      padding: 20px 24px;
+      min-width: 0;
+    }
+    .meta {
+      display: flex;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 28px;
+      line-height: 1.25;
+      margin: 0 0 16px;
+      letter-spacing: -0.5px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+    h3 {
+      font-size: 16px;
+      margin: 0 0 8px;
+    }
+    .shopping {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 24px;
+      align-items: start;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .composer textarea {
+      width: 100%;
+      min-height: 100px;
+      background: transparent;
+      border: 0;
+      resize: vertical;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .actions .primary {
+      margin-left: auto;
+    }
+    .muted,
+    small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .help {
+      font-size: 14px;
+      margin: 8px 0 16px;
+    }
+    .model {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin: 12px 0;
+    }
+    .tag {
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      white-space: nowrap;
+    }
+    .annotation {
+      color: var(--muted);
+      font-size: 12px;
+      border-left: 3px solid var(--focus);
+      padding-left: 8px;
+      margin: 10px 0;
+    }
+    .meals {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .meal {
+      padding: 16px;
+    }
+    .meal strong {
+      display: block;
+      margin: 4px 0 12px;
+    }
+    .list {
+      position: sticky;
+      top: 0;
+      max-height: calc(100vh - 165px);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+    }
+    .list-head {
+      padding: 16px 20px 8px;
+    }
+    .rows {
+      overflow: auto;
+      padding: 0 20px;
+      scroll-padding-block: 12px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .row button {
+      padding: 2px 5px;
+      min-width: 28px;
+    }
+    .row strong {
+      font-weight: 600;
+    }
+    .row small {
+      display: block;
+      margin: 4px 0;
+    }
+    .row .quantity {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .price {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .footer {
+      background: var(--surface);
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .total strong {
+      font-size: 26px;
+      font-variant-numeric: tabular-nums;
+    }
+    .footer .primary {
+      width: 100%;
+      margin-top: 12px;
+    }
+    .warning {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    .error {
+      background: var(--error-bg);
+      color: var(--error);
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0;
+    }
+    .status {
+      background: var(--subtle);
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .empty {
+      padding: 40px 12px;
+      text-align: center;
+    }
+    .settings {
+      display: grid;
+      grid-template-columns: 185px minmax(0, 640px);
+      gap: 24px;
+    }
+    .categories {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .categories button {
+      text-align: left;
+    }
+    .categories .active {
+      background: var(--subtle);
+      font-weight: 600;
+    }
+    .category-select {
+      display: none;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      margin: 16px 0;
+    }
+    .field input {
+      width: 100%;
+    }
+    .preview {
+      border: 1px dashed var(--border);
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .review-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media (max-width: 900px) {
+      .frame {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        flex-direction: row;
+        align-items: center;
+        padding: 8px 16px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+        gap: 8px;
+        overflow: auto;
+      }
+      .sidebar .brand {
+        font-size: 20px;
+        margin: 0 12px 0 0;
+      }
+      .sidebar .optional,
+      .sidebar .language {
+        display: none;
+      }
+      .frame {
+        display: flex;
+        flex-direction: column;
+      }
+      .content {
+        padding: 16px 20px;
+      }
+      .shopping {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .composer textarea {
+        min-height: 72px;
+      }
+      .list {
+        position: static;
+        max-height: none;
+        overflow: visible;
+      }
+      .rows {
+        overflow: visible;
+      }
+      .footer {
+        position: static;
+      }
+      .settings {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .categories {
+        display: none;
+      }
+      .category-select {
+        display: block;
+        width: 100%;
+      }
+      .meta {
+        margin-bottom: 12px;
+      }
+      .toolbar {
+        padding: 8px 16px;
+      }
+      .card {
+        padding: 16px;
+      }
+      .list {
+        padding: 0;
+      }
+      .list-head,
+      .rows,
+      .footer {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      .annotation {
+        font-size: 12px;
+      }
+    }
+  </style>
+  <div class="toolbar" id="toolbar">
+    <label
+      >Page
+      <select id="page">
+        <option>Shopping</option>
+        <option>Settings</option>
+      </select></label
+    ><label
+      >Palette
+      <select id="theme">
+        <option>light</option>
+        <option>dark</option>
+      </select></label
+    ><label
+      >State
+      <select id="state">
+        <option>empty</option>
+        <option selected>populated</option>
+        <option>working</option>
+        <option>unresolved</option>
+        <option>exception</option>
+      </select></label
+    ><span class="review-note"
+      >Design proposal. Example data. No account connections.</span
+    >
+  </div>
+  <style>
+    .content {
+      min-height: 0;
+    }
+    .frame {
+      overflow: hidden;
+    }
+    .sidebar {
+      flex-shrink: 0;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+  </style>
+  <div id="app"></div>
+  <script>
+    const query = new URLSearchParams(location.search);
+    for (const id of ["page", "theme", "state"])
+      if (query.has(id)) document.getElementById(id).value = query.get(id);
+    if (query.has("capture"))
+      document.getElementById("toolbar").style.display = "none";
+    const categories = [
+      "General",
+      "Household",
+      "Stores",
+      "ChatGPT and AI",
+      "Data",
+      "Advanced",
+      "About",
+    ];
+    function render() {
+      const page = document.getElementById("page").value,
+        theme = document.getElementById("theme").value,
+        state = document.getElementById("state").value;
+      document.documentElement.dataset.theme = theme;
+      const empty = state === "empty",
+        working = state === "working",
+        unresolved = state === "unresolved",
+        exception = state === "exception";
+      const row = (name, amount, price) =>
+        `<div class="row"><button aria-label="At home: ${name}">✓</button><div><strong>${name}</strong><small>${amount}</small><div class="quantity"><button aria-label="Decrease: ${name}">−</button><span>${amount.includes("2 packs") ? "2 packs" : "1 pack"}</span><button aria-label="Increase: ${name}">+</button><button>Details</button></div></div><strong class="price">${price}</strong></div>`;
+      const shopping = `<div class="meta"><span>K-Ruoka · Helsinki (demo) · Change store</span><span>Pickup · Change</span></div><div class="shopping"><section><h1>What shall we eat this week?</h1><div class="card composer"><label for="note"><strong>Meals and groceries</strong></label><textarea id="note" placeholder="Write meals, groceries or ideas for the week.">${empty ? "" : "Tomato pasta, vegetable soup and coffee."}</textarea><div class="actions"><button>4 people</button><span class="muted">Ctrl + Enter</span><button class="primary" ${working ? "disabled" : ""}>Update list</button></div></div><div class="model"><span class="muted">AI model</span><button>Automatic ▾</button></div><p class="help muted">${empty ? "Typing does not update the list." : "Note changes have not been applied to the list."} Development fixtures only.</p><p class="annotation">1 · One composer; explicit update and compact model control.</p>${working ? '<div class="status" role="status">Building your list… <button>Cancel list update</button></div><div class="preview"><strong>Reserved: provisional results</strong><p class="muted">Later stage previews appear here. No preview data or transferable total in v0.6.0.</p></div>' : ""}${empty ? '<div class="card"><h2>Start with a note or add manually</h2><button>Add a recipe</button> <button>Add groceries</button></div>' : `<h2>How I understood it</h2><div class="meals"><article class="card meal"><span class="tag">Meal</span><strong>Tomato pasta</strong><small>2 ingredients · 4 servings</small><div class="actions"><button>−</button><span>4</span><button>+</button><button>Remove</button></div></article><article class="card meal"><span class="tag">Meal</span><strong>Vegetable soup</strong><small>3 ingredients · 4 servings</small><div class="actions"><button>−</button><span>4</span><button>+</button><button>Remove</button></div></article></div>`}<p class="annotation">2 · Current saved-list context stays visible. Future Edit current list / New list controls occupy this area after F17.6.</p><details><summary>Add an existing recipe</summary></details><p><button>Edit recurring groceries</button></p></section><section class="card list"><div class="list-head"><h2>${working ? "Saved shopping list" : "Shopping list"} ${empty ? "" : "· 6"}</h2><p class="annotation">3 · Saved results only; row corrections remain beside groceries.</p>${!empty ? '<div class="actions"><input aria-label="Add grocery" placeholder="Add grocery"><button>+</button></div>' : ""}</div><div class="rows">${empty ? '<div class="empty"><h3>Your list appears here</h3><p class="muted">Add meals or groceries to begin.</p></div>' : row("Pasta 500 g", "Needed 400 g · Tomato pasta", "€1.29") + row("Chopped tomatoes 400 g", "Needed 800 g · 2 packs", "€1.98") + row("Coffee 500 g", "Recurring grocery", "€5.99") + row("Potatoes 1 kg", "Needed 800 g · Vegetable soup", "€1.99") + row("Carrots 500 g", "Needed 400 g · Vegetable soup", "€1.09") + (unresolved ? '<div class="warning"><strong>Cream · needs your decision</strong><p>Pack size / price unknown. No verified amount to transfer.</p><button>Choose alternative</button> <button>Confirm pack size</button></div>' : row("Cream 200 ml", "Needed 200 ml · Vegetable soup", "€1.09"))}</div>${!empty ? `<div class="footer">${exception ? '<div class="warning"><strong>Transfer needs a decision</strong><p>Some items were already in the cart. Review the batch before continuing.</p><button>Review differences</button> <button>Cancel</button></div>' : ""}<div class="total"><span>${unresolved ? "Known-price subtotal" : "Estimated total"}</span><strong>${unresolved ? "€12.34" : "€13.43"}</strong></div><small>${working ? "Saved prices from the previous update." : unresolved ? "Incomplete: one row has no verified price." : "Last fetched prices · 10 October, 14:15"}</small><button class="primary" ${working ? "disabled" : ""}>${exception ? "Review transfer" : unresolved ? "Review unresolved item" : "Transfer and open store cart"}</button><small>For S-kaupat: transfer and open store shopping list.</small><p class="annotation">4 · One total/action. Desktop footer stays inside the list; narrow footer follows rows without covering focus.</p></div>` : ""}</section></div>`;
+      const active = empty
+        ? "Data"
+        : working
+          ? "ChatGPT and AI"
+          : unresolved
+            ? "Stores"
+            : exception
+              ? "Advanced"
+              : "General";
+      const settings = `<h1>Settings</h1><div class="settings"><aside><div class="categories">${categories.map((x) => `<button class="${x === active ? "active" : ""}">${x}</button>`).join("")}</div><select class="category-select" aria-label="Settings category">${categories.map((x) => `<option ${x === active ? "selected" : ""}>${x}</option>`).join("")}</select><p class="annotation">5 · One active category; compact selector at narrow widths.</p></aside><section><div class="card"><h2>${active}</h2>${empty ? '<h3>Previous receipts</h3><p>No receipts imported.</p><button>Import receipt (PDF, text or CSV)</button><label class="field">Receipt purchase lines<textarea rows="4"></textarea></label><button>Save</button><h3>Local data</h3><button>Export backup</button> <button>Restore backup</button>' : working ? '<p class="status" role="status">Waiting for ChatGPT sign-in…</p><button>Cancel sign-in</button><div class="model"><span>AI model</span><button disabled>Automatic ▾</button></div><p class="muted">Remaining allowance and reset time are unavailable. Check ChatGPT usage settings.</p>' : unresolved ? '<p>K-Ruoka · Sign-in required</p><button>Sign in</button><p>S-kaupat · Not connected</p><button>Sign in</button><label class="field">Search stores<input value="Helsinki"></label><button>Search</button><p class="error" role="alert">Could not load stores. Keep the selected store and retry.</p>' : exception ? '<label><input type="checkbox" checked disabled> Development mode</label><p>Test-data mode cannot be disabled.</p><label class="field">Development scenario<select><option>delayedSuccess</option></select></label><button>Restart setup</button><h3>Diagnostics</h3><button>Export diagnostics</button><p class="error" role="alert">Export failed. Local data remains available. Retry export.</p>' : '<label class="field">Appearance<select><option>System</option><option>Light</option><option>Dark</option></select></label><p class="muted">System currently uses ' + theme + '. Explicit modes override it.</p><label class="field">Language<select><option>English</option><option>Suomi</option></select></label><p class="muted">Changes apply immediately. Your note and shopping list stay available.</p>'}</div><p class="annotation">6 · Existing save/IPC handlers and validation stay in place. Household and receipt drafts survive category changes.</p><p class="muted">Household: servings, budget, exclusions and recurring groceries.<br>About: runtime version, notices and release link.</p></section></div>`;
+      document.getElementById("app").innerHTML =
+        `<div class="frame" ${query.has("capture") ? 'style="height:100vh"' : ""}><aside class="sidebar"><div class="brand">korikone</div><button class="${page === "Shopping" ? "active" : ""}">Shopping list</button><button class="optional">Calendar</button><button class="optional">Recipes</button><button class="optional">History</button><button class="optional">Store</button><button class="${page === "Settings" ? "active" : ""}">Settings</button><button class="language">English ▾</button></aside><main class="content">${page === "Shopping" ? shopping : settings}</main></div>`;
+    }
+    for (const id of ["page", "theme", "state"])
+      document.getElementById(id).addEventListener("change", render);
+    render();
+  </script>
+</html>

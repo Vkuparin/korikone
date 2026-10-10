@@ -1,0 +1,362 @@
+[
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "empty",
+    "file": "shopping-light-1280-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "populated",
+    "file": "shopping-light-1280-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "working",
+    "file": "shopping-light-1280-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "unresolved",
+    "file": "shopping-light-1280-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "exception",
+    "file": "shopping-light-1280-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "empty",
+    "file": "shopping-light-800-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "populated",
+    "file": "shopping-light-800-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "working",
+    "file": "shopping-light-800-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "unresolved",
+    "file": "shopping-light-800-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "exception",
+    "file": "shopping-light-800-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "empty",
+    "file": "shopping-dark-1280-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "populated",
+    "file": "shopping-dark-1280-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "working",
+    "file": "shopping-dark-1280-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "unresolved",
+    "file": "shopping-dark-1280-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "exception",
+    "file": "shopping-dark-1280-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "empty",
+    "file": "shopping-dark-800-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "populated",
+    "file": "shopping-dark-800-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "working",
+    "file": "shopping-dark-800-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "unresolved",
+    "file": "shopping-dark-800-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Shopping",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "exception",
+    "file": "shopping-dark-800-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "empty",
+    "file": "settings-light-1280-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "populated",
+    "file": "settings-light-1280-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "working",
+    "file": "settings-light-1280-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "unresolved",
+    "file": "settings-light-1280-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "state": "exception",
+    "file": "settings-light-1280-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "empty",
+    "file": "settings-light-800-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "populated",
+    "file": "settings-light-800-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "working",
+    "file": "settings-light-800-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "unresolved",
+    "file": "settings-light-800-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "light",
+    "width": 800,
+    "height": 600,
+    "state": "exception",
+    "file": "settings-light-800-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "empty",
+    "file": "settings-dark-1280-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "populated",
+    "file": "settings-dark-1280-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "working",
+    "file": "settings-dark-1280-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "unresolved",
+    "file": "settings-dark-1280-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "state": "exception",
+    "file": "settings-dark-1280-exception.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "empty",
+    "file": "settings-dark-800-empty.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "populated",
+    "file": "settings-dark-800-populated.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "working",
+    "file": "settings-dark-800-working.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "unresolved",
+    "file": "settings-dark-800-unresolved.png",
+    "horizontalOverflow": false
+  },
+  {
+    "view": "Settings",
+    "theme": "dark",
+    "width": 800,
+    "height": 600,
+    "state": "exception",
+    "file": "settings-dark-800-exception.png",
+    "horizontalOverflow": false
+  }
+]
