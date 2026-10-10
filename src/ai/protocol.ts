@@ -61,8 +61,7 @@ export function responseRequest(
   input: string,
   output: InferenceOutput = { mode: "text" },
 ) {
-  if (output.mode !== "text")
-    throw new InferenceError("unsupportedCapability");
+  if (output.mode !== "text") throw new InferenceError("unsupportedCapability");
   return {
     model,
     input: [{ role: "user", content: input }],
