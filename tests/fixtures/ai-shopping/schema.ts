@@ -19,7 +19,8 @@ export const expectedRequestSchema = z
     names: z.array(z.string().min(1)).min(1),
     // null explicitly expects a grocery outside the eight matcher categories.
     category: categorySchema.nullable().optional(),
-    amount: z.number().int().positive().optional(),
+    // null means the note supplied no quantity; an invented number must fail.
+    amount: z.number().int().positive().nullable().optional(),
     unit: unitSchema.optional(),
     admissible: z.array(z.string()).default([]),
     forbidden: z.array(z.string()).default([]),
@@ -73,6 +74,7 @@ export const shoppingCaseSchema = z
           "preferences",
           "compact-context",
           "dietary-evidence",
+          "unknown-quantity",
         ]),
       )
       .default([]),
