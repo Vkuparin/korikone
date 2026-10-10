@@ -61,7 +61,7 @@ await writeFile(
 const evidence = ${JSON.stringify(cases)};
 const labels = {"shopping-empty":"Shopping · empty","shopping-working":"Shopping · working composer","shopping-populated":"Shopping · populated viewport","shopping-list":"Shopping · complete list","shopping-unresolved":"Shopping · unresolved row","shopping-exception":"Shopping · transfer decision","settings-validation":"Settings · validation error","settings-general":"Settings · General","settings-household":"Settings · Household","settings-stores":"Settings · Stores","settings-ai":"Settings · ChatGPT and AI","settings-data":"Settings · Data","settings-advanced":"Settings · Advanced","settings-about":"Settings · About"};
 const controls = ["language","appearance","width","screen"].map(id=>document.getElementById(id));
-const screens = evidence[0].captures.map(file=>file.replace(/^fi-light-1280-/,'').replace(/\\.png$/,''));
+const screens = evidence[0].captures.map(file=>file.slice("fi-light-1280-".length,-4));
 for(const value of screens){const option=document.createElement('option');option.value=value;option.textContent=labels[value]||value;controls[3].append(option)}
 controls[3].value="shopping-populated";
 function show(){const prefix=controls.slice(0,3).map(control=>control.value).join('-');const file=prefix+'-'+controls[3].value+'.png';const img=document.getElementById('capture');img.src=file;img.alt=(labels[controls[3].value]||controls[3].value)+' · '+prefix;const link=document.getElementById('original');link.href=file;document.getElementById('description').textContent=img.alt+'. Viewport captures retain the selected window size; region captures show the full region and may be taller.'}

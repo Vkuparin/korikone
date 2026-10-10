@@ -50,10 +50,13 @@ test("app palette tokens keep text and keyboard focus readable without generatio
         (await window.korikone.load()).value.developmentCatalogueRequests,
     );
     for (const theme of ["light", "dark"]) {
-      // U14.2 exposes resolved palettes; U15.2 supplies production mode selection.
-      await page.evaluate((theme) => {
-        document.documentElement.dataset.theme = theme;
-      }, theme);
+      expect(
+        await page.evaluate(
+          async (theme) => (await window.korikone.setAppearance(theme)).ok,
+          theme,
+        ),
+      ).toBe(true);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       const tokens = await page.evaluate(() => {
         const css = getComputedStyle(document.documentElement);
         return Object.fromEntries(
@@ -121,13 +124,15 @@ test("app palette tokens keep text and keyboard focus readable without generatio
         await page.setViewportSize({ width, height });
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({
-          path: `docs/design/0.6.0/screens/app-shopping-${theme}-${width}.png`,
+          path: `test-results/palette-shopping-${theme}-${width}.png`,
         });
       }
       await page
         .getByRole("button", { name: "Asetukset", exact: true })
         .click();
-      const language = page.getByRole("button", { name: "Kieli", exact: true });
+      const language = page
+        .getByRole("banner")
+        .getByRole("button", { name: "Kieli", exact: true });
       await language.click();
       const choice = page.locator(".choice-menu");
       await expect(choice).toBeVisible();
@@ -148,7 +153,7 @@ test("app palette tokens keep text and keyboard focus readable without generatio
         await page.setViewportSize({ width, height });
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({
-          path: `docs/design/0.6.0/screens/app-settings-${theme}-${width}.png`,
+          path: `test-results/palette-settings-${theme}-${width}.png`,
         });
       }
       await page
