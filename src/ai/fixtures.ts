@@ -93,9 +93,12 @@ export class FixtureAI {
     )
       await delay(2500, undefined, { signal });
     if (this.scenario === "delayedFailure") throw new Error("aiFailed");
+    if (this.scenario === "pendingSuccess")
+      await delay(60000, undefined, { signal });
     if (
       this.scenario !== "success" &&
       this.scenario !== "delayedSuccess" &&
+      this.scenario !== "pendingSuccess" &&
       this.scenario !== "delayedModels" &&
       this.scenario !== "invalidOnce" &&
       !["noSmallModel", "removedModel"].includes(this.scenario)

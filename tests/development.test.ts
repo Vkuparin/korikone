@@ -61,7 +61,11 @@ test("AI fixtures cover valid responses and failure cases without a network requ
     expect(draft.meals.every((m) => m.servings === 2)).toBe(true);
     expect(draft.items[0].name).toBe("Kahvi");
     for (const scenario of aiScenarios.filter(
-      (s) => s !== "success" && s !== "delayedSuccess" && s !== "delayedModels",
+      (s) =>
+        s !== "success" &&
+        s !== "delayedSuccess" &&
+        s !== "pendingSuccess" &&
+        s !== "delayedModels",
     )) {
       ai.setScenario(scenario);
       if (scenario === "invalidOnce" || scenario === "invalidDraft") {
@@ -89,11 +93,13 @@ test("AI fixtures cover valid responses and failure cases without a network requ
     await ai.signOut();
     expect(ai.status().state).toBe("disconnected");
     await ai.signIn();
-    ai.setScenario("delayedSuccess");
-    const pending = ai.generate("auto", prompt);
-    await expect(ai.generate("auto", prompt)).rejects.toThrow("busy");
-    ai.cancelRequest();
-    await expect(pending).rejects.toThrow();
+    for (const scenario of ["delayedSuccess", "pendingSuccess"] as const) {
+      ai.setScenario(scenario);
+      const pending = ai.generate("auto", prompt);
+      await expect(ai.generate("auto", prompt)).rejects.toThrow("busy");
+      ai.cancelRequest();
+      await expect(pending).rejects.toThrow();
+    }
     ai.setScenario("success");
     expect(
       validateDraft(await ai.generate("auto", prompt), state).meals,

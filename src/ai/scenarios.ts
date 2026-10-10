@@ -2,6 +2,7 @@ export const aiScenarios = [
   "success",
   "delayedSuccess",
   "delayedFailure",
+  "pendingSuccess",
   "delayedModels",
   "invalidOnce",
   "invalidDraft",

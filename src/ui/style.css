@@ -715,7 +715,7 @@ body:has(.app-main) .demo {
   background: var(--kk-surface);
   border: 1px solid var(--kk-border);
   color: var(--kk-muted);
-  font-size: 11px;
+  font-size: 14px;
   padding: 6px 9px;
   border-radius: 20px;
   font-weight: 400;
@@ -909,14 +909,14 @@ body:has(.app-main) .demo {
 }
 .list-menu button {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
 }
 .quick-add {
   display: flex;
   gap: 4px;
 }
 .quick-add input {
-  font-size: 11px;
+  font-size: 16px;
   background: var(--kk-bg);
   border: none;
 }
@@ -924,11 +924,11 @@ body:has(.app-main) .demo {
   padding: 6px 12px;
 }
 .product-preference {
-  font-size: 10px;
+  font-size: 14px;
   margin: 13px 0;
 }
 .product-preference select {
-  font-size: 11px;
+  font-size: 14px;
   padding: 5px;
 }
 .grocery-category h3 {
@@ -1098,7 +1098,7 @@ body:has(.app-main) .demo {
 .list-exports button {
   flex: 1;
   padding: 7px;
-  font-size: 10px;
+  font-size: 14px;
 }
 .empty-list {
   text-align: center;
@@ -1112,7 +1112,7 @@ body:has(.app-main) .demo {
   font-size: 16px;
 }
 .empty-list p {
-  font-size: 12px;
+  font-size: 14px;
 }
 .schedule-grid {
   display: grid;
@@ -1241,6 +1241,7 @@ body:has(.app-main) .demo {
   grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
 }
 body:has(.app-main) > #root > .error,
+body:has(.app-main) > #root > .update-banner,
 body:has(.app-main) > #root > .progress {
   margin-left: 178px;
 }
@@ -1261,6 +1262,7 @@ body:has(.app-main) > #root > .progress {
     padding: 10px 8px;
   }
   body:has(.app-main) > #root > .error,
+  body:has(.app-main) > #root > .update-banner,
   body:has(.app-main) > #root > .progress {
     margin-left: 140px;
   }

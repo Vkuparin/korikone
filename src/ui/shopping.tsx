@@ -39,6 +39,7 @@ export function ShoppingWorkspace({
   view?: "list" | "schedule" | "history";
 }) {
   const state = snapshot.state;
+  const all = requirements(state, new Date(), true);
   const fi = state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
   const [note, setNote] = useState(
@@ -94,7 +95,7 @@ export function ShoppingWorkspace({
       window.removeEventListener("scroll", fit);
       window.removeEventListener("resize", fit);
     };
-  }, [view]);
+  }, [view, all.length > 0, confirming]);
   const active = useRef(true);
   const running = useRef(false);
   const savedNote = useRef(state.note);
@@ -168,7 +169,6 @@ export function ShoppingWorkspace({
       }
     }
   }
-  const all = requirements(state, new Date(), true);
   const rows = requirements(state);
   const money = (cents: number) =>
     new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
@@ -1114,250 +1114,261 @@ export function ShoppingWorkspace({
                 })}
             </section>
           ))}
-          <div className="list-footer">
-            {state.skipped.length > 0 && (
+          {all.length > 0 && (
+            <div className="list-footer">
+              {state.skipped.length > 0 && (
+                <small>
+                  {state.skipped.length}{" "}
+                  {tr("tuotetta kotona, ei mukana", "items at home, excluded")}
+                </small>
+              )}
+              {missing.length > 0 && (
+                <p className="warning">
+                  {missing.length}{" "}
+                  {tr(
+                    "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
+                    "items need a price or suitable pack. They are excluded from the estimate.",
+                  )}
+                </p>
+              )}
               <small>
-                {state.skipped.length}{" "}
-                {tr("tuotetta kotona, ei mukana", "items at home, excluded")}
+                {snapshot.pickupFee
+                  ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
+                  : tr(
+                      "Toimitus- tai noutomaksu ei ole tiedossa.",
+                      "The delivery or pickup fee is not known.",
+                    )}
               </small>
-            )}
-            {missing.length > 0 && (
-              <p className="warning">
-                {missing.length}{" "}
+              {canCompare(snapshot) && (
+                <ComparePanel
+                  snapshot={snapshot}
+                  busy={busy}
+                  call={call}
+                  tr={tr}
+                  money={money}
+                  open={comparing}
+                  onClose={() => setComparing(false)}
+                />
+              )}
+              {state.context.providerId === "s-kaupat" && (
+                <p className="input-notice">
+                  {tr(
+                    "Tuotteet siirtyvät S-kauppojen Korikone-ostoslistalle. Lisää ne ostoskoriin S-kauppojen sivulla.",
+                    "Products go to your Korikone shopping list at S-kaupat. Add them to the cart on the S-kaupat website.",
+                  )}
+                </p>
+              )}
+              <div className="list-exports">
+                <button
+                  className="secondary"
+                  disabled={busy || !rows.length}
+                  onClick={async () => {
+                    if (await call("copyList")) {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }
+                  }}
+                >
+                  {copied
+                    ? tr("Kopioitu", "Copied")
+                    : tr("Kopioi tekstinä", "Copy as text")}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy || !rows.length}
+                  onClick={() => void call("exportList")}
+                >
+                  {tr("Tallenna lista", "Save list")}
+                </button>
+              </div>
+              <small>
                 {tr(
-                  "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
-                  "items need a price or suitable pack. They are excluded from the estimate.",
+                  "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
+                  "Check the fee and any unreported deposits at the store.",
                 )}
+              </small>
+              {!isLive(state.context.providerId) && (
+                <details className="demo-controls">
+                  <summary>{tr("Esimerkki", "Demo")}</summary>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void call("scenario", "interrupt")}
+                  >
+                    {tr(
+                      "Esimerkki: keskeytä seuraava siirto",
+                      "Demo: interrupt next transfer",
+                    )}
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void call("scenario", "price")}
+                  >
+                    {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
+                  </button>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Separate from scrolling rows so focused controls cannot be covered. */}
+        {(all.length > 0 ||
+          confirming ||
+          snapshot.journal?.status === "partial") && (
+          <div
+            ref={footer}
+            className="shopping-total"
+            role="region"
+            aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
+          >
+            {confirming && (
+              <ConfirmPanel
+                snapshot={snapshot}
+                busy={busy}
+                call={call}
+                money={money}
+                onClose={() => setConfirming(false)}
+                onRecover={() => void call("recover")}
+                onOpenStore={openStore}
+              />
+            )}
+            {!confirming && snapshot.journal?.status === "partial" && (
+              <p className="warning" role="status">
+                {tr(
+                  "Edellinen siirto keskeytyi.",
+                  "The last transfer stopped.",
+                )}{" "}
+                <button className="text" onClick={() => setConfirming(true)}>
+                  {tr("Tarkista", "Check it")}
+                </button>
               </p>
             )}
-            <small>
-              {snapshot.pickupFee
-                ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
-                : tr(
-                    "Toimitus- tai noutomaksu ei ole tiedossa.",
-                    "The delivery or pickup fee is not known.",
-                  )}
-            </small>
+            <div className="total-line">
+              <span>
+                {missing.length
+                  ? tr(
+                      "Tunnettujen hintojen välisumma",
+                      "Subtotal of known prices",
+                    )
+                  : tr("Arvio yhteensä", "Estimated total")}
+              </span>
+              <strong>
+                {snapshot.quotedAt || !rows.length
+                  ? money(total)
+                  : tr("Ei hinnoiteltu", "Not priced")}
+              </strong>
+            </div>
+            {snapshot.pricingError && (
+              <p className="warning" role="alert">
+                {tr(
+                  "Tuotteiden ja hintojen haku epäonnistui. Yritä uudelleen.",
+                  "Could not retrieve products and prices. Try again.",
+                )}
+                <button className="text" onClick={() => settings("stores")}>
+                  {tr("Avaa kauppojen asetukset", "Open store settings")}
+                </button>
+              </p>
+            )}
+            {snapshot.quotedAt ? (
+              <p className="muted">
+                {tr("Viimeksi haetut hinnat", "Last quoted prices")} ·{" "}
+                {new Date(snapshot.quotedAt).toLocaleString(
+                  fi ? "fi-FI" : "en-FI",
+                )}
+              </p>
+            ) : (
+              rows.length > 0 && (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void call("buildBasket")}
+                >
+                  {tr("Hae tuotteet ja hinnat", "Get products and prices")}
+                </button>
+              )
+            )}
+            {liveProviders.filter(
+              (chain) => snapshot.storeLogins[chain] === "signedIn",
+            ).length === 1 &&
+              isLive(state.context.providerId) && (
+                <p className="compare-hint">
+                  <button className="text" onClick={() => settings("stores")}>
+                    {tr("Vertaa", "Compare with")}{" "}
+                    {snapshot.storeLogins["k-ruoka"] === "signedIn"
+                      ? "S-kaupat"
+                      : "K-Ruoka"}
+                    : {tr("kirjaudu sisään", "sign in")}
+                  </button>
+                </p>
+              )}
             {canCompare(snapshot) && (
-              <ComparePanel
+              <CompareSummary
                 snapshot={snapshot}
                 busy={busy}
                 call={call}
                 tr={tr}
                 money={money}
-                open={comparing}
-                onClose={() => setComparing(false)}
+                onOpen={() => setComparing(true)}
               />
             )}
-            {state.context.providerId === "s-kaupat" && (
-              <p className="input-notice">
-                {tr(
-                  "Tuotteet siirtyvät S-kauppojen Korikone-ostoslistalle. Lisää ne ostoskoriin S-kauppojen sivulla.",
-                  "Products go to your Korikone shopping list at S-kaupat. Add them to the cart on the S-kaupat website.",
-                )}
-              </p>
-            )}
-            <div className="list-exports">
+            {!confirming && (
               <button
-                className="secondary"
-                disabled={busy || !rows.length}
+                className="transfer-button"
+                disabled={
+                  busy || !rows.length || missing.length === rows.length
+                }
                 onClick={async () => {
-                  if (await call("copyList")) {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
+                  // An interrupted transfer is shown for recovery instead of a new review.
+                  setTransferring(true);
+                  try {
+                    if (
+                      snapshot.journal?.status === "partial" ||
+                      (await call("transferDisplayed", {
+                        revision: state.revision,
+                        quotedAt: snapshot.quotedAt,
+                        batchKey: snapshot.transferBatchKey,
+                      }))
+                    )
+                      setConfirming(true);
+                  } finally {
+                    setTransferring(false);
                   }
                 }}
               >
-                {copied
-                  ? tr("Kopioitu", "Copied")
-                  : tr("Kopioi tekstinä", "Copy as text")}
-              </button>
-              <button
-                className="secondary"
-                disabled={busy || !rows.length}
-                onClick={() => void call("exportList")}
-              >
-                {tr("Tallenna lista", "Save list")}
-              </button>
-            </div>
-            <small>
-              {tr(
-                "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
-                "Check the fee and any unreported deposits at the store.",
-              )}
-            </small>
-            {!isLive(state.context.providerId) && (
-              <details className="demo-controls">
-                <summary>{tr("Esimerkki", "Demo")}</summary>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void call("scenario", "interrupt")}
-                >
-                  {tr(
-                    "Esimerkki: keskeytä seuraava siirto",
-                    "Demo: interrupt next transfer",
-                  )}
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void call("scenario", "price")}
-                >
-                  {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
-                </button>
-              </details>
-            )}
-          </div>
-        </div>
-        {/* Separate from scrolling rows so focused controls cannot be covered. */}
-        <div
-          ref={footer}
-          className="shopping-total"
-          role="region"
-          aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
-        >
-          {confirming && (
-            <ConfirmPanel
-              snapshot={snapshot}
-              busy={busy}
-              call={call}
-              money={money}
-              onClose={() => setConfirming(false)}
-              onRecover={() => void call("recover")}
-              onOpenStore={openStore}
-            />
-          )}
-          {!confirming && snapshot.journal?.status === "partial" && (
-            <p className="warning" role="status">
-              {tr("Edellinen siirto keskeytyi.", "The last transfer stopped.")}{" "}
-              <button className="text" onClick={() => setConfirming(true)}>
-                {tr("Tarkista", "Check it")}
-              </button>
-            </p>
-          )}
-          <div className="total-line">
-            <span>
-              {missing.length
-                ? tr(
-                    "Tunnettujen hintojen välisumma",
-                    "Subtotal of known prices",
+                {transferring && (
+                  <span role="status">
+                    {tr(
+                      "Tarkistetaan ja siirretään…",
+                      "Checking and transferring…",
+                    )}{" "}
+                  </span>
+                )}
+                {state.context.providerId === "s-kaupat" ? (
+                  tr(
+                    "Siirrä ja avaa S-kaupat-lista",
+                    "Transfer and open S-kaupat list",
                   )
-                : tr("Arvio yhteensä", "Estimated total")}
-            </span>
-            <strong>
-              {snapshot.quotedAt || !rows.length
-                ? money(total)
-                : tr("Ei hinnoiteltu", "Not priced")}
-            </strong>
-          </div>
-          {snapshot.pricingError && (
-            <p className="warning" role="alert">
-              {tr(
-                "Tuotteiden ja hintojen haku epäonnistui. Yritä uudelleen.",
-                "Could not retrieve products and prices. Try again.",
-              )}
-              <button className="text" onClick={() => settings("stores")}>
-                {tr("Avaa kauppojen asetukset", "Open store settings")}
-              </button>
-            </p>
-          )}
-          {snapshot.quotedAt ? (
-            <p className="muted">
-              {tr("Viimeksi haetut hinnat", "Last quoted prices")} ·{" "}
-              {new Date(snapshot.quotedAt).toLocaleString(
-                fi ? "fi-FI" : "en-FI",
-              )}
-            </p>
-          ) : (
-            rows.length > 0 && (
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => void call("buildBasket")}
-              >
-                {tr("Hae tuotteet ja hinnat", "Get products and prices")}
-              </button>
-            )
-          )}
-          {liveProviders.filter(
-            (chain) => snapshot.storeLogins[chain] === "signedIn",
-          ).length === 1 &&
-            isLive(state.context.providerId) && (
-              <p className="compare-hint">
-                <button className="text" onClick={() => settings("stores")}>
-                  {tr("Vertaa", "Compare with")}{" "}
-                  {snapshot.storeLogins["k-ruoka"] === "signedIn"
-                    ? "S-kaupat"
-                    : "K-Ruoka"}
-                  : {tr("kirjaudu sisään", "sign in")}
-                </button>
-              </p>
-            )}
-          {canCompare(snapshot) && (
-            <CompareSummary
-              snapshot={snapshot}
-              busy={busy}
-              call={call}
-              tr={tr}
-              money={money}
-              onOpen={() => setComparing(true)}
-            />
-          )}
-          {!confirming && (
-            <button
-              className="transfer-button"
-              disabled={busy || !rows.length || missing.length === rows.length}
-              onClick={async () => {
-                // An interrupted transfer is shown for recovery instead of a new review.
-                setTransferring(true);
-                try {
-                  if (
-                    snapshot.journal?.status === "partial" ||
-                    (await call("transferDisplayed", {
-                      revision: state.revision,
-                      quotedAt: snapshot.quotedAt,
-                      batchKey: snapshot.transferBatchKey,
-                    }))
-                  )
-                    setConfirming(true);
-                } finally {
-                  setTransferring(false);
-                }
-              }}
-            >
-              {transferring && (
-                <span role="status">
-                  {tr(
-                    "Tarkistetaan ja siirretään…",
-                    "Checking and transferring…",
-                  )}{" "}
+                ) : (
+                  <>
+                    {tr("Siirrä ja avaa", "Transfer and open")}{" "}
+                    {state.context.providerId === "k-ruoka"
+                      ? "K-Ruoan"
+                      : tr("kaupan", "store")}{" "}
+                    {tr("ostoskori", "basket")}
+                  </>
+                )}
+                <span>
+                  {" "}
+                  · {rows.length - missing.length} {tr("tuotetta", "products")}
                 </span>
-              )}
-              {state.context.providerId === "s-kaupat" ? (
-                tr(
-                  "Siirrä ja avaa S-kaupat-lista",
-                  "Transfer and open S-kaupat list",
-                )
-              ) : (
-                <>
-                  {tr("Siirrä ja avaa", "Transfer and open")}{" "}
-                  {state.context.providerId === "k-ruoka"
-                    ? "K-Ruoan"
-                    : tr("kaupan", "store")}{" "}
-                  {tr("ostoskori", "basket")}
-                </>
-              )}
-              <span>
-                {" "}
-                · {rows.length - missing.length} {tr("tuotetta", "products")}
-              </span>
-              {total > 0 && (
-                <span className="transfer-total"> · {money(total)}</span>
-              )}
-            </button>
-          )}
-        </div>
+                {total > 0 && (
+                  <span className="transfer-total"> · {money(total)}</span>
+                )}
+              </button>
+            )}
+          </div>
+        )}
       </aside>
     </div>
   );

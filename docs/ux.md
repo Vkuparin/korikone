@@ -28,6 +28,8 @@ Saved recipes are behind “Lisää valmiita reseptejä.” Pick a recipe and po
 
 The list stays on the right on desktop and moves below the note in narrow windows. Use compact category headings and rows. No hidden tail of the list.
 
+An empty list shows manual-entry controls and guidance without a total or transfer action. Once rows exist, the footer appears and reserves its own space. Update and error banners sit beside the navigation rail, so their messages and actions remain readable at the approved desktop and narrow sizes.
+
 Each row contains a product name (or unresolved ingredient), required amount, source meals, pack quantity when quoted, cost, home marker, remove action and optional replacement picker. All controls have text or accessible labels. Highlighting and selection must not rely solely on color.
 
 Product and meal names wrap in full. Row names use 16 px text; amounts, sources and quantity units use 14 px. Home and remove controls stay visible. Unresolved rows show “Hinta puuttuu” / “Price unknown” rather than a blank price. A selected meal also says its ingredients are highlighted. Product details keep unknown pack sizes and prices visible and prevent selecting unavailable or incomplete candidates; confirming a pack size reprices through the normal saved-list path.
