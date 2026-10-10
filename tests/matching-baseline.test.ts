@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { Service } from "../src/application/service";
+import { createFixtureService } from "./fixtures/ai-shopping/environment";
 import { KRuokaProvider, type ToolCall } from "../src/stores/k-ruoka";
 import { SKaupatProvider } from "../src/stores/s-kaupat";
 import { matchingBaseline } from "./fixtures/matching-baseline";
@@ -9,58 +9,9 @@ import { initialState } from "../src/domain/model";
 for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   for (const fixture of matchingBaseline) {
     test(`released baseline ${chain}: ${fixture.id} (${fixture.cause})`, async () => {
-      const entries = new Map<string, unknown>();
-      const tools: string[] = [];
-      const call: ToolCall = async (name) => {
-        tools.push(name);
-        if (name === "search_products") {
-          return chain === "k-ruoka"
-            ? {
-                results: fixture.products.map((p) => ({
-                  ean: p.id,
-                  name: p.name,
-                  price: p.price,
-                  priceUnit: p.weighed ? "kg" : "kpl",
-                  priceIsApproximate: !!p.weighed,
-                  isAvailable: p.available !== false,
-                })),
-              }
-            : {
-                products: fixture.products.map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  price: p.price,
-                  depositPrice: null,
-                  approximatePrice: !!p.weighed,
-                  priceBasis: p.weighed ? "per_kg" : "per_item",
-                  packSize: null,
-                  quantityUnit: "KPL",
-                })),
-              };
-        }
-        if (name === "check_basket")
-          return {
-            items: fixture.products.map((p) => ({
-              productId: p.id,
-              status: p.available === false ? "unavailable" : "ok",
-            })),
-          };
-        if (name === "get_delivery_options") return {};
-        throw new Error(`Unexpected boundary call: ${name}`);
-      };
-      const service = new Service({
-        get: async (key) => structuredClone(entries.get(key)),
-        set: async (key, value) => {
-          entries.set(key, structuredClone(value));
-        },
+      const { service, tools } = await createFixtureService(chain, {
+        "*": fixture.products,
       });
-      service.developmentMode = true;
-      service.registry.register(
-        chain === "k-ruoka"
-          ? new KRuokaProvider(call)
-          : new SKaupatProvider(call),
-      );
-      await service.init();
       await service.save({
         ...service.state,
         staples: [],
