@@ -17,7 +17,8 @@ export const expectedRequestSchema = z
     id: z.string().min(1),
     kind: z.enum(["grocery", "dish"]),
     names: z.array(z.string().min(1)).min(1),
-    category: categorySchema.optional(),
+    // null explicitly expects a grocery outside the eight matcher categories.
+    category: categorySchema.nullable().optional(),
     amount: z.number().int().positive().optional(),
     unit: unitSchema.optional(),
     admissible: z.array(z.string()).default([]),
@@ -27,7 +28,9 @@ export const expectedRequestSchema = z
   .refine(
     (r) =>
       r.kind === "dish" ||
-      (!!r.category && r.amount !== undefined && r.unit !== undefined),
+      (r.category !== undefined &&
+        r.amount !== undefined &&
+        r.unit !== undefined),
   );
 export const shoppingCaseSchema = z
   .object({
