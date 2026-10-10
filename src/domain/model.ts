@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { appearanceSchema } from "./appearance";
+import { classificationSchema } from "./categories";
 
 export const unitSchema = z.enum(["g", "ml", "pcs"]);
 export type Unit = z.infer<typeof unitSchema>;
@@ -8,6 +9,7 @@ export const ingredientSchema = z.object({
   name: z.string().min(1).max(200),
   amount: z.number().int().positive().max(10_000_000),
   unit: unitSchema,
+  classification: classificationSchema.optional(),
 });
 export const recipeSchema = z.object({
   id: z.string().min(1),

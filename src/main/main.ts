@@ -472,7 +472,7 @@ else
         service.draft = await generateValidated(
           generateAI(model, run),
           draftPrompt(request.prompt, service.state),
-          (text) => validateDraft(text, service.state),
+          (text) => validateDraft(text, service.state, request.prompt),
           " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
         );
         service.draftRevision = revision;

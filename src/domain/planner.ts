@@ -1,4 +1,5 @@
 import type { AppState, BasketLine, Product, Requirement } from "./model";
+import { classificationKey } from "./categories";
 export function requirements(
   state: AppState,
   now = new Date(),
@@ -14,6 +15,11 @@ export function requirements(
       return;
     const previous = result.get(key);
     if (previous) {
+      if (
+        classificationKey(previous.classification) !==
+        classificationKey(item.classification)
+      )
+        throw new Error("conflictingRequirement");
       previous.amount += item.amount;
       previous.sources.push(...item.sources);
     } else result.set(key, { ...item, sources: [...item.sources] });

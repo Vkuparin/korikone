@@ -169,10 +169,10 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   });
 }
 
-test("released provenance baseline cannot distinguish generic mince from model-added beef specificity", () => {
+test("provenance fix distinguishes generic mince from model-added beef specificity", () => {
   const state = initialState();
   const note = "Jauhelihaa 400 g";
-  expect(draftPrompt(note, state)).toContain("say which meat for minced meat");
+  expect(draftPrompt(note, state)).toContain("Keep generic groceries generic");
   const draft = validateDraft(
     JSON.stringify({
       items: [
@@ -190,4 +190,9 @@ test("released provenance baseline cannot distinguish generic mince from model-a
   expect(draft.items[0].name).toBe("Naudan jauheliha");
   expect(draft.items[0]).not.toHaveProperty("provenance");
   expect(draft.items[0]).not.toHaveProperty("category");
+  expect(draft.items[0].classification).toMatchObject({
+    category: "mince",
+    provenance: "model-assumed",
+    qualifiers: [{ kind: "meat", value: "beef", provenance: "model-assumed" }],
+  });
 });
