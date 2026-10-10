@@ -45,6 +45,9 @@ test("the pinned hint and Settings set up the second chain; both session logins 
     await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
     await completeFixtureLogin(app, page, "k-ruoka");
     await page.getByRole("button", { name: "Valmis", exact: true }).click();
+    // The comparison hint belongs to a non-empty list's total/transfer footer.
+    await page.getByLabel("Lisää tuote", { exact: true }).fill("Kahvi");
+    await page.getByRole("button", { name: "Lisää tuote listaan" }).click();
     const hint = page.getByRole("button", {
       name: "Vertaa S-kaupat: kirjaudu sisään",
     });
