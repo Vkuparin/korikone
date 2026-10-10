@@ -1,76 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
-<title id="title">Korikone local desktop architecture</title>
-<desc id="desc">A graphical desktop app calls a local application core. ChatGPT provides AI drafts. K-Ruoka cart and S-kaupat account-list adapters are implemented. A local PDF worker extracts receipt text. Only the human completes checkout.</desc>
-<rect width="1440" height="1020" fill="#f6f7f3"/>
-<text x="40" y="63" font-family="Segoe UI, sans-serif" font-size="38" font-weight="700" fill="#182c25">Korikone</text>
-<text x="40" y="100" font-family="Segoe UI, sans-serif" font-size="23" font-weight="400" fill="#52615a">Note-driven shopping • Local PDF receipts • Human checkout</text>
-<text x="40" y="140" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#52615a">LOCAL APP AND EXTERNAL SERVICES</text>
-<rect x="40" y="158" width="850" height="115" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="62" y="197" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">React interface in Electron</text>
-<text x="62" y="231" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Note, interpretation cards and compact shopping list • Finnish / English</text>
-<text x="62" y="260" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Narrow validated IPC; no credentials or generic tool execution</text>
-<rect x="940" y="158" width="460" height="115" rx="16" fill="#eaf3ed" stroke="#dce3db" stroke-width="2"/>
-<text x="962" y="197" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">ChatGPT / OpenAI</text>
-<text x="962" y="231" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Browser sign-in and plan permission</text>
-<text x="962" y="260" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Eligible AI requests use the user’s plan</text>
-<rect x="40" y="320" width="850" height="140" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="62" y="359" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local application and domain services</text>
-<text x="62" y="393" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Validate notes; merge ingredients; auto-select products and compute totals</text>
-<text x="62" y="422" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Bind approval to the basket, retailer account and current cart</text>
-<text x="62" y="451" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Journal writes; reconcile failures; verify the result</text>
-<rect x="940" y="320" width="460" height="140" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="962" y="359" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local AI runtime</text>
-<text x="962" y="393" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Protected OAuth tokens and profiles</text>
-<text x="962" y="422" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Model discovery and completed output</text>
-<text x="962" y="451" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">No retailer credentials or cart tools</text>
-<polyline points="465,273 465,320" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="465,320 459,310 471,310" fill="#698176"/>
-<polyline points="1170,320 1170,273" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="1170,273 1164,283 1176,283" fill="#698176"/>
-<polyline points="940,390 890,390" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="890,390 900,384 900,396" fill="#698176"/>
-<rect x="40" y="516" width="395" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="62" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">K-Ruoka adapter</text>
-<text x="62" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Pinned local k-ruoka-mcp process</text>
-<text x="62" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Reviewed schemas and capabilities</text>
-<text x="62" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
-<rect x="495" y="516" width="395" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="517" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat adapter</text>
-<text x="517" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Pinned s-kaupat-mcp v1.1.0</text>
-<text x="517" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Writes to the Korikone account list</text>
-<text x="517" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Verified account and store context</text>
-<rect x="940" y="516" width="460" height="145" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="962" y="555" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Local persistence</text>
-<text x="962" y="589" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">SQLite with migrations and backup</text>
-<text x="962" y="618" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Notes, receipts and transfer history</text>
-<text x="962" y="647" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Cart snapshots and operation journal</text>
-<polyline points="237,460 237,516" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="237,516 231,506 243,506" fill="#698176"/>
-<polyline points="690,460 690,516" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="690,516 684,506 696,506" fill="#698176"/>
-<polyline points="890,432 915,432 915,578 940,578" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="940,578 930,572 930,584" fill="#698176"/>
-<rect x="40" y="698" width="395" height="115" rx="16" fill="#eaf3ed" stroke="#dce3db" stroke-width="2"/>
-<text x="62" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">K-Ruoka</text>
-<text x="62" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Selected branch and fulfillment</text>
-<text x="62" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Search, authenticated cart and readback</text>
-<rect x="495" y="698" width="395" height="115" rx="16" fill="#eaf3ed" stroke="#dce3db" stroke-width="2"/>
-<text x="517" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">S-kaupat</text>
-<text x="517" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Selected branch and fulfillment</text>
-<text x="517" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Search, account list and readback</text>
-<rect x="940" y="698" width="460" height="115" rx="16" fill="#ffffff" stroke="#dce3db" stroke-width="2"/>
-<text x="962" y="737" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">PDF receipt worker</text>
-<text x="962" y="771" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Local PDF.js text extraction</text>
-<text x="962" y="800" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">Bounded size and time; OCR deferred</text>
-<polyline points="237,661 237,698" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="237,698 231,688 243,688" fill="#698176"/>
-<polyline points="690,661 690,698" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="690,698 684,688 696,688" fill="#698176"/>
-<rect x="40" y="870" width="1360" height="105" rx="16" fill="#fff4df" stroke="#e8d9b9" stroke-width="2"/>
-<text x="62" y="909" font-family="Segoe UI, sans-serif" font-size="23" font-weight="700" fill="#182c25">Human checkout</text>
-<text x="62" y="943" font-family="Segoe UI, sans-serif" font-size="19" font-weight="400" fill="#52615a">K-Ruoka: default browser. S-kaupat: authenticated site, then add list to cart. The user orders and pays.</text>
-<polyline points="237,813 237,870" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="237,870 231,860 243,860" fill="#698176"/>
-<polyline points="690,813 690,870" fill="none" stroke="#698176" stroke-width="3"/>
-<polygon points="690,870 684,860 696,860" fill="#698176"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="1640" viewBox="0 0 1760 1640" role="img" aria-labelledby="title desc">
+<title id="title">Korikone architecture: published baseline and planned evolution</title>
+<desc id="desc">Solid boxes show the published v0.5.0 local Electron application, protected ChatGPT access, SQLite data, local receipt extraction and retailer adapters using isolated embedded store sessions. Dashed boxes show the planned read-only planning coordinator with compact context, product resolution, previews, edits and atomic commit, plus later local model support. Only the transfer service can write approved retailer batches. The human selects slots, places orders and pays. Palette and theme preferences remain independent.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#557268"/></marker>
+<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#18352c} .title{font-size:40px;font-weight:700}.heading{font-size:25px;font-weight:700}.body{font-size:19px}.small{font-size:16px;fill:#526b61}.label{font-size:17px;font-weight:700}.planned{fill:#f1f5fc;stroke:#5b79a5;stroke-width:2;stroke-dasharray:9 6}.later{fill:#f5f1fa;stroke:#8b70a2;stroke-width:2;stroke-dasharray:9 6}.current{fill:#fff;stroke:#acbeb4;stroke-width:2}.link{fill:none;stroke:#557268;stroke-width:2.5;marker-end:url(#arrow)}.optional{stroke-dasharray:7 5}</style></defs>
+<rect width="1760" height="1640" fill="#f7f9f6"/>
+
+<text x="40" y="62" class="title">Korikone architecture</text>
+<text x="40" y="100" class="body">Published v0.5.0 baseline + accepted development plan · 10 October 2026</text>
+<rect x="40" y="125" width="24" height="16" rx="4" class="current"/>
+<text x="76" y="139" class="small">Published baseline</text>
+<rect x="265" y="125" width="24" height="16" rx="4" class="planned"/>
+<text x="301" y="139" class="small">Planned / release work in progress</text>
+<rect x="624" y="125" width="24" height="16" rx="4" class="later"/>
+<text x="660" y="139" class="small">Later, release unassigned</text>
+<rect x="40" y="185" width="1180" height="1250" rx="22" fill="#edf3ed" stroke="#cbd8ce" stroke-width="2"/>
+<rect x="1270" y="185" width="450" height="1080" rx="22" fill="#f0f3f7" stroke="#cbd4e0" stroke-width="2"/>
+<text x="65" y="220" class="label">THIS COMPUTER</text>
+<text x="1295" y="220" class="label">EXTERNAL SERVICES</text>
+<rect x="70" y="245" width="1120" height="145" rx="16" class="current"/>
+<text x="92" y="284" class="heading" data-max-width="1076">React interface in Electron</text>
+<text x="92" y="322" class="body" data-max-width="1076">One note → interpretation → shopping list · explicit Update / Ctrl+Enter · compact model choice</text>
+<text x="92" y="351" class="body" data-max-width="1076">Rows, alternatives, at-home flags, calendar, history and Settings · Finnish / English</text>
+<text x="92" y="372" class="small" data-max-width="1076">Planned UI: organized Settings + System/Light/Dark (v0.6); explicit edit/New list context (v0.8); palettes later</text>
+<polyline points="630,390 630,447" class="link"/>
+<text x="650" y="425" class="small">Validated IPC · renderer never receives credentials</text>
+<rect x="70" y="450" width="1120" height="175" rx="16" class="current"/>
+<text x="92" y="489" class="heading" data-max-width="1076">Application and domain services</text>
+<text x="92" y="527" class="body" data-max-width="1076">Validate intent · merge requirements · calculate enough packs and totals · retain compatible quotes</text>
+<text x="92" y="556" class="body" data-max-width="1076">Transfer: bind approval to batch/revision/account → validate → journal writes → reconcile → read back</text>
+<text x="92" y="585" class="body" data-max-width="1076">Planning remains read-only; only the transfer service applies an approved retailer batch</text>
+<polyline points="410,625 410,697" class="link"/>
+<text x="92" y="666" class="small">Explicit request / future edits</text>
+<polyline points="985,625 985,697" class="link"/>
+<text x="1010" y="666" class="small">AI requests</text>
+<rect x="70" y="700" width="650" height="240" rx="16" class="planned"/>
+<text x="92" y="739" class="heading" data-max-width="606">Planned planning coordinator</text>
+<text x="92" y="777" class="body" data-max-width="606">Compact relevant context → interpret or edit</text>
+<text x="92" y="806" class="body" data-max-width="606">Retailer candidates → rules → optional AI resolution</text>
+<text x="92" y="835" class="body" data-max-width="606">Validate → provisional preview → atomic commit</text>
+<text x="92" y="864" class="body" data-max-width="606">Request coverage + category/qualifier provenance</text>
+<text x="92" y="893" class="body" data-max-width="606">Cancel, stale input or failure: retain saved list</text>
+<text x="92" y="922" class="small" data-max-width="606">F15 / F16 / F17 · max 3 AI requests incl. repair + resolver</text>
+<rect x="780" y="700" width="410" height="240" rx="16" class="current"/>
+<text x="802" y="739" class="heading" data-max-width="366">AI access in main process</text>
+<text x="802" y="777" class="body" data-max-width="366">Protected ChatGPT authorization</text>
+<text x="802" y="806" class="body" data-max-width="366">Account model discovery + selection</text>
+<text x="802" y="835" class="body" data-max-width="366">Validated generation + cancellation</text>
+<text x="802" y="864" class="body" data-max-width="366">No retailer tools or credentials</text>
+<text x="802" y="922" class="small" data-max-width="366">Planned provider interface: ChatGPT or local (F21)</text>
+<polyline points="720,820 777,820" class="link"/>
+<rect x="1300" y="450" width="390" height="175" rx="16" class="current"/>
+<text x="1322" y="489" class="heading" data-max-width="346">ChatGPT / OpenAI</text>
+<text x="1322" y="527" class="body" data-max-width="346">Account-authorized cloud inference</text>
+<text x="1322" y="556" class="body" data-max-width="346">Browser sign-in; protected tokens</text>
+<text x="1322" y="585" class="body" data-max-width="346">Validated recipe / grocery drafts</text>
+<text x="1322" y="607" class="small" data-max-width="346">Planned: supplied-candidate resolution</text>
+<polyline points="1190,785 1245,785 1245,530 1297,530" class="link"/>
+<rect x="1300" y="700" width="390" height="240" rx="16" class="current"/>
+<text x="1322" y="739" class="heading" data-max-width="346">Data contract</text>
+<text x="1322" y="777" class="body" data-max-width="346">AI proposes; domain code validates</text>
+<text x="1322" y="806" class="body" data-max-width="346">Retailers supply product facts</text>
+<text x="1322" y="835" class="body" data-max-width="346">Explicit requirements beat price</text>
+<text x="1322" y="864" class="body" data-max-width="346">Uncertain choices remain visible</text>
+<text x="1322" y="893" class="body" data-max-width="346">Preferences save only with consent</text>
+<text x="1322" y="922" class="small" data-max-width="346">No prompts, accounts or tokens in diagnostics</text>
+<polyline points="270,940 270,1007" class="link optional"/>
+<text x="90" y="983" class="small">Commit only valid, current results</text>
+<polyline points="650,940 650,1007" class="link optional"/>
+<text x="670" y="983" class="small">Read catalogue candidates</text>
+<rect x="70" y="1010" width="400" height="220" rx="16" class="current"/>
+<text x="92" y="1049" class="heading" data-max-width="356">SQLite and local state</text>
+<text x="92" y="1087" class="body" data-max-width="356">Notes, recipes, calendar, receipts</text>
+<text x="92" y="1116" class="body" data-max-width="356">Observed prices + transfer history</text>
+<text x="92" y="1145" class="body" data-max-width="356">Last quote + operation journal</text>
+<text x="92" y="1174" class="body" data-max-width="356">Profile migrations and backups</text>
+<text x="92" y="1212" class="small" data-max-width="356">Planned: preferences + purchases · F15/F6/F18</text>
+<rect x="525" y="1010" width="665" height="220" rx="16" class="current"/>
+<text x="547" y="1049" class="heading" data-max-width="621">Retailer access + private Kauppa sessions</text>
+<text x="547" y="1087" class="body" data-max-width="621">K-Ruoka: integrated site API in persist:k-ruoka</text>
+<text x="547" y="1116" class="body" data-max-width="621">S-kaupat: shared s-kaupat-mcp v1.3.0 runtime</text>
+<text x="547" y="1145" class="body" data-max-width="621">S host: private loopback bridge to persist:s-kaupat</text>
+<text x="547" y="1174" class="body" data-max-width="621">Sandboxed store pages; no preload / Node access</text>
+<text x="547" y="1212" class="small" data-max-width="621">Allowlisted operations · session/account checks · explicit external fallbacks</text>
+<polyline points="1190,585 1210,585 1210,1185 1193,1185" class="link"/>
+<polyline points="1190,1120 1297,1120" class="link"/>
+<text x="1210" y="1080" class="small">Retailer API</text>
+<rect x="1300" y="1010" width="390" height="220" rx="16" class="current"/>
+<text x="1322" y="1049" class="heading" data-max-width="346">Retailer sites</text>
+<text x="1322" y="1087" class="body" data-max-width="346">K-Ruoka: catalogue + basket</text>
+<text x="1322" y="1116" class="body" data-max-width="346">S-kaupat: catalogue + Korikone list</text>
+<text x="1322" y="1145" class="body" data-max-width="346">Verified result opens store tab</text>
+<text x="1322" y="1174" class="body" data-max-width="346">Search / stock / prices / readback</text>
+<text x="1322" y="1212" class="small" data-max-width="346">Independent persistent account per chain</text>
+<rect x="70" y="1285" width="400" height="125" rx="16" class="current"/>
+<text x="92" y="1324" class="heading" data-max-width="356">Local receipt worker</text>
+<text x="92" y="1362" class="body" data-max-width="356">PDF.js text extraction · TXT / CSV</text>
+<text x="92" y="1391" class="body" data-max-width="356">Bounded file size/time · OCR later</text>
+<polyline points="270,1285 270,1233" class="link"/>
+<rect x="780" y="1260" width="410" height="160" rx="16" class="later"/>
+<text x="802" y="1299" class="heading" data-max-width="366">Optional local model runner</text>
+<text x="802" y="1337" class="body" data-max-width="366">Installed on this machine · loopback</text>
+<text x="802" y="1366" class="body" data-max-width="366">Explicit choice; no silent cloud fallback</text>
+<text x="802" y="1402" class="small" data-max-width="366">F21 · same schemas, validation and call bounds</text>
+<polyline points="1190,1350 1205,1350 1205,930 1193,930" class="link optional"/>
+<polyline points="1495,1230 1495,1482" class="link"/>
+<text x="1302" y="1370" class="small">Destination handoff after verified transfer</text>
+<rect x="40" y="1485" width="1680" height="115" rx="16" class="current"/>
+<text x="62" y="1524" class="heading" data-max-width="1636">Human controls checkout</text>
+<text x="62" y="1562" class="body" data-max-width="1636">K-Ruoka basket or S-kaupat list in the store tab. S-kaupat add-all, pickup slot, order and payment stay manual.</text>
+<text x="62" y="1582" class="small" data-max-width="1636">Later additions reuse these boundaries: purchase memory, real-price budgets, offer ideas and local models.</text>
 </svg>

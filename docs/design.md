@@ -4,7 +4,7 @@ Revised 9 October 2026 after the first user feedback round. The current directio
 
 Korikone turns a household's plain-language shopping note into an editable, priced shopping list. Meals, ready foods, breakfasts, evening foods and treats belong in the same note. Product choices happen automatically; the user corrects exceptions and reviews the resulting cart changes. Checkout stays in the retailer.
 
-Current published delivery: **0.2.0-alpha.3 pre-release**. See [pre-release scope and gates](pre-release.md). This stage preserves the current design and focuses on distributable builds and observed acceptance. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
+Current published delivery: **v0.5.0 unsigned Windows pre-release**, integrated into main. See [release verification](release-0.5.0.md) and [release goals](roadmap.md). The [accepted UI design](ui-design.md) and [shopping experience plan](shopping-experience.md) describe the next changes; they are not claims about the published build. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
 
 ## Product decisions
 
@@ -81,18 +81,24 @@ The new `listHistory` records verified transfers, not completed purchases. Exist
 
 ## Architecture
 
-![Current architecture](architecture.svg)
+![Published v0.5.0 architecture and planned evolution](architecture.svg)
+
+Updated 10 October 2026. Solid boxes show the published baseline; dashed blue shows planned work or release work in progress; dashed purple shows later work with no release assigned. The picture separates the computer from cloud/retailer services. [PNG preview](architecture.png) is exported from the same SVG.
 
 - `src/ui`: note, interpretation, shopping list, schedule, history, recipes and settings.
 - `src/domain`: versioned schemas, additive requirements, quantities and pack-cost matching.
 - `src/application`: saved state, list application, product matching, review and journaled transfer.
-- `src/ai`: protected ChatGPT authorization, model discovery and validated interpretation.
+- `src/ai`: protected ChatGPT authorization, model discovery and validated interpretation. Planned compact context, supplied-candidate resolution and edits share domain validation; later F21 introduces an explicitly selected local provider without silent cloud fallback.
 - `src/receipts`: local file reader and isolated PDF extraction worker.
-- `src/stores`: demo providers and the pinned K-Ruoka and S-kaupat MCP adapters.
+- `src/stores`: demo providers, the integrated K-Ruoka site client and the pinned shared S-kaupat v1.3.0 runtime. Both live paths use isolated persistent store-tab sessions; old external worker/browser paths remain explicit fallbacks.
 - `src/persistence`: SQLite storage and durable operation journal.
 - `src/main`: restricted IPC, file dialogs, clipboard, the in-app store view and the development fixture site.
 
 Schema defaults retain compatibility with older saved profiles. Language changes remain presentation-only and preserve quantities, typed notes, approvals and in-flight requests.
+
+Planned F15/F16/F17 coordinator work combines compact relevant context, intent/qualifier provenance, catalogue matching, at most one optional batched candidate resolver, provisional results and atomic commit under one explicit action. Request coverage maps interpreted requests to results or visible unresolved entries; independent note-based fixture expectations catch omissions the model's own ledger cannot prove absent. Failed/cancelled/stale runs retain the saved list. Local rules remain authoritative for suitability and pack cost, and only the separate journaled transfer path can write an approved batch. The current three-request planning cap includes interpretation, one possible schema repair and one resolver.
+
+Planned F15 preferences save only through explicit Remember consent and are inspectable in Advanced Settings; F6/F18 purchase statistics remain suggestions rather than binding preferences. Existing calendar, transfer history, observed prices and receipt storage are reused. Palette and System/Light/Dark preferences are independent presentation settings; U17's later palettes reuse the semantic variables established by U14. Local inference under F21 runs on this computer but retailer access still uses the network. See canonical [version task lists](tasks/README.md) for status and gates.
 
 The latest successful quote is a separate SQLite document, `last-quote` (`development:last-quote` in development mode), outside `AppState`, JSON backups and diagnostics. It holds the basket, candidates, pickup fee, context and `quotedAt`. `src/application/quotes.ts` validates the document and binds it to the store/fulfillment context, computed requirements, accepted choices, exclusions and product preference. Language, calendar, budget and unrelated saved recipes do not invalidate it. Startup rejects malformed or incompatible documents without fetching replacements.
 
@@ -104,6 +110,6 @@ Each chain has a sandboxed store view with its own persistent session. Korikone'
 
 ## Current boundaries
 
-K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.3.0 release. It writes to the account's Korikone shopping list because S-kaupat has no server-side cart that the app can fill. The user then adds that list to the cart on the retailer site. Live acceptance is still required. The meal calendar is editable and saved locally; changes do not alter the shopping list. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
+K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.3.0 release and writes to the account's Korikone shopping list. U4 found that the site's add-all flow reserves a pickup slot, so the user performs it manually. Both destinations open inside the app after verified transfer. Authorized v0.5.0 acceptance checked remembered sessions, small transfers and duplicate-safe reopening; remaining stable-release checks are recorded separately. The meal calendar is editable and saved locally; changes do not alter the shopping list. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 
 See [UX behavior](ux.md), [roadmap](roadmap.md), [dependency decisions](dependency-decisions.md) and [acceptance evidence](acceptance.md). Live model quality, retailer writes, browser account continuity and packaged installation require separate acceptance checks.
