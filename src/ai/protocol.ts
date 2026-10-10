@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { InferenceError, type InferenceOutput } from "./provider";
 export const issuer = "https://auth.openai.com";
 export const resource = "https://api.openai.com/v1";
 export function authorization(
@@ -53,7 +54,15 @@ export function callback(
   if (!code) throw new Error("invalidCallback");
   return { clientId, code };
 }
-export function responseRequest(model: string, input: string) {
+/** Route-specific evidence is recorded in docs/structured-output.md (F16.7). */
+export const chatGPTOutputModes = ["text"] as const;
+export function responseRequest(
+  model: string,
+  input: string,
+  output: InferenceOutput = { mode: "text" },
+) {
+  if (output.mode !== "text")
+    throw new InferenceError("unsupportedCapability");
   return {
     model,
     input: [{ role: "user", content: input }],
