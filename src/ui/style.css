@@ -850,13 +850,27 @@ body:has(.app-main) .demo {
   padding: 22px 18px 0;
   border-radius: 10px;
   min-width: 0;
-  /* The list scrolls on its own; the total and transfer bar stay at its bottom. */
+  display: flex;
+  flex-direction: column;
+  /* The footer occupies its own space below the scrolling rows. */
   position: sticky;
   top: 12px;
   max-height: calc(100vh - 24px);
+  overflow: visible;
+}
+.shopping-rows {
+  min-height: 0;
   overflow-y: auto;
-  /* Rows scrolled into view by keyboard or code stop above the pinned bar. */
-  scroll-padding-bottom: 160px;
+  padding: 4px 6px 8px;
+  margin: -4px -6px 0;
+  scroll-padding: 8px;
+}
+.shopping-panel[data-flow="true"] {
+  position: static;
+  max-height: none;
+}
+.shopping-panel[data-flow="true"] .shopping-rows {
+  overflow: visible;
 }
 .list-menu {
   position: relative;
@@ -1024,9 +1038,7 @@ body:has(.app-main) .demo {
   gap: 6px;
 }
 .shopping-total {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  flex: 0 0 auto;
   margin: 16px -18px 0;
   padding: 12px 18px 16px;
   background: var(--kk-surface);
@@ -1037,22 +1049,24 @@ body:has(.app-main) .demo {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  gap: 12px;
+  font-size: 14px;
 }
-.shopping-total strong {
-  font-size: 23px;
+.shopping-total .total-line strong {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
 }
 .list-footer small {
-  font-size: 10px;
+  font-size: 14px;
   color: var(--kk-muted);
 }
 .list-footer .warning {
-  font-size: 11px;
+  font-size: 14px;
 }
 .transfer-button {
   width: 100%;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 16px;
 }
 .list-exports {
   display: flex;
@@ -1288,21 +1302,39 @@ body:has(.app-main) > #root > .progress {
   display: block;
   width: 100%;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .confirm-panel {
   display: grid;
-  gap: 6px;
-  max-height: 55vh;
-  overflow-y: auto;
+  gap: 12px;
   margin-bottom: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--kk-border);
-  font-size: 12px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
 }
 .confirm-panel h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 20px;
+}
+.confirm-panel.transfer-decision,
+.confirm-panel.transfer-exception,
+.confirm-panel.transfer-result {
+  padding: 16px;
+  background: var(--kk-bg);
+  border: 1px solid var(--kk-border);
+  border-radius: 12px;
+}
+.transfer-exception,
+.transfer-result.partial {
+  border-left: 4px solid var(--kk-warning);
+}
+.transfer-result.verified h3 {
+  color: var(--kk-success);
+}
+.confirm-panel button {
+  font-size: 16px;
+  min-height: 36px;
 }
 .confirm-panel p,
 .confirm-panel ul {
@@ -1506,12 +1538,12 @@ body:has(.app-main) > #root > .progress {
 }
 .shopping-total .compare-hint {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--kk-muted);
 }
 .shopping-total .compare-hint .text {
   padding: 0;
-  font-size: 11px;
+  font-size: 14px;
 }
 .store-picker {
   grid-column: 1 / -1;

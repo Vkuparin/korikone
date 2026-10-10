@@ -104,7 +104,7 @@ export function ConfirmPanel({
     return (
       <section
         ref={section}
-        className="confirm-panel"
+        className="confirm-panel transfer-decision"
         aria-label={tr("Siirron vahvistus", "Transfer confirmation")}
       >
         <h3>
@@ -251,7 +251,7 @@ export function ConfirmPanel({
     snapshot.transferException === "unresolved"
   )
     return (
-      <section className="confirm-panel" role="alert">
+      <section className="confirm-panel transfer-exception" role="alert">
         <p>{t(snapshot.transferException)}</p>
         <button
           disabled={busy}
@@ -272,7 +272,7 @@ export function ConfirmPanel({
   return (
     <section
       ref={section}
-      className="confirm-panel"
+      className={`confirm-panel transfer-result ${journal.status}`}
       aria-label={tr("Siirron tulos", "Transfer result")}
     >
       <h3 role="status">

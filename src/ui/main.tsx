@@ -71,6 +71,7 @@ function App() {
     handoffError: null,
     transferBatchKey: "",
     developmentHandoffs: [],
+    developmentStoreWrites: 0,
     journal: null,
     storeResults: [],
     contextOptions: null,

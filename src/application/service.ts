@@ -256,6 +256,15 @@ export class Service {
       handoffError: this.handoffError,
       transferBatchKey: this.batchKey(),
       developmentHandoffs: this.developmentHandoffs,
+      developmentStoreWrites: this.developmentMode
+        ? this.registry
+            .all()
+            .reduce(
+              (sum, provider) =>
+                sum + (provider instanceof DemoProvider ? provider.writes : 0),
+              0,
+            )
+        : 0,
       storeResults: this.storeResults,
       contextOptions: this.contextOptions,
       storeLogin:

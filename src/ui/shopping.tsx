@@ -53,6 +53,7 @@ export function ShoppingWorkspace({
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
   const panel = useRef<HTMLElement>(null);
+  const footer = useRef<HTMLDivElement>(null);
   const [comparing, setComparing] = useState(false);
   const [confirming, setConfirming] = useState(
     !!snapshot.journal &&
@@ -68,21 +69,28 @@ export function ShoppingWorkspace({
     const fit = () => {
       const el = panel.current;
       if (!el) return;
-      if (getComputedStyle(el).position !== "sticky") {
+      if (window.matchMedia("(max-width: 900px)").matches) {
         el.style.maxHeight = "";
+        el.dataset.flow = "true";
         return;
       }
       const top = Math.max(el.getBoundingClientRect().top, 12);
-      el.style.maxHeight = `${window.innerHeight - top - 12}px`;
+      const available = window.innerHeight - top - 12;
+      const normalFlow = (footer.current?.offsetHeight ?? 0) + 180 > available;
+      el.dataset.flow = String(normalFlow);
+      el.style.maxHeight = normalFlow ? "" : `${available}px`;
     };
     fit();
     window.addEventListener("scroll", fit, { passive: true });
     window.addEventListener("resize", fit);
+    const observer = new ResizeObserver(fit);
+    if (footer.current) observer.observe(footer.current);
     return () => {
+      observer.disconnect();
       window.removeEventListener("scroll", fit);
       window.removeEventListener("resize", fit);
     };
-  }, []);
+  }, [view]);
   const active = useRef(true);
   const running = useRef(false);
   const savedNote = useRef(state.note);
@@ -681,470 +689,479 @@ export function ShoppingWorkspace({
         )}
       </section>
       <aside className="shopping-panel" ref={panel}>
-        <div className="section-heading compact">
-          <h2>
-            {tr("Ostoslista", "Shopping list")}{" "}
-            <span className="muted">· {all.length}</span>
-          </h2>
-          <details className="list-menu">
-            <summary aria-label={tr("Listan toiminnot", "List actions")}>
-              ···
-            </summary>
-            <button
-              className="text"
-              disabled={busy}
-              onClick={async () => {
-                if (await call("newWeek")) changeNote("");
-              }}
-            >
-              {tr("Tyhjennä ostoslista", "Clear shopping list")}
-            </button>
-            <button className="text" onClick={() => void call("exportList")}>
-              {tr("Tallenna tekstinä", "Save as text")}
-            </button>
-            <button
-              className="text"
-              disabled={busy || !rows.length}
-              onClick={() => void call("buildBasket")}
-            >
-              {tr("Päivitä tuotteet ja hinnat", "Refresh products and prices")}
-            </button>
-          </details>
-        </div>
-        <form
-          className="quick-add"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const data = new FormData(form);
-            try {
-              const next = addGrocery(
-                state,
-                String(data.get("item")),
-                String(data.get("amount")),
-                String(data.get("unit")) as Unit | "kg" | "l",
-              );
-              setGroceryError(false);
-              void save(next).then((ok) => {
-                if (ok) form.reset();
-              });
-            } catch {
-              setGroceryError(true);
-            }
-          }}
-        >
-          <input
-            name="item"
-            aria-label={tr("Lisää tuote", "Add grocery")}
-            placeholder={tr(
-              "+ Lisää tuote, esim. kahvi",
-              "+ Add a grocery, e.g. coffee",
-            )}
-            required
-            maxLength={200}
-          />
-          <input
-            name="amount"
-            aria-label={tr("Tuotteen määrä", "Grocery amount")}
-            inputMode="decimal"
-            defaultValue="1"
-            required
-          />
-          <select
-            name="unit"
-            aria-label={tr("Tuotteen yksikkö", "Grocery unit")}
-          >
-            <option value="pcs">{tr("kpl", "pcs")}</option>
-            <option value="g">g</option>
-            <option value="kg">kg</option>
-            <option value="ml">ml</option>
-            <option value="l">l</option>
-          </select>
-          <button
-            disabled={busy}
-            aria-label={tr("Lisää tuote listaan", "Add grocery to list")}
-          >
-            +
-          </button>
-        </form>
-        {groceryError && (
-          <p role="alert">
-            {tr(
-              "Anna positiivinen määrä. Kilot ja litrat voivat sisältää enintään kolme desimaalia; grammat, millilitrat ja kappaleet ovat kokonaislukuja.",
-              "Enter a positive amount. Kilograms and litres accept up to three decimal places; grams, millilitres and pieces must be whole numbers.",
-            )}
-          </p>
-        )}
-        <label className="product-preference">
-          {tr("Tuotevalinnat", "Product choices")}
-          <select
-            value={state.productPreference}
-            disabled={busy}
-            onChange={(e) =>
-              void save({
-                ...state,
-                productPreference: e.target
-                  .value as AppState["productPreference"],
-                accepted: {},
-              })
-            }
-          >
-            <option value="price">
-              {tr("Edullisin sopiva pakkausmäärä", "Lowest total pack cost")}
-            </option>
-            <option value="storeBrand">
-              {tr("Suosi kaupan merkkejä", "Prefer store brands")}
-            </option>
-            <option value="avoidStoreBrand">
-              {tr("Vältä kaupan merkkejä", "Avoid store brands")}
-            </option>
-          </select>
-        </label>
-        {!all.length && (
-          <div className="empty-list">
-            <span aria-hidden="true">☷</span>
-            <h3>{tr("Lista täyttyy tähän", "Your list will appear here")}</h3>
-            <p>
-              {tr(
-                "Kirjoita toiveesi vasemmalle. Jokaisen tuotteen kohdalla näkyy, mitä ruokaa varten se on.",
-                "Write your note on the left. Each grocery shows which meal it belongs to.",
-              )}
-            </p>
-          </div>
-        )}
-        {categories.map((cat) => (
-          <section className="grocery-category" key={cat}>
-            <h3>{cat}</h3>
-            {all
-              .filter((r) => category(r.name) === cat)
-              .map((r) => {
-                const key = `${r.id}:${r.unit}`;
-                const line = snapshot.basket.find(
-                  (l) =>
-                    l.requirement.id === r.id && l.requirement.unit === r.unit,
-                );
-                const home = state.skipped.includes(key);
-                const step = line?.product
-                  ? line.product.packAmount * line.product.increment
-                  : r.unit === "pcs"
-                    ? 1
-                    : 100;
-                const count = line?.product ? line.packs : r.amount;
-                const cost = (p: Product) =>
-                  Math.ceil(r.amount / p.packAmount / p.increment) *
-                  p.increment *
-                  (p.price! + p.deposit);
-                const cheaper = line?.candidates
-                  .filter(
-                    (p) =>
-                      p.available &&
-                      p.price !== null &&
-                      p.packAmount > 0 &&
-                      p.increment > 0 &&
-                      line.total !== null &&
-                      cost(p) < line.total &&
-                      // A look-alike such as chicken mince is not the same ingredient.
-                      (!isLive(state.context.providerId) ||
-                        relevant(p.name, r.name)),
-                  )
-                  .sort((a, b) => cost(a) - cost(b))[0];
-                return (
-                  <div
-                    className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
-                    key={key}
-                  >
-                    <button
-                      className="home-button"
-                      aria-label={`${tr("Löytyy kotoa", "Already at home")}: ${r.name}`}
-                      aria-pressed={home}
-                      disabled={busy}
-                      onClick={() =>
-                        void save({
-                          ...state,
-                          skipped: home
-                            ? state.skipped.filter((k) => k !== key)
-                            : [...state.skipped, key],
-                        })
-                      }
-                    >
-                      ⌂
-                    </button>
-                    <div className="grocery-description">
-                      {line ? (
-                        <button
-                          className="row-name"
-                          aria-expanded={opened === key}
-                          onClick={() => setOpened(opened === key ? null : key)}
-                        >
-                          {line.product?.name ?? r.name}
-                        </button>
-                      ) : (
-                        <strong>{r.name}</strong>
-                      )}
-                      {!!line?.excluded && (
-                        <small>
-                          {line.excluded}{" "}
-                          {tr(
-                            "tuotetta rajattu pois ruokavalion perusteella",
-                            "products hidden by household exclusions",
-                          )}
-                        </small>
-                      )}
-                      {r.sources.includes("staple") && (
-                        <small>
-                          {tr("Viimeksi ostettu", "Last purchased")}:{" "}
-                          {state.staples.find((s) => s.id === r.id)
-                            ?.lastPurchased
-                            ? new Date(
-                                state.staples.find((s) => s.id === r.id)!
-                                  .lastPurchased!,
-                              ).toLocaleDateString(fi ? "fi-FI" : "en-FI")
-                            : tr("ei vielä merkitty", "not recorded")}
-                        </small>
-                      )}
-                      <small>
-                        {r.sources
-                          .map((s) =>
-                            s === "staple"
-                              ? tr("Vakio-ostos", "Regular item")
-                              : s === "extra"
-                                ? tr("Lisätty käsin", "Extra grocery")
-                                : s,
-                          )
-                          .filter((s, i, a) => a.indexOf(s) === i)
-                          .join(" · ")}
-                      </small>
-                      <small className="row-amount">
-                        {r.amount} {unitLabel(r.unit, state.language)}
-                      </small>
-                      {!home && !line?.product && (
-                        <small className="warning">
-                          {tr("Tuote puuttuu", "Needs a product")}
-                        </small>
-                      )}
-                    </div>
-                    <div className="quantity-control">
-                      <button
-                        aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
-                        disabled={busy || r.amount <= step}
-                        onClick={() =>
-                          void save({
-                            ...state,
-                            quantities: {
-                              ...state.quantities,
-                              [key]: Math.max(1, r.amount - step),
-                            },
-                          })
-                        }
-                      >
-                        −
-                      </button>
-                      <span>{count}</span>
-                      <small>
-                        {line?.product
-                          ? tr(
-                              count === 1 ? "pakkaus" : "pakkausta",
-                              count === 1 ? "pack" : "packs",
-                            )
-                          : unitLabel(r.unit, state.language)}
-                      </small>
-                      <button
-                        aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
-                        disabled={busy}
-                        onClick={() =>
-                          void save({
-                            ...state,
-                            quantities: {
-                              ...state.quantities,
-                              [key]: r.amount + step,
-                            },
-                          })
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                    <strong className="row-price">
-                      {home
-                        ? tr("kotona", "at home")
-                        : line?.total != null
-                          ? money(line.total)
-                          : tr("Hinta puuttuu", "Price unknown")}
-                    </strong>
-                    <button
-                      className="delete-row"
-                      aria-label={`${tr("Poista", "Remove")}: ${r.name}`}
-                      disabled={busy}
-                      onClick={() =>
-                        void save({
-                          ...state,
-                          removed: [...state.removed, key],
-                          skipped: state.skipped.filter((k) => k !== key),
-                        })
-                      }
-                    >
-                      ×
-                    </button>
-                    {!home && cheaper && opened !== key && (
-                      <button
-                        className="text row-alternative"
-                        onClick={() => setOpened(key)}
-                      >
-                        {tr("Edullisempi vaihtoehto", "Cheaper option")}{" "}
-                        {money(line!.total! - cost(cheaper))}
-                      </button>
-                    )}
-                    {undo[key] && (
-                      <button
-                        className="text row-alternative"
-                        disabled={busy}
-                        onClick={async () => {
-                          if (
-                            await call("accept", {
-                              ingredientId: r.id,
-                              productId: undo[key],
-                            })
-                          )
-                            setUndo((prev) => {
-                              const next = { ...prev };
-                              delete next[key];
-                              return next;
-                            });
-                        }}
-                      >
-                        {tr("Kumoa vaihto", "Undo swap")}
-                      </button>
-                    )}
-                    {opened === key && line && (
-                      <RowDetails
-                        snapshot={snapshot}
-                        line={line}
-                        busy={busy}
-                        money={money}
-                        cheaper={
-                          !home && cheaper
-                            ? { product: cheaper, total: cost(cheaper) }
-                            : null
-                        }
-                        confirmPack={(p, amount, unit) =>
-                          void call("setPackSize", {
-                            productId: p.id,
-                            amount,
-                            unit,
-                          })
-                        }
-                        choose={(p) => {
-                          if (line.product)
-                            setUndo({ ...undo, [key]: line.product.id });
-                          void call("accept", {
-                            ingredientId: r.id,
-                            productId: p.id,
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-          </section>
-        ))}
-        <div className="list-footer">
-          {state.skipped.length > 0 && (
-            <small>
-              {state.skipped.length}{" "}
-              {tr("tuotetta kotona, ei mukana", "items at home, excluded")}
-            </small>
-          )}
-          {missing.length > 0 && (
-            <p className="warning">
-              {missing.length}{" "}
-              {tr(
-                "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
-                "items need a price or suitable pack. They are excluded from the estimate.",
-              )}
-            </p>
-          )}
-          <small>
-            {snapshot.pickupFee
-              ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
-              : tr(
-                  "Toimitus- tai noutomaksu ei ole tiedossa.",
-                  "The delivery or pickup fee is not known.",
-                )}
-          </small>
-          {canCompare(snapshot) && (
-            <ComparePanel
-              snapshot={snapshot}
-              busy={busy}
-              call={call}
-              tr={tr}
-              money={money}
-              open={comparing}
-              onClose={() => setComparing(false)}
-            />
-          )}
-          {state.context.providerId === "s-kaupat" && (
-            <p className="input-notice">
-              {tr(
-                "Tuotteet siirtyvät S-kauppojen Korikone-ostoslistalle. Lisää ne ostoskoriin S-kauppojen sivulla.",
-                "Products go to your Korikone shopping list at S-kaupat. Add them to the cart on the S-kaupat website.",
-              )}
-            </p>
-          )}
-          <div className="list-exports">
-            <button
-              className="secondary"
-              disabled={busy || !rows.length}
-              onClick={async () => {
-                if (await call("copyList")) {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }
-              }}
-            >
-              {copied
-                ? tr("Kopioitu", "Copied")
-                : tr("Kopioi tekstinä", "Copy as text")}
-            </button>
-            <button
-              className="secondary"
-              disabled={busy || !rows.length}
-              onClick={() => void call("exportList")}
-            >
-              {tr("Tallenna lista", "Save list")}
-            </button>
-          </div>
-          <small>
-            {tr(
-              "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
-              "Check the fee and any unreported deposits at the store.",
-            )}
-          </small>
-          {!isLive(state.context.providerId) && (
-            <details className="demo-controls">
-              <summary>{tr("Esimerkki", "Demo")}</summary>
+        <div className="shopping-rows">
+          <div className="section-heading compact">
+            <h2>
+              {tr("Ostoslista", "Shopping list")}{" "}
+              <span className="muted">· {all.length}</span>
+            </h2>
+            <details className="list-menu">
+              <summary aria-label={tr("Listan toiminnot", "List actions")}>
+                ···
+              </summary>
               <button
-                className="secondary"
+                className="text"
                 disabled={busy}
-                onClick={() => void call("scenario", "interrupt")}
+                onClick={async () => {
+                  if (await call("newWeek")) changeNote("");
+                }}
+              >
+                {tr("Tyhjennä ostoslista", "Clear shopping list")}
+              </button>
+              <button className="text" onClick={() => void call("exportList")}>
+                {tr("Tallenna tekstinä", "Save as text")}
+              </button>
+              <button
+                className="text"
+                disabled={busy || !rows.length}
+                onClick={() => void call("buildBasket")}
               >
                 {tr(
-                  "Esimerkki: keskeytä seuraava siirto",
-                  "Demo: interrupt next transfer",
+                  "Päivitä tuotteet ja hinnat",
+                  "Refresh products and prices",
                 )}
+              </button>
+            </details>
+          </div>
+          <form
+            className="quick-add"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const data = new FormData(form);
+              try {
+                const next = addGrocery(
+                  state,
+                  String(data.get("item")),
+                  String(data.get("amount")),
+                  String(data.get("unit")) as Unit | "kg" | "l",
+                );
+                setGroceryError(false);
+                void save(next).then((ok) => {
+                  if (ok) form.reset();
+                });
+              } catch {
+                setGroceryError(true);
+              }
+            }}
+          >
+            <input
+              name="item"
+              aria-label={tr("Lisää tuote", "Add grocery")}
+              placeholder={tr(
+                "+ Lisää tuote, esim. kahvi",
+                "+ Add a grocery, e.g. coffee",
+              )}
+              required
+              maxLength={200}
+            />
+            <input
+              name="amount"
+              aria-label={tr("Tuotteen määrä", "Grocery amount")}
+              inputMode="decimal"
+              defaultValue="1"
+              required
+            />
+            <select
+              name="unit"
+              aria-label={tr("Tuotteen yksikkö", "Grocery unit")}
+            >
+              <option value="pcs">{tr("kpl", "pcs")}</option>
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+              <option value="ml">ml</option>
+              <option value="l">l</option>
+            </select>
+            <button
+              disabled={busy}
+              aria-label={tr("Lisää tuote listaan", "Add grocery to list")}
+            >
+              +
+            </button>
+          </form>
+          {groceryError && (
+            <p role="alert">
+              {tr(
+                "Anna positiivinen määrä. Kilot ja litrat voivat sisältää enintään kolme desimaalia; grammat, millilitrat ja kappaleet ovat kokonaislukuja.",
+                "Enter a positive amount. Kilograms and litres accept up to three decimal places; grams, millilitres and pieces must be whole numbers.",
+              )}
+            </p>
+          )}
+          <label className="product-preference">
+            {tr("Tuotevalinnat", "Product choices")}
+            <select
+              value={state.productPreference}
+              disabled={busy}
+              onChange={(e) =>
+                void save({
+                  ...state,
+                  productPreference: e.target
+                    .value as AppState["productPreference"],
+                  accepted: {},
+                })
+              }
+            >
+              <option value="price">
+                {tr("Edullisin sopiva pakkausmäärä", "Lowest total pack cost")}
+              </option>
+              <option value="storeBrand">
+                {tr("Suosi kaupan merkkejä", "Prefer store brands")}
+              </option>
+              <option value="avoidStoreBrand">
+                {tr("Vältä kaupan merkkejä", "Avoid store brands")}
+              </option>
+            </select>
+          </label>
+          {!all.length && (
+            <div className="empty-list">
+              <span aria-hidden="true">☷</span>
+              <h3>{tr("Lista täyttyy tähän", "Your list will appear here")}</h3>
+              <p>
+                {tr(
+                  "Kirjoita toiveesi vasemmalle. Jokaisen tuotteen kohdalla näkyy, mitä ruokaa varten se on.",
+                  "Write your note on the left. Each grocery shows which meal it belongs to.",
+                )}
+              </p>
+            </div>
+          )}
+          {categories.map((cat) => (
+            <section className="grocery-category" key={cat}>
+              <h3>{cat}</h3>
+              {all
+                .filter((r) => category(r.name) === cat)
+                .map((r) => {
+                  const key = `${r.id}:${r.unit}`;
+                  const line = snapshot.basket.find(
+                    (l) =>
+                      l.requirement.id === r.id &&
+                      l.requirement.unit === r.unit,
+                  );
+                  const home = state.skipped.includes(key);
+                  const step = line?.product
+                    ? line.product.packAmount * line.product.increment
+                    : r.unit === "pcs"
+                      ? 1
+                      : 100;
+                  const count = line?.product ? line.packs : r.amount;
+                  const cost = (p: Product) =>
+                    Math.ceil(r.amount / p.packAmount / p.increment) *
+                    p.increment *
+                    (p.price! + p.deposit);
+                  const cheaper = line?.candidates
+                    .filter(
+                      (p) =>
+                        p.available &&
+                        p.price !== null &&
+                        p.packAmount > 0 &&
+                        p.increment > 0 &&
+                        line.total !== null &&
+                        cost(p) < line.total &&
+                        // A look-alike such as chicken mince is not the same ingredient.
+                        (!isLive(state.context.providerId) ||
+                          relevant(p.name, r.name)),
+                    )
+                    .sort((a, b) => cost(a) - cost(b))[0];
+                  return (
+                    <div
+                      className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
+                      key={key}
+                    >
+                      <button
+                        className="home-button"
+                        aria-label={`${tr("Löytyy kotoa", "Already at home")}: ${r.name}`}
+                        aria-pressed={home}
+                        disabled={busy}
+                        onClick={() =>
+                          void save({
+                            ...state,
+                            skipped: home
+                              ? state.skipped.filter((k) => k !== key)
+                              : [...state.skipped, key],
+                          })
+                        }
+                      >
+                        ⌂
+                      </button>
+                      <div className="grocery-description">
+                        {line ? (
+                          <button
+                            className="row-name"
+                            aria-expanded={opened === key}
+                            onClick={() =>
+                              setOpened(opened === key ? null : key)
+                            }
+                          >
+                            {line.product?.name ?? r.name}
+                          </button>
+                        ) : (
+                          <strong>{r.name}</strong>
+                        )}
+                        {!!line?.excluded && (
+                          <small>
+                            {line.excluded}{" "}
+                            {tr(
+                              "tuotetta rajattu pois ruokavalion perusteella",
+                              "products hidden by household exclusions",
+                            )}
+                          </small>
+                        )}
+                        {r.sources.includes("staple") && (
+                          <small>
+                            {tr("Viimeksi ostettu", "Last purchased")}:{" "}
+                            {state.staples.find((s) => s.id === r.id)
+                              ?.lastPurchased
+                              ? new Date(
+                                  state.staples.find((s) => s.id === r.id)!
+                                    .lastPurchased!,
+                                ).toLocaleDateString(fi ? "fi-FI" : "en-FI")
+                              : tr("ei vielä merkitty", "not recorded")}
+                          </small>
+                        )}
+                        <small>
+                          {r.sources
+                            .map((s) =>
+                              s === "staple"
+                                ? tr("Vakio-ostos", "Regular item")
+                                : s === "extra"
+                                  ? tr("Lisätty käsin", "Extra grocery")
+                                  : s,
+                            )
+                            .filter((s, i, a) => a.indexOf(s) === i)
+                            .join(" · ")}
+                        </small>
+                        <small className="row-amount">
+                          {r.amount} {unitLabel(r.unit, state.language)}
+                        </small>
+                        {!home && !line?.product && (
+                          <small className="warning">
+                            {tr("Tuote puuttuu", "Needs a product")}
+                          </small>
+                        )}
+                      </div>
+                      <div className="quantity-control">
+                        <button
+                          aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
+                          disabled={busy || r.amount <= step}
+                          onClick={() =>
+                            void save({
+                              ...state,
+                              quantities: {
+                                ...state.quantities,
+                                [key]: Math.max(1, r.amount - step),
+                              },
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                        <span>{count}</span>
+                        <small>
+                          {line?.product
+                            ? tr(
+                                count === 1 ? "pakkaus" : "pakkausta",
+                                count === 1 ? "pack" : "packs",
+                              )
+                            : unitLabel(r.unit, state.language)}
+                        </small>
+                        <button
+                          aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
+                          disabled={busy}
+                          onClick={() =>
+                            void save({
+                              ...state,
+                              quantities: {
+                                ...state.quantities,
+                                [key]: r.amount + step,
+                              },
+                            })
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                      <strong className="row-price">
+                        {home
+                          ? tr("kotona", "at home")
+                          : line?.total != null
+                            ? money(line.total)
+                            : tr("Hinta puuttuu", "Price unknown")}
+                      </strong>
+                      <button
+                        className="delete-row"
+                        aria-label={`${tr("Poista", "Remove")}: ${r.name}`}
+                        disabled={busy}
+                        onClick={() =>
+                          void save({
+                            ...state,
+                            removed: [...state.removed, key],
+                            skipped: state.skipped.filter((k) => k !== key),
+                          })
+                        }
+                      >
+                        ×
+                      </button>
+                      {!home && cheaper && opened !== key && (
+                        <button
+                          className="text row-alternative"
+                          onClick={() => setOpened(key)}
+                        >
+                          {tr("Edullisempi vaihtoehto", "Cheaper option")}{" "}
+                          {money(line!.total! - cost(cheaper))}
+                        </button>
+                      )}
+                      {undo[key] && (
+                        <button
+                          className="text row-alternative"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (
+                              await call("accept", {
+                                ingredientId: r.id,
+                                productId: undo[key],
+                              })
+                            )
+                              setUndo((prev) => {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                              });
+                          }}
+                        >
+                          {tr("Kumoa vaihto", "Undo swap")}
+                        </button>
+                      )}
+                      {opened === key && line && (
+                        <RowDetails
+                          snapshot={snapshot}
+                          line={line}
+                          busy={busy}
+                          money={money}
+                          cheaper={
+                            !home && cheaper
+                              ? { product: cheaper, total: cost(cheaper) }
+                              : null
+                          }
+                          confirmPack={(p, amount, unit) =>
+                            void call("setPackSize", {
+                              productId: p.id,
+                              amount,
+                              unit,
+                            })
+                          }
+                          choose={(p) => {
+                            if (line.product)
+                              setUndo({ ...undo, [key]: line.product.id });
+                            void call("accept", {
+                              ingredientId: r.id,
+                              productId: p.id,
+                            });
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+            </section>
+          ))}
+          <div className="list-footer">
+            {state.skipped.length > 0 && (
+              <small>
+                {state.skipped.length}{" "}
+                {tr("tuotetta kotona, ei mukana", "items at home, excluded")}
+              </small>
+            )}
+            {missing.length > 0 && (
+              <p className="warning">
+                {missing.length}{" "}
+                {tr(
+                  "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
+                  "items need a price or suitable pack. They are excluded from the estimate.",
+                )}
+              </p>
+            )}
+            <small>
+              {snapshot.pickupFee
+                ? `${tr("Noutomaksu", "Pickup fee")} ${feeRange(snapshot.pickupFee, money)} ${tr("noutoajan mukaan, ei mukana arviossa", "depending on the pickup time, not in the estimate")}`
+                : tr(
+                    "Toimitus- tai noutomaksu ei ole tiedossa.",
+                    "The delivery or pickup fee is not known.",
+                  )}
+            </small>
+            {canCompare(snapshot) && (
+              <ComparePanel
+                snapshot={snapshot}
+                busy={busy}
+                call={call}
+                tr={tr}
+                money={money}
+                open={comparing}
+                onClose={() => setComparing(false)}
+              />
+            )}
+            {state.context.providerId === "s-kaupat" && (
+              <p className="input-notice">
+                {tr(
+                  "Tuotteet siirtyvät S-kauppojen Korikone-ostoslistalle. Lisää ne ostoskoriin S-kauppojen sivulla.",
+                  "Products go to your Korikone shopping list at S-kaupat. Add them to the cart on the S-kaupat website.",
+                )}
+              </p>
+            )}
+            <div className="list-exports">
+              <button
+                className="secondary"
+                disabled={busy || !rows.length}
+                onClick={async () => {
+                  if (await call("copyList")) {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                }}
+              >
+                {copied
+                  ? tr("Kopioitu", "Copied")
+                  : tr("Kopioi tekstinä", "Copy as text")}
               </button>
               <button
                 className="secondary"
-                disabled={busy}
-                onClick={() => void call("scenario", "price")}
+                disabled={busy || !rows.length}
+                onClick={() => void call("exportList")}
               >
-                {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
+                {tr("Tallenna lista", "Save list")}
               </button>
-            </details>
-          )}
+            </div>
+            <small>
+              {tr(
+                "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
+                "Check the fee and any unreported deposits at the store.",
+              )}
+            </small>
+            {!isLive(state.context.providerId) && (
+              <details className="demo-controls">
+                <summary>{tr("Esimerkki", "Demo")}</summary>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void call("scenario", "interrupt")}
+                >
+                  {tr(
+                    "Esimerkki: keskeytä seuraava siirto",
+                    "Demo: interrupt next transfer",
+                  )}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void call("scenario", "price")}
+                >
+                  {tr("Esimerkki: muuta hintoja", "Demo: change prices")}
+                </button>
+              </details>
+            )}
+          </div>
         </div>
-        {/* Stays at the bottom of the list column while the rows scroll. */}
+        {/* Separate from scrolling rows so focused controls cannot be covered. */}
         <div
+          ref={footer}
           className="shopping-total"
           role="region"
           aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
@@ -1169,7 +1186,14 @@ export function ShoppingWorkspace({
             </p>
           )}
           <div className="total-line">
-            <span>{tr("Arvio yhteensä", "Estimated total")}</span>
+            <span>
+              {missing.length
+                ? tr(
+                    "Tunnettujen hintojen välisumma",
+                    "Subtotal of known prices",
+                  )
+                : tr("Arvio yhteensä", "Estimated total")}
+            </span>
             <strong>
               {snapshot.quotedAt || !rows.length
                 ? money(total)
