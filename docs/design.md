@@ -77,11 +77,15 @@ Receipt import accepts PDF, TXT and CSV. A dedicated worker uses pinned Mozilla 
 
 Imported text is visible and editable in settings. It is supplied as untrusted purchase data for subsequent AI suggestions, never as instructions. It is not sent to ChatGPT merely by importing it. Receipt storage is included in local backups.
 
+Planned [receipt learning](receipt-learning.md) replaces this legacy text context in stages: v0.7.0 removes raw receipts from ordinary AI prompts; v0.9.0 imports distinct purchase events with local quantity/discount/deposit reconciliation and optional provider-neutral label enrichment. Preserve factual versus semantic versus remembered provenance. First import offers explicit enrichment opt-in, also changeable in Settings. Keep sanitized evidence by default and originals only by optional local retention. Receipt/order dedupe protects spending and cadence; transfers remain intent. Unknown facts and grouped discount allocation stay visible, and two visits do not establish reliable habits.
+
 The recipe-import API accepts pasted recipe text as untrusted data and requests one `recipeSchema` object. Notes and recipe import share one corrective retry for invalid output; usage and cancellation errors are not retried. Imported recipes reuse saved ingredient identities and receive a new ID if their ID collides with a saved recipe. The result stays in the temporary `recipeDraft` snapshot field, outside saved state and backups. Cancelling AI, signing out or restarting clears it. The review form and explicit save action are planned in F10.2; there is no recipe-import control yet.
 
 The new `listHistory` records verified transfers, not completed purchases. Existing `history` entries keep the earlier-week schema and remain reusable through the History view; clearing the list archives its meals there. It stores the note, meal references, extras, home/removal flags and quantity overrides. Reusing an entry replaces the local list and obtains fresh quotes. Prices are not reused as current prices.
 
 ## Architecture
+
+The planned [receipt-learning contract](receipt-learning.md), accepted on 10 October 2026, extends this architecture with normalized purchase evidence, deterministic accounting and optional semantic enrichment. v0.7.0 establishes provider-neutral task invocation before new AI work; v0.9.0 reuses it for receipts. The overview image predates this added detail; its current-versus-planned distinction still applies.
 
 ![Published v0.6.0 architecture and planned evolution](architecture.svg)
 
@@ -90,7 +94,7 @@ Updated 10 October 2026. Solid boxes show the published baseline; dashed blue sh
 - `src/ui`: note, interpretation, shopping list, schedule, history, recipes and settings.
 - `src/domain`: versioned schemas, additive requirements, quantities and pack-cost matching.
 - `src/application`: saved state, list application, product matching, review and journaled transfer.
-- `src/ai`: protected ChatGPT authorization, model discovery and validated interpretation. Planned compact context, supplied-candidate resolution and edits share domain validation; later F21 introduces an explicitly selected local provider without silent cloud fallback.
+- `src/ai`: protected ChatGPT authorization, model discovery and validated interpretation. From v0.7.0, planned task code uses shared provider-neutral invocation/capabilities/cancellation; ChatGPT remains the default adapter. Compact context, resolution, edits and later receipt enrichment own their schemas/validation and call limits. F21 later adds actual local/other-provider connectivity without silent cloud fallback.
 - `src/receipts`: local file reader and isolated PDF extraction worker.
 - `src/stores`: demo providers, the integrated K-Ruoka site client and the pinned shared S-kaupat v1.3.0 runtime. Both live paths use isolated persistent store-tab sessions; old external worker/browser paths remain explicit fallbacks.
 - `src/persistence`: SQLite storage and durable operation journal.
@@ -112,7 +116,7 @@ Each chain has a sandboxed store view with its own persistent session. Korikone'
 
 ## Current boundaries
 
-The v0.6.0 source implements System/Light/Dark as a saved preference separate from the resolved palette. A synchronous preload bootstrap sets the root appearance before the stylesheet and renderer module; the main process supplies the initial native background/title bar and follows system changes only in System mode. Preference changes, restart and real backup restoration preserve the list and typed drafts. Settings uses one active category: General, Household, Stores, ChatGPT and AI, Data, Advanced or About. Visited sections retain drafts. Explicit contextual entries focus the correct heading, and automatic model loading retains an existing operation error. These source changes are not a v0.6.0 release claim; owner visual/startup acceptance and release preparation are separate gates.
+The v0.6.0 source implements System/Light/Dark as a saved preference separate from the resolved palette. A synchronous preload bootstrap sets the root appearance before the stylesheet and renderer module; the main process supplies the initial native background/title bar and follows system changes only in System mode. Preference changes, restart and real backup restoration preserve the list and typed drafts. Settings uses one active category: General, Household, Stores, ChatGPT and AI, Data, Advanced or About. Visited sections retain drafts. Explicit contextual entries focus the correct heading, and automatic model loading retains an existing operation error. These changes shipped in v0.6.0 after owner visual/startup acceptance and the recorded release checks.
 
 K-Ruoka and S-kaupat are implemented live adapters; both demo stores remain available. S-kaupat uses the pinned s-kaupat-mcp v1.3.0 release and writes to the account's Korikone shopping list. U4 found that the site's add-all flow reserves a pickup slot, so the user performs it manually. Both destinations open inside the app after verified transfer. Authorized v0.5.0 acceptance checked remembered sessions, small transfers and duplicate-safe reopening; remaining stable-release checks are recorded separately. The meal calendar is editable and saved locally; changes do not alter the shopping list. Recurring-item suggestions use configured items, not statistical receipt-frequency analysis. There is no direct phone sync, automatic OCR, automatic checkout, loyalty optimization or shared household cloud service.
 

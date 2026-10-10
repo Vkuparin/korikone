@@ -14,6 +14,10 @@ After a failure, fix it and rerun only the failed checks or checks affected by t
 
 Local file dialogs may be stubbed to select test files. Receipt parsing, backup import/export, diagnostics and clipboard operations stay real and local in development mode.
 
+From v0.7.0 onward, AI task code must use the shared provider-neutral inference contract. ChatGPT remains the default adapter; authentication, transport and provider/model capabilities stay separate from task schemas, domain validation and operation call limits. Include deterministic fake alternative-provider coverage and extension points for local/other providers. Do not add a live provider, download models or silently fall back to cloud without its assigned scope.
+
+Real owner receipts in `scratch/receipts/` are private local reference material. Keep `scratch/` ignored. Never commit or upload originals, extracted personal/payment/loyalty data, or diagnostic copies. Author sanitized synthetic fixtures with independently reviewed expectations; do not copy complete receipts into source control.
+
 # Roadmap and task coordination
 
 `docs/roadmap.md` is the release-goal and product-decision index. Canonical implementation cards/statuses live in `docs/tasks/<version>.md`; unassigned work is in `docs/tasks/later.md`. Read `docs/tasks/README.md`, the assigned card and its direct dependency contracts, not the entire backlog. Existing IDs stay stable when releases move. `docs/roadmap-history.md` records historical audits and is not a second task register.

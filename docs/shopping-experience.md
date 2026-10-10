@@ -6,7 +6,7 @@ Accepted planning direction, 10 October 2026. Source: `scratch/korikone_ai_shopp
 
 v0.5.0 is released and integrated. U8 explicit updates/retained quotes, U10 batch approval/automatic destination opening, U11 model choice and U12/U13 Settings version/language/usage controls already exist. U3.9 shared S-kaupat runtime and U3.10 session fixtures are complete in the integrated release. Do not rebuild these.
 
-At this review, F15 category matching/preferences and F6 order/cadence work remain planned. `src/ai/draft.ts` currently sends all saved recipes and receipt text and permits one interpretation repair; product matching remains deterministic. Settings is mostly a long block in `src/ui/main.tsx`, mixing recurring items, development controls, AI and stores. The pitch's branch-split warnings are historical rather than current baseline blockers.
+At this review, F15 category matching/preferences and F6 order/cadence work remain planned. `src/ai/draft.ts` currently sends all saved recipes and receipt text and permits one interpretation repair; product matching remains deterministic. The original review found Settings crowded. Published v0.6.0 now has seven sections, appearance modes and the reviewed workspace. The pitch's branch-split warnings are historical rather than current baseline blockers.
 
 Use the same F15 matcher/preferences/review, F5 observed prices, F6 purchases, F7 transfer differences, F8 historical budgets and separate F9 calendar. AI interpretation, read-only candidate reasoning and later edits share one bounded planning operation. No parallel history/preference/transfer store.
 
@@ -33,6 +33,8 @@ Commit only a valid current operation atomically. Fatal error, cancellation, sta
 v0.6.0 adds immediate feedback for lifecycle events already available. Detailed staged previews land with v0.7.0's coordinator, avoiding a redesign that pretends those backend phases already exist.
 
 ## Selection, consent and AI bounds
+
+Owner addition after v0.6.0 publication: v0.7.0 F16.16–F16.18 establish provider-neutral task invocation/model capabilities/cancellation. ChatGPT remains default; interpretation, resolver, recipe import and later edits use the shared seam. Fake alternative providers establish compatibility now; F21 supplies live local/other adapters later. [Receipt learning](receipt-learning.md) uses this foundation in v0.9.0 with separate consent and a one-call import policy. F16.5 removes raw receipt text from ordinary prompts and reserves bounded relevant observed-summary input for F18.
 
 Domain rules own suitability, exclusions, pack calculations and lowest total cost for enough whole packs; the owner explicitly confirmed this cost basis. For generic milk, plain cow milk of any fat content is suitable absent an explicit qualifier or saved preference. Other categories need F15.5's boundaries. Unknown attributes cannot establish a dietary requirement. Shopper-explicit, recipe-inferred and model-assumed qualifiers are distinct.
 

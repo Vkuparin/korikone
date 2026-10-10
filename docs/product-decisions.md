@@ -1,5 +1,9 @@
 # Product decisions
 
+Receipt-learning review, 10 October 2026 after v0.6.0 publication: adopt [receipt-learning.md](receipt-learning.md) for v0.9.0 and provider-neutral AI foundations for v0.7.0. ChatGPT stays default; task schemas/validation/call policy are separate from provider transport/auth/capabilities, with fake alternative-provider coverage before live local/other adapters. Existing F21 local-runtime scope remains later.
+
+The owner chose a small first-import opt-in for sanitized ambiguous-label enrichment, also changeable in Settings, and sanitized evidence by default with optional local retention of originals. Local parsing is the default. The adopted plan preserves unknown money/quantities, unsupported group-discount allocations and non-food purchase facts, while excluding non-food from meal suggestions. Purchases remain observations until explicit Remember; ambiguous cross-source matches require review and transfers never establish actual spending. One enrichment call per explicit action, no automatic chain or cloud fallback. Original owner receipts stay private under ignored scratch/receipts and are never published.
+
 Current release sequencing is in [roadmap.md](roadmap.md); implementation status lives in [version task lists](tasks/README.md). Dated decisions below retain their original context; completed implementation supersedes old investigation wording. The [shopping experience plan](shopping-experience.md) specifies the accepted 10 October additions.
 
 ## Agreed 10 October 2026

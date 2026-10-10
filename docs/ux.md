@@ -76,6 +76,8 @@ The AI card explains that remaining ChatGPT allowance and reset time are unavail
 
 Settings offers PDF, TXT and CSV import plus an editable text area. PDF text extraction is local and runs off the main thread. Only future AI note interpretation sends imported text to ChatGPT. Show distinct errors for unreadable/protected files, image-only PDFs needing OCR, and size limits. Import failure preserves all existing receipt text.
 
+Planned v0.7.0 context removes raw receipt text from shopping prompts. Planned v0.9.0 [receipt learning](receipt-learning.md) presents actual parse/accounting stages, printed totals, balance/unknowns and one optional grouped correction entry. Local import remains usable without AI. First import offers a small optional sanitized-label enrichment consent, also changeable in Settings; disclose the selected provider and distinguish one-receipt use from future automatic enrichment. Sanitized evidence is retained by default, originals only by explicit local-retention choice. No receipt correction automatically saves a household preference or changes the shopping list.
+
 ## Visual and interaction checks
 
 Compare desktop, narrow and empty-state captures with the redesign. Check long Finnish names, row density, keyboard focus, disabled states, language switching, stale note responses, manual additions, home/removal behavior, additive quantities and clear-list. Keep transfer recovery and existing setup/form persistence tests. Live model and retailer behavior need user-account checks beyond automated fixtures.

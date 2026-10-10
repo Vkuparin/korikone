@@ -10,6 +10,8 @@
 4. Mark Done with commit/PR, integration state, exact checks and remaining owner checks. Local-only, merged and released are different facts. Never claim unrun tests.
 5. A Strong card establishing an API updates dependent cards with actual symbols, files, schemas and fixtures before Simple handoff. Proposed paths are suggestions, not existing-code claims.
 6. Update behavior documentation when implementation changes it. Update roadmap summaries when release scope or decisions change; do not duplicate card statuses there.
+
+AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live local/other adapters remain F21. Receipt cards consume the relevant sections of [receipt-learning.md](../receipt-learning.md). Original owner receipts in ignored scratch/receipts are private local references; only sanitized independently authored fixtures may enter source control. Preserve recorded coder checks and the one-flow release policy.
 7. Fetch/reconcile, publish changed docs to GitHub and synchronize local copies, preserving unrelated changes. Record unmerged branches explicitly. Report failed pushes.
 
 ## Conventions

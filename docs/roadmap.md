@@ -19,9 +19,9 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 0.4.0 | Explicit updates and one-action transfer | [Smooth flow](tasks/0.4.0.md) | Published pre-release; historical evidence preserved |
 | 0.5.0 | Stores inside Korikone | [Embedded stores](tasks/0.5.0.md) | Published pre-release; verification above |
 | 0.6.0 | Calm workspace, dark mode and organized Settings | [Design](tasks/0.6.0.md): U14, U15, U16 | Published pre-release; reviewed layouts, modes and Settings; U8/U10 preserved; release checks and owner visual/startup acceptance complete |
-| 0.7.0 | Suitable products, complete prices and useful previews | [Matching](tasks/0.7.0.md): F4, F5, F15, F16 | Measured improvement without forbidden matches; bounded AI resolution; truthful previews; saved list survives failure; incomplete prices identified |
+| 0.7.0 | Suitable products, complete prices, useful previews and shared AI-provider foundation | [Matching](tasks/0.7.0.md): F4, F5, F15, F16 | Measured safe matching; bounded resolution/previews; saved list survives failure; honest prices; provider-neutral tasks with ChatGPT default and fake alternatives; no raw receipts in ordinary prompts |
 | 0.8.0 | Edit the current list naturally | [Edits](tasks/0.8.0.md): F17 | Atomic edits, affected-only requoting, explicit New list and undo; unrelated groceries retained |
-| 0.9.0 | Purchase history and repeat shopping | [Memory](tasks/0.9.0.md): F6, F7, F8, U5, F18 | Provenance-aware local memory, opt-in recurring suggestions and repeat without AI; transfer distinguished from purchase |
+| 0.9.0 | Receipt learning, purchase history and repeat shopping | [Memory](tasks/0.9.0.md): F6, F7, F8, U5, F18 | Structured local facts/accounting; receipt/order dedupe; optional consented one-call enrichment; evidenced suggestions; repeat without AI; transfers excluded from actual spending |
 | 0.10.0 | Plan the week and take it along | [Week and exports](tasks/0.10.0.md): F9, F10, F11, F12, F13 | Remaining feature/owner checks; OCR adoption conditional |
 | 0.11.0 | Beta and feature freeze | [Beta](tasks/0.11.0.md): F14 | Feature freeze, accessibility, install/upgrade checks and household pilot; blockers fixed |
 | 1.0.0 | Stable | [Pre-release gates](pre-release.md) | All gates met; no open blocker bugs |
@@ -41,6 +41,8 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 - Cheapest suitable means lowest total for enough whole packs. Explicit requirements and exclusions take precedence over preferences and price.
 - Keep F15's optional grouped review and explicit Remember this consent. Reuse F6/F7 history and F5 prices; no competing memory/matcher/transfer systems.
 - Later, offer models running on the same machine as an explicitly selected alternative to ChatGPT (F21). Start with an installed local runner; preserve the same validation and transfer rules, and never silently fall back to cloud inference.
+- From v0.7.0, establish provider-neutral AI tasks now (F16.16–F16.18). ChatGPT stays default; model/capability/auth/transport boundaries admit local and other adapters without rewriting task/domain code. Fake alternatives are tested now; live providers/settings arrive only with assigned later integrations.
+- Adopt [receipt learning](receipt-learning.md) for v0.9.0: deterministic source facts and accounting first, then optional sanitized-label enrichment through that shared seam. Owner chose a small first-import opt-in plus Settings control, sanitized evidence by default and optional local retention of originals. One bounded enrichment request per explicit action, grouped review, no implicit preferences, and no double-counted receipts/orders or transfer-as-purchase spending. Private source receipts remain under ignored scratch/receipts.
 - Later, offer predefined colour palettes in Settings Appearance (U17), using U14.1/U14.2's replaceable semantic tokens. Palette choice stays independent of System/Light/Dark; each palette supports both modes and current users retain the Korikone default.
 - Design review closed on 10 October 2026: make edit/New list context unmistakable, use one clear preview region, keep current-list corrections on rows, add “I meant something else” (F15.14–F15.15), and require every reference-case request to have a visible result or unresolved entry (F16.15). Prioritize correct products and understandable correction before speed. Coders proceed with assigned cards; revisit product design when implementation evidence or a named gate needs a decision.
 
@@ -56,6 +58,7 @@ These block only the named dependent work.
 | Structured-output compatibility on existing ChatGPT account route | F16.7 | Supported fallback, no automatic paid API-key fallback; live request needs explicit authorization |
 | Quality thresholds and search/concurrency bounds | F15.1, F16.1, F16.9 | Measure baseline; zero forbidden fixture matches and zero duplicate writes are fixed regression gates |
 | Initial local runner, supported model/hardware scope and local model-selection policy | F21.1, F21.5 | Deferred; mocked adapter tests plus measured local FI/EN quality; no runtime bundling/model downloads assumed |
+| Receipt retention bounds, quantity comparability and cross-source identity thresholds | F6.5, F6.18, F6.19 | Sanitized-default/optional-original retention is settled; unknown quantities/allocations stay unknown, weak purchase links require review, and receipts cannot silently become preferences |
 
 ## Working rules
 
