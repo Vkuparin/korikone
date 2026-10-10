@@ -1,0 +1,61 @@
+# Shared inference contract
+
+F16.16 audit and implementation, 10 October 2026. Baseline: published v0.6.0 and main `5494654`. This contract supports provider-neutral tasks. ChatGPT remains the default when F16.17 integrates it. No live alternative provider, runner, model download or Settings selector is added here.
+
+## Current boundary audit
+
+| File / symbol                                                                                            | Current ownership                                                                             | Migration boundary                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/ai/draft.ts`: `draftPrompt`, `recipePrompt`, `validateDraft`, `validateRecipe`, `generateValidated` | Task prompts, JSON/domain validation, one malformed-interpretation repair                     | Keep in task layer; consume an `InferenceSession` rather than transport-specific generation                                                                |
+| `src/ai/chatgpt.ts`: `ChatGPT`                                                                           | OAuth registration/credentials/refresh, account state, catalogue, generation and cancellation | Remains an adapter dependency; task/domain code does not import it                                                                                         |
+| `src/ai/protocol.ts`: `responseRequest`, `completedText`                                                 | Current request envelope and stream transport parsing                                         | Remains adapter-specific; F16.7 establishes supported structured output before native schema capability is advertised                                      |
+| `src/ai/models.ts`: `chooseModel`                                                                        | Existing Automatic small-model selection and explicit override validation                     | Preserve account catalogue ordering/default policy for ChatGPT; invoke on that provider's discovered models, never compare unscoped names across providers |
+| `src/main/main.ts`: `requestModel`, `generateAI`, `generate` / `importRecipe` handlers                   | App consent, model selection, operation obsolescence and task dispatch                        | F16.17 constructs selected provider/model session; F16.9 later moves planning orchestration into its coordinator                                           |
+| `src/ai/fixtures.ts`: `FixtureAI`                                                                        | Deterministic connection/catalogue/task responses; still shaped like ChatGPT                  | F16.17 wraps behind the same interface; a fake alternative is injected only in development                                                                 |
+| `src/application/service.ts`                                                                             | Saved planning state, draft approval, quote/transfer boundaries, connection snapshot          | No auth/transport enters task/domain validation; existing connection snapshot can remain app-level until adapter integration                               |
+
+Current main selects a model before dispatch, but `ChatGPT.generate` also reads the catalogue on every invocation, including a repair. F16.17 must pin the operation's provider/model and reject a disappeared explicit model rather than silently select another. Catalogue discovery is not an inference request; record it separately. A transport capability must not be inferred from generic Responses documentation.
+
+`generateValidated` retries only a completed task response that its validator rejects with `invalidDraft`. Provider, permission, usage/rate, incomplete-stream and cancellation failures are not task-validation repairs. `recipePrompt` already treats pasted text as untrusted data. Ordinary shopping prompts currently include raw `receiptText`; removing it belongs to F16.5, not this contract card.
+
+## Actual shared API
+
+`src/ai/provider.ts` imports only Zod. It exports:
+
+- `InferenceTask` / `inferenceTaskSchema`: `{id, version}`. Task schemas and prompt versions belong to task modules.
+- `ModelIdentity` / `modelIdentitySchema`: `{providerId, modelId}`. An equal model name in two providers is two identities.
+- `InferenceModel` / `inferenceModelSchema`: identity/name plus supported task versions, `text` / `json-schema` output modes and streaming capability. Unknown capability is not advertised as supported.
+- `InferenceProvider`: `id`, `discoverModels(signal)` and `invoke(request, signal, onEvent?)`. No account, token, URL, credential, ChatGPT response type or domain schema appears in it.
+- `InferenceRequest`: task, scoped model identity, prompt, requested output mode/schema and output-character bound. Native JSON schema is task-owned data; the adapter only serializes a supported transport option.
+- `InferenceResult`: bounded text, complete/incomplete state and optional numeric token usage. Providers return complete text without pretending it passes domain validation.
+- `InferenceEvent` / `inferenceEventSchema`: text delta or numeric usage. These are unvalidated task text; they are never provisional meals, verified products or authorization to transfer.
+- `InferenceError` / `InferenceErrorCode`: typed safe codes. Original response bodies, credentials and arbitrary provider error messages are not carried into task errors/diagnostics.
+- `InferenceProviders`: explicit registration/lookup; duplicate or unknown providers fail. There is no fallback chain.
+- `discoverInferenceModels(provider, signal)`: validates at most 1000 provider-scoped, unique model IDs; abort wins even if the adapter ignores it. Callers provide a bounded discovery signal, e.g. their operation signal combined with a 30-second timeout.
+- `InferenceSession(provider, model, bounds, operationSignal)`: captures and freezes the model/capabilities and binds one adapter for the operation. `invoke(task, prompt, output?, onEvent?)` dispatches at most one active request; `callCount` counts every dispatched attempt, including failures.
+
+`InferenceBounds` is `{maxCalls, maxOutputCharacters, timeoutMs}`. The task/coordinator sets its actual policy. Planning supplies at most three calls shared by interpretation, optional interpretation repair and one resolver. Recipe import supplies at most two; future receipt enrichment supplies one when assigned. The shared configuration ceiling of 100 is a defensive bound for other tasks, not permission to increase these operation limits.
+
+Shared hard bounds: prompt ≤1,000,000 characters, configured response ≤1,000,000 characters, ≤10,000 stream events, catalogue ≤1000 models, timeout ≤600,000 ms. Tasks can and should choose smaller bounds; current protocol output ceiling is 100,000 characters and its request timeout is 180,000 ms. Unsupported task versions/output modes/streaming fail before dispatch and consume no call. Envelope/stream failures consume a dispatched call, but never trigger automatic repair, retry, provider switching or model switching.
+
+Cancellation and timeout stop the session, abort the adapter signal, reject promptly and discard late output. Timeout prevents another invocation beside a still-running unresponsive adapter. Listener/timer cleanup occurs on every path. A stream can neither bypass a malformed/incomplete final response nor send an unbounded sequence of empty deltas. Token usage remains optional; missing usage is unknown, never zero or an account-allowance estimate.
+
+## F16.17 exact adapter and task handoff
+
+Create `src/ai/chatgpt-provider.ts` exporting `ChatGPTInferenceProvider implements InferenceProvider`. This is the only new layer importing `ChatGPT` or `FixtureAI` for inference. Authentication/status/sign-in/out remain with the existing app connection service; they are not part of `InferenceProvider`.
+
+The adapter accepts the existing connection-backed implementation and publishes provider ID `chatgpt`. Map the discovered `{slug,name}` catalogue to `{providerId:"chatgpt",modelId:slug,name,capabilities}`. Preserve `chooseModel`'s existing small-model Automatic behavior and explicit selection checks. Native-schema capability stays false unless F16.7 proves support on the current route; full backend streaming does not imply exposed text-delta capability unless the adapter actually forwards bounded deltas.
+
+For each explicit note/recipe operation, main captures provider, preferred model, source revision and cancellation controller, discovers that provider's catalogue, chooses one scoped model and constructs one session. Pass its `invoke` result text into task validation. Reuse that session for the permitted interpretation repair. Keep consent, draft review, input preservation and generation-run obsolescence. Do not use mutable UI selection to choose a different adapter/model midway through a run. `cancelAI` aborts discovery and the session; the adapter bridges AbortSignal into the current connection's cancellation without cancelling unrelated sign-in operations.
+
+Task IDs/initial versions for F16.17: `shopping-draft` version 1 and `recipe-import` version 1. Define the constants in `src/ai/tasks.ts`; do not put their schemas inside `provider.ts`. Existing `draft.ts` validation remains authoritative. Resolver/edit/receipt modules later declare their own versioned IDs and validators and share an operation session where their coordinator requires it. Unsupported tasks remain explicit until their assigned module/adapter support lands.
+
+Preserve UI error meaning at main's boundary. Adapter codes must distinguish connection/permission/account change, usage/rate, incomplete response, cancellation and transport errors. Map neutral `cancelled` to existing `aiCancelled`, `incomplete` to `incompleteDraft`, `permissionDenied` to `permissionMissing`, and transport failure to `aiFailed`. Keep `notConnected`, `accountChanged`, `modelsUnavailable`, `modelUnavailable`, `usageLimit` and `busy` meanings. Do not turn provider errors into `invalidDraft` and accidentally spend a repair request. Structured output selection is capability-driven within this same adapter, never a paid-key or cloud fallback.
+
+F16.17 adds a production-shaped deterministic alternative adapter under `src/ai/fake-provider.ts`, injected only when the real main process is in development mode. No owner-facing live provider option or connection UI is implied. Existing `FixtureAI` responses should retain real task/domain validation and service paths. The current test-only `ScriptedInferenceProvider` in `tests/helpers/inference.ts` proves the interface but is not production/development injection.
+
+## Evidence and remaining work
+
+`tests/inference-provider.test.ts` has 11 deterministic cases: equal model names across fake providers, immutable operation selection, unsupported tasks/versions/native output/streams, request caps including failures, incomplete/malformed/oversized output, sanitized transport errors, cancellation and late output, unresponsive timeout, stream limits, invalid catalogues, shared task caps, supported native output, and discovery cancellation. Providers are entirely local functions; no network/account calls occur. Focused test run: 11 passed. `npm run typecheck` and changed-file formatting checks pass.
+
+This card does not integrate the released application with the new session yet. F16.17 owns main/note/recipe migration after F16.7. F16.5 owns compact context and receipt exclusion. F16.8 owns supported structured output and task repair semantics. F16.9/F16.10 own planning ownership/events/search limits. F16.18 adds shared real-task/service compatibility coverage. F21 adds real local/other connectivity later. Current provider fixture tests do not prove application migration, planning previews, resolver behavior or live compatibility.
