@@ -4,7 +4,7 @@ Revised 9 October 2026 after the first user feedback round. The current directio
 
 Korikone turns a household's plain-language shopping note into an editable, priced shopping list. Meals, ready foods, breakfasts, evening foods and treats belong in the same note. Product choices happen automatically; the user corrects exceptions and reviews the resulting cart changes. Checkout stays in the retailer.
 
-Current published delivery: **v0.5.0 unsigned Windows pre-release**, integrated into main. See [release verification](release-0.5.0.md) and [release goals](roadmap.md). The [accepted UI design](ui-design.md) and [shopping experience plan](shopping-experience.md) describe the next changes; they are not claims about the published build. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
+Current published delivery: **v0.6.0 unsigned Windows pre-release**, integrated into main. See [release verification](release-0.6.0.md) and [release goals](roadmap.md). The [accepted UI design](ui-design.md) is implemented for the v0.6.0 shopping workspace, appearance modes and organized Settings. Matching, previews and conversational edits in the [shopping experience plan](shopping-experience.md) remain later work. Development and automated checks use local fixtures; live ChatGPT tests require an explicit user request.
 
 ## Product decisions
 
@@ -83,7 +83,7 @@ The new `listHistory` records verified transfers, not completed purchases. Exist
 
 ## Architecture
 
-![Published v0.5.0 architecture and planned evolution](architecture.svg)
+![Published v0.6.0 architecture and planned evolution](architecture.svg)
 
 Updated 10 October 2026. Solid boxes show the published baseline; dashed blue shows planned work or release work in progress; dashed purple shows later work with no release assigned. The picture separates the computer from cloud/retailer services. [PNG preview](architecture.png) is exported from the same SVG.
 

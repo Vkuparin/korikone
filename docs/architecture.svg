@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1760" height="1640" viewBox="0 0 1760 1640" role="img" aria-labelledby="title desc">
 <title id="title">Korikone architecture: published baseline and planned evolution</title>
-<desc id="desc">Solid boxes show the published v0.5.0 local Electron application, protected ChatGPT access, SQLite data, local receipt extraction and retailer adapters using isolated embedded store sessions. Dashed boxes show the planned read-only planning coordinator with compact context, product resolution, previews, edits and atomic commit, plus later local model support. Only the transfer service can write approved retailer batches. The human selects slots, places orders and pays. Palette and theme preferences remain independent.</desc>
+<desc id="desc">Solid boxes show the published v0.6.0 local Electron application, organized Settings and appearance modes, protected ChatGPT access, SQLite data, local receipt extraction and retailer adapters using isolated embedded store sessions. Dashed boxes show the planned read-only planning coordinator with compact context, product resolution, previews, edits and atomic commit, plus later local model support. Only the transfer service can write approved retailer batches. The human selects slots, places orders and pays. Palette and theme preferences remain independent.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#557268"/></marker>
 <style>text{font-family:Segoe UI,Arial,sans-serif;fill:#18352c} .title{font-size:40px;font-weight:700}.heading{font-size:25px;font-weight:700}.body{font-size:19px}.small{font-size:16px;fill:#526b61}.label{font-size:17px;font-weight:700}.planned{fill:#f1f5fc;stroke:#5b79a5;stroke-width:2;stroke-dasharray:9 6}.later{fill:#f5f1fa;stroke:#8b70a2;stroke-width:2;stroke-dasharray:9 6}.current{fill:#fff;stroke:#acbeb4;stroke-width:2}.link{fill:none;stroke:#557268;stroke-width:2.5;marker-end:url(#arrow)}.optional{stroke-dasharray:7 5}</style></defs>
 <rect width="1760" height="1640" fill="#f7f9f6"/>
 
 <text x="40" y="62" class="title">Korikone architecture</text>
-<text x="40" y="100" class="body">Published v0.5.0 baseline + accepted development plan · 10 October 2026</text>
+<text x="40" y="100" class="body">Published v0.6.0 baseline + accepted development plan · 10 October 2026</text>
 <rect x="40" y="125" width="24" height="16" rx="4" class="current"/>
 <text x="76" y="139" class="small">Published baseline</text>
 <rect x="265" y="125" width="24" height="16" rx="4" class="planned"/>
@@ -21,7 +21,7 @@
 <text x="92" y="284" class="heading" data-max-width="1076">React interface in Electron</text>
 <text x="92" y="322" class="body" data-max-width="1076">One note → interpretation → shopping list · explicit Update / Ctrl+Enter · compact model choice</text>
 <text x="92" y="351" class="body" data-max-width="1076">Rows, alternatives, at-home flags, calendar, history and Settings · Finnish / English</text>
-<text x="92" y="372" class="small" data-max-width="1076">Planned UI: organized Settings + System/Light/Dark (v0.6); explicit edit/New list context (v0.8); palettes later</text>
+<text x="92" y="372" class="small" data-max-width="1076">Organized Settings + System/Light/Dark (v0.6) · Planned: edit/New list (v0.8), colour palettes later</text>
 <polyline points="630,390 630,447" class="link"/>
 <text x="650" y="425" class="small">Validated IPC · renderer never receives credentials</text>
 <rect x="70" y="450" width="1120" height="175" rx="16" class="current"/>

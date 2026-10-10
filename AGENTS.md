@@ -8,7 +8,9 @@ Every feature must be testable with local fixtures. Add success and relevant fai
 
 Use focused unit tests for each task or feature. Select the affected files or test names, for example `npm test -- tests/receipts.test.ts` or `npm test -- tests/development.test.ts -t "multi-dish"`. Run a focused UI test only when the change needs application or interaction coverage, for example `npm run test:ui -- tests/ui/shopping.spec.ts -g "cancellation"`. Use type checking, builds and formatting checks when relevant to the change. Do not broaden passing checks without a new failure, change or unresolved concern.
 
-Run full unit and desktop suites only when preparing a release. Release preparation requires `npm test`, `npm run test:ui`, `npm run build` and `npm run format:check`, plus the relevant packaged-app checks. Routine implementation, debugging and feature completion do not authorize a full-suite run.
+For pre-releases, trust the coder agents' recorded focused checks. Run the full release flow once: `npm test`, `npm run test:ui`, `npm run build` and `npm run format:check`. Use one canonical execution, local or CI; reuse passing checks on the same application source instead of repeating them after branch promotion or documentation changes. Routine implementation, debugging and feature completion do not authorize a full-suite run.
+
+After a failure, fix it and rerun only the failed checks or checks affected by the fix. Do not restart the full release flow or repeat passing feature matrices without an explicit owner request. Keep packaged validation to a small smoke check of launch/version and a relevant critical path; add a focused packaged check only for a packaging-specific concern. Do not replay the source desktop suite against the package. Reuse verified build output where possible. This owner policy was agreed on 10 October 2026 during v0.6.0 preparation; the owner asked to let that release's already-running checks finish unchanged.
 
 Local file dialogs may be stubbed to select test files. Receipt parsing, backup import/export, diagnostics and clipboard operations stay real and local in development mode.
 

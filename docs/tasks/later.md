@@ -2,6 +2,14 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## R1. One full pre-release validation flow
+
+Owner decision, 10 October 2026. Trust focused checks recorded by coder agents. One full release flow is sufficient; fixes use failed/affected checks only. Let v0.6.0's existing runs finish unchanged. The standing policy is in AGENTS.md; CI enforcement is a later tooling task.
+
+| ID | Task and Done when | Agent | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| R1.1 | Change `.github/workflows/ci.yml` and release instructions/scripts so routine coding uses fast checks and affected fixtures, while one explicit canonical release run executes unit, desktop, build and formatting checks. Reuse the same source's passing evidence across branch promotion/docs changes; fixes rerun only failed/affected checks. Define exact workflow triggers and evidence reuse before editing automation. Keep packaged validation to a small launch/version plus relevant critical-path smoke test and reuse verified build output where possible. Done when one fixture release exercises the gate once, a targeted fix does not restart it, docs/promotion do not duplicate it, and checks remain visible in GitHub without reporting unrun checks. | Strong | Owner policy in AGENTS.md | Planned: implement after v0.6.0; current runs finish unchanged |
+
 ## F19. Real-price-constrained meal planning
 
 Deferred from the immediate redesign and matching releases. This is different from F8's historical spending chart or F11's offer ideas. No implicit autonomous meal changes or invented prices. Assign a release after F19.1 settles policy and matching/edit foundations are measured.

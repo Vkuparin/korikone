@@ -6,7 +6,7 @@
 
 1. Read the assigned card, direct dependency contracts and relevant code. Do not load the entire backlog. Check `origin/main` and active work before claiming; status may lag code.
 2. Mark In progress with agent/thread, branch/worktree and scope. Publish the claim so other agents can see it. Do not implement another agent's claimed card.
-3. Use development fixtures at external boundaries and real validation/persistence/UI paths. Run focused checks. Full suites belong to release preparation under AGENTS.md.
+3. Use development fixtures at external boundaries and real validation/persistence/UI paths. Run focused checks and record their evidence; release agents trust passing coder checks. Pre-releases get one full validation flow, local or CI, under AGENTS.md. Fix failures with affected checks only, and keep packaged smoke checks small.
 4. Mark Done with commit/PR, integration state, exact checks and remaining owner checks. Local-only, merged and released are different facts. Never claim unrun tests.
 5. A Strong card establishing an API updates dependent cards with actual symbols, files, schemas and fixtures before Simple handoff. Proposed paths are suggestions, not existing-code claims.
 6. Update behavior documentation when implementation changes it. Update roadmap summaries when release scope or decisions change; do not duplicate card statuses there.

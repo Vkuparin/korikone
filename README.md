@@ -6,7 +6,7 @@ The current source includes explicitly requested note interpretation, automatic 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.5.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.5.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.5.0 verification](docs/release-0.5.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.6.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.6.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.6.0 verification](docs/release-0.6.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -22,6 +22,8 @@ npm start
 Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. Retailer sign-in uses the embedded store tabs. Korikone never imports your usual browser cookies.
 
 The store search includes both chains. Each retailer opens in the Kauppa view with its own persistent session. Sign in once in each tab. K-Ruoka uses the site's API in that session; S-kaupat uses the pinned v1.3.0 shared library with calls from the signed-in tab. Setup connects one chain. The hint under the shopping total leads to Settings to connect the second chain.
+
+Settings is divided into General, Household, Stores, ChatGPT and AI, Data, Advanced and About. Choose System, Light or Dark under General. System follows Windows appearance; retailer pages keep their own colours. Development mode is under Advanced.
 
 ## Shopping and receipts
 
@@ -60,7 +62,7 @@ npm run package
 - Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
 - Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Complete price handling is planned for v0.7.0 after the v0.6.0 design release; see the [roadmap](docs/roadmap.md).
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.5.0 acceptance](docs/release-0.5.0.md).
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.6.0 verification](docs/release-0.6.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

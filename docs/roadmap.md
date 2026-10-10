@@ -4,7 +4,7 @@ Updated with the owner on 10 October 2026. This page records release goals, sequ
 
 ## Current release
 
-[v0.5.0](https://github.com/Vkuparin/korikone/releases/tag/v0.5.0) is published as an unsigned Windows pre-release and integrated into `main`. The source tag is `37a2951`; PR #11 integrated the application changes. Final verification: 164 unit tests, 38 source desktop tests, build, formatting and 23 packaged checks. Authorized live checks used zero ChatGPT requests and verified remembered store sessions, one small transfer per chain, selected destinations and duplicate-safe reopening. See [release verification](release-0.5.0.md) and [historical audits](roadmap-history.md). These are existing release evidence, not checks rerun for this roadmap update.
+[v0.6.0](https://github.com/Vkuparin/korikone/releases/tag/v0.6.0) is published as an unsigned Windows pre-release and integrated into `main`. It ships the reviewed shopping workspace, System/Light/Dark appearance and organized Settings. All 14 U14/U15/U16 cards and owner layout/startup acceptance are complete. Release verification, source tag, exact checks and remaining stable-release gates are recorded in [release-0.6.0.md](release-0.6.0.md). Release testing uses isolated development fixtures and zero live AI or retailer requests. Earlier retailer acceptance remains in [v0.5.0 verification](release-0.5.0.md); [historical audits](roadmap-history.md) retain earlier evidence.
 
 S-kaupat opens the Korikone shopping list. Its add-all flow reserves a slot and stays manual. K-Ruoka opens the selected store's basket. Published pre-release does not mean 1.0 readiness.
 
@@ -18,7 +18,7 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 0.3.0 | Both chains and comparison | [Both chains](tasks/0.3.0.md) | Existing feature checks and owner acceptance |
 | 0.4.0 | Explicit updates and one-action transfer | [Smooth flow](tasks/0.4.0.md) | Published pre-release; historical evidence preserved |
 | 0.5.0 | Stores inside Korikone | [Embedded stores](tasks/0.5.0.md) | Published pre-release; verification above |
-| 0.6.0 | Calm workspace, dark mode and organized Settings | [Design](tasks/0.6.0.md): U14, U15, U16 | Reviewed layouts; FI/EN light/dark/system modes; Settings functions retained; U8/U10 preserved; offline interaction checks and owner visual acceptance |
+| 0.6.0 | Calm workspace, dark mode and organized Settings | [Design](tasks/0.6.0.md): U14, U15, U16 | Published pre-release; reviewed layouts, modes and Settings; U8/U10 preserved; release checks and owner visual/startup acceptance complete |
 | 0.7.0 | Suitable products, complete prices and useful previews | [Matching](tasks/0.7.0.md): F4, F5, F15, F16 | Measured improvement without forbidden matches; bounded AI resolution; truthful previews; saved list survives failure; incomplete prices identified |
 | 0.8.0 | Edit the current list naturally | [Edits](tasks/0.8.0.md): F17 | Atomic edits, affected-only requoting, explicit New list and undo; unrelated groceries retained |
 | 0.9.0 | Purchase history and repeat shopping | [Memory](tasks/0.9.0.md): F6, F7, F8, U5, F18 | Provenance-aware local memory, opt-in recurring suggestions and repeat without AI; transfer distinguished from purchase |
@@ -27,7 +27,7 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 1.0.0 | Stable | [Pre-release gates](pre-release.md) | All gates met; no open blocker bugs |
 | Unassigned | Swedish, predefined colour palettes, price-constrained meals, optional routing and local models | [Later](tasks/later.md): L1, U17, F19, F20, F21 | Policy and release assignment before implementation |
 
-Every release preparation runs full checks under [AGENTS.md](../AGENTS.md), including packaged checks. Routine card work uses focused checks. Done features in a future milestone stay Done; that milestone still needs its remaining cards and release acceptance.
+Owner release policy, 10 October 2026: trust recorded coder-agent focused checks and run the full pre-release flow once, using one canonical local or CI execution. After fixes, rerun only failed or affected checks; no repeated full flow or feature matrices. Keep packaged checks to a small smoke test and reuse passing evidence across branch promotion and documentation changes. See [AGENTS.md](../AGENTS.md). The owner asked to finish the already-running v0.6.0 checks unchanged. CI enforcement is tracked as R1 in [Later](tasks/later.md).
 
 ## Accepted direction
 
