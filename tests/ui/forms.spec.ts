@@ -2,6 +2,7 @@ import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { settingsCategory } from "./settings-helper";
 test("unsaved recipe quantities survive language switching and saved data survives restart", async () => {
   const path = await mkdtemp(join(tmpdir(), "korikone-forms-"));
   const env = Object.fromEntries(
@@ -36,6 +37,7 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Peruna · 125 g")).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "stores", "Stores");
     await page.getByText("Advanced settings", { exact: true }).click();
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
     await expect(page.locator(".context")).toContainText("S-kaupat");
@@ -60,6 +62,7 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await restarted
       .getByRole("button", { name: "Settings", exact: true })
       .click();
+    await settingsCategory(restarted, "household", "Household");
     await restarted
       .getByRole("button", { name: "Edit regular items", exact: true })
       .click();

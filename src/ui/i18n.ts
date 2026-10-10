@@ -8,6 +8,18 @@ export function packCount(count: number, language: string): string {
   return `${count} ${count === 1 ? "pack" : "packs"}`;
 }
 export const en = {
+  settingsGeneral: "General",
+  settingsHousehold: "Household",
+  settingsStores: "Stores",
+  settingsAI: "ChatGPT and AI",
+  settingsData: "Data",
+  settingsAdvanced: "Advanced",
+  settingsAbout: "About",
+  settingsCategory: "Settings category",
+  householdUnapplied: "Household changes have not been saved.",
+  openNotices: "Open third-party notices",
+  noticesUnavailable: "Third-party notices could not be opened.",
+  openRelease: "Open release page",
   modelSelectionRequired:
     "Automatic could not identify a suitable small model. Choose an available AI model.",
   developmentMode: "Development mode",
@@ -266,6 +278,18 @@ export const en = {
 } as const;
 export type Key = keyof typeof en;
 export const fi: Record<Key, string> = {
+  settingsGeneral: "Yleiset",
+  settingsHousehold: "Kotitalous",
+  settingsStores: "Kaupat",
+  settingsAI: "ChatGPT ja tekoäly",
+  settingsData: "Tiedot",
+  settingsAdvanced: "Lisäasetukset",
+  settingsAbout: "Tietoja",
+  settingsCategory: "Asetusryhmä",
+  householdUnapplied: "Kotitalouden muutoksia ei ole tallennettu.",
+  openNotices: "Avaa kolmansien osapuolten lisenssit",
+  noticesUnavailable: "Kolmansien osapuolten lisenssejä ei voitu avata.",
+  openRelease: "Avaa julkaisusivu",
   modelSelectionRequired:
     "Automaattinen ei löytänyt sopivaa pientä mallia. Valitse saatavilla oleva AI-malli.",
   developmentMode: "Kehitystila",

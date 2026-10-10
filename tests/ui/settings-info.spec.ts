@@ -2,6 +2,7 @@ import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { settingsCategory } from "./settings-helper";
 
 test("runtime version, language menu and unavailable ChatGPT allowance preserve edits and restart", async () => {
   const env: Record<string, string> = {
@@ -80,7 +81,9 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     if (!process.env.KORIKONE_EXECUTABLE) expect(version).toBe("0.4.0-alpha.1");
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "about", "About");
     await expect(page.getByTestId("app-version")).toHaveText(version);
+    await settingsCategory(page, "ai", "ChatGPT and AI");
     const allowance = page.getByTestId("ai-allowance");
     await expect(allowance).toContainText("unavailable in Korikone");
     await expect(allowance).not.toContainText("0%");
@@ -93,6 +96,7 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     });
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "ai", "ChatGPT and AI");
     await expect(
       page.getByText("Could not load models. Open the selector again.", {
         exact: true,
@@ -144,6 +148,7 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
       "English",
     );
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "about", "About");
     await expect(page.getByTestId("app-version")).toHaveText(
       await app.evaluate(({ app }) => app.getVersion()),
     );

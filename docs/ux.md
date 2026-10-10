@@ -56,7 +56,9 @@ The compact AI model selector below the note shares its saved choice with the se
 
 Language uses the same rounded button and floating menu, with native names Suomi and English and a selected checkmark. Only the selected language appears on the button; "Kieli" / "Language" remains its accessibility label. It supports the same keyboard controls and stays inside the viewport, including opening above the button near the bottom of the sidebar. Switching language preserves unsaved notes and recipe fields and persists across restart. Svenska stays hidden until Swedish support is complete.
 
-Settings includes "Tietoja Korikoneesta" / "About Korikone" with the running Electron application's version, including a prerelease suffix. It comes from the narrow `getAppInfo` IPC method, not a hardcoded release label. If the read fails, the version says unavailable.
+Settings shows one category at a time: General, Household, Stores, ChatGPT and AI, Data, Advanced and About. Category buttons become a labelled select in narrow windows. Changing category focuses its heading. Visited sections stay mounted so unsaved fields survive navigation, language changes and recurring-item editing. Household save failures retain the draft. Backup restoration updates untouched household fields and keeps edited values visibly unsaved.
+
+About shows the running Electron application's version, including a prerelease suffix, through `getAppInfo`. If the read fails, the version says unavailable. Its notices action opens the bundled local third-party notices. A release action appears when an update was found and retains development-mode suppression.
 
 The AI card explains that remaining ChatGPT allowance and reset time are unavailable in Korikone and offers "Avaa ChatGPT:n käyttö" / "Open ChatGPT usage". A received request limit is shown as a usage or rate limit; it does not imply the whole plan is empty or establish a reset time. No quota request or generation is made just to open Settings.
 

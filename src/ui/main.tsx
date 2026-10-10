@@ -18,6 +18,16 @@ import { Chains } from "./chains";
 import { ShoppingContext } from "./context";
 import { ModelSelector } from "./model";
 import { Choice } from "./choice";
+import {
+  Settings,
+  GeneralSettings,
+  HouseholdSettings,
+  AboutSettings,
+} from "./settings";
+import type {
+  SettingsSection,
+  SettingsSectionProps,
+} from "./settings-contract";
 import { StorePage, type Chain } from "./store";
 import { isLive, liveProviders } from "../stores/provider";
 declare global {
@@ -93,6 +103,13 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [appVersion, setAppVersion] = useState("");
+  const [developmentLocked, setDevelopmentLocked] = useState(false);
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSection>("general");
+  function openSettings(section: SettingsSection = "general") {
+    setSettingsSection(section);
+    setPage("settings");
+  }
   const [aiRequestLimit, setAIRequestLimit] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
@@ -166,7 +183,10 @@ function App() {
   useEffect(() => {
     void call("load").then(() => setLoaded(true));
     void window.korikone.getAppInfo().then((result) => {
-      if (result.ok) setAppVersion(result.value.version);
+      if (result.ok) {
+        setAppVersion(result.value.version);
+        setDevelopmentLocked(result.value.developmentLocked);
+      }
     });
   }, []);
   useEffect(() => {
@@ -250,6 +270,18 @@ function App() {
       {control}
     </label>
   );
+  const settingsProps: SettingsSectionProps = {
+    snapshot,
+    busy,
+    call,
+    save,
+    t,
+    changeLanguage,
+    editStaples: () => setPage("staples"),
+    appVersion,
+    aiRequestLimit,
+    developmentLocked,
+  };
   if (!loaded)
     return (
       <main>
@@ -578,7 +610,10 @@ function App() {
             )}
             {page === "staples" && (
               <>
-                <button className="text" onClick={() => setPage("settings")}>
+                <button
+                  className="text"
+                  onClick={() => openSettings("household")}
+                >
                   ← {t("settings")}
                 </button>
                 <h1>{t("staples")}</h1>
@@ -733,385 +768,347 @@ function App() {
                 </form>
               </>
             )}
-            {page === "settings" && (
-              <>
-                <h1>{t("settings")}</h1>
-                <section className="card">
-                  <h2>{t("staples")}</h2>
-                  <p className="muted">{t("staplesHelp")}</p>
-                  <button
-                    className="secondary"
-                    onClick={() => setPage("staples")}
-                  >
-                    {t("editStaples")}
-                  </button>
-                </section>
-                <section className="card">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshot.developmentMode}
-                      disabled={busy}
-                      onChange={(e) =>
-                        void call("setDevelopmentMode", e.target.checked)
-                      }
-                    />
-                    {t("developmentMode")}
-                  </label>
-                  <p>{t("developmentModeInfo")}</p>
-                  {snapshot.developmentMode && (
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        void save({ ...state, setupComplete: false })
-                      }
-                    >
-                      {t("restartSetup")}
-                    </button>
-                  )}
-                  {snapshot.developmentMode && (
-                    <label>
-                      {t("developmentScenario")}
-                      <select
-                        value={snapshot.developmentScenario}
-                        disabled={busy}
-                        onChange={(e) =>
-                          void call("developmentScenario", e.target.value)
-                        }
-                      >
-                        {[
-                          "success",
-                          "delayedSuccess",
-                          "delayedModels",
-                          "invalidOnce",
-                          "invalidDraft",
-                          "usageLimit",
-                          "incompleteDraft",
-                          "aiFailed",
-                          "noSmallModel",
-                          "removedModel",
-                          "emptyModels",
-                          "modelsFailed",
-                          "handoffFailed",
-                        ].map((value) => (
-                          <option key={value} value={value}>
-                            {value}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                </section>
-                <section className="card">
-                  <h2>
-                    {state.language === "fi"
-                      ? "ChatGPT ja tekoäly"
-                      : "ChatGPT and AI"}
-                  </h2>
-                  <p>{t("aiConnectionInfo")}</p>
-                  <p role="status">
-                    {t(
-                      snapshot.ai.state === "connected"
-                        ? "signedIn"
-                        : snapshot.ai.state === "waiting"
-                          ? "waitingAI"
-                          : snapshot.ai.state === "permissionMissing"
-                            ? "permissionMissing"
-                            : "notConnected",
-                    )}
-                    {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
-                  </p>
-                  {snapshot.ai.error && (
-                    <p role="alert">
-                      {t(
-                        snapshot.ai.error in en
-                          ? (snapshot.ai.error as Key)
-                          : "authFailed",
-                      )}
-                    </p>
-                  )}
-                  <div className="actions">
-                    <button
-                      disabled={busy || snapshot.ai.state === "waiting"}
-                      onClick={() => void call("signInAI")}
-                    >
-                      Continue with ChatGPT
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void call("signOutAI")}
-                    >
-                      {t("signOut")}
-                    </button>
-                    <button
-                      className="secondary"
-                      onClick={() => void call("usageAI")}
-                    >
-                      {t("manageUsage")}
-                    </button>
-                    {snapshot.ai.state === "waiting" && (
+            <Settings
+              visible={page === "settings"}
+              activeSection={settingsSection}
+              onSectionChange={setSettingsSection}
+              t={t}
+              sections={{
+                general: <GeneralSettings {...settingsProps} />,
+                household: <HouseholdSettings {...settingsProps} />,
+                about: <AboutSettings {...settingsProps} />,
+                advanced: <></>,
+                ai: (
+                  <>
+                    {" "}
+                    <section className="card">
+                      <h2>{t("staples")}</h2>
+                      <p className="muted">{t("staplesHelp")}</p>
                       <button
-                        className="text"
-                        onClick={() => void call("cancelAI")}
+                        className="secondary"
+                        onClick={() => setPage("staples")}
                       >
-                        {t("cancel")}
+                        {t("editStaples")}
                       </button>
-                    )}
-                  </div>
-                  <ModelSelector snapshot={snapshot} busy={busy} call={call} />
-                  <p data-testid="ai-allowance" className="muted">
-                    {state.language === "fi"
-                      ? "Jäljellä oleva ChatGPT-käyttömäärä ja käyttörajan nollausaika eivät ole saatavilla Korikonessa. Tarkista ne ChatGPT:n käyttöasetuksista."
-                      : "Remaining ChatGPT allowance and reset time are unavailable in Korikone. Check ChatGPT usage settings."}
-                  </p>
-                  {aiRequestLimit && (
-                    <p role="alert">
-                      {state.language === "fi"
-                        ? "Viimeisin pyyntö saavutti käyttö- tai pyyntönopeusrajan. Jäljellä oleva käyttömäärä ja nollausaika eivät ole tiedossa."
-                        : "The latest request reached a usage or rate limit. Remaining allowance and reset time are unknown."}
-                    </p>
-                  )}
-                  <p className="muted">
-                    {state.language === "fi"
-                      ? "Automaattinen suosii tilillä saatavilla olevaa pientä mallia käytön vähentämiseksi. Mallin nimi kertoo kokoluokasta, mutta ei tarkkaa hintaa. Jos sopivaa pientä mallia ei löydy, valitse malli itse."
-                      : "Automatic prefers a small model available to your account to reduce usage. Model names indicate size, but do not establish exact prices. If no suitable small model is available, choose a model yourself."}
-                  </p>
-                </section>
-                <form
-                  className="card form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const data = new FormData(e.currentTarget);
-                    void save({
-                      ...state,
-                      household: {
-                        servings: Number(data.get("servings")),
-                        budget: Math.round(
-                          Number(String(data.get("budget")).replace(",", ".")) *
-                            100,
-                        ),
-                        exclusions: String(data.get("exclusions")),
-                      },
-                    });
-                  }}
-                >
-                  {field(
-                    t("servings"),
-                    <input
-                      name="servings"
-                      type="number"
-                      min="1"
-                      max="100"
-                      defaultValue={state.household.servings}
-                      required
-                    />,
-                  )}
-                  {field(
-                    t("budget"),
-                    <input
-                      name="budget"
-                      inputMode="decimal"
-                      defaultValue={state.household.budget / 100}
-                      required
-                    />,
-                  )}
-                  {field(
-                    t("exclusions"),
-                    <textarea
-                      name="exclusions"
-                      defaultValue={state.household.exclusions}
-                    />,
-                  )}
-                  <p className="muted">{t("exclusionsHelp")}</p>
-                  <button disabled={busy}>{t("save")}</button>
-                </form>
-                <section className="card form">
-                  <details>
-                    <summary>{t("advancedSettings")}</summary>
-                    {field(
-                      t("store"),
-                      <select
-                        aria-label={t("store")}
-                        value={state.context.providerId}
-                        onChange={(e) =>
-                          void save({
-                            ...state,
-                            context: {
-                              ...state.context,
-                              providerId: e.target.value,
-                              storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
-                            },
-                          })
-                        }
-                      >
-                        <option value="demo-k">K-Ruoka (demo)</option>
-                        <option value="demo-s">S-kaupat (demo)</option>
-                        {isLive(state.context.providerId) && (
-                          <option value={state.context.providerId}>
-                            {state.context.storeName}
-                          </option>
+                    </section>
+                    <section className="card">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={snapshot.developmentMode}
+                          disabled={busy}
+                          onChange={(e) =>
+                            void call("setDevelopmentMode", e.target.checked)
+                          }
+                        />
+                        {t("developmentMode")}
+                      </label>
+                      <p>{t("developmentModeInfo")}</p>
+                      {snapshot.developmentMode && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            void save({ ...state, setupComplete: false })
+                          }
+                        >
+                          {t("restartSetup")}
+                        </button>
+                      )}
+                      {snapshot.developmentMode && (
+                        <label>
+                          {t("developmentScenario")}
+                          <select
+                            value={snapshot.developmentScenario}
+                            disabled={busy}
+                            onChange={(e) =>
+                              void call("developmentScenario", e.target.value)
+                            }
+                          >
+                            {[
+                              "success",
+                              "delayedSuccess",
+                              "delayedModels",
+                              "invalidOnce",
+                              "invalidDraft",
+                              "usageLimit",
+                              "incompleteDraft",
+                              "aiFailed",
+                              "noSmallModel",
+                              "removedModel",
+                              "emptyModels",
+                              "modelsFailed",
+                              "handoffFailed",
+                            ].map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    </section>
+                    <section className="card">
+                      <h2>
+                        {state.language === "fi"
+                          ? "ChatGPT ja tekoäly"
+                          : "ChatGPT and AI"}
+                      </h2>
+                      <p>{t("aiConnectionInfo")}</p>
+                      <p role="status">
+                        {t(
+                          snapshot.ai.state === "connected"
+                            ? "signedIn"
+                            : snapshot.ai.state === "waiting"
+                              ? "waitingAI"
+                              : snapshot.ai.state === "permissionMissing"
+                                ? "permissionMissing"
+                                : "notConnected",
                         )}
-                      </select>,
-                    )}
-                    {field(
-                      t("pickup") + " / " + t("delivery"),
-                      <select
-                        value={state.context.fulfillment}
-                        disabled={isLive(state.context.providerId)}
-                        onChange={(e) =>
+                        {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
+                      </p>
+                      {snapshot.ai.error && (
+                        <p role="alert">
+                          {t(
+                            snapshot.ai.error in en
+                              ? (snapshot.ai.error as Key)
+                              : "authFailed",
+                          )}
+                        </p>
+                      )}
+                      <div className="actions">
+                        <button
+                          disabled={busy || snapshot.ai.state === "waiting"}
+                          onClick={() => void call("signInAI")}
+                        >
+                          Continue with ChatGPT
+                        </button>
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => void call("signOutAI")}
+                        >
+                          {t("signOut")}
+                        </button>
+                        <button
+                          className="secondary"
+                          onClick={() => void call("usageAI")}
+                        >
+                          {t("manageUsage")}
+                        </button>
+                        {snapshot.ai.state === "waiting" && (
+                          <button
+                            className="text"
+                            onClick={() => void call("cancelAI")}
+                          >
+                            {t("cancel")}
+                          </button>
+                        )}
+                      </div>
+                      <ModelSelector
+                        snapshot={snapshot}
+                        busy={busy}
+                        call={call}
+                      />
+                      <p data-testid="ai-allowance" className="muted">
+                        {state.language === "fi"
+                          ? "Jäljellä oleva ChatGPT-käyttömäärä ja käyttörajan nollausaika eivät ole saatavilla Korikonessa. Tarkista ne ChatGPT:n käyttöasetuksista."
+                          : "Remaining ChatGPT allowance and reset time are unavailable in Korikone. Check ChatGPT usage settings."}
+                      </p>
+                      {aiRequestLimit && (
+                        <p role="alert">
+                          {state.language === "fi"
+                            ? "Viimeisin pyyntö saavutti käyttö- tai pyyntönopeusrajan. Jäljellä oleva käyttömäärä ja nollausaika eivät ole tiedossa."
+                            : "The latest request reached a usage or rate limit. Remaining allowance and reset time are unknown."}
+                        </p>
+                      )}
+                      <p className="muted">
+                        {state.language === "fi"
+                          ? "Automaattinen suosii tilillä saatavilla olevaa pientä mallia käytön vähentämiseksi. Mallin nimi kertoo kokoluokasta, mutta ei tarkkaa hintaa. Jos sopivaa pientä mallia ei löydy, valitse malli itse."
+                          : "Automatic prefers a small model available to your account to reduce usage. Model names indicate size, but do not establish exact prices. If no suitable small model is available, choose a model yourself."}
+                      </p>
+                    </section>
+                  </>
+                ),
+                stores: (
+                  <>
+                    {" "}
+                    <section className="card form">
+                      <details>
+                        <summary>{t("advancedSettings")}</summary>
+                        {field(
+                          t("store"),
+                          <select
+                            aria-label={t("store")}
+                            value={state.context.providerId}
+                            onChange={(e) =>
+                              void save({
+                                ...state,
+                                context: {
+                                  ...state.context,
+                                  providerId: e.target.value,
+                                  storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
+                                },
+                              })
+                            }
+                          >
+                            <option value="demo-k">K-Ruoka (demo)</option>
+                            <option value="demo-s">S-kaupat (demo)</option>
+                            {isLive(state.context.providerId) && (
+                              <option value={state.context.providerId}>
+                                {state.context.storeName}
+                              </option>
+                            )}
+                          </select>,
+                        )}
+                        {field(
+                          t("pickup") + " / " + t("delivery"),
+                          <select
+                            value={state.context.fulfillment}
+                            disabled={isLive(state.context.providerId)}
+                            onChange={(e) =>
+                              void save({
+                                ...state,
+                                context: {
+                                  ...state.context,
+                                  fulfillment: e.target.value as
+                                    "pickup" | "delivery",
+                                },
+                              })
+                            }
+                          >
+                            <option value="pickup">{t("pickup")}</option>
+                            <option value="delivery">{t("delivery")}</option>
+                          </select>,
+                        )}
+                      </details>
+                      <h2>{t("storeConnection")}</h2>
+                      {isLive(state.context.providerId) && (
+                        <p>
+                          <strong>{state.context.storeName}</strong>
+                        </p>
+                      )}
+                      <h3>{t("chainsTitle")}</h3>
+                      <p className="muted">{t("chainsHelp")}</p>
+                      <Chains
+                        snapshot={snapshot}
+                        t={t}
+                        busy={busy}
+                        call={call}
+                      />
+                      <p>K-Ruoka: {t("realStatus")}</p>
+                      <p>S-kaupat: {t("sKaupatStatus")}</p>
+                      <form
+                        className="inline"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void call(
+                            "searchStores",
+                            String(new FormData(e.currentTarget).get("query")),
+                          );
+                        }}
+                      >
+                        <label>
+                          {t("searchStores")}
+                          <input
+                            name="query"
+                            minLength={2}
+                            required
+                            placeholder="Helsinki"
+                          />
+                        </label>
+                        <button disabled={busy}>{t("search")}</button>
+                      </form>
+                      {snapshot.storeResults.map((store) => (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          key={store.storeId}
+                          onClick={() =>
+                            void save({ ...state, context: store })
+                          }
+                        >
+                          {store.storeName}
+                        </button>
+                      ))}
+                    </section>
+                  </>
+                ),
+                data: (
+                  <>
+                    {" "}
+                    <section className="card form">
+                      <h2>
+                        {state.language === "fi"
+                          ? "Aiemmat kuitit"
+                          : "Previous receipts"}
+                      </h2>
+                      <p>
+                        {state.language === "fi"
+                          ? "Tuo PDF-kuitti, teksti- tai CSV-tiedosto tai liitä ostosrivit alle. PDF:n teksti luetaan paikallisesti. Tietoja käytetään seuraavissa ChatGPT-ehdotuksissa. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."
+                          : "Import a PDF, text or CSV receipt, or paste purchase lines below. PDF text is extracted locally. These inform future ChatGPT suggestions. Scanned PDFs need OCR."}
+                      </p>
+                      <button
+                        disabled={busy}
+                        onClick={() => void call("importReceipt")}
+                      >
+                        {state.language === "fi"
+                          ? "Tuo kuitti (PDF, teksti tai CSV)"
+                          : "Import receipt (PDF, text or CSV)"}
+                      </button>
+                      <form
+                        key={state.receiptText}
+                        onSubmit={(e) => {
+                          e.preventDefault();
                           void save({
                             ...state,
-                            context: {
-                              ...state.context,
-                              fulfillment: e.target.value as
-                                "pickup" | "delivery",
-                            },
-                          })
-                        }
+                            receiptText: String(
+                              new FormData(e.currentTarget).get("receipts"),
+                            ),
+                          });
+                        }}
                       >
-                        <option value="pickup">{t("pickup")}</option>
-                        <option value="delivery">{t("delivery")}</option>
-                      </select>,
-                    )}
-                  </details>
-                  <h2>{t("storeConnection")}</h2>
-                  {isLive(state.context.providerId) && (
-                    <p>
-                      <strong>{state.context.storeName}</strong>
-                    </p>
-                  )}
-                  <h3>{t("chainsTitle")}</h3>
-                  <p className="muted">{t("chainsHelp")}</p>
-                  <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
-                  <p>K-Ruoka: {t("realStatus")}</p>
-                  <p>S-kaupat: {t("sKaupatStatus")}</p>
-                  <form
-                    className="inline"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void call(
-                        "searchStores",
-                        String(new FormData(e.currentTarget).get("query")),
-                      );
-                    }}
-                  >
-                    <label>
-                      {t("searchStores")}
-                      <input
-                        name="query"
-                        minLength={2}
-                        required
-                        placeholder="Helsinki"
-                      />
-                    </label>
-                    <button disabled={busy}>{t("search")}</button>
-                  </form>
-                  {snapshot.storeResults.map((store) => (
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      key={store.storeId}
-                      onClick={() => void save({ ...state, context: store })}
-                    >
-                      {store.storeName}
-                    </button>
-                  ))}
-                </section>
-                <section className="card form">
-                  <h2>
-                    {state.language === "fi"
-                      ? "Aiemmat kuitit"
-                      : "Previous receipts"}
-                  </h2>
-                  <p>
-                    {state.language === "fi"
-                      ? "Tuo PDF-kuitti, teksti- tai CSV-tiedosto tai liitä ostosrivit alle. PDF:n teksti luetaan paikallisesti. Tietoja käytetään seuraavissa ChatGPT-ehdotuksissa. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."
-                      : "Import a PDF, text or CSV receipt, or paste purchase lines below. PDF text is extracted locally. These inform future ChatGPT suggestions. Scanned PDFs need OCR."}
-                  </p>
-                  <button
-                    disabled={busy}
-                    onClick={() => void call("importReceipt")}
-                  >
-                    {state.language === "fi"
-                      ? "Tuo kuitti (PDF, teksti tai CSV)"
-                      : "Import receipt (PDF, text or CSV)"}
-                  </button>
-                  <form
-                    key={state.receiptText}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void save({
-                        ...state,
-                        receiptText: String(
-                          new FormData(e.currentTarget).get("receipts"),
-                        ),
-                      });
-                    }}
-                  >
-                    <label>
-                      {state.language === "fi"
-                        ? "Kuittien ostosrivit"
-                        : "Receipt purchase lines"}
-                      <textarea
-                        name="receipts"
-                        defaultValue={state.receiptText}
-                        maxLength={50000}
-                      />
-                    </label>
-                    <button disabled={busy}>{t("save")}</button>
-                  </form>
-                </section>
-                <section
-                  className="card"
-                  aria-label={
-                    state.language === "fi"
-                      ? "Tietoja Korikoneesta"
-                      : "About Korikone"
-                  }
-                >
-                  <h2>
-                    {state.language === "fi"
-                      ? "Tietoja Korikoneesta"
-                      : "About Korikone"}
-                  </h2>
-                  <p>
-                    {state.language === "fi" ? "Versio" : "Version"}:{" "}
-                    <span data-testid="app-version">
-                      {appVersion ||
-                        (state.language === "fi"
-                          ? "Ei saatavilla"
-                          : "Unavailable")}
-                    </span>
-                  </p>
-                </section>
-                <details className="card">
-                  <summary>{t("dataManagement")}</summary>
-                  <p>{t("localData")}</p>
-                  <div className="actions">
-                    <button
-                      className="secondary"
-                      onClick={() => void call("exportData")}
-                    >
-                      {t("backup")}
-                    </button>
-                    <button
-                      className="secondary"
-                      onClick={() => void call("importData")}
-                    >
-                      {t("restore")}
-                    </button>
-                    <button
-                      className="text"
-                      onClick={() => void call("exportDiagnostics")}
-                    >
-                      {t("diagnostics")}
-                    </button>
-                  </div>
-                </details>
-              </>
-            )}
+                        <label>
+                          {state.language === "fi"
+                            ? "Kuittien ostosrivit"
+                            : "Receipt purchase lines"}
+                          <textarea
+                            name="receipts"
+                            defaultValue={state.receiptText}
+                            maxLength={50000}
+                          />
+                        </label>
+                        <button disabled={busy}>{t("save")}</button>
+                      </form>
+                    </section>
+                    <details className="card">
+                      <summary>{t("dataManagement")}</summary>
+                      <p>{t("localData")}</p>
+                      <div className="actions">
+                        <button
+                          className="secondary"
+                          onClick={() => void call("exportData")}
+                        >
+                          {t("backup")}
+                        </button>
+                        <button
+                          className="secondary"
+                          onClick={() => void call("importData")}
+                        >
+                          {t("restore")}
+                        </button>
+                        <button
+                          className="text"
+                          onClick={() => void call("exportDiagnostics")}
+                        >
+                          {t("diagnostics")}
+                        </button>
+                      </div>
+                    </details>
+                  </>
+                ),
+              }}
+            />
           </main>
         </>
       )}

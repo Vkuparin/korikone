@@ -19,6 +19,7 @@ const methods = [
   "changeContext",
   "recordError",
   "openRelease",
+  "openNotices",
   "accept",
   "setPackSize",
   "omit",

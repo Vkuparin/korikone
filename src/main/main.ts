@@ -440,6 +440,16 @@ else
           await shell.openExternal(service.update.url);
         return service.snapshot();
       },
+      openNotices: async () => {
+        const path = join(app.getAppPath(), "THIRD_PARTY_NOTICES.txt");
+        try {
+          await readFile(path, "utf8");
+          if (await shell.openPath(path)) throw new Error("noticesUnavailable");
+        } catch {
+          throw new Error("noticesUnavailable");
+        }
+        return service.snapshot();
+      },
       usageAI: async () => {
         if (!development)
           await shell.openExternal("https://chatgpt.com/settings/usage");
