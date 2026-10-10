@@ -14,7 +14,14 @@ test("saved appearance is synchronously available before async snapshots and set
   env.KORIKONE_TEST_DATA = await mkdtemp(
     join(tmpdir(), "korikone-appearance-bootstrap-"),
   );
-  let app = await electron.launch({ args: ["."], env });
+  const options = {
+    args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
+    env,
+    ...(process.env.KORIKONE_EXECUTABLE
+      ? { executablePath: process.env.KORIKONE_EXECUTABLE }
+      : {}),
+  };
+  let app = await electron.launch(options);
   try {
     let page = await app.firstWindow();
     await page.waitForFunction(() => !!window.korikone);
@@ -33,7 +40,7 @@ test("saved appearance is synchronously available before async snapshots and set
       ),
     ).toBe(true);
     await app.close();
-    app = await electron.launch({ args: ["."], env });
+    app = await electron.launch(options);
     page = await app.firstWindow();
     await page.addInitScript(() => {
       requestAnimationFrame(() => {
