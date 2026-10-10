@@ -8,7 +8,7 @@ import { initialState } from "../src/domain/model";
 
 for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   for (const fixture of matchingBaseline) {
-    test(`released baseline ${chain}: ${fixture.id} (${fixture.cause})`, async () => {
+    test(`released selection reference with current ${chain}: ${fixture.id} (${fixture.cause})`, async () => {
       const { service, tools } = await createFixtureService(chain, {
         "*": fixture.products,
       });
@@ -36,7 +36,7 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
       expect(line.product?.id ?? null).toBe(fixture.baselineSelected);
       expect(line.total === null).toBe(fixture.baselineSelected === null);
       expect(tools.filter((name) => name === "search_products")).toHaveLength(
-        1,
+        fixture.baselineSelected === null ? 2 : 1,
       );
       expect(tools.some((name) => /add|set|create|execute/.test(name))).toBe(
         false,

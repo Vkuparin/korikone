@@ -6,6 +6,10 @@ import {
   type AppState,
 } from "../domain/model";
 import { requirements } from "../domain/planner";
+import {
+  cataloguePricingSchema,
+  productEvidenceSchema,
+} from "../domain/product-evidence";
 
 /** Only inputs that affect catalogue matching belong in a quote's binding. */
 export function pricingKey(state: AppState): string {
@@ -43,6 +47,8 @@ const productSchema = z.object({
   nativeUnit: z.string(),
   increment: z.number().nonnegative(),
   observedAt: z.string(),
+  evidence: productEvidenceSchema.optional(),
+  cataloguePricing: cataloguePricingSchema.optional(),
 });
 export const persistedQuoteSchema = z.object({
   key: z.string(),

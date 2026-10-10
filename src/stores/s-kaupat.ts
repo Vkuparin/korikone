@@ -3,6 +3,8 @@ import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
+import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
+import { cataloguePricingSchema } from "../domain/product-evidence";
 
 /** Pinned s-kaupat-mcp release. Update together with scripts/prepare-s-kaupat.mjs. */
 export const S_KAUPAT_VERSION = "1.3.0";
@@ -93,14 +95,17 @@ export function sKaupatWorker(options: {
   });
 }
 const productSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  price: z.number().nonnegative().nullable(),
-  depositPrice: z.number().nonnegative().nullable(),
-  approximatePrice: z.boolean(),
-  priceBasis: z.string(),
-  packSize: z.string().nullable(),
-  quantityUnit: z.string().nullable(),
+  id: z.string().min(1).max(100),
+  name: z.string().min(1).max(500),
+  storeId: z.string().nullish(),
+  price: z.number().nonnegative().nullish(),
+  depositPrice: z.number().nonnegative().nullish(),
+  approximatePrice: z.boolean().nullish(),
+  priceBasis: z.string().max(40).nullish(),
+  packSize: z.string().max(100).nullish(),
+  quantityUnit: z.string().max(40).nullish(),
+  category: z.string().max(200).nullish(),
+  labels: z.array(z.string().max(100)).max(20).nullish(),
 });
 const listSchema = z.object({
   id: z.string().min(1),
@@ -187,21 +192,27 @@ export class SKaupatProvider implements StoreProvider {
     query: string,
     ingredientId: string,
   ): Promise<Product[]> {
-    const data = z.object({ products: z.array(productSchema) }).parse(
-      await this.call("search_products", {
-        storeId: context.storeId,
-        query,
-        limit: 20,
-      }),
-    );
+    const data = z
+      .object({ products: z.array(productSchema).max(MAX_SEARCH_RESULTS) })
+      .parse(
+        await this.call("search_products", {
+          storeId: context.storeId,
+          query,
+          limit: MAX_SEARCH_RESULTS,
+        }),
+      );
+    if (new Set(data.products.map((p) => p.id)).size !== data.products.length)
+      throw new Error("storeUnavailable");
+    if (data.products.some((p) => p.storeId && p.storeId !== context.storeId))
+      throw new Error("contextChanged");
     // Search results never report stock; the basket check does.
     const stock = new Map<string, string>();
     if (data.products.length) {
       const checked = z
         .object({
-          items: z.array(
-            z.object({ productId: z.string(), status: z.string() }),
-          ),
+          items: z
+            .array(z.object({ productId: z.string(), status: z.string() }))
+            .max(MAX_SEARCH_RESULTS),
         })
         .parse(
           await this.call("check_basket", {
@@ -209,7 +220,14 @@ export class SKaupatProvider implements StoreProvider {
             items: data.products.map((p) => ({ productId: p.id, quantity: 1 })),
           }),
         );
-      for (const item of checked.items) stock.set(item.productId, item.status);
+      for (const item of checked.items) {
+        if (
+          stock.has(item.productId) ||
+          !data.products.some((p) => p.id === item.productId)
+        )
+          throw new Error("storeUnavailable");
+        stock.set(item.productId, item.status);
+      }
     }
     const observedAt = new Date().toISOString();
     return data.products.map((p) => {
@@ -217,7 +235,7 @@ export class SKaupatProvider implements StoreProvider {
       // Weighed goods and unclear packs stay unpriced, as with K-Ruoka.
       const supported =
         p.priceBasis === "per_item" &&
-        !p.approximatePrice &&
+        p.approximatePrice === false &&
         p.quantityUnit?.toUpperCase() === "KPL";
       const status = stock.get(p.id);
       return {
@@ -238,9 +256,18 @@ export class SKaupatProvider implements StoreProvider {
               ? false
               : null,
         deposit: p.depositPrice ? Math.round(p.depositPrice * 100) : 0,
-        nativeUnit: "kpl",
-        increment: 1,
+        nativeUnit: p.quantityUnit?.toLowerCase() ?? "unknown",
+        increment: supported ? 1 : 0,
         observedAt,
+        evidence: retailerEvidence(p.name, p.category ?? null, p.labels ?? []),
+        cataloguePricing: cataloguePricingSchema.parse({
+          amount: p.price != null ? Math.round(p.price * 100) : null,
+          unit: p.quantityUnit ?? null,
+          basis: p.priceBasis ?? null,
+          approximate: p.approximatePrice ?? null,
+          deposit:
+            p.depositPrice != null ? Math.round(p.depositPrice * 100) : null,
+        }),
       };
     });
   }

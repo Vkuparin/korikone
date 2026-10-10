@@ -7,17 +7,20 @@ import type {
   Unit,
 } from "../domain/model";
 import type { StoreProvider } from "./provider";
+import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
+import { cataloguePricingSchema } from "../domain/product-evidence";
 export type ToolCall = (
   name: string,
   args: Record<string, unknown>,
 ) => Promise<unknown>;
 const productSchema = z.object({
-  ean: z.string().min(1),
-  name: z.string().min(1),
+  ean: z.string().min(1).max(100),
+  name: z.string().min(1).max(500),
+  storeId: z.string().nullish(),
   price: z.number().nonnegative().nullish(),
   priceUnit: z.string().nullish(),
-  priceIsApproximate: z.boolean(),
-  isAvailable: z.boolean(),
+  priceIsApproximate: z.boolean().nullish(),
+  isAvailable: z.boolean().nullish(),
 });
 const cartSchema = z.object({
   basketId: z.string().min(1),
@@ -94,17 +97,23 @@ export class KRuokaProvider implements StoreProvider {
     query: string,
     ingredientId: string,
   ): Promise<Product[]> {
-    const data = z.object({ results: z.array(productSchema) }).parse(
-      await this.call("search_products", {
-        store_id: context.storeId,
-        query,
-        limit: 20,
-      }),
-    );
+    const data = z
+      .object({ results: z.array(productSchema).max(MAX_SEARCH_RESULTS) })
+      .parse(
+        await this.call("search_products", {
+          store_id: context.storeId,
+          query,
+          limit: MAX_SEARCH_RESULTS,
+        }),
+      );
+    if (new Set(data.results.map((p) => p.ean)).size !== data.results.length)
+      throw new Error("storeUnavailable");
     return data.results.map((p) => {
+      if (p.storeId && p.storeId !== context.storeId)
+        throw new Error("contextChanged");
       const pack = packFromName(p.name);
       // Weight pricing and missing pack data remain unresolved; never assume a kg is a pack.
-      const supported = !p.priceIsApproximate && p.priceUnit === "kpl";
+      const supported = p.priceIsApproximate === false && p.priceUnit === "kpl";
       return {
         id: p.ean,
         providerId: this.id,
@@ -114,11 +123,19 @@ export class KRuokaProvider implements StoreProvider {
         packAmount: pack?.amount ?? 0,
         unit: pack?.unit ?? "pcs",
         price: supported && p.price != null ? Math.round(p.price * 100) : null,
-        available: p.isAvailable,
+        available: p.isAvailable ?? null,
         deposit: 0,
-        nativeUnit: "kpl",
-        increment: 1,
+        nativeUnit: p.priceUnit ?? "unknown",
+        increment: supported ? 1 : 0,
         observedAt: new Date().toISOString(),
+        evidence: retailerEvidence(p.name),
+        cataloguePricing: cataloguePricingSchema.parse({
+          amount: p.price != null ? Math.round(p.price * 100) : null,
+          unit: p.priceUnit ?? null,
+          basis: null,
+          approximate: p.priceIsApproximate ?? null,
+          deposit: null,
+        }),
       };
     });
   }

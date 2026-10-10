@@ -1,3 +1,12 @@
+import {
+  METRICS_KEY,
+  METRICS_LIMIT,
+  operationMetricSchema,
+  readMetrics,
+  unresolvedReason,
+  type OperationMetric,
+  type OperationCounters,
+} from "./metrics";
 import { z } from "zod";
 import {
   initialState,
@@ -41,20 +50,12 @@ import {
   type PriceObservation,
 } from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
+import { searchCandidates } from "../stores/candidates";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
-import {
-  METRICS_KEY,
-  METRICS_LIMIT,
-  operationMetricSchema,
-  readMetrics,
-  unresolvedReason,
-  type OperationMetric,
-  type OperationCounters,
-} from "./metrics";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -133,6 +134,7 @@ export class Service {
       });
     }
   }
+
   developmentMode = false;
   developmentScenario = "success";
   developmentRequests = 0;
@@ -658,30 +660,37 @@ export class Service {
       const provider = this.registry.get(context.providerId);
       const result = [];
       for (const requirement of requirements(state)) {
-        metrics.searches++;
-        const products = applyPackSizes(
-          await provider.searchProducts(
-            context,
-            requirement.name,
-            requirement.id,
-          ),
-          state.packSizes,
-        );
         const accepted =
           state.accepted[
             `${context.providerId}:${context.storeId}:${requirement.id}`
           ] ?? [];
         const exclusions = exclusionTerms(state.household.exclusions);
-        const available = products.filter(
-          (p) =>
-            p.available &&
-            p.price !== null &&
-            p.unit === requirement.unit &&
-            p.packAmount > 0 &&
-            !exclusions.some((term) =>
-              p.name.toLocaleLowerCase("fi").includes(term),
-            ),
+        const usable = (p: Product) =>
+          p.available === true &&
+          p.price !== null &&
+          p.unit === requirement.unit &&
+          p.packAmount > 0 &&
+          !exclusions.some((term) =>
+            p.name.toLocaleLowerCase("fi").includes(term),
+          );
+        const products = applyPackSizes(
+          await searchCandidates(provider, context, requirement, {
+            onSearch: () => {
+              metrics.searches++;
+            },
+            isHit: (product) => {
+              const p = applyPackSizes([product], state.packSizes)[0];
+              return (
+                usable(p) &&
+                (accepted.includes(p.id) ||
+                  !isLive(context.providerId) ||
+                  relevant(p.name, requirement.name))
+              );
+            },
+          }),
+          state.packSizes,
         );
+        const available = products.filter(usable);
         const storeBrand = (name: string) =>
           /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
         // Automatic choice only among products that are the ingredient itself;
