@@ -50,7 +50,7 @@ These block only the named dependent work.
 | Decision | Card | Current boundary |
 | --- | --- | --- |
 | Category defaults and hard versus soft saved preferences beyond agreed milk case | F15.5 | No silent type substitution; explicit exclusions enforced; no numeric confidence slider |
-| Detailed visual layout and responsive behavior | U14.1 | [Reviewable layouts and presentation contract](ui-design.md) retain green identity; owner reviews light/dark layouts before broad CSS changes; no new brand/font purchase assumed |
+| Detailed visual layout and responsive behavior | U14.1 | [Accepted layouts and presentation contract](ui-design.md), 10 October 2026; palette colours remain replaceable semantic CSS variables; no new brand/font purchase assumed |
 | Hard versus target budgets and permitted dish changes | F19.1 | Deferred; no budget success claim from incomplete/model-invented prices |
 | Structured-output compatibility on existing ChatGPT account route | F16.7 | Supported fallback, no automatic paid API-key fallback; live request needs explicit authorization |
 | Quality thresholds and search/concurrency bounds | F15.1, F16.1, F16.9 | Measure baseline; zero forbidden fixture matches and zero duplicate writes are fixed regression gates |

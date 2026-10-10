@@ -1,6 +1,6 @@
 # Korikone 0.6.0 design contract
 
-Proposal for U14.1, 10 October 2026. Owner acceptance is pending. This document specifies presentation of current behavior; it does not authorize staged previews, natural-language list edits or new product rules. Application code is unchanged.
+Proposal for U14.1, 10 October 2026. Owner accepted on 10 October 2026, provided palette colours remain replaceable CSS variables. This document specifies presentation of current behavior; it does not authorize staged previews, natural-language list edits or new product rules. Application code is unchanged.
 
 ## Review artifacts
 
@@ -106,6 +106,6 @@ Settings must keep unsaved household/receipt/query input when navigating categor
 
 ## Owner review gate
 
-Accept or revise the proposed hierarchy, green palettes, narrow stacking and Settings navigation before U14.2/U15.1/U16.1 proceed. This gate comes from U14.1's explicit “Done when owner accepts layouts” requirement and the roadmap's detailed-layout decision. The broad implementation request permits preparing these artifacts; it does not silently close the named visual decision.
+Owner accepted the proposed hierarchy, green palettes, narrow stacking and Settings navigation on 10 October 2026. Palette colours must remain replaceable semantic CSS variables, allowing later palette changes without component edits. U14.2/U15.1/U16.1 may proceed. This gate comes from U14.1's explicit “Done when owner accepts layouts” requirement and the roadmap's detailed-layout decision. The broad implementation request permits preparing these artifacts; it does not silently close the named visual decision.
 
 Remaining implementation checks: FI/EN labels and long names; current validation/persistence/UI fixtures; both palettes and keyboard/reduced motion; System startup without flash; retained transfer/cancellation/recovery behavior. Visual acceptance uses development mode and zero ChatGPT/store requests. No live check is needed for this layout proposal.
