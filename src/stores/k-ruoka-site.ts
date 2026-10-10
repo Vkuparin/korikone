@@ -26,6 +26,7 @@ const searchSchema = z.object({
             ean: z.string().min(1),
             localizedName: localized,
             isAvailable: z.boolean().nullish(),
+            store: z.object({ id: z.string() }).nullish(),
             mobilescan: z
               .object({
                 pricing: z
@@ -268,6 +269,8 @@ export class KRuokaSite {
         results: data.result.flatMap((hit) => {
           const product = hit.product;
           if (!product || (hit.type && hit.type !== "product")) return [];
+          if (product.store && product.store.id !== storeId())
+            throw new Error("contextChanged");
           const normal = product.mobilescan?.pricing?.normal;
           return [
             {
@@ -275,8 +278,8 @@ export class KRuokaSite {
               name: product.localizedName.finnish ?? product.ean,
               price: normal?.price ?? null,
               priceUnit: normal?.unit ?? null,
-              priceIsApproximate: normal?.isApproximate ?? true,
-              isAvailable: product.isAvailable ?? false,
+              priceIsApproximate: normal?.isApproximate ?? null,
+              isAvailable: product.isAvailable ?? null,
             },
           ];
         }),

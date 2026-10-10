@@ -165,6 +165,9 @@ export type Product = {
   nativeUnit: string;
   increment: number;
   observedAt: string;
+  /** Optional for legacy quotes and demo providers; missing evidence stays unknown. */
+  evidence?: import("./product-evidence").ProductEvidence;
+  cataloguePricing?: import("./product-evidence").CataloguePricing;
 };
 export type BasketLine = {
   requirement: Requirement;

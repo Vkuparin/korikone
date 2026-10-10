@@ -1,4 +1,4 @@
-import { Service } from "../../../src/application/service";
+import { Service, type Storage } from "../../../src/application/service";
 import { KRuokaProvider, type ToolCall } from "../../../src/stores/k-ruoka";
 import { SKaupatProvider } from "../../../src/stores/s-kaupat";
 import type { BaselineProduct } from "../matching-baseline";
@@ -48,27 +48,41 @@ export async function createFixtureService(
     }
     if (name === "check_basket")
       return {
-        items: all.map((p) => ({
-          productId: p.id,
-          status: p.available === false ? "unavailable" : "ok",
-        })),
+        items: all
+          .filter(
+            (p, index) =>
+              all.findIndex((other) => other.id === p.id) === index &&
+              (args.items as { productId: string }[]).some(
+                (item) => item.productId === p.id,
+              ),
+          )
+          .map((p) => ({
+            productId: p.id,
+            status: p.available === false ? "unavailable" : "ok",
+          })),
       };
     if (name === "get_delivery_options") return {};
     throw new Error(`Unexpected boundary call: ${name}`);
   };
-  const service = new Service({
+  const storage: Storage = {
     get: async (key) => structuredClone(entries.get(key)),
     set: async (key, value) => {
       entries.set(key, structuredClone(value));
     },
-  });
+  };
+  const service = new Service(storage);
   service.developmentMode = true;
   const adapter =
     chain === "k-ruoka" ? new KRuokaProvider(call) : new SKaupatProvider(call);
   const search = adapter.searchProducts.bind(adapter);
   adapter.searchProducts = async (context, query, ingredientId) => {
     const products = await search(context, query, ingredientId);
-    normalized.set(ingredientId, structuredClone(products));
+    const merged = new Map(
+      (normalized.get(ingredientId) ?? []).map((p) => [p.id, p]),
+    );
+    for (const product of products)
+      merged.set(product.id, structuredClone(product));
+    normalized.set(ingredientId, [...merged.values()]);
     return products;
   };
   service.registry.register(adapter);
@@ -83,5 +97,5 @@ export async function createFixtureService(
       fulfillment: "pickup",
     },
   });
-  return { service, tools, normalized };
+  return { service, tools, normalized, storage };
 }

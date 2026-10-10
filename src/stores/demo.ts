@@ -1,5 +1,6 @@
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
+import { retailerEvidence } from "./candidates";
 // The optional last entry is a search word the store also answers with this product.
 const catalogue: [
   string,
@@ -166,7 +167,8 @@ export class DemoProvider implements StoreProvider {
               },
             ]
           : []),
-      ]);
+      ])
+      .map((p) => ({ ...p, evidence: retailerEvidence(p.name) }));
   }
   async pickupFee() {
     // Only the S-kaupat fixture reports fees, as only the real S-kaupat worker does.

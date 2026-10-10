@@ -36,6 +36,8 @@ The released source baseline is v0.6.0/main `5494654`, as recorded in `matching-
 
 The gate fails: only 16 distinct cases, two forbidden plant-drink selections and required weighed pricing unsupported. F15.2 must eliminate forbidden fixture selections before improved coverage can count as acceptable. Numerical improvement targets follow this baseline and the expanded owner-approved corpus; this card does not invent a live accuracy target.
 
+F15.8 current-source delta: selections and unresolved reasons on this historical corpus remain unchanged, while miss-only aliases raise catalogue searches from 32 to 54 across both chains. The current evaluator test records 54; the table above records the original released reference. The runner observes merged normalized products across queries. See [candidate contract](candidate-contract.md) for the per-row caps and terminal-error policy.
+
 Additional harness checks detect omitted eggs, wrong milk quantity, a wrong category label, a missing dish, invalid output/one repair, incomplete output/no repair, malformed normalization and search errors on both chains. Their small synthetic examples validate measurement behavior and do not count as the promised 60 independent shopping cases.
 
 ## Capability and dependent handoff

@@ -6,16 +6,16 @@ F15.7, 10 October 2026. `src/domain/categories.ts` defines the runtime contract.
 
 `classificationSchema` has `category`, `provenance`, optional `evidence`, and `qualifiers` (at most eight). Categories are milk, bread, eggs, mince, onion, rice, cream and coffee. Each qualifier has `kind`, `value`, `provenance` and optional `evidence`. A category allows only its applicable kinds, with one value per kind.
 
-| Kind | Values | Categories |
-| --- | --- | --- |
-| fat | skimmed, semi-skimmed, whole | milk |
-| lactose | free, low | milk, cream |
-| meat | beef, pork, beef-pork, chicken, turkey | mince |
-| grain | rye, wheat, wholegrain | bread |
-| onion | yellow, red, shallot, spring | onion |
-| rice | white, brown, jasmine, basmati | rice |
-| cream | cooking, whipping | cream |
-| coffee | ground, beans, instant | coffee |
+| Kind    | Values                                 | Categories  |
+| ------- | -------------------------------------- | ----------- |
+| fat     | skimmed, semi-skimmed, whole           | milk        |
+| lactose | free, low                              | milk, cream |
+| meat    | beef, pork, beef-pork, chicken, turkey | mince       |
+| grain   | rye, wheat, wholegrain                 | bread       |
+| onion   | yellow, red, shallot, spring           | onion       |
+| rice    | white, brown, jasmine, basmati         | rice        |
+| cream   | cooking, whipping                      | cream       |
+| coffee  | ground, beans, instant                 | coffee      |
 
 These describe requested distinctions. They do not assert that a product meets them or define which default the owner wants. Allergen certification is outside this name-based contract.
 
@@ -31,7 +31,7 @@ If output omits classification, `inferredClassification(name, provenance)` suppl
 
 ## Dependent contracts
 
-- F15.8 consumes `Category`/`Qualifier` for retailer attributes in `src/stores/candidates.ts`. Attributes use retailer evidence, not request provenance or model claims. Missing remains unknown.
+- F15.8 landed `retailerEvidence`, `candidateQueries` and `searchCandidates` in `src/stores/candidates.ts`, with `Product.evidence` / `Product.cataloguePricing` schemas in `src/domain/product-evidence.ts`. Attributes use retailer-name evidence, not request provenance or model claims. Missing remains unknown. Exact source fields, bounds and fixtures are in [candidate contract](candidate-contract.md).
 - F15.2 consumes `Requirement.classification` in `src/domain/matching.ts`. Explicit qualifiers constrain selection only after source validation. Model assumptions remain distinguishable and cannot silently override the request. Current name relevance is still used until that card lands.
 - F15.3 stores explicit Remember rules separately from ingredients; `remembered` describes their application, not consent. No memory is written by F15.7. F15.5 supplies hard/soft policy.
 - F16.1 measures generic and explicit requests independently with the fixtures in `tests/categories.test.ts` as examples. An assumed beef qualifier is not evidence that the note requested beef.

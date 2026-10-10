@@ -10,7 +10,7 @@ import {
 } from "./fixtures/ai-shopping/runner";
 import { shoppingCaseSchema } from "./fixtures/ai-shopping/schema";
 
-test("one evaluator reproduces the released baseline through validation, approval, both adapters and service", async () => {
+test("one evaluator measures the released selection corpus through current validation, adapters and service", async () => {
   const results = [];
   for (const chain of ["k-ruoka", "s-kaupat"] as const)
     for (const fixture of baselineShoppingCases)
@@ -25,7 +25,7 @@ test("one evaluator reproduces the released baseline through validation, approva
     safePriced: 8,
     unresolved: 22,
     aiRequests: 32,
-    searches: 32,
+    searches: 54,
     retailerWrites: 0,
     unsupported: ["weighed-pricing"],
     reasons: {
