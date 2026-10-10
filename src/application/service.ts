@@ -66,8 +66,9 @@ import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
-import { pricingKey, restoredQuote } from "./quotes";
+import { pricingKey, restoredQuote, persistedQuoteSchema } from "./quotes";
 import { PlanningLifecycle } from "./planning";
+import { mapIntentResults } from "../domain/intents";
 import {
   coordinatePlanning,
   planningRequestSchema,
@@ -77,6 +78,7 @@ import {
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
+  setMany?(entries: { key: string; value: unknown }[]): Promise<any>;
 }
 export class Service {
   private metricWrites: Promise<void> = Promise.resolve();
@@ -162,11 +164,13 @@ export class Service {
   state = initialState();
   planning = new PlanningLifecycle(() => this.state);
   private readyPlanning: PlanningResult | null = null;
+  private commitUncertain = false;
   async planShopping(
     input: unknown,
     session: PlanningDependencies["session"],
     resolverEnabled = true,
   ) {
+    if (this.commitUncertain) throw new Error("commitUnknown");
     if (this.busy || this.transferPending) throw new Error("busy");
     const request = planningRequestSchema.parse(input);
     const run = this.planning.start(request.prompt);
@@ -232,6 +236,126 @@ export class Service {
       throw new Error("planningStale");
     return structuredClone(this.readyPlanning);
   }
+  /** Commit accepts only the owned operation ID; state/prices/coverage come from the private result. */
+  async commitPlanning(input: unknown) {
+    const { operationId } = z
+      .object({ operationId: z.uuid() })
+      .strict()
+      .parse(input);
+    return this.writeState(async () => {
+      if (this.busy || this.transferPending) throw new Error("busy");
+      const run = this.planning.currentReady(operationId);
+      const result = this.planningResult(operationId);
+      try {
+        if (!this.db.setMany) throw new Error("storageFailed");
+        const next = stateSchema.parse({
+          ...result.state,
+          revision: this.state.revision + 1,
+          appearance: this.state.appearance,
+          calendar: this.state.calendar,
+          language: this.state.language,
+          history: this.archived(this.state),
+        });
+        const wanted = requirements(next);
+        if (JSON.stringify(wanted) !== JSON.stringify(result.requirements))
+          throw new Error("draftStale");
+        const lines = new Map(
+          result.lines.map((line) => [
+            `${line.requirement.id}:${line.requirement.unit}`,
+            line,
+          ]),
+        );
+        const basket = wanted.map((requirement) => {
+          const key = `${requirement.id}:${requirement.unit}`;
+          const line = lines.get(key);
+          if (line) return line;
+          if (
+            !result.coverage.some(
+              (row) =>
+                row.requirementKey === key && row.status === "bounded-out",
+            )
+          )
+            throw new Error("invalidDraft");
+          const missing = matchRequirement(requirement, [], {
+            context: next.context,
+            sourceNote: next.note,
+          });
+          missing.matching!.reason = "bounded-out";
+          return missing;
+        });
+        const quote = persistedQuoteSchema.parse({
+          operationId,
+          key: pricingKey(next),
+          context: next.context,
+          basket,
+          quotedAt: new Date().toISOString(),
+          pickupFee: null,
+        });
+        if (!restoredQuote(quote, next)) throw new Error("invalidDraft");
+        const previousState = await this.db.get("state");
+        const previousQuote = await this.db.get("last-quote");
+        const previousPrices = await this.db.get(PRICE_KEY);
+        const validPrices = priceObservationsSchema.safeParse(
+          previousPrices ?? [],
+        );
+        const observedPrices = recordPrices(
+          validPrices.success ? validPrices.data : [],
+          basket.flatMap((line) => line.candidates),
+        );
+        run.beginCommit(next);
+        try {
+          await this.db.setMany([
+            { key: "state", value: next },
+            { key: "last-quote", value: quote },
+            { key: PRICE_KEY, value: observedPrices },
+          ]);
+        } catch (writeError) {
+          let storedState: unknown, storedQuote: unknown, storedPrices: unknown;
+          try {
+            storedState = await this.db.get("state");
+            storedQuote = await this.db.get("last-quote");
+            storedPrices = await this.db.get(PRICE_KEY);
+          } catch {
+            this.commitUncertain = true;
+            throw new Error("commitUnknown");
+          }
+          const confirmed = persistedQuoteSchema.safeParse(storedQuote);
+          if (
+            !confirmed.success ||
+            confirmed.data.operationId !== operationId ||
+            JSON.stringify(storedState) !== JSON.stringify(next) ||
+            JSON.stringify(confirmed.data) !== JSON.stringify(quote) ||
+            JSON.stringify(storedPrices) !== JSON.stringify(observedPrices)
+          ) {
+            if (
+              JSON.stringify(storedState) === JSON.stringify(previousState) &&
+              JSON.stringify(storedQuote) === JSON.stringify(previousQuote) &&
+              JSON.stringify(storedPrices) === JSON.stringify(previousPrices)
+            )
+              throw writeError;
+            this.commitUncertain = true;
+            throw new Error("commitUnknown");
+          }
+          // The atomic pair is durable despite a lost acknowledgement; no write is retried.
+        }
+        this.state = next;
+        this.basket = quote.basket;
+        this.quotedAt = quote.quotedAt;
+        this.pickupFee = quote.pickupFee;
+        this.pricingError = null;
+        this.review = null;
+        this.comparison = null;
+        this.transferException = null;
+        this.readyPlanning = null;
+        run.committed();
+        return this.snapshot();
+      } catch (error) {
+        run.commitFailed();
+        this.readyPlanning = null;
+        throw error;
+      }
+    });
+  }
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
   quotedAt: string | null = null;
@@ -270,7 +394,10 @@ export class Service {
   controller: AbortController | null = null;
   private stateWrites: Promise<void> = Promise.resolve();
   private writeState<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.stateWrites.then(operation);
+    const result = this.stateWrites.then(() => {
+      if (this.commitUncertain) throw new Error("commitUnknown");
+      return operation();
+    });
     this.stateWrites = result.then(
       () => {},
       () => {},
@@ -405,6 +532,17 @@ export class Service {
     }
   }
   snapshot() {
+    const committedIntents = this.state.requestIntents.length
+      ? mapIntentResults(
+          this.state.requestIntents,
+          requirements(this.state),
+          this.basket,
+          {
+            complete: this.quotedAt !== null,
+            settledKeys: [...this.state.skipped, ...this.state.removed],
+          },
+        )
+      : [];
     return {
       developmentMode: this.developmentMode,
       developmentScenario: this.developmentScenario,
@@ -455,17 +593,15 @@ export class Service {
       draft: this.draft,
       recipeDraft: this.recipeDraft,
       planning: this.planning.snapshot(),
+      committedIntents,
+      planningIncomplete: committedIntents.some(
+        (intent) => intent.status !== "resolved",
+      ),
     };
   }
   private async saveState(input: unknown, allowCategoryPreferences = false) {
     if (this.busy || this.transferPending) throw new Error("busy");
-    const next = stateSchema.parse(input);
-    if (
-      !allowCategoryPreferences &&
-      JSON.stringify(next.categoryPreferences) !==
-        JSON.stringify(this.state.categoryPreferences)
-    )
-      throw new Error("preferenceActionRequired");
+    const next = this.validateSaveInput(input, allowCategoryPreferences);
     this.registry.get(next.context.providerId);
     if (next.revision !== this.state.revision) throw new Error("draftStale");
     next.language = this.state.language;
@@ -482,9 +618,7 @@ export class Service {
     };
     const changed =
       JSON.stringify(previousShoppingState) !== JSON.stringify(next);
-    if (changed) {
-      next.revision = this.state.revision + 1;
-    }
+    if (changed) next.revision = this.state.revision + 1;
     const pricingChanged = pricingKey(next) !== pricingKey(this.state);
     await this.db.set("state", next);
     this.state = next;
@@ -499,6 +633,36 @@ export class Service {
       this.pricingError = null;
     }
     return this.snapshot();
+  }
+  /** Read-only prequeue validation shares the ordinary save's intent/consent rules. */
+  validateSaveInput(
+    input: unknown,
+    allowCategoryPreferences = false,
+  ): AppState {
+    if (
+      !allowCategoryPreferences &&
+      input &&
+      typeof input === "object" &&
+      JSON.stringify((input as AppState).requestIntents ?? []) !==
+        JSON.stringify(this.state.requestIntents)
+    )
+      throw new Error("intentActionRequired");
+    const next = stateSchema.parse(
+      input &&
+        typeof input === "object" &&
+        "note" in input &&
+        input.note !== this.state.note &&
+        !allowCategoryPreferences
+        ? { ...input, requestIntents: [] }
+        : input,
+    );
+    if (
+      !allowCategoryPreferences &&
+      JSON.stringify(next.categoryPreferences) !==
+        JSON.stringify(this.state.categoryPreferences)
+    )
+      throw new Error("preferenceActionRequired");
+    return next;
   }
   async save(input: unknown) {
     return this.writeState(() => this.saveState(input));
@@ -1013,6 +1177,7 @@ export class Service {
     );
   }
   assertNoProvisionalTransfer() {
+    if (this.commitUncertain) throw new Error("commitUnknown");
     const operation = this.planning.snapshot();
     if (
       operation &&
@@ -1032,6 +1197,11 @@ export class Service {
     const unresolved = this.basket.filter(
       (line) => !line.product || line.total === null,
     );
+    const unresolvedIntents = this.snapshot().committedIntents.filter(
+      (intent) => intent.status !== "resolved",
+    );
+    if (unresolvedIntents.length && !allowMissing)
+      throw new Error("unresolved");
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
@@ -1046,12 +1216,16 @@ export class Service {
       },
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
+    this.review.unresolvedIntents = unresolvedIntents;
     return this.snapshot();
   }
   /** The initial click approves exactly the quoted batch, never a newly priced substitute. */
   private batchKey() {
     return JSON.stringify({
       context: this.state.context,
+      ...(this.state.requestIntents.length
+        ? { requestIntents: this.state.requestIntents }
+        : {}),
       lines: this.basket.map((line) => [
         line.requirement,
         line.product && [
@@ -1125,6 +1299,7 @@ export class Service {
       const review = this.review!;
       if (
         review.unresolved?.length ||
+        review.unresolvedIntents?.length ||
         review.total > this.state.household.budget ||
         review.targets.some((target) => target.before > 0)
       ) {
@@ -1267,6 +1442,7 @@ export class Service {
     );
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;
+    this.review.unresolvedIntents = this.journal.review.unresolvedIntents;
     return this.snapshot();
   }
   async scenario(value: unknown) {

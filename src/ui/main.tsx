@@ -49,6 +49,9 @@ declare global {
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
     > & {
       getAppearanceBootstrap: () => AppearanceBootstrap;
+      commitPlanning: (input: {
+        operationId: string;
+      }) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
       planShopping: (
         input: PlanningRequest,
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
@@ -103,6 +106,8 @@ function App() {
     draft: null,
     recipeDraft: null,
     planning: null,
+    committedIntents: [],
+    planningIncomplete: false,
   });
   const [page, setPage] = useState<Key>("week");
   useEffect(

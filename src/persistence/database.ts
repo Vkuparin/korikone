@@ -42,6 +42,10 @@ export class Database {
   set(key: string, value: unknown) {
     return this.request("set", key, value);
   }
+  /** All entries commit together or roll back together in the SQLite worker. */
+  setMany(entries: { key: string; value: unknown }[]) {
+    return this.request("setMany", "", entries);
+  }
   close() {
     this.fail();
     return this.worker.terminate();

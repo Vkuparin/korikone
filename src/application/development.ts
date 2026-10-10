@@ -13,6 +13,17 @@ export async function createService(
     ? {
         get: (key) => db.get(`development:${key}`),
         set: (key, value) => db.set(`development:${key}`, value),
+        ...(db.setMany
+          ? {
+              setMany: (entries: { key: string; value: unknown }[]) =>
+                db.setMany!(
+                  entries.map((entry) => ({
+                    ...entry,
+                    key: `development:${entry.key}`,
+                  })),
+                ),
+            }
+          : {}),
       }
     : db;
   const service = new Service(storage);

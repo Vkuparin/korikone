@@ -32,6 +32,38 @@ parentPort!.on("message", ({ id, op, key, value }) => {
         "INSERT INTO documents(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
       ).run(key, JSON.stringify(value));
       parentPort!.postMessage({ id, value: true });
+    } else if (op === "setMany") {
+      if (
+        !Array.isArray(value) ||
+        value.length < 1 ||
+        value.length > 32 ||
+        value.some(
+          (entry) =>
+            !entry ||
+            typeof entry.key !== "string" ||
+            !entry.key ||
+            entry.key.length > 200,
+        ) ||
+        new Set(value.map((entry) => entry.key)).size !== value.length
+      )
+        throw new Error("invalidBatch");
+      const serialized = value.map((entry) => {
+        const json = JSON.stringify(entry.value);
+        if (json === undefined) throw new Error("invalidBatch");
+        return { key: entry.key, json };
+      });
+      db.exec("BEGIN IMMEDIATE;");
+      try {
+        const write = db.prepare(
+          "INSERT INTO documents(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        );
+        for (const entry of serialized) write.run(entry.key, entry.json);
+        db.exec("COMMIT;");
+      } catch (error) {
+        db.exec("ROLLBACK;");
+        throw error;
+      }
+      parentPort!.postMessage({ id, value: true });
     } else throw new Error("unsupported");
   } catch {
     parentPort!.postMessage({ id, error: "storageFailed" });

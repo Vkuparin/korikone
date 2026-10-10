@@ -576,6 +576,7 @@ else
           ),
         );
       },
+      commitPlanning: async (input) => service.commitPlanning(input),
       importRecipe: async (input) => {
         service.planning.invalidate();
         const request = z
@@ -942,7 +943,7 @@ else
           if (["prepare", "transferDisplayed", "execute"].includes(name))
             service.assertNoProvisionalTransfer();
           if (name === "save") {
-            const next = stateSchema.parse(input);
+            const next = service.validateSaveInput(input);
             if (next.revision === service.state.revision)
               service.planning.invalidateFor(next);
           }

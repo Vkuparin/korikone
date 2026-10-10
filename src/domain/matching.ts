@@ -62,6 +62,7 @@ export const matchingReasonSchema = z.enum([
   "resolved",
   "approved",
   "empty-search",
+  "bounded-out",
   "identity",
   "invalid-evidence",
   "category",

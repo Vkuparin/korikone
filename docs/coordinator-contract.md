@@ -1,5 +1,7 @@
 # Read-only planning coordinator
 
+F16.11 consumes the private ready result through `Service.commitPlanning({operationId})`. Atomic storage, restart validation, durable coverage and UI obligations are in [planning-persistence.md](planning-persistence.md).
+
 F16.10 implements `coordinatePlanning(run, dependencies)` in `src/application/coordinator.ts`. It executes required-ledger interpretation, local requirements, bounded catalogue searches and optional resolution through one `PlanningRun`. Atomic commit/recovery remains F16.11; progress UI and composer migration remain F16.12.
 
 ## Entry and ownership

@@ -81,6 +81,13 @@ export async function coordinatePlanning(
     const state = stateSchema.parse({
       ...source,
       note,
+      requestIntents: run
+        .snapshot()
+        .intents.map(({ intent, recipeId, requirementKeys }) => ({
+          intent,
+          recipeId,
+          requirementKeys,
+        })),
       recipes: [...source.recipes, ...draft.recipes],
       meals: draft.meals.map((meal) => ({ ...meal, id: crypto.randomUUID() })),
       extras: draft.items,

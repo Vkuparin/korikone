@@ -49,6 +49,7 @@ export function attention(
   });
   return {
     unresolved: review.unresolved ?? [],
+    unresolvedIntents: review.unresolvedIntents ?? [],
     overBudget: Math.max(review.total - budget, 0),
     inCart: review.targets.filter((target) => target.before > 0),
     cheaper,
@@ -93,6 +94,7 @@ export function ConfirmPanel({
   const quiet =
     !!items &&
     !items.unresolved.length &&
+    !items.unresolvedIntents.length &&
     !items.overBudget &&
     !items.inCart.length &&
     !items.cheaper.length &&
@@ -122,13 +124,23 @@ export function ConfirmPanel({
           <p>{tr("Ei huomautettavaa.", "Nothing needs attention.")}</p>
         ) : (
           <ul className="attention-list">
-            {items.unresolved.length > 0 && (
+            {(items.unresolved.length > 0 ||
+              items.unresolvedIntents.length > 0) && (
               <li>
                 {tr(
                   "Ei siirretä, tuote puuttuu:",
                   "Not transferred, no product:",
                 )}{" "}
-                {items.unresolved.map((r) => r.name).join(", ")}
+                {[
+                  ...items.unresolved.map((r) => r.name),
+                  ...items.unresolvedIntents
+                    .filter(
+                      (result) =>
+                        result.intent.unresolvedReason !== null ||
+                        result.reason === "missing-requirement",
+                    )
+                    .map((result) => result.intent.label),
+                ].join(", ")}
               </li>
             )}
             {items.overBudget > 0 && (
@@ -271,6 +283,11 @@ export function ConfirmPanel({
     );
   if (!journal) return null;
   const left = journal.review.unresolved ?? [];
+  const leftIntents = (journal.review.unresolvedIntents ?? []).filter(
+    (result) =>
+      result.intent.unresolvedReason !== null ||
+      result.reason === "missing-requirement",
+  );
   const live = isLive(journal.review.context.providerId);
   return (
     <section
@@ -285,10 +302,13 @@ export function ConfirmPanel({
         {t("verifiedLines")}: {journal.verified.length} /{" "}
         {journal.review.targets.length}
       </p>
-      {left.length > 0 && (
+      {(left.length > 0 || leftIntents.length > 0) && (
         <p>
           {tr("Jäi siirtämättä:", "Left out:")}{" "}
-          {left.map((r) => r.name).join(", ")}
+          {[
+            ...left.map((r) => r.name),
+            ...leftIntents.map((result) => result.intent.label),
+          ].join(", ")}
         </p>
       )}
       {journal.uncertain && (

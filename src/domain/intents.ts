@@ -150,7 +150,10 @@ export function validateIntentLedger(
       throw new Error("invalidIntentLedger");
     ids.add(intent.id);
     spans.push(e);
-    if (intent.quantity?.provenance === "unknown" && noteQuantity(e.quote))
+    if (
+      intent.quantity?.provenance === "unknown" &&
+      (noteQuantity(e.quote) || noteUnspecifiedCount(e.quote) !== null)
+    )
       throw new Error("invalidIntentLedger");
     if (intent.kind === "meal" && intent.mealIndex !== null) {
       if (!draft.meals[intent.mealIndex] || meals.has(intent.mealIndex))
@@ -214,6 +217,47 @@ export const intentMappingSchema = z
           : mapping.recipeId === null && mapping.requirementKeys.length === 1),
   );
 export type IntentMapping = z.infer<typeof intentMappingSchema>;
+/** Durable source evidence remains valid even when an explicit edit removes a referenced requirement. */
+export function validStoredIntents(
+  mappings: IntentMapping[],
+  note: string,
+): boolean {
+  const seen = new Set<string>();
+  const spans: { start: number; end: number }[] = [];
+  return mappings.every(({ intent }) => {
+    const { start, end, quote } = intent.evidence;
+    const quantity = intent.quantity;
+    const known = noteQuantity(quote);
+    if (
+      quantity?.provenance === "unknown" &&
+      (known || noteUnspecifiedCount(quote) !== null)
+    )
+      return false;
+    if (
+      quantity?.provenance === "explicit-note" &&
+      (quantity.unit === null
+        ? known !== null || noteUnspecifiedCount(quote) !== quantity.amount
+        : !known ||
+          known.amount !== quantity.amount ||
+          known.unit !== quantity.unit)
+    )
+      return false;
+    if (
+      intent.id !== `intent-${start}-${end}` ||
+      seen.has(intent.id) ||
+      note.slice(start, end) !== quote ||
+      intent.label !== quote ||
+      end > note.length ||
+      /^[\uDC00-\uDFFF]/.test(quote) ||
+      /[\uD800-\uDBFF]$/.test(quote) ||
+      spans.some((span) => start < span.end && span.start < end)
+    )
+      return false;
+    seen.add(intent.id);
+    spans.push({ start, end });
+    return true;
+  });
+}
 export const intentResultSchema = intentMappingSchema
   .safeExtend({
     status: z.enum(["pending", "resolved", "approval-required", "unresolved"]),
@@ -284,7 +328,11 @@ export function mapIntentResults(
   mappings: IntentMapping[],
   requirements: Requirement[],
   lines: BasketLine[],
-  options: { complete?: boolean; boundedOut?: string[] } = {},
+  options: {
+    complete?: boolean;
+    boundedOut?: string[];
+    settledKeys?: string[];
+  } = {},
 ): IntentResult[] {
   if (
     new Set(mappings.map((mapping) => mapping.intent.id)).size !==
@@ -322,6 +370,7 @@ export function mapIntentResults(
       reason = mapping.intent.unresolvedReason;
     } else
       for (const requirementKey of mapping.requirementKeys) {
+        if (options.settledKeys?.includes(requirementKey)) continue;
         const row = rowMap.get(requirementKey);
         if (!wanted.has(requirementKey)) {
           status = "unresolved";
@@ -347,9 +396,11 @@ export function mapIntentResults(
           if (!approval) {
             status = "unresolved";
             reason =
-              row.matching?.reason === "empty-search"
-                ? "empty-search"
-                : "no-match";
+              row.matching?.reason === "bounded-out"
+                ? "bounded-out"
+                : row.matching?.reason === "empty-search"
+                  ? "empty-search"
+                  : "no-match";
             break;
           }
           if (status !== "pending") status = "approval-required";

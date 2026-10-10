@@ -281,6 +281,7 @@ export class PlanningLifecycle {
   private run: PlanningRun | null = null;
   constructor(private current: () => AppState) {}
   start(note: string): PlanningRun {
+    this.run?.assertCommitMutable();
     z.string().trim().min(1).max(10_000).parse(note);
     this.run?.stop("obsolete", "superseded");
     const run = new PlanningRun(
@@ -304,19 +305,33 @@ export class PlanningLifecycle {
     this.run?.reconcile();
     return this.run?.snapshot() ?? null;
   }
+  currentReady(operationId: string): PlanningRun {
+    if (
+      !this.run ||
+      this.run.operationId !== operationId ||
+      this.snapshot()?.phase !== "ready"
+    )
+      throw new Error("planningStale");
+    this.run.assertCurrent();
+    return this.run;
+  }
   invalidateFor(state: AppState) {
+    this.run?.assertCommitMutable();
     if (this.run?.differs(state)) this.run.stop("obsolete", "source-changed");
   }
   invalidate() {
+    this.run?.assertCommitMutable();
     this.run?.stop("obsolete", "source-changed");
   }
   cancel() {
+    this.run?.assertCommitMutable();
     this.run?.stop("cancelled", "cancelled");
   }
   control(input: unknown, obsolete = false) {
     const control = planningControlSchema.parse(input);
     if (!this.run || this.run.operationId !== control.operationId)
       throw new Error("planningStale");
+    this.run.assertCommitMutable();
     this.run.stop(
       obsolete ? "obsolete" : "cancelled",
       obsolete ? "source-changed" : "cancelled",
@@ -339,6 +354,10 @@ export class PlanningRun {
   private searches = new Map<string, number>();
   private inFlight = 0;
   private expectedCommit: AppState | null = null;
+  private commitLocked = false;
+  assertCommitMutable() {
+    if (this.commitLocked) throw new Error("busy");
+  }
   private value: PlanningSnapshot;
   private sourceSignature: string;
   constructor(
@@ -728,6 +747,7 @@ export class PlanningRun {
     )
       throw new Error("draftStale");
     this.expectedCommit = parsed;
+    this.commitLocked = true;
     this.update({ phase: "committing" });
   }
   committed() {
@@ -742,5 +762,11 @@ export class PlanningRun {
       phase: "committed",
       committedRevision: this.expectedCommit.revision,
     });
+    this.commitLocked = false;
+  }
+  commitFailed() {
+    this.commitLocked = false;
+    this.expectedCommit = null;
+    this.stop("failed", "commit");
   }
 }

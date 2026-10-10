@@ -5,8 +5,12 @@ import {
   unitSchema,
   type AppState,
 } from "../domain/model";
-import { requirements } from "../domain/planner";
-import { matchingSummarySchema } from "../domain/matching";
+import {
+  requirements,
+  exclusionTerms,
+  applyPackSizes,
+} from "../domain/planner";
+import { matchingSummarySchema, matchRequirement } from "../domain/matching";
 import {
   cataloguePricingSchema,
   productEvidenceSchema,
@@ -31,6 +35,9 @@ export function pricingKey(state: AppState): string {
     exclusions: state.household.exclusions,
     preference: state.productPreference,
     categoryPreferences: state.categoryPreferences,
+    ...(state.requestIntents.length
+      ? { requestIntents: state.requestIntents }
+      : {}),
     ...(Object.keys(state.packSizes).length
       ? { packSizes: state.packSizes }
       : {}),
@@ -55,6 +62,7 @@ const productSchema = z.object({
   cataloguePricing: cataloguePricingSchema.optional(),
 });
 export const persistedQuoteSchema = z.object({
+  operationId: z.uuid().optional(),
   key: z.string(),
   context: contextSchema,
   quotedAt: z.iso.datetime(),
@@ -102,9 +110,70 @@ export function restoredQuote(input: unknown, state: AppState) {
     })
   )
     return null;
-  // Reattach the current requirements, including recurring-item metadata.
+  // Recompute selection and arithmetic; persisted product/cost claims alone are insufficient.
+  const local = quote.basket.map((line, index) => {
+    const requirement = wanted[index];
+    const matched = matchRequirement(
+      requirement,
+      applyPackSizes(line.candidates, state.packSizes),
+      {
+        context: state.context,
+        sourceNote: state.note,
+        preferences: state.categoryPreferences,
+        exclusions: exclusionTerms(state.household.exclusions),
+        productPreference: state.productPreference,
+        accepted:
+          state.accepted[
+            `${state.context.providerId}:${state.context.storeId}:${requirement.id}`
+          ] ?? [],
+      },
+    );
+    if (line.matching?.reason === "bounded-out") {
+      if (
+        line.candidates.length ||
+        line.product ||
+        line.total !== null ||
+        line.packs !== 0
+      )
+        return null;
+      matched.matching!.reason = "bounded-out";
+    }
+    if (
+      line.product?.id !== matched.product?.id ||
+      line.packs !== matched.packs ||
+      line.total !== matched.total
+    )
+      return null;
+    // Fixed rejection explanations may describe candidates pruned by matching.
+    // They cannot authorize selection; retained products and arithmetic were recomputed above.
+    if (line.matching && matched.matching) {
+      const decisions = new Map(
+        matched.matching.decisions.map((decision) => [decision.id, decision]),
+      );
+      const seen = new Set<string>();
+      matched.matching.decisions = line.matching.decisions.flatMap(
+        (decision) => {
+          const verified = decisions.get(decision.id);
+          if (
+            seen.has(decision.id) ||
+            (!verified && decision.status !== "rejected")
+          )
+            return [];
+          seen.add(decision.id);
+          return [verified ?? decision];
+        },
+      );
+      for (const decision of decisions.values())
+        if (!seen.has(decision.id)) matched.matching.decisions.push(decision);
+      if (!matchingSummarySchema.safeParse(matched.matching).success)
+        return null;
+    }
+    return matched;
+  });
+  if (local.some((line) => line === null)) return null;
+  // Reattach current requirements, including recurring-item metadata.
   quote.basket = quote.basket.map((line, index) => ({
-    ...line,
+    ...local[index]!,
     requirement: wanted[index],
   }));
   return quote;

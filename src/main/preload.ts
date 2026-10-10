@@ -55,6 +55,7 @@ const methods = [
   "usageAI",
   "generate",
   "planShopping",
+  "commitPlanning",
   "importRecipe",
   "approveDraft",
   "confirmPurchase",

@@ -204,6 +204,12 @@ export function ShoppingWorkspace({
     }
   }
   const rows = requirements(state);
+  const unmatchedRequests = snapshot.committedIntents.filter(
+    (intent) =>
+      intent.status !== "resolved" &&
+      (intent.intent.unresolvedReason !== null ||
+        intent.reason === "missing-requirement"),
+  );
   const money = (cents: number) =>
     new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
       style: "currency",
@@ -1149,6 +1155,24 @@ export function ShoppingWorkspace({
                 })}
             </section>
           ))}
+          {unmatchedRequests.length > 0 && (
+            <section
+              className="warning"
+              aria-label={tr("Ratkaisemattomat pyynnöt", "Unresolved requests")}
+            >
+              <p>
+                {tr(
+                  "Näitä pyyntöjä ei ole hinnoiteltu:",
+                  "These requests are not priced:",
+                )}
+              </p>
+              <ul>
+                {unmatchedRequests.map((result) => (
+                  <li key={result.intent.id}>{result.intent.label}</li>
+                ))}
+              </ul>
+            </section>
+          )}
           {all.length > 0 && (
             <div className="list-footer">
               {state.skipped.length > 0 && (
@@ -1281,7 +1305,7 @@ export function ShoppingWorkspace({
             )}
             <div className="total-line">
               <span>
-                {missing.length
+                {missing.length || snapshot.planningIncomplete
                   ? tr(
                       "Tunnettujen hintojen välisumma",
                       "Subtotal of known prices",

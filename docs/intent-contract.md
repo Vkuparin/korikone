@@ -1,5 +1,7 @@
 # Request intents and planning results
 
+F16.11 persists `AppState.requestIntents` with state and quote. `validStoredIntents` checks saved evidence; `mapIntentResults` accepts owner-settled requirement keys through `settledKeys`. Save, backup, snapshot and partial-review behavior is in [planning-persistence.md](planning-persistence.md).
+
 F16.15 defines identified request coverage in `src/domain/intents.ts`. It does not prove that a model understood every request in an arbitrary note. Independent note expectations remain necessary, as shown in `tests/intents.test.ts`.
 
 ## Interpretation

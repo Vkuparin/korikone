@@ -186,6 +186,8 @@ export const en = {
   total: "Estimated goods subtotal",
   fees: "Delivery, service fees and unreported deposits are unknown.",
   unresolved: "Choose a product for each ingredient before continuing.",
+  commitUnknown:
+    "The save could not be confirmed. Restart Korikone to check the saved plan before making more changes.",
   prepare: "Review cart changes",
   transfer: "Transfer to cart",
   before: "In cart",
@@ -459,6 +461,8 @@ export const fi: Record<Key, string> = {
   total: "Tuotteiden arvioitu välisumma",
   fees: "Toimitus- ja palvelumaksut sekä ilmoittamattomat pantit eivät ole tiedossa.",
   unresolved: "Valitse tuote jokaiselle ainekselle ennen jatkamista.",
+  commitUnknown:
+    "Tallennusta ei voitu vahvistaa. Käynnistä Korikone uudelleen ja tarkista tallennettu lista ennen muita muutoksia.",
   prepare: "Tarkista korin muutokset",
   transfer: "Siirrä ostoskoriin",
   before: "Korissa nyt",

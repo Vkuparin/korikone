@@ -2,6 +2,11 @@ import { z } from "zod";
 import { appearanceSchema } from "./appearance";
 import { classificationSchema } from "./categories";
 import { categoryPreferencesSchema } from "./preferences";
+import {
+  intentMappingSchema,
+  validStoredIntents,
+  type IntentResult,
+} from "./intents";
 
 export const unitSchema = z.enum(["g", "ml", "pcs"]);
 export type Unit = z.infer<typeof unitSchema>;
@@ -62,6 +67,7 @@ export const stateSchema = z
     accepted: z.record(z.string(), z.array(z.string())),
     note: z.string().max(10000).default(""),
     assumptions: z.string().max(5000).default(""),
+    requestIntents: z.array(intentMappingSchema).max(100).default([]),
     extras: z.array(ingredientSchema).max(500).default([]),
     removed: z.array(z.string()).max(1000).default([]),
     quantities: z
@@ -138,6 +144,9 @@ export const stateSchema = z
       .max(12)
       .default([]),
   })
+  .refine((state) => validStoredIntents(state.requestIntents, state.note), {
+    message: "Invalid stored request intents",
+  })
   // The active store is always also the remembered store of its chain; older profiles migrate here.
   .transform((state) => ({
     ...state,
@@ -210,6 +219,7 @@ export type Review = {
   total: number;
   quotes: BasketLine[];
   unresolved?: Requirement[];
+  unresolvedIntents?: IntentResult[];
 };
 export type Journal = {
   batchKey?: string;

@@ -69,6 +69,13 @@ export async function createFixtureService(
     set: async (key, value) => {
       entries.set(key, structuredClone(value));
     },
+    setMany: async (batch) => {
+      const cloned = batch.map((entry) => ({
+        ...entry,
+        value: structuredClone(entry.value),
+      }));
+      for (const entry of cloned) entries.set(entry.key, entry.value);
+    },
   };
   const service = new Service(storage);
   service.developmentMode = true;
