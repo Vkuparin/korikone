@@ -42,7 +42,7 @@ import {
 } from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
-import type { AIStatus } from "../ai/chatgpt";
+import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
@@ -56,6 +56,7 @@ export class Service {
   developmentRequests = 0;
   developmentModel: string | null = null;
   developmentModelCatalogueRequests = 0;
+  developmentAIProvider: string | null = null;
   state = initialState();
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
@@ -234,6 +235,7 @@ export class Service {
       developmentRequests: this.developmentRequests,
       developmentModel: this.developmentModel,
       developmentModelCatalogueRequests: this.developmentModelCatalogueRequests,
+      developmentAIProvider: this.developmentAIProvider,
       developmentCatalogueRequests: this.developmentMode
         ? this.registry
             .all()

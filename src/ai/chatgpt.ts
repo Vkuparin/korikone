@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { chooseModel } from "./models";
+import type { AIStatus } from "./connection";
+export type { AIStatus } from "./connection";
 import type { Storage } from "../application/service";
 import {
   authorization,
@@ -25,13 +27,6 @@ type Connection = {
   idToken: string;
   expiresAt: number;
   scopes: string[];
-};
-export type AIStatus = {
-  state:
-    "disconnected" | "waiting" | "connected" | "permissionMissing" | "error";
-  email: string;
-  error: string | null;
-  models: { slug: string; name: string }[];
 };
 const tokenSchema = z.object({
   access_token: z.string(),
@@ -316,12 +311,24 @@ export class ChatGPT {
   cancelRequest() {
     this.request?.abort();
   }
-  async generate(model: string, input: string) {
+  async generatePinned(model: string, input: string, signal: AbortSignal) {
+    if (model === "auto") throw new Error("modelUnavailable");
+    return this.generate(model, input, { signal, pinned: true });
+  }
+  async generate(
+    model: string,
+    input: string,
+    options?: { signal?: AbortSignal; pinned?: boolean },
+  ) {
     if (this.request) throw new Error("busy");
     const controller = new AbortController();
+    const cancel = () => controller.abort();
+    options?.signal?.addEventListener("abort", cancel, { once: true });
+    if (options?.signal?.aborted) controller.abort();
     this.request = controller;
     try {
-      model = chooseModel(await this.models(controller.signal), model);
+      if (!options?.pinned)
+        model = chooseModel(await this.models(controller.signal), model);
       controller.signal.throwIfAborted();
       const token = await this.access();
       const response = await fetch(`${resource}/responses`, {
@@ -340,6 +347,7 @@ export class ChatGPT {
       if (!response.ok || !response.body) throw new Error("aiFailed");
       return await completedText(response.body, controller.signal);
     } finally {
+      options?.signal?.removeEventListener("abort", cancel);
       this.request = null;
     }
   }

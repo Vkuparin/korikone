@@ -16,6 +16,15 @@ import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { chooseModel } from "../ai/models";
+import { ChatGPTInferenceProvider } from "../ai/chatgpt-provider";
+import { FakeInferenceProvider } from "../ai/fake-provider";
+import {
+  InferenceSession,
+  discoverInferenceModels,
+  type InferenceTask,
+} from "../ai/provider";
+import { shoppingDraftTask, recipeImportTask } from "../ai/tasks";
+import { inferenceAppError } from "../ai/adapter-errors";
 import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
@@ -77,6 +86,19 @@ else
       (url) => shell.openExternal(url),
     );
     const fixtureAI = new FixtureAI();
+    const fixtureProviderChoice =
+      process.env.KORIKONE_TEST_AI_PROVIDER ?? "chatgpt";
+    if (!["chatgpt", "fake-alternative"].includes(fixtureProviderChoice))
+      throw new Error("unsupportedProvider");
+    if (!development && fixtureProviderChoice !== "chatgpt")
+      throw new Error("developmentRequired");
+    const liveInference = new ChatGPTInferenceProvider(liveAI);
+    const fixtureInference =
+      fixtureProviderChoice === "fake-alternative"
+        ? new FakeInferenceProvider(fixtureAI, true)
+        : new ChatGPTInferenceProvider(fixtureAI);
+    const inferenceProvider = () =>
+      development ? fixtureInference : liveInference;
     let ai = development ? fixtureAI : liveAI;
     let liveAIInitialized = false;
     if (!development) {
@@ -141,6 +163,7 @@ else
     );
     let service = await createService(db, development, [kRuoka, sKaupat]);
     service.ai = ai.status();
+    service.developmentAIProvider = development ? fixtureInference.id : null;
     // start_login waits for the user, so it runs beside the serialized operations.
     let sLogin: Promise<void> | null = null;
     let sLoginRun = 0;
@@ -275,17 +298,33 @@ else
     });
     let generationRun = 0;
     let modelLookup: AbortController | null = null;
-    const requestModel = async (run: number) => {
+    let inferenceController: AbortController | null = null;
+    const requestSession = async (run: number) => {
       const preference = service.state.aiModel;
       const controller = new AbortController();
+      inferenceController?.abort();
+      inferenceController = controller;
       modelLookup = controller;
       try {
-        const models = await ai.models(controller.signal);
+        const provider = inferenceProvider();
+        const models = await discoverInferenceModels(
+          provider,
+          AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]),
+        );
         if (run !== generationRun) throw new Error("aiCancelled");
-        return chooseModel(models, preference);
+        const id = chooseModel(
+          models.map((m) => ({ slug: m.modelId, name: m.name })),
+          preference,
+        );
+        return new InferenceSession(
+          provider,
+          models.find((m) => m.modelId === id)!,
+          { maxCalls: 2, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
+          controller.signal,
+        );
       } catch (error) {
         if (run !== generationRun) throw new Error("aiCancelled");
-        throw error;
+        throw inferenceAppError(error);
       } finally {
         if (modelLookup === controller) modelLookup = null;
       }
@@ -304,9 +343,10 @@ else
       return service.snapshot();
     };
     const generateAI =
-      (model: string, run: number) => async (prompt: string) => {
+      (session: InferenceSession, task: InferenceTask, run: number) =>
+      async (prompt: string) => {
         try {
-          const text = await ai.generate(model, prompt);
+          const { text } = await session.invoke(task, prompt);
           if (run !== generationRun) throw new Error("aiCancelled");
           return text;
         } catch (error) {
@@ -315,7 +355,7 @@ else
             (error instanceof Error && error.name === "AbortError")
           )
             throw new Error("aiCancelled");
-          throw error;
+          throw inferenceAppError(error);
         } finally {
           service.developmentModel = development ? fixtureAI.lastModel : null;
           service.developmentRequests = development
@@ -346,9 +386,13 @@ else
         const enabled = z.boolean().parse(input);
         if (forcedDevelopment && !enabled)
           throw new Error("developmentRequired");
+        if (!enabled && fixtureProviderChoice !== "chatgpt")
+          throw new Error("developmentRequired");
         if (service.busy || sLogin || ai.status().state === "waiting")
           throw new Error("busy");
         if (enabled === development) return service.snapshot();
+        generationRun++;
+        inferenceController?.abort();
         ai.cancel();
         ai.cancelRequest();
         await Promise.all([worker.close(), sWorker.close()]);
@@ -379,6 +423,7 @@ else
         service.developmentScenario = fixtureAI.scenario;
         service.developmentRequests = enabled ? fixtureAI.requestCount : 0;
         service.ai = ai.status();
+        service.developmentAIProvider = enabled ? fixtureInference.id : null;
         return service.snapshot();
       },
       developmentScenario: async (input) => {
@@ -417,6 +462,7 @@ else
       cancelAI: async () => {
         generationRun++;
         modelLookup?.abort();
+        inferenceController?.abort();
         service.recipeDraft = null;
         service.draft = null;
         service.draftRevision = null;
@@ -425,13 +471,20 @@ else
         return service.snapshot();
       },
       signOutAI: async () => {
+        generationRun++;
+        inferenceController?.abort();
         await ai.signOut();
         service.recipeDraft = null;
         service.draft = null;
         return service.snapshot();
       },
       modelsAI: async () => {
-        await ai.models();
+        await discoverInferenceModels(
+          inferenceProvider(),
+          AbortSignal.timeout(30000),
+        ).catch((error) => {
+          throw inferenceAppError(error);
+        });
         return service.snapshot();
       },
       openRelease: async () => {
@@ -465,12 +518,12 @@ else
           .parse(input);
         const revision = service.state.revision;
         const run = ++generationRun;
-        const model = await requestModel(run);
+        const session = await requestSession(run);
         service.draft = null;
         service.draftRevision = null;
         service.recipeDraft = null;
         service.draft = await generateValidated(
-          generateAI(model, run),
+          generateAI(session, shoppingDraftTask, run),
           draftPrompt(request.prompt, service.state),
           (text) => validateDraft(text, service.state, request.prompt),
           " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
@@ -488,10 +541,10 @@ else
           })
           .parse(input);
         const run = ++generationRun;
-        const model = await requestModel(run);
+        const session = await requestSession(run);
         service.recipeDraft = null;
         service.recipeDraft = await generateValidated(
-          generateAI(model, run),
+          generateAI(session, recipeImportTask, run),
           recipePrompt(request.text, service.state),
           (text) => validateRecipe(text, service.state),
           " The previous response failed validation. Return one complete recipe object with positive integer g, ml or pcs quantities, servings from 1 to 100, and at least one ingredient. Return JSON only.",
@@ -874,6 +927,7 @@ else
       if (closing) return;
       event.preventDefault();
       closing = true;
+      inferenceController?.abort();
       nativeTheme.removeListener("updated", systemAppearanceChanged);
       ai.cancel();
       ai.cancelRequest();

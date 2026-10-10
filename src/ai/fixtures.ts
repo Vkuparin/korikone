@@ -1,4 +1,4 @@
-import type { AIStatus } from "./chatgpt";
+import type { AIStatus } from "./connection";
 import { initialState } from "../domain/model";
 import { chooseModel } from "./models";
 import { setTimeout as delay } from "node:timers/promises";
@@ -68,18 +68,44 @@ export class FixtureAI {
     this.catalogueRequests = 0;
     this.lastModel = null;
   }
-  async generate(model: string, input: string) {
+  async generatePinned(model: string, input: string, signal: AbortSignal) {
+    return this.generate(model, input, { signal, pinned: true });
+  }
+  async generate(
+    model: string,
+    input: string,
+    options?: { signal?: AbortSignal; pinned?: boolean },
+  ) {
     if (this.request) throw new Error("busy");
     const controller = new AbortController();
+    const cancel = () => controller.abort();
+    options?.signal?.addEventListener("abort", cancel, { once: true });
+    if (options?.signal?.aborted) controller.abort();
     this.request = controller;
     try {
-      return await this.respond(model, input, controller.signal);
+      return await this.respond(
+        model,
+        input,
+        controller.signal,
+        !!options?.pinned,
+      );
     } finally {
+      options?.signal?.removeEventListener("abort", cancel);
       this.request = null;
     }
   }
-  private async respond(model: string, input: string, signal: AbortSignal) {
-    this.lastModel = chooseModel(await this.models(signal), model);
+  private async respond(
+    model: string,
+    input: string,
+    signal: AbortSignal,
+    pinned = false,
+  ) {
+    if (!this.signedIn) throw new Error("notConnected");
+    if (pinned && !this.catalogue.some((m) => m.slug === model))
+      throw new Error("modelUnavailable");
+    this.lastModel = pinned
+      ? model
+      : chooseModel(await this.models(signal), model);
     signal.throwIfAborted();
     this.calls++;
     if (

@@ -36,7 +36,8 @@ test("cancelling during catalogue lookup prevents note and recipe generations", 
       const before = (await api.load()).value;
       const results = [];
       for (const method of ["generate", "importRecipe"]) {
-        for (const lookup of [1, 2]) {
+        // One catalogue lookup per operation; invocation and repair use its pinned model.
+        for (const lookup of [1]) {
           await api.developmentScenario("delayedModels");
           const pending = api[method]({
             prompt: "Pasta",
@@ -58,8 +59,6 @@ test("cancelling during catalogue lookup prevents note and recipe generations", 
       return { before, results, after: (await api.load()).value };
     });
     expect(evidence.results).toEqual([
-      { ok: false, error: "aiCancelled" },
-      { ok: false, error: "aiCancelled" },
       { ok: false, error: "aiCancelled" },
       { ok: false, error: "aiCancelled" },
     ]);
