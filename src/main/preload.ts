@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { AppearanceBootstrap } from "../domain/appearance";
 const methods = [
   "load",
   "getAppInfo",
@@ -59,4 +60,12 @@ contextBridge.exposeInMainWorld("korikone", {
     ]),
   ),
   getAppearanceBootstrap: () => ipcRenderer.sendSync("app:appearanceBootstrap"),
+  onAppearanceChange: (callback: (value: AppearanceBootstrap) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      value: AppearanceBootstrap,
+    ) => callback(value);
+    ipcRenderer.on("app:appearanceChanged", listener);
+    return () => ipcRenderer.removeListener("app:appearanceChanged", listener);
+  },
 });

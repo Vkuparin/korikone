@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
 import type { AppearanceBootstrap } from "../domain/appearance";
+import { subscribeAppearance } from "./appearance";
 import {
   initialState,
   parseAmount,
@@ -28,6 +29,9 @@ declare global {
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
     > & {
       getAppearanceBootstrap: () => AppearanceBootstrap;
+      onAppearanceChange: (
+        callback: (value: AppearanceBootstrap) => void,
+      ) => () => void;
       getAppInfo: () => Promise<{
         ok: boolean;
         value: { version: string; developmentLocked: boolean };
@@ -66,6 +70,16 @@ function App() {
     recipeDraft: null,
   });
   const [page, setPage] = useState<Key>("week");
+  useEffect(
+    () =>
+      subscribeAppearance((value) => {
+        setSnapshot((current) => ({
+          ...current,
+          state: { ...current.state, appearance: value.preference },
+        }));
+      }),
+    [],
+  );
   const [storeChain, setStoreChain] = useState<Chain | null>(null);
   // A store page stays loaded after leaving the Kauppa view; the navigation says so.
   const [storeOpen, setStoreOpen] = useState(false);
@@ -119,7 +133,13 @@ function App() {
           return result.value;
         return {
           ...result.value,
-          state: { ...result.value.state, language: current.state.language },
+          state: {
+            ...result.value.state,
+            language: current.state.language,
+            appearance: ["setAppearance", "importData"].includes(method)
+              ? result.value.state.appearance
+              : current.state.appearance,
+          },
         };
       });
       return true;
@@ -453,7 +473,11 @@ function App() {
               apply={(next) =>
                 setSnapshot((current) => ({
                   ...next,
-                  state: { ...next.state, language: current.state.language },
+                  state: {
+                    ...next.state,
+                    language: current.state.language,
+                    appearance: current.state.appearance,
+                  },
                 }))
               }
             />

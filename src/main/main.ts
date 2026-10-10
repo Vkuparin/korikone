@@ -205,8 +205,12 @@ else
         nativeTheme.shouldUseDarkColors,
       );
     const initialAppearance = getAppearanceBootstrap();
-    const initialBackground =
-      initialAppearance.resolved === "dark" ? "#141c18" : "#f3f6f3";
+    // Match the renderer's --kk-bg / --kk-text palette blocks.
+    const nativePalette = {
+      light: { color: "#f3f6f3", symbolColor: "#203b2e" },
+      dark: { color: "#141c18", symbolColor: "#edf5ef" },
+    };
+    const initialBackground = nativePalette[initialAppearance.resolved].color;
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
       width: 1280,
@@ -217,8 +221,7 @@ else
       titleBarStyle: "hidden",
       titleBarOverlay: {
         color: initialBackground,
-        symbolColor:
-          initialAppearance.resolved === "dark" ? "#edf5ef" : "#203b2e",
+        symbolColor: nativePalette[initialAppearance.resolved].symbolColor,
         height: 38,
       },
       webPreferences: {
@@ -229,6 +232,25 @@ else
         sandbox: true,
       },
     });
+    let publishedAppearance = initialAppearance;
+    const publishAppearance = () => {
+      if (window.isDestroyed()) return;
+      const value = getAppearanceBootstrap();
+      if (
+        value.preference === publishedAppearance.preference &&
+        value.resolved === publishedAppearance.resolved
+      )
+        return;
+      publishedAppearance = value;
+      const palette = nativePalette[value.resolved];
+      window.setBackgroundColor(palette.color);
+      window.setTitleBarOverlay(palette);
+      window.webContents.send("app:appearanceChanged", value);
+    };
+    const systemAppearanceChanged = () => {
+      if (service.state.appearance === "system") publishAppearance();
+    };
+    nativeTheme.on("updated", systemAppearanceChanged);
     // This narrow synchronous read is for a blocking head bootstrap, before CSS/React paint.
     ipcMain.on("app:appearanceBootstrap", (event) => {
       event.returnValue =
@@ -807,6 +829,7 @@ else
             name === "load"
           ) {
             const value = (await handler(input)) as object;
+            if (name === "setAppearance") publishAppearance();
             service.ai = ai.status();
             return { ok: true, value: { ...value, ai: service.ai } };
           }
@@ -821,6 +844,8 @@ else
           });
           queue = pending.catch(() => {});
           const value = (await pending) as object;
+          if (["save", "importData", "setDevelopmentMode"].includes(name))
+            publishAppearance();
           service.ai = ai.status();
           return { ok: true, value: { ...value, ai: service.ai } };
         } catch (error) {
@@ -839,6 +864,7 @@ else
       if (closing) return;
       event.preventDefault();
       closing = true;
+      nativeTheme.removeListener("updated", systemAppearanceChanged);
       ai.cancel();
       ai.cancelRequest();
       sHost.close();
