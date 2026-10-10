@@ -19,6 +19,13 @@ import {
   type InferenceProvider,
 } from "../ai/provider";
 import { pricingKey } from "./quotes";
+import {
+  intentResultSchema,
+  projectIntentMappings,
+  mapIntentResults,
+  pendingIntentResults,
+  type IntentMapping,
+} from "../domain/intents";
 
 export const planningLimits = Object.freeze({
   aiCalls: 3,
@@ -123,6 +130,7 @@ export const planningSnapshotSchema = z
           .strict(),
       )
       .max(planningLimits.inputRequirements),
+    intents: z.array(intentResultSchema).max(100),
     counters: z
       .object({
         aiCalls: z.number().int().min(0).max(3),
@@ -158,7 +166,8 @@ export const planningSnapshotSchema = z
         !value.failure ||
         value.provisional.meals.length ||
         value.provisional.rows.length ||
-        value.coverage.length
+        value.coverage.length ||
+        value.intents.length
       )
         issue();
     } else if (value.failure) issue();
@@ -320,6 +329,9 @@ export class PlanningRun {
   private session: InferenceSession | null = null;
   private draft: MealDraft | null = null;
   private requirements = new Map<string, Requirement>();
+  private allRequirements: Requirement[] = [];
+  private mappings: IntentMapping[] = [];
+  private resultLines: BasketLine[] = [];
   private searches = new Map<string, number>();
   private inFlight = 0;
   private expectedCommit: AppState | null = null;
@@ -346,6 +358,7 @@ export class PlanningRun {
       model: null,
       provisional: { meals: [], rows: [] },
       coverage: [],
+      intents: [],
       counters: { aiCalls: 0, searches: 0 },
       failure: null,
       committedRevision: null,
@@ -418,6 +431,7 @@ export class PlanningRun {
       failure,
       provisional: { meals: [], rows: [] },
       coverage: [],
+      intents: [],
       committedRevision: null,
     });
   }
@@ -469,7 +483,14 @@ export class PlanningRun {
         (recipe) => recipe.id === meal.recipeId,
       )!.name,
     }));
-    this.update({ phase: "interpreted", provisional: { meals, rows: [] } });
+    this.mappings = validated.intents
+      ? projectIntentMappings(validated.intents, validated, this.state.recipes)
+      : [];
+    this.update({
+      phase: "interpreted",
+      provisional: { meals, rows: [] },
+      intents: pendingIntentResults(this.mappings),
+    });
     this.draft = validated;
   }
   setRequirements(input: Requirement[]) {
@@ -486,6 +507,7 @@ export class PlanningRun {
     if (new Set(parsed.map(key)).size !== parsed.length)
       throw new Error("invalidDraft");
     const active = parsed.slice(0, planningLimits.requirements);
+    this.allRequirements = parsed;
     this.requirements = new Map(active.map((r) => [key(r), r]));
     this.update({
       phase: "searching",
@@ -509,6 +531,9 @@ export class PlanningRun {
           total: null,
         })),
       },
+      intents: mapIntentResults(this.mappings, parsed, [], {
+        boundedOut: parsed.slice(planningLimits.requirements).map(key),
+      }),
     });
   }
   beginSearch(requirementKey: string): () => void {
@@ -585,12 +610,28 @@ export class PlanningRun {
             total: local.total,
           },
     );
+    this.resultLines = [
+      ...this.resultLines.filter(
+        (row) => key(row.requirement) !== key(requirement),
+      ),
+      local,
+    ];
     this.update({
       provisional: { ...this.value.provisional, rows },
       coverage: this.value.coverage.map((row) =>
         row.requirementKey === key(requirement)
           ? { ...row, status: "searched" }
           : row,
+      ),
+      intents: mapIntentResults(
+        this.mappings,
+        this.allRequirements,
+        this.resultLines,
+        {
+          boundedOut: this.value.coverage
+            .filter((row) => row.status === "bounded-out")
+            .map((row) => row.requirementKey),
+        },
       ),
     });
   }
@@ -628,6 +669,19 @@ export class PlanningRun {
             : row,
         ),
       },
+      intents: mapIntentResults(
+        this.mappings,
+        this.allRequirements,
+        this.resultLines,
+        {
+          boundedOut: [
+            ...this.value.coverage
+              .filter((row) => row.status === "bounded-out")
+              .map((row) => row.requirementKey),
+            requirementKey,
+          ],
+        },
+      ),
     });
   }
   ready() {
@@ -638,7 +692,20 @@ export class PlanningRun {
       this.value.coverage.some((row) => row.status === "pending")
     )
       throw new Error("planningPhase");
-    this.update({ phase: "ready" });
+    this.update({
+      phase: "ready",
+      intents: mapIntentResults(
+        this.mappings,
+        this.allRequirements,
+        this.resultLines,
+        {
+          complete: true,
+          boundedOut: this.value.coverage
+            .filter((row) => row.status === "bounded-out")
+            .map((row) => row.requirementKey),
+        },
+      ),
+    });
   }
   beginCommit(next: AppState) {
     this.assertCurrent();

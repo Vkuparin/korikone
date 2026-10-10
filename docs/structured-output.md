@@ -38,6 +38,8 @@ F16.9 pins provider/model/capabilities and a maximum-three session for interpret
 
 ## Optional future live compatibility check
 
+F16.15 adds `shopping-plan` v1 through `interpretPlanning`, with required `shoppingPlanningWireSchema` / `shoppingPlanningNativeOutput` (`shopping_plan_v1`). Its request-intent nulls remain meaningful and are preserved after native parsing. Both text and native paths require the ledger and run `validatePlanningDraft`; one repair shares the existing session cap. The legacy composer task remains separate until F16.10 migrates it. Exact fields and eight focused native/text/adapter fixtures: [intent-contract.md](intent-contract.md).
+
 No live check is needed to continue the supported text implementation. To enable native schema on ChatGPT later, first implement its isolated request shape and mocked success/rejection/completion fixtures, then request a separately authorized compatibility check. Use one tiny synthetic request with a two-field strict schema, the owner's explicitly selected available model, store false and streaming. Cap: one inference request, zero retries, zero resolver/retailer writes. A failed/unsupported result leaves native capability disabled. This would consume one ChatGPT-plan inference request; do not infer a token/credit price from model names or promise a specific allowance cost.
 
 Focused audit checks: `npm test -- tests/ai-protocol.test.ts tests/ai.test.ts` (15 passed), typecheck and changed-file formatting/diff checks. UI, full release tests and live compatibility were not run for this protocol audit.

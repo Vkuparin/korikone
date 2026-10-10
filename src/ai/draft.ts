@@ -13,6 +13,7 @@ import {
   type AppState,
   type Recipe,
 } from "../domain/model";
+import { requestIntentSchema, validateIntentLedger } from "../domain/intents";
 
 function parseJSON(raw: string): unknown {
   return JSON.parse(
@@ -88,8 +89,13 @@ const draftSchema = z
       .default([]),
     items: z.array(ingredientSchema).max(200).default([]),
     notes: z.string().max(5000).default(""),
+    intents: z.array(requestIntentSchema).max(100).optional(),
   })
-  .refine((draft) => draft.meals.length + draft.items.length > 0);
+  .refine(
+    (draft) =>
+      draft.meals.length + draft.items.length + (draft.intents?.length ?? 0) >
+      0,
+  );
 export type MealDraft = z.infer<typeof draftSchema>;
 /** Tidies model casing slips such as "MakaronI" while keeping acronyms. */
 export function tidyName(name: string): string {
@@ -164,7 +170,23 @@ export function validateDraft(
         : item.name.trim().toLocaleLowerCase("fi"));
     ingredientIds.set(key(item), item.id);
   }
+  if (draft.intents) {
+    try {
+      draft.intents = validateIntentLedger(draft.intents, source, draft);
+    } catch {
+      throw new Error("invalidDraft");
+    }
+  }
   return draft;
+}
+export function validatePlanningDraft(
+  raw: string,
+  state: DraftValidationState,
+  source = state.note,
+): MealDraft & { intents: NonNullable<MealDraft["intents"]> } {
+  const draft = validateDraft(raw, state, source);
+  if (!draft.intents?.length) throw new Error("invalidDraft");
+  return { ...draft, intents: draft.intents };
 }
 export function draftPrompt(request: string, state: ContextState): string {
   const context = buildCompactContext(request, state);

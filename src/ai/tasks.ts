@@ -12,4 +12,12 @@ export const candidateResolutionTask = {
   id: "candidate-resolution",
   version: 1,
 } satisfies InferenceTask;
-export const inferenceTasks = [...interpretationTasks, candidateResolutionTask];
+export const shoppingPlanTask = {
+  id: "shopping-plan",
+  version: 1,
+} satisfies InferenceTask;
+export const inferenceTasks = [
+  ...interpretationTasks,
+  candidateResolutionTask,
+  shoppingPlanTask,
+];

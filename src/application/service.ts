@@ -777,8 +777,8 @@ export class Service {
     this.fees.set(key, { at: Date.now(), fee });
     return fee;
   }
-  /** Prices the current list at a store, reading only: nothing saved, reviewed or journalled. */
-  private async price(
+  /** Read-only catalogue pricing for a supplied local plan; does not install a quote or save AppState. */
+  async price(
     context: StoreContext,
     state = this.state,
   ): Promise<BasketLine[]> {
