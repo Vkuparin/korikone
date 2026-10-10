@@ -1,3 +1,4 @@
+import { approveFixtureOnion } from "./matching-helpers";
 import { settingsCategory } from "./settings-helper";
 import { aiScenarios } from "../../src/ai/scenarios";
 import { completeFixtureLogin } from "./store-helpers";
@@ -240,6 +241,7 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       "Ostoslista · 7",
       { timeout: 15000 },
     );
+    await approveFixtureOnion(page);
     for (const product of [
       "Myllyn Paras Makaroni 400g",
       "Kotimaista sika-nauta jauheliha 23 % 400 g",

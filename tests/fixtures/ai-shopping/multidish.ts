@@ -90,14 +90,15 @@ const notes = [
   ],
 ] as const;
 
+// Synthetic catalogue labels state the positive default facts; note and quantity expectations stay independent.
 const foods = {
   Maito: ["milk", "Maito 1 l", 1.2],
   Kananmuna: ["eggs", "Kananmuna 6 kpl", 2.5],
   Leipä: ["bread", "Leipä 500 g", 2],
-  Kahvi: ["coffee", "Kahvi 500 g", 4],
-  Riisi: ["rice", "Riisi 1 kg", 2],
-  Sipuli: ["onion", "Sipuli 500 g", 1],
-  Jauheliha: ["mince", "Jauheliha 400 g", 3],
+  Kahvi: ["coffee", "Kahvi suodatinjauhatus 500 g", 4],
+  Riisi: ["rice", "Pitk�jyv�inen kuiva riisi 1 kg", 2],
+  Sipuli: ["onion", "Keltasipuli 500 g", 1],
+  Jauheliha: ["mince", "Naudan jauheliha 400 g", 3],
   Peruna: ["potato", "Peruna 1 kg", 1.5],
   Pakastepizza: ["pizza", "Pakastepizza 350 g", 3],
   Jogurtti: ["yoghurt", "Jogurtti 400 g", 1.5],

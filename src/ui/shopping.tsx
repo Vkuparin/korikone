@@ -1,8 +1,9 @@
+import { candidateSuitability, purchasable } from "../domain/matching";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { ModelSelector } from "./model";
-import { relevant, requirements } from "../domain/planner";
+import { exclusionTerms, requirements } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
@@ -901,15 +902,15 @@ export function ShoppingWorkspace({
                   const cheaper = line?.candidates
                     .filter(
                       (p) =>
-                        p.available &&
-                        p.price !== null &&
-                        p.packAmount > 0 &&
-                        p.increment > 0 &&
+                        purchasable(r, p) &&
+                        candidateSuitability(r, p, {
+                          context: state.context,
+                          exclusions: exclusionTerms(
+                            state.household.exclusions,
+                          ),
+                        }).status === "eligible" &&
                         line.total !== null &&
-                        cost(p) < line.total &&
-                        // A look-alike such as chicken mince is not the same ingredient.
-                        (!isLive(state.context.providerId) ||
-                          relevant(p.name, r.name)),
+                        cost(p) < line.total,
                     )
                     .sort((a, b) => cost(a) - cost(b))[0];
                   return (

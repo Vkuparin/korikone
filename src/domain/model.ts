@@ -177,6 +177,7 @@ export type BasketLine = {
   candidates: Product[];
   /** Products hidden because their name contains a household exclusion. */
   excluded?: number;
+  matching?: import("./matching").MatchingSummary;
 };
 export type CartLine = {
   productId: string;

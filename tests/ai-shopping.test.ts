@@ -20,16 +20,16 @@ test("one evaluator measures the released selection corpus through current valid
     requested: 32,
     missing: 0,
     wrongCategory: 0,
-    unsuitable: 2,
+    unsuitable: 0,
     wrongQuantity: 0,
-    safePriced: 8,
-    unresolved: 22,
+    safePriced: 14,
+    unresolved: 18,
     aiRequests: 32,
-    searches: 54,
+    searches: 50,
     retailerWrites: 0,
     unsupported: ["weighed-pricing"],
     reasons: {
-      suitability: 10,
+      suitability: 6,
       "empty-search": 2,
       stock: 2,
       pack: 2,
@@ -39,11 +39,7 @@ test("one evaluator measures the released selection corpus through current valid
   });
   expect(evaluationGate(results)).toMatchObject({
     passed: false,
-    failures: [
-      "insufficient-cases",
-      "forbidden-selection",
-      "unsupported-required-capability",
-    ],
+    failures: ["insufficient-cases", "unsupported-required-capability"],
   });
   expect(results.every((r) => r.editCorrectness === "unsupported")).toBe(true);
 });

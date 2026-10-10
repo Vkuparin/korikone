@@ -478,7 +478,7 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   test(`${chain}: alias success follows real Service quote, persistence and restart without writes`, async () => {
     const { service, tools, storage } = await createFixtureService(chain, {
       Sipulia: [],
-      sipuli: [{ id: "onion", name: "Sipuli 500 g", price: 0.9 }],
+      sipuli: [{ id: "onion", name: "Keltasipuli 500 g", price: 0.9 }],
     });
     await service.save({
       ...service.state,

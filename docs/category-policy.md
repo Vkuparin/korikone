@@ -1,6 +1,6 @@
 # Initial category policy
 
-F15.5 owner accepted the published proposal on 10 October 2026. This is the implementation policy for dependent cards; defaults and preference storage still need their assigned code. The existing owner decisions remain: whole-pack total cost, plain cow milk of any fat content, one optional grouped review, explicit Remember consent, automatic resolver with an off switch and ordinary row corrections outside Advanced.
+F15.5 owner accepted the published proposal on 10 October 2026. This is the implementation policy for dependent cards; category defaults and pure preference matching are implemented in F15.2; preference storage still needs F15.3. The existing owner decisions remain: whole-pack total cost, plain cow milk of any fat content, one optional grouped review, explicit Remember consent, automatic resolver with an off switch and ordinary row corrections outside Advanced.
 
 ## Generic requests
 
@@ -39,3 +39,5 @@ Remember writes only through a dedicated explicit service action; normal interpr
 F15.6 review tests must cover dismissal without changes, Use once without persistence, explicit Remember for both strengths, unavailable Required, Preferred fallback needing approval, and mandatory exclusion filtering. F15.13 Advanced tests must cover keyboard edit/forget/reset, restart and real backup restore with no automatic generation. F15.2/F15.3 tests must cover generic versus explicit qualifiers, per-field overrides without memory changes, both chains, missing evidence and forbidden category look-alikes. Expectations must be authored independently from model replies.
 
 Owner acceptance settles these category boundaries, default types and Required/Preferred behavior. F15.2/F15.3 implement the policy; F15.6/F15.13 implement review and management after their dependency contracts land. Fixtures and acceptance evidence remain separate from the policy decision.
+
+F15.2 now supplies the pure `categoryPreferenceSchema`, matching summaries and Service/quote/transfer integration described in [matching-contract.md](matching-contract.md). Stored rules and explicit Remember/Edit/Forget/Reset remain F15.3.

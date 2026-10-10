@@ -5,9 +5,57 @@ import type {
   Journal,
   Review,
   StoreContext,
+  Product,
 } from "../domain/model";
 import { applyPackSizes } from "../domain/planner";
+import { candidateSuitability, type MatchingOptions } from "../domain/matching";
+import { searchCandidates } from "../stores/candidates";
 import type { StoreProvider } from "../stores/provider";
+/** Fresh reads must retain the facts on which the quoted selection depended. */
+function sameSuitability(
+  line: BasketLine,
+  fresh: Product,
+  context: StoreContext,
+  options: MatchingOptions,
+): boolean {
+  const original = line.product!;
+  const facts = (p: Product) =>
+    p.evidence
+      ? JSON.stringify({
+          category: p.evidence.category,
+          family: p.evidence.family,
+          qualifiers: [...p.evidence.qualifiers].sort((a, b) =>
+            a.kind.localeCompare(b.kind),
+          ),
+        })
+      : null;
+  if (facts(original) !== facts(fresh)) return false;
+  return (
+    !line.matching ||
+    candidateSuitability(line.requirement, fresh, { ...options, context })
+      .status !== "rejected"
+  );
+}
+async function freshProduct(
+  provider: StoreProvider,
+  context: StoreContext,
+  line: BasketLine,
+  packSizes: AppState["packSizes"],
+  signal?: AbortSignal,
+) {
+  try {
+    return applyPackSizes(
+      await searchCandidates(provider, context, line.requirement, {
+        signal,
+        isHit: (p) => p.id === line.product!.id,
+      }),
+      packSizes,
+    ).find((p) => p.id === line.product!.id);
+  } catch (error) {
+    if (signal?.aborted) throw new Error("cancelled");
+    throw error;
+  }
+}
 export function fingerprint(cart: Cart): string {
   return JSON.stringify({
     accountId: cart.accountId,
@@ -23,6 +71,7 @@ export async function createReview(
   revision: number,
   lines: BasketLine[],
   packSizes: AppState["packSizes"] = {},
+  matchingOptions: MatchingOptions = {},
 ): Promise<Review> {
   if (
     !provider.capabilities.cart ||
@@ -37,17 +86,11 @@ export async function createReview(
     const p = line.product!;
     if (p.providerId !== context.providerId || p.storeId !== context.storeId)
       throw new Error("contextChanged");
-    const fresh = applyPackSizes(
-      await provider.searchProducts(
-        context,
-        line.requirement.name,
-        line.requirement.id,
-      ),
-      packSizes,
-    ).find((item) => item.id === p.id);
+    const fresh = await freshProduct(provider, context, line, packSizes);
     if (
       !fresh ||
       fresh.available !== true ||
+      !sameSuitability(line, fresh, context, matchingOptions) ||
       fresh.price !== p.price ||
       fresh.deposit !== p.deposit ||
       fresh.packAmount !== p.packAmount ||
@@ -99,6 +142,7 @@ export async function transfer(
   persist: (j: Journal) => void | Promise<void>,
   signal?: AbortSignal,
   packSizes: AppState["packSizes"] = {},
+  matchingOptions: MatchingOptions = {},
 ): Promise<Journal> {
   const review = journal.review;
   const key = JSON.stringify([
@@ -117,16 +161,16 @@ export async function transfer(
     for (const line of review.quotes) {
       const p = line.product!;
       if (!review.targets.some((t) => t.productId === p.id)) continue;
-      const fresh = applyPackSizes(
-        await provider.searchProducts(
-          review.context,
-          line.requirement.name,
-          line.requirement.id,
-        ),
+      const fresh = await freshProduct(
+        provider,
+        review.context,
+        line,
         packSizes,
-      ).find((candidate) => candidate.id === p.id);
+        signal,
+      );
       if (
         !fresh ||
+        !sameSuitability(line, fresh, review.context, matchingOptions) ||
         fresh.price !== p.price ||
         fresh.deposit !== p.deposit ||
         fresh.packAmount !== p.packAmount ||
@@ -187,6 +231,7 @@ export async function resumeReview(
   provider: StoreProvider,
   journal: Journal,
   packSizes: AppState["packSizes"] = {},
+  matchingOptions: MatchingOptions = {},
 ): Promise<Review> {
   const baseline = await provider.getCart(journal.review.context);
   if (baseline.accountId !== journal.review.baseline.accountId)
@@ -208,16 +253,15 @@ export async function resumeReview(
   for (const line of quotes) {
     const target = targets.find((t) => t.productId === line.product?.id);
     if (!target) continue;
-    const fresh = applyPackSizes(
-      await provider.searchProducts(
-        journal.review.context,
-        line.requirement.name,
-        line.requirement.id,
-      ),
+    const fresh = await freshProduct(
+      provider,
+      journal.review.context,
+      line,
       packSizes,
-    ).find((p) => p.id === target.productId);
+    );
     if (
       !fresh ||
+      !sameSuitability(line, fresh, journal.review.context, matchingOptions) ||
       fresh.price === null ||
       fresh.available !== true ||
       fresh.packAmount !== line.product!.packAmount ||

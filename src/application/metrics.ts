@@ -59,6 +59,12 @@ export function unresolvedReason(
   if (!packed.length) return "pack";
   const priced = packed.filter((p) => p.price !== null);
   if (!priced.length) return "price";
+  if (
+    line.matching &&
+    line.matching.reason !== "resolved" &&
+    line.matching.reason !== "approved"
+  )
+    return "suitability";
   if (!priced.some((p) => relevant(p.name, line.requirement.name)))
     return "suitability";
   return "ranking";

@@ -53,3 +53,7 @@ Malformed numeric metadata fails adapter validation; a rejected search remains a
 - F16.1 creates one evaluation schema/runner in `tests/fixtures/ai-shopping/` and `tests/ai-shopping.test.ts`, recorded in `docs/ai-evaluation.md`. Reuse this corpus as the initial released reference, then add independently authored note/category/quantity/forbidden/visible-unresolved expectations. Measure search vs ranking/normalization/stock/pack/price separately, plus request/search counts. Unsupported staged previews, edits and resolver remain unsupported, never passed. This audit is not a second evaluation system.
 
 Keep fixture names and reason categories stable when the baseline expands. F15.2/F15.7/F15.8 must replace the actual application path with the settled contracts and update dependent cards after landing; these named new paths are assignments, not claims that the modules already exist.
+
+## Current matcher comparison
+
+F15.2 preserves this released audit and its original fixture labels. Current independently checked selections across both chains are 14 safe, zero forbidden and 18 unresolved, using 50 reads. Compound milk, bread, yellow onion and rice now resolve, and plain cow milk wins over the cheaper almond drink. Generic coffee labels lack a verified form and remain unresolved; generic cream still needs review. Current expectations are separate in `tests/matching-baseline.test.ts` and `tests/ai-shopping.test.ts`. See [matching-contract.md](matching-contract.md); these counts do not imply a passing release gate.

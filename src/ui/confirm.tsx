@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Review } from "../domain/model";
-import { relevant } from "../domain/planner";
+import { candidateSuitability, purchasable } from "../domain/matching";
 import { compareTransfers, hasChanges } from "../domain/changes";
 import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
@@ -25,19 +25,22 @@ export function attention(
     const best = line.candidates
       .filter(
         (p) =>
-          p.available &&
-          p.price !== null &&
-          p.unit === line.product!.unit &&
-          p.packAmount > 0 &&
           p.id !== line.product!.id &&
-          // Only the ingredient itself counts, not a look-alike such as chicken mince.
-          (!isLive(review.context.providerId) ||
-            relevant(p.name, line.requirement.name)),
+          purchasable(line.requirement, p) &&
+          (line.matching
+            ? line.matching.decisions.some(
+                (d) => d.id === p.id && d.status === "eligible",
+              )
+            : candidateSuitability(line.requirement, p, {
+                context: review.context,
+              }).status === "eligible"),
       )
       .map((p) => ({
         product: p,
         total:
-          Math.ceil(line.requirement.amount / p.packAmount) * (p.price ?? 0),
+          Math.ceil(line.requirement.amount / p.packAmount / p.increment) *
+          p.increment *
+          (p.price! + p.deposit),
       }))
       .sort((a, b) => a.total - b.total)[0];
     return best && best.total < line.total

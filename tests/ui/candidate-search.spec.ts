@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
 
-test("manual query miss uses bounded aliases and keeps quoted rows and evidence after restart", async () => {
+test("manual query miss retrieves an unknown onion type for approval and retains the choice after restart", async () => {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -33,18 +33,29 @@ test("manual query miss uses bounded aliases and keeps quoted rows and evidence 
       .click();
     const row = page.locator(".grocery-row");
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText("Kotimaista sipuli 500 g");
+    await expect(row).toHaveClass(/unresolved/);
     await expect(row).toContainText("400 g");
+    const pending = (await page.evaluate(() => window.korikone.load())).value!;
+    expect(pending.developmentCatalogueRequests).toBe(3);
+    expect(pending.basket[0].product).toBeNull();
+    expect(pending.basket[0].matching?.reason).toBe("default-review");
+    await row.getByRole("button", { name: "Sipulia", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: /Valitse tuote:.*valkosipuli/i }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", {
+        name: "Valitse tuote: Kotimaista sipuli 500 g",
+        exact: true,
+      })
+      .click();
+    await expect(row).toContainText("Kotimaista sipuli 500 g");
     const saved = (await page.evaluate(() => window.korikone.load())).value!;
-    expect(saved.developmentCatalogueRequests).toBe(2);
     expect(saved.developmentRequests).toBe(0);
     expect(saved.basket[0].product?.evidence).toMatchObject({
       category: "onion",
       family: "onion",
     });
-    await row
-      .getByRole("button", { name: "Kotimaista sipuli 500 g", exact: true })
-      .click();
     await expect(
       page.getByRole("region", { name: "Tiedot: Sipulia" }),
     ).toContainText("Ostetaan: 1 pakkaus, 500 g");

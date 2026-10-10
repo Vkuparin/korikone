@@ -6,6 +6,17 @@ import { matchingBaseline } from "./fixtures/matching-baseline";
 import { draftPrompt, validateDraft } from "../src/ai/draft";
 import { initialState } from "../src/domain/model";
 
+// Current expectations are separate from the immutable released audit observations.
+const currentSelections: Record<string, string | null> = {
+  "milk-compound": "cow",
+  "bread-compound": "bread",
+  "onion-compound": "onion",
+  "rice-compound": "rice",
+  "coffee-plain": null,
+  "milk-name-only-unsafe": "cow",
+  "coffee-whole-pack-cost": null,
+};
+
 for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   for (const fixture of matchingBaseline) {
     test(`released selection reference with current ${chain}: ${fixture.id} (${fixture.cause})`, async () => {
@@ -33,19 +44,20 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
       await service.buildBasket();
       expect(service.basket).toHaveLength(1);
       const line = service.basket[0];
-      expect(line.product?.id ?? null).toBe(fixture.baselineSelected);
-      expect(line.total === null).toBe(fixture.baselineSelected === null);
+      const expected =
+        fixture.id in currentSelections
+          ? currentSelections[fixture.id]
+          : fixture.baselineSelected;
+      expect(line.product?.id ?? null).toBe(expected);
+      expect(line.total === null).toBe(expected === null);
       expect(tools.filter((name) => name === "search_products")).toHaveLength(
-        fixture.baselineSelected === null ? 2 : 1,
+        expected === null ? 2 : 1,
       );
       expect(tools.some((name) => /add|set|create|execute/.test(name))).toBe(
         false,
       );
       expect(service.developmentRequests).toBe(0);
-      if (fixture.cause === "unsafe-type") {
-        // Baseline evidence of a forbidden result, never a safe-selection acceptance claim.
-        expect(fixture.admissible).not.toContain(line.product!.id);
-      }
+      if (line.product) expect(fixture.admissible).toContain(line.product.id);
     });
   }
 }

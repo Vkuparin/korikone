@@ -17,7 +17,7 @@ const catalogue: [
   ["cream", "Ruokakerma 2 dl", 200, "ml", 109],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
-  ["coffee", "Kahvi 500 g", 500, "g", 599],
+  ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],
   ["pizza", "Pakastepizza 350 g", 350, "g", 249],
   ["sausage", "Nakki 400 g", 400, "g", 299],
   ["chicken", "Broilerin fileesuikale 400 g", 400, "g", 449],

@@ -6,6 +6,7 @@ import {
   type AppState,
 } from "../domain/model";
 import { requirements } from "../domain/planner";
+import { matchingSummarySchema } from "../domain/matching";
 import {
   cataloguePricingSchema,
   productEvidenceSchema,
@@ -14,14 +15,16 @@ import {
 /** Only inputs that affect catalogue matching belong in a quote's binding. */
 export function pricingKey(state: AppState): string {
   return JSON.stringify({
+    matchingVersion: 1,
     context: state.context,
     requirements: requirements(state).map(
-      ({ id, name, amount, unit, sources }) => ({
+      ({ id, name, amount, unit, sources, classification }) => ({
         id,
         name,
         amount,
         unit,
         sources,
+        classification,
       }),
     ),
     accepted: state.accepted,
@@ -68,6 +71,7 @@ export const persistedQuoteSchema = z.object({
       total: z.number().nonnegative().nullable(),
       candidates: z.array(productSchema),
       excluded: z.number().int().nonnegative().optional(),
+      matching: matchingSummarySchema.optional(),
     }),
   ),
 });

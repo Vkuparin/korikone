@@ -2,6 +2,7 @@ import React from "react";
 import type { Snapshot } from "../application/service";
 import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
+import { purchasable } from "../domain/matching";
 
 /**
  * The decision details of one list row: what is needed and bought, why this product,
@@ -111,11 +112,7 @@ export function RowDetails({
                 className="secondary"
                 aria-label={`${t("choose")}: ${p.name}`}
                 disabled={
-                  busy ||
-                  !p.available ||
-                  p.price === null ||
-                  !p.packAmount ||
-                  p.id === product?.id
+                  busy || !purchasable(requirement, p) || p.id === product?.id
                 }
                 onClick={() => choose(p)}
               >

@@ -16,7 +16,7 @@ test("original multi-dish note retains cooked meals, ready food, breakfast and t
   const note =
     "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.";
   const prompt = draftPrompt(note, state);
-  expect(prompt).toContain(JSON.stringify(state.receiptText));
+  expect(prompt).not.toContain(JSON.stringify(state.receiptText));
   const draft = validateDraft(await ai.generate("auto", prompt), state);
   expect(draft.recipes.map((r) => r.kind)).toEqual([
     "meal",
@@ -213,7 +213,7 @@ test("the live acceptance note picks the ingredient itself among store look-alik
   ).toEqual({
     Makaroni: "macaroni",
     Jauheliha: "mince",
-    Sipuli: "onion",
+    Sipuli: null,
     Maito: "milk",
     Kananmuna: "egg",
     Suola: "salt",
@@ -221,12 +221,14 @@ test("the live acceptance note picks the ingredient itself among store look-alik
   });
   const eggs = dev.basket.find((l) => l.requirement.name === "Kananmuna")!;
   expect([eggs.packs, eggs.product!.packAmount]).toEqual([1, 10]);
-  // Look-alikes stay available for the shopper to choose by hand.
+  // Unknown onion type can be approved once; garlic remains rejected.
   expect(
     dev.basket
       .find((l) => l.requirement.name === "Sipuli")!
       .candidates.map((p) => p.id),
-  ).toEqual(["onion", "garlic"]);
+  ).toEqual(["onion"]);
+  const onion = dev.basket.find((l) => l.requirement.name === "Sipuli")!;
+  await dev.accept({ ingredientId: onion.requirement.id, productId: "onion" });
   await dev.prepare();
   expect(dev.review!.baseline.accountName).toBe("Testi");
   expect(dev.review!.baseline.accountName).not.toBe(

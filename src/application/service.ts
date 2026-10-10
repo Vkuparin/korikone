@@ -23,9 +23,7 @@ import {
 } from "../domain/model";
 import {
   requirements,
-  match,
   exclusionTerms,
-  relevant,
   applyPackSizes,
 } from "../domain/planner";
 import {
@@ -50,6 +48,7 @@ import {
   type PriceObservation,
 } from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
+import { matchRequirement, selectableCandidate } from "../domain/matching";
 import { searchCandidates } from "../stores/candidates";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/connection";
@@ -664,60 +663,27 @@ export class Service {
           state.accepted[
             `${context.providerId}:${context.storeId}:${requirement.id}`
           ] ?? [];
-        const exclusions = exclusionTerms(state.household.exclusions);
-        const usable = (p: Product) =>
-          p.available === true &&
-          p.price !== null &&
-          p.unit === requirement.unit &&
-          p.packAmount > 0 &&
-          !exclusions.some((term) =>
-            p.name.toLocaleLowerCase("fi").includes(term),
-          );
+        const options = {
+          accepted,
+          exclusions: exclusionTerms(state.household.exclusions),
+          productPreference: state.productPreference,
+          context,
+        };
         const products = applyPackSizes(
           await searchCandidates(provider, context, requirement, {
             onSearch: () => {
               metrics.searches++;
             },
-            isHit: (product) => {
-              const p = applyPackSizes([product], state.packSizes)[0];
-              return (
-                usable(p) &&
-                (accepted.includes(p.id) ||
-                  !isLive(context.providerId) ||
-                  relevant(p.name, requirement.name))
-              );
-            },
+            isHit: (product) =>
+              selectableCandidate(
+                requirement,
+                applyPackSizes([product], state.packSizes)[0],
+                options,
+              ),
           }),
           state.packSizes,
         );
-        const available = products.filter(usable);
-        const storeBrand = (name: string) =>
-          /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
-        // Automatic choice only among products that are the ingredient itself;
-        // the shopper can still accept any other candidate by hand.
-        // Demo catalogues match by ingredient ID only, so they skip this check.
-        const fitting = isLive(context.providerId)
-          ? available.filter((p) => relevant(p.name, requirement.name))
-          : available;
-        const preferred = fitting.filter((p) =>
-          state.productPreference === "storeBrand"
-            ? storeBrand(p.name)
-            : state.productPreference === "avoidStoreBrand"
-              ? !storeBrand(p.name)
-              : true,
-        );
-        const auto = (preferred.length ? preferred : fitting).map((p) => p.id);
-        const selected = accepted.filter((id) =>
-          available.some((p) => p.id === id),
-        );
-        result.push(
-          match(
-            requirement,
-            products,
-            selected.length ? selected : auto,
-            exclusions,
-          ),
-        );
+        result.push(matchRequirement(requirement, products, options));
         const line = result[result.length - 1];
         if (!line.product || line.total === null) {
           const reason = unresolvedReason(line, products);
@@ -802,7 +768,13 @@ export class Service {
     const line = this.basket.find((l) => l.requirement.id === ingredientId);
     if (
       !line?.candidates.some(
-        (p) => p.id === productId && p.available && p.price !== null,
+        (p) =>
+          p.id === productId &&
+          selectableCandidate(line.requirement, p, {
+            accepted: [productId],
+            context: this.state.context,
+            exclusions: exclusionTerms(this.state.household.exclusions),
+          }),
       )
     )
       throw new Error("unresolved");
@@ -850,6 +822,7 @@ export class Service {
         ? this.basket.filter((line) => line.product && line.total !== null)
         : this.basket,
       this.state.packSizes,
+      { exclusions: exclusionTerms(this.state.household.exclusions) },
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
@@ -987,6 +960,7 @@ export class Service {
         },
         this.controller.signal,
         this.state.packSizes,
+        { exclusions: exclusionTerms(this.state.household.exclusions) },
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
@@ -1060,6 +1034,7 @@ export class Service {
       this.registry.get(this.journal.review.context.providerId),
       this.journal,
       this.state.packSizes,
+      { exclusions: exclusionTerms(this.state.household.exclusions) },
     );
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;

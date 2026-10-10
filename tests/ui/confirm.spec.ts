@@ -1,3 +1,4 @@
+import { approveFixtureOnion } from "./matching-helpers";
 import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -57,6 +58,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
       "Ostoslista · 7",
       { timeout: 15000 },
     );
+    await approveFixtureOnion(page);
     const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
     const transfer = bar.getByRole("button", {
       name: /^Siirrä ja avaa S-kaupat-lista/,
@@ -186,7 +188,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
       hasText: "Muutokset edelliseen",
     });
     await expect(changes).toHaveAttribute("open", "");
-    await expect(changes).toContainText("Uusi: Kahvi 500 g");
+    await expect(changes).toContainText("Uusi: Kahvi suodatinjauhatus 500 g");
     await expect(changes).toContainText(
       "Pois: JOZO 125g suola jodioitu sirotin",
     );

@@ -1,3 +1,4 @@
+import { retailerEvidence } from "../src/stores/candidates";
 import { test, expect } from "vitest";
 import { Service } from "../src/application/service";
 import { DemoProvider } from "../src/stores/demo";
@@ -277,8 +278,20 @@ test("automatically chooses available products and respects explicit swaps and b
   provider.searchProducts = async (...args) => {
     const products = await search(...args);
     return products.flatMap((p) => [
-      { ...p, id: p.id + "-brand", name: "Brand kahvi", price: 500 },
-      { ...p, id: p.id + "-store", name: "Pirkka kahvi", price: 600 },
+      {
+        ...p,
+        id: p.id + "-brand",
+        name: "Brand kahvi suodatinjauhatus",
+        evidence: retailerEvidence("Brand kahvi suodatinjauhatus"),
+        price: 500,
+      },
+      {
+        ...p,
+        id: p.id + "-store",
+        name: "Pirkka kahvi suodatinjauhatus",
+        evidence: retailerEvidence("Pirkka kahvi suodatinjauhatus"),
+        price: 600,
+      },
       { ...p, id: p.id + "-unavailable", price: 1, available: false },
     ]);
   };
@@ -421,8 +434,20 @@ test("automatic choices cannot bypass household exclusions through saved product
   const search = provider.searchProducts.bind(provider);
   provider.searchProducts = async (...args) =>
     (await search(...args)).flatMap((p) => [
-      { ...p, id: "excluded", name: "Pirkka kahvi", price: 100 },
-      { ...p, id: "allowed", name: "Other kahvi", price: 600 },
+      {
+        ...p,
+        id: "excluded",
+        name: "Pirkka kahvi suodatinjauhatus",
+        evidence: retailerEvidence("Pirkka kahvi suodatinjauhatus"),
+        price: 100,
+      },
+      {
+        ...p,
+        id: "allowed",
+        name: "Other kahvi suodatinjauhatus",
+        evidence: retailerEvidence("Other kahvi suodatinjauhatus"),
+        price: 600,
+      },
     ]);
   service.state.productPreference = "storeBrand";
   service.state.household.exclusions = "pirkka";
@@ -484,7 +509,7 @@ test("live stores choose the ingredient itself, not a cheaper compound, variant 
   const names: Record<string, [string, number, number, "g" | "pcs"][]> = {
     sipuli: [
       ["Coop valkosipuli 100 g", 89, 100, "g"],
-      ["Kotimaista sipuli 500 g", 89, 500, "g"],
+      ["Kotimaista keltasipuli 500 g", 89, 500, "g"],
     ],
     jauheliha: [
       ["Kotimaista kanan jauheliha 4% 400 g", 329, 400, "g"],
@@ -503,6 +528,7 @@ test("live stores choose the ingredient itself, not a cheaper compound, variant 
         storeId: context.storeId,
         ingredientId,
         name,
+        evidence: retailerEvidence(name),
         packAmount,
         unit,
         price,
@@ -525,7 +551,7 @@ test("live stores choose the ingredient itself, not a cheaper compound, variant 
   ];
   await service.buildBasket();
   expect(service.basket.map((l) => l.product?.name)).toEqual([
-    "Kotimaista sipuli 500 g",
+    "Kotimaista keltasipuli 500 g",
     "Kotimaista sika-nauta jauheliha 23 % 400 g",
     "Kotimaista vapaan kanan munat M6 348 g",
   ]);
