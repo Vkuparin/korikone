@@ -37,6 +37,10 @@ export const contextOptionsSchema = z
   .strict();
 export type ContextOptions = z.input<typeof contextOptionsSchema>;
 export type ObservedSummary = z.infer<typeof observedSummarySchema>;
+export type ContextState = Pick<
+  AppState,
+  "language" | "household" | "recipes" | "productPreference"
+>;
 
 const words = (text: string) =>
   text
@@ -79,7 +83,7 @@ export function relevantRecipes(
 
 export function buildCompactContext(
   request: string,
-  state: AppState,
+  state: ContextState,
   options: ContextOptions = {},
 ) {
   z.string().min(1).max(10_000).parse(request);

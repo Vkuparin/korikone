@@ -6,7 +6,7 @@ F16.1, 10 October 2026. Run `npm test -- tests/ai-shopping.test.ts`. This harnes
 
 Each case declares a stable ID, source note, independent grocery/dish expectations, one or two canned interpretation responses and a synthetic catalogue keyed by search phrase (or `*`). Grocery expectations give acceptable name aliases, category, quantity/unit and admissible/forbidden product IDs. Dish expectations give acceptable recipe names. Request IDs and grocery aliases cannot overlap. Admissible and forbidden IDs cannot conflict. Unknown category/default policy is stated separately; audit reference choices are not owner-approved non-milk defaults.
 
-`evaluateShoppingCase(case, chain)` in `runner.ts` invokes a test-only provider through the actual pinned `InferenceSession`, `generateValidated` and `validateDraft`. It approves the resulting draft through the real `Service.approveDraft`, persists it with the normal state schema and builds the basket through the real retailer adapter and matcher. `environment.ts` supplies deterministic tool responses and records calls; it observes normalized adapter results without changing their contents. The F15.1 tests share this external boundary. No IPC handler is replaced. Electron/Settings/task-adapter compatibility checks remain their assigned cards.
+`evaluateShoppingCase(case, chain)` in `runner.ts` invokes a test-only provider through the actual pinned `InferenceSession` and `interpretShopping` in `src/ai/output.ts`. This is the same task output selection, bounded repair and domain validation used by main. It approves the resulting draft through the real `Service.approveDraft`, persists it with the normal state schema and builds the basket through the real retailer adapter and matcher. `environment.ts` supplies deterministic tool responses and records calls; it observes normalized adapter results without changing their contents. The F15.1 tests share this external boundary. No IPC handler is replaced. Electron/Settings/task-adapter compatibility checks remain their assigned cards.
 
 One fixture interpretation may use one existing schema repair, capped at two calls here. Incomplete inference output is terminal. Search errors and malformed response schemas stay separate from empty search. Unexpected application exceptions fail the test instead of becoming evaluation failures. The full planning coordinator later owns the maximum-three operation cap, including the optional resolver.
 
@@ -24,14 +24,14 @@ Quantity means the requested domain amount and unit, not excess whole-pack conte
 
 The released source baseline is v0.6.0/main `5494654`, as recorded in `matching-baseline.md`. Current F15.7 provenance work changes metadata, not matching decisions. Sixteen reference cases on each chain yield:
 
-| Metric | Both chains |
-| --- | --- |
-| Executions / requested groceries | 32 / 32 |
-| Safe priced rows | 8 |
-| Unsuitable selections | 2 |
-| Unresolved rows | 22 |
-| Missing requests / wrong categories / wrong quantities | 0 / 0 / 0 |
-| Interpretation requests / searches / retailer writes | 32 / 32 / 0 |
+| Metric                                                          | Both chains            |
+| --------------------------------------------------------------- | ---------------------- |
+| Executions / requested groceries                                | 32 / 32                |
+| Safe priced rows                                                | 8                      |
+| Unsuitable selections                                           | 2                      |
+| Unresolved rows                                                 | 22                     |
+| Missing requests / wrong categories / wrong quantities          | 0 / 0 / 0              |
+| Interpretation requests / searches / retailer writes            | 32 / 32 / 0            |
 | Suitability / empty search / stock / pack / price / unit misses | 10 / 2 / 2 / 2 / 4 / 2 |
 
 The gate fails: only 16 distinct cases, two forbidden plant-drink selections and required weighed pricing unsupported. F15.2 must eliminate forbidden fixture selections before improved coverage can count as acceptable. Numerical improvement targets follow this baseline and the expanded owner-approved corpus; this card does not invent a live accuracy target.

@@ -8,13 +8,7 @@ import {
   discoverInferenceModels,
 } from "../src/ai/provider";
 import { shoppingDraftTask, recipeImportTask } from "../src/ai/tasks";
-import {
-  draftPrompt,
-  recipePrompt,
-  validateDraft,
-  validateRecipe,
-  generateValidated,
-} from "../src/ai/draft";
+import { interpretShopping, extractRecipe } from "../src/ai/output";
 import { initialState } from "../src/domain/model";
 import { chooseModel } from "../src/ai/models";
 import { adapterFailure, inferenceAppError } from "../src/ai/adapter-errors";
@@ -57,12 +51,7 @@ for (const alternative of [false, true]) {
     const state = initialState();
     state.staples = [];
     const note = "Nakkikeitto ja kahvia";
-    const draft = await generateValidated(
-      async (prompt) => (await session.invoke(shoppingDraftTask, prompt)).text,
-      draftPrompt(note, state),
-      (raw) => validateDraft(raw, state, note),
-      " Return complete valid JSON.",
-    );
+    const draft = await interpretShopping(session, note, state);
     const values = new Map<string, unknown>();
     const service = new Service({
       get: async (key) => values.get(key),
@@ -101,12 +90,7 @@ for (const alternative of [false, true]) {
     );
     const state = initialState();
     const before = structuredClone(state);
-    const recipe = await generateValidated(
-      async (prompt) => (await session.invoke(recipeImportTask, prompt)).text,
-      recipePrompt("Nakkikeitto", state),
-      (raw) => validateRecipe(raw, state),
-      " Return one valid recipe.",
-    );
+    const recipe = await extractRecipe(session, "Nakkikeitto", state);
     expect(recipe.name).toBe("Nakkikeitto");
     expect(state).toEqual(before);
     expect(fixture.requestCount).toBe(2);
@@ -125,13 +109,7 @@ for (const alternative of [false, true]) {
     ] as const) {
       const { fixture, session } = await setup(alternative, scenario);
       await expect(
-        generateValidated(
-          async (prompt) =>
-            (await session.invoke(shoppingDraftTask, prompt)).text,
-          "note",
-          (raw) => validateDraft(raw, initialState()),
-          "repair",
-        ),
+        interpretShopping(session, "note", initialState()),
       ).rejects.toMatchObject({ code });
       expect(fixture.requestCount).toBe(1);
       expect(fixture.catalogueRequests).toBe(1);
@@ -143,10 +121,7 @@ for (const alternative of [false, true]) {
       alternative,
       "pendingSuccess",
     );
-    const result = session.invoke(
-      shoppingDraftTask,
-      draftPrompt("Nakkikeitto", initialState()),
-    );
+    const result = interpretShopping(session, "Nakkikeitto", initialState());
     const rejected = expect(result).rejects.toMatchObject({
       code: "cancelled",
     });
@@ -279,11 +254,10 @@ test("real ChatGPT connection uses one mocked catalogue lookup and the same expl
       { maxCalls: 2, maxOutputCharacters: 100_000, timeoutMs: 1000 },
       controller.signal,
     );
-    const result = await generateValidated(
-      async (prompt) => (await session.invoke(shoppingDraftTask, prompt)).text,
-      draftPrompt("Maitoa 1 l", initialState()),
-      (raw) => validateDraft(raw, initialState()),
-      "repair",
+    const result = await interpretShopping(
+      session,
+      "Maitoa 1 l",
+      initialState(),
     );
     expect(result.items[0].name).toBe("Maito");
     expect(discoveries).toBe(1);

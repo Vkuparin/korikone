@@ -1,6 +1,6 @@
 # Compact shopping context
 
-F16.5, 10 October 2026. `src/ai/context.ts` exports `buildCompactContext`, `relevantRecipes`, `contextOptionsSchema`, `observedSummarySchema`, `CompactContext` and size limits. The module imports domain schemas and Zod only. Authentication, models and inference transport stay outside it.
+F16.5, 10 October 2026. `src/ai/context.ts` exports `buildCompactContext`, `relevantRecipes`, `contextOptionsSchema`, `observedSummarySchema`, `CompactContext` and size limits. F16.8 narrows its input to `ContextState`: language, household, recipes and productPreference. Task output functions snapshot these fields for prompt and local validation; they never clone the entire application state or read private receipt/history fields. The module imports domain schemas and Zod only. Authentication, models and inference transport stay outside it.
 
 Ordinary `draftPrompt` now sends the submitted note, language, household servings/budget/exclusions, brand-selection preference and a subset of saved recipes. It never reads `state.receiptText`, calendar, history, transfer journals, assumptions, previous note or store/account fields. Imported receipt text remains available locally in Settings and backups.
 

@@ -18,12 +18,7 @@ import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { chooseModel } from "../ai/models";
 import { ChatGPTInferenceProvider } from "../ai/chatgpt-provider";
 import { FakeInferenceProvider } from "../ai/fake-provider";
-import {
-  InferenceSession,
-  discoverInferenceModels,
-  type InferenceTask,
-} from "../ai/provider";
-import { shoppingDraftTask, recipeImportTask } from "../ai/tasks";
+import { InferenceSession, discoverInferenceModels } from "../ai/provider";
 import { inferenceAppError } from "../ai/adapter-errors";
 import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
@@ -39,13 +34,7 @@ import {
   sKaupatWorker,
 } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
-import {
-  draftPrompt,
-  validateDraft,
-  generateValidated,
-  recipePrompt,
-  validateRecipe,
-} from "../ai/draft";
+import { interpretShopping, extractRecipe } from "../ai/output";
 import { readReceipt } from "../receipts/read";
 import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
@@ -342,27 +331,23 @@ else
       }
       return service.snapshot();
     };
-    const generateAI =
-      (session: InferenceSession, task: InferenceTask, run: number) =>
-      async (prompt: string) => {
-        try {
-          const { text } = await session.invoke(task, prompt);
-          if (run !== generationRun) throw new Error("aiCancelled");
-          return text;
-        } catch (error) {
-          if (
-            run !== generationRun ||
-            (error instanceof Error && error.name === "AbortError")
-          )
-            throw new Error("aiCancelled");
-          throw inferenceAppError(error);
-        } finally {
-          service.developmentModel = development ? fixtureAI.lastModel : null;
-          service.developmentRequests = development
-            ? fixtureAI.requestCount
-            : 0;
-        }
-      };
+    const runAITask = async <T>(run: number, task: () => Promise<T>) => {
+      try {
+        const value = await task();
+        if (run !== generationRun) throw new Error("aiCancelled");
+        return value;
+      } catch (error) {
+        if (
+          run !== generationRun ||
+          (error instanceof Error && error.name === "AbortError")
+        )
+          throw new Error("aiCancelled");
+        throw inferenceAppError(error);
+      } finally {
+        service.developmentModel = development ? fixtureAI.lastModel : null;
+        service.developmentRequests = development ? fixtureAI.requestCount : 0;
+      }
+    };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
       getAppInfo: async () => ({
         version: app.getVersion(),
@@ -522,11 +507,8 @@ else
         service.draft = null;
         service.draftRevision = null;
         service.recipeDraft = null;
-        service.draft = await generateValidated(
-          generateAI(session, shoppingDraftTask, run),
-          draftPrompt(request.prompt, service.state),
-          (text) => validateDraft(text, service.state, request.prompt),
-          " The previous response failed validation. Check integer quantities, unique recipe IDs, and that every meal references an existing or new recipe. Return complete JSON only.",
+        service.draft = await runAITask(run, () =>
+          interpretShopping(session, request.prompt, service.state),
         );
         service.draftRevision = revision;
         service.draftNote = request.prompt;
@@ -543,11 +525,8 @@ else
         const run = ++generationRun;
         const session = await requestSession(run);
         service.recipeDraft = null;
-        service.recipeDraft = await generateValidated(
-          generateAI(session, recipeImportTask, run),
-          recipePrompt(request.text, service.state),
-          (text) => validateRecipe(text, service.state),
-          " The previous response failed validation. Return one complete recipe object with positive integer g, ml or pcs quantities, servings from 1 to 100, and at least one ingredient. Return JSON only.",
+        service.recipeDraft = await runAITask(run, () =>
+          extractRecipe(session, request.text, service.state),
         );
         return service.snapshot();
       },

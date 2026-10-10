@@ -1,8 +1,4 @@
-import {
-  generateValidated,
-  draftPrompt,
-  validateDraft,
-} from "../../../src/ai/draft";
+import { interpretShopping } from "../../../src/ai/output";
 import { InferenceError, InferenceSession } from "../../../src/ai/provider";
 import { buildCompactContext } from "../../../src/ai/context";
 import type { BasketLine, Product } from "../../../src/domain/model";
@@ -66,13 +62,10 @@ export async function evaluateShoppingCase(
   );
   let failure: UnresolvedReason | undefined;
   try {
-    service.draft = await generateValidated(
-      async (prompt) =>
-        (await session.invoke({ id: "shopping-draft", version: 1 }, prompt))
-          .text,
-      draftPrompt(fixture.note, service.state),
-      (raw) => validateDraft(raw, service.state, fixture.note),
-      " Return a valid complete shopping draft only.",
+    service.draft = await interpretShopping(
+      session,
+      fixture.note,
+      service.state,
     );
     service.draftRevision = service.state.revision;
     service.draftNote = fixture.note;
