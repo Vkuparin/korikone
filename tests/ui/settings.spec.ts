@@ -1,5 +1,5 @@
 import { test, expect, _electron as electron } from "@playwright/test";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { settingsCategory } from "./settings-helper";
@@ -261,3 +261,187 @@ test("Advanced retains locked development tools and the real diagnostic preview/
     await app.close();
   }
 });
+
+for (const language of ["fi", "en"] as const) {
+  test(`appearance keyboard selection, backup restore and restart preserve the list in ${language}`, async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "korikone-settings-appearance-"),
+    );
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+    delete env.ELECTRON_RUN_AS_NODE;
+    env.KORIKONE_TEST_DATA = directory;
+    env.KORIKONE_TEST_HIDDEN = "1";
+    const options = { args: ["."], env };
+    let app = await electron.launch(options);
+    try {
+      let page = await app.firstWindow();
+      await page
+        .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
+        .click();
+      await page
+        .getByLabel("Mitä haluaisit valmistaa?")
+        .fill("Keep this unapplied note");
+      if (language === "en") {
+        await page.getByLabel("Kieli", { exact: true }).click();
+        await page
+          .getByRole("option", { name: "English", exact: true })
+          .click();
+      }
+      const fi = language === "fi";
+      const load = () =>
+        page.evaluate(async () => (await window.korikone.load()).value);
+      const baseline = await load();
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "dark";
+      });
+      await page
+        .getByRole("button", {
+          name: fi ? "Asetukset" : "Settings",
+          exact: true,
+        })
+        .click();
+      const general = () =>
+        settingsCategory(page, "general", fi ? "Yleiset" : "General");
+      const data = () => settingsCategory(page, "data", fi ? "Tiedot" : "Data");
+      const household = () =>
+        settingsCategory(page, "household", fi ? "Kotitalous" : "Household");
+      const appearance = page.getByLabel(fi ? "Ulkoasu" : "Appearance", {
+        exact: true,
+      });
+      await expect(page.getByTestId("system-appearance")).toContainText(
+        fi ? "Tumma" : "Dark",
+      );
+      await appearance.focus();
+      await appearance.press("ArrowDown");
+      await expect(appearance).toHaveValue("light");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+      await appearance.press("ArrowDown");
+      await expect(appearance).toHaveValue("dark");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      await household();
+      const servings = page.locator('.settings-content input[name="servings"]');
+      await servings.fill("9");
+      await data();
+      const receipts = page.getByLabel(
+        fi ? "Kuittien ostosrivit" : "Receipt purchase lines",
+      );
+      await receipts.fill("Unsaved receipt draft");
+      const backupPath = join(directory, "backup.json");
+      await app.evaluate(({ dialog }, filePath) => {
+        dialog.showSaveDialog = async () => ({ canceled: false, filePath });
+        dialog.showOpenDialog = async () => ({
+          canceled: false,
+          filePaths: [filePath],
+        });
+      }, backupPath);
+      await page
+        .getByText(fi ? "Varmuuskopiot ja tiedot" : "Backups and data", {
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: fi ? "Vie varmuuskopio" : "Export backup",
+          exact: true,
+        })
+        .click();
+      await expect
+        .poll(async () => {
+          try {
+            return JSON.parse(await readFile(backupPath, "utf8")).appearance;
+          } catch {
+            return null;
+          }
+        })
+        .toBe("dark");
+      const backup = JSON.parse(await readFile(backupPath, "utf8"));
+      await general();
+      await appearance.selectOption("light");
+      await expect(appearance).toHaveValue("light");
+      const changed = await load();
+      expect(changed.state.meals).toEqual(baseline.state.meals);
+      expect(changed.state.revision).toBe(baseline.state.revision);
+      expect(changed.basket).toEqual(baseline.basket);
+      expect(changed.developmentRequests).toBe(baseline.developmentRequests);
+      expect(changed.developmentCatalogueRequests).toBe(
+        baseline.developmentCatalogueRequests,
+      );
+      await data();
+      const restore = page.getByRole("button", {
+        name: fi ? "Palauta varmuuskopio" : "Restore backup",
+        exact: true,
+      });
+      await writeFile(
+        backupPath,
+        JSON.stringify({ ...backup, appearance: "sepia" }),
+      );
+      await restore.click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      expect((await load()).state.appearance).toBe("light");
+      backup.household.servings = 3;
+      backup.household.budget = 12345;
+      backup.receiptText = "Restored receipt lines";
+      await writeFile(backupPath, JSON.stringify(backup));
+      await restore.click();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(receipts).toHaveValue("Unsaved receipt draft");
+      await general();
+      await expect(appearance).toHaveValue("dark");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      await household();
+      await expect(servings).toHaveValue("9");
+      await expect(
+        page.locator('.settings-content input[name="budget"]'),
+      ).toHaveValue("123.45");
+      await page
+        .getByRole("button", {
+          name: fi ? "Ostoslista" : "Shopping list",
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByLabel(
+          fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
+        ),
+      ).toHaveValue("Keep this unapplied note");
+      expect((await load()).developmentRequests).toBe(
+        baseline.developmentRequests,
+      );
+      await app.close();
+      app = await electron.launch(options);
+      page = await app.firstWindow();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      await page
+        .getByRole("button", {
+          name: fi ? "Asetukset" : "Settings",
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByLabel(fi ? "Ulkoasu" : "Appearance", { exact: true }),
+      ).toHaveValue("dark");
+      expect((await load()).state.meals).toEqual(baseline.state.meals);
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "light";
+      });
+      await page
+        .getByLabel(fi ? "Ulkoasu" : "Appearance", { exact: true })
+        .selectOption("system");
+      await expect(page.getByTestId("system-appearance")).toContainText(
+        fi ? "Vaalea" : "Light",
+      );
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "dark";
+      });
+      await expect(page.getByTestId("system-appearance")).toContainText(
+        fi ? "Tumma" : "Dark",
+      );
+    } finally {
+      await app.close();
+    }
+  });
+}

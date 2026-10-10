@@ -123,9 +123,32 @@ export function GeneralSettings({
   snapshot,
   t,
   changeLanguage,
+  call,
 }: SettingsSectionProps) {
   return (
     <div className="card form">
+      <label>
+        {t("appearance")}
+        <select
+          aria-label={t("appearance")}
+          value={snapshot.state.appearance}
+          onChange={(e) => void call("setAppearance", e.target.value)}
+        >
+          <option value="system">{t("appearanceSystem")}</option>
+          <option value="light">{t("appearanceLight")}</option>
+          <option value="dark">{t("appearanceDark")}</option>
+        </select>
+      </label>
+      {snapshot.state.appearance === "system" && (
+        <p role="status" data-testid="system-appearance" className="muted">
+          {t("appearanceSystemCurrent")}:{" "}
+          {t(
+            document.documentElement.dataset.theme === "dark"
+              ? "appearanceDark"
+              : "appearanceLight",
+          )}
+        </p>
+      )}
       <label>
         {t("language")}
         <Choice

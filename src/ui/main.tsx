@@ -129,6 +129,23 @@ function App() {
       currency: "EUR",
     }).format(cents / 100);
   async function call(method: string, input?: unknown) {
+    if (method === "setAppearance") {
+      try {
+        const result = await window.korikone.setAppearance(input);
+        if (!result.ok) throw new Error(result.error);
+        setSnapshot((current) => ({
+          ...current,
+          state: {
+            ...current.state,
+            appearance: result.value.state.appearance,
+          },
+        }));
+        return true;
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "operationFailed");
+        return false;
+      }
+    }
     setBusy(true);
     setError("");
     try {
