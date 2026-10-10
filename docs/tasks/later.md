@@ -4,7 +4,7 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## R1. One full pre-release validation flow
 
-Owner decision, 10 October 2026. Trust focused checks recorded by coder agents. One full release flow is sufficient; fixes use failed/affected checks only. Let v0.6.0's existing runs finish unchanged. The standing policy is in AGENTS.md; CI enforcement is a later tooling task.
+Owner decision, 10 October 2026. Trust focused checks recorded by coder agents. One full release flow is sufficient; fixes use failed/affected checks only. Let v0.6.0's existing runs finish unchanged. The standing policy is in AGENTS.md; CI enforcement is a later tooling task. Prevent duplicate full runs after branch promotion, tag publication and documentation-only pushes.
 
 | ID | Task and Done when | Agent | Depends on | Status |
 | --- | --- | --- | --- | --- |
