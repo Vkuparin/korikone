@@ -4,6 +4,8 @@ Revised 9 October 2026. Follow the first-round refined feedback and redesign PDF
 
 ## Navigation and first use
 
+The owner accepted the [initial category policy](category-policy.md) on 10 October 2026 for F15 implementation. Generic category defaults stay visible; generic cream needs review. Remember explicitly offers Required or Preferred: missing Required types stay unresolved, while a Preferred fallback needs optional approval. Current explicit qualifiers override saved fields for that list without changing memory. Advanced manages Edit/Forget/Reset; ordinary row corrections stay beside the list. These controls remain assigned work until their contracts and code land.
+
 Use a left rail: Ostoslista, Viikkosuunnitelma, Reseptit, Historia, Kauppa and Asetukset. Vakiotuotteet opens from Asetukset and from "Unohtuiko jotain?". There is no separate basket page: product details open from a list row, and the transfer is confirmed in the list column. Keep Finnish/English switching available. Use the native Windows title-bar overlay. Keep the existing optional store/ChatGPT setup and a working manual path.
 
 The everyday entry is the shopping list. Avoid a large hero, photo or weekday-entry grid. An empty note has starter ideas in one place. An empty list explains that groceries and their meal sources will appear there. Show only real local history and recurring items, never the mockup's invented weeks, prices or user name.
