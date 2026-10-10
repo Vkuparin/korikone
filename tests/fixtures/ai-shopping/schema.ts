@@ -72,6 +72,7 @@ export const shoppingCaseSchema = z
           "store-change",
           "preferences",
           "compact-context",
+          "dietary-evidence",
         ]),
       )
       .default([]),
