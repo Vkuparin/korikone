@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -94,8 +95,11 @@ test("model selectors save one preference without submitting the note and retain
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "ai", "ChatGPT ja tekoäly");
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    const settingsModel = page.getByLabel("AI-malli", { exact: true });
+    const settingsModel = page
+      .locator(".settings-content")
+      .getByRole("button", { name: "AI-malli", exact: true });
     await expect(settingsModel).toBeEnabled();
     await page.getByRole("button", { name: "Avaa ChatGPT:n käyttö" }).focus();
     await page.keyboard.press("Tab");
@@ -114,7 +118,9 @@ test("model selectors save one preference without submitting the note and retain
     await expect(options).toHaveCount(0);
     await expect(settingsModel).toBeFocused();
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
-    const model = page.getByLabel("AI-malli", { exact: true });
+    const model = page
+      .locator(".planning-pane")
+      .getByRole("button", { name: "AI-malli", exact: true });
     await expect(model).toContainText("Local large model");
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
     await note.fill("Pasta");
@@ -160,7 +166,7 @@ test("model selectors save one preference without submitting the note and retain
     await page
       .getByRole("button", { name: "Päivitä lista", exact: true })
       .focus();
-    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
     await expect(model).toBeFocused();
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setContentSize(1280, 800),
@@ -186,9 +192,11 @@ test("model selectors save one preference without submitting the note and retain
         : {}),
     });
     page = await app.firstWindow();
-    await expect(page.getByLabel("AI-malli", { exact: true })).toContainText(
-      "fixture-large",
-    );
+    await expect(
+      page
+        .locator(".planning-pane")
+        .getByRole("button", { name: "AI-malli", exact: true }),
+    ).toContainText("fixture-large");
     const results = await page.evaluate(async () => {
       const api = window.korikone;
       await api.signInAI();
@@ -224,7 +232,9 @@ test("model selectors save one preference without submitting the note and retain
       await window.korikone.developmentScenario("removedModel");
     });
     await page.reload();
-    const restored = page.getByLabel("AI-malli", { exact: true });
+    const restored = page
+      .locator(".planning-pane")
+      .getByRole("button", { name: "AI-malli", exact: true });
     await expect(restored).toContainText("ei saatavilla");
     await restored.click();
     await expect(

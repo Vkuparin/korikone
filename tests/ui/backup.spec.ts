@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,7 +30,11 @@ test("backup export and restore preserve recipes and reject broken references", 
     await page.getByLabel("Kieli", { exact: true }).click();
     await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByText("Backups and data", { exact: true }).click();
+    await settingsCategory(page, "data", "Data");
+    if (
+      !(await page.getByRole("button", { name: "Restore backup" }).isVisible())
+    )
+      await page.getByText("Backups and data", { exact: true }).click();
     await app.evaluate(({ dialog }, filePath) => {
       dialog.showSaveDialog = async () => ({ canceled: false, filePath });
       dialog.showOpenDialog = async () => ({
@@ -79,7 +84,11 @@ test("backup export and restore preserve recipes and reject broken references", 
     ];
     await writeFile(backupPath, JSON.stringify(exported));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByText("Backups and data", { exact: true }).click();
+    await settingsCategory(page, "data", "Data");
+    if (
+      !(await page.getByRole("button", { name: "Restore backup" }).isVisible())
+    )
+      await page.getByText("Backups and data", { exact: true }).click();
     await page.getByRole("button", { name: "Restore backup" }).click();
     await expect(page.getByRole("alert")).toContainText(
       "recipe that no longer exists",

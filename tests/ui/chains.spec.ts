@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -50,6 +51,7 @@ test("the pinned hint and Settings set up the second chain; both session logins 
     await expect(hint).toBeVisible();
     await hint.focus();
     await page.keyboard.press("Enter");
+    await settingsCategory(page, "stores", "Kaupat");
     const other = page.getByRole("listitem", { name: "S-kaupat" });
     await other
       .getByRole("button", { name: "S-kaupat: Valitse kauppa" })
@@ -81,6 +83,7 @@ test("the pinned hint and Settings set up the second chain; both session logins 
     app = await electron.launch(launch);
     page = await app.firstWindow();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "stores", "Kaupat");
     for (const chain of ["K-Ruoka", "S-kaupat"])
       await expect(
         page.getByRole("listitem", { name: chain }).getByRole("status"),
@@ -145,6 +148,7 @@ for (const [chain, name] of [
       await page
         .getByRole("button", { name: "Asetukset", exact: true })
         .click();
+      await settingsCategory(page, "stores", "Kaupat");
       await expect(
         page.getByRole("listitem", { name }).getByRole("status"),
       ).toHaveText("Ei yhdistetty");

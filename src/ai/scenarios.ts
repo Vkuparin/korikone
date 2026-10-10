@@ -1,0 +1,15 @@
+export const aiScenarios = [
+  "success",
+  "delayedSuccess",
+  "delayedModels",
+  "invalidOnce",
+  "invalidDraft",
+  "usageLimit",
+  "incompleteDraft",
+  "aiFailed",
+  "noSmallModel",
+  "removedModel",
+  "emptyModels",
+  "modelsFailed",
+  "handoffFailed",
+] as const;

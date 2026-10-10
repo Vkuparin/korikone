@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -64,6 +65,7 @@ test("guided setup allows manual planning and remembers completion", async () =>
     ).toBeVisible();
     // Development mode can show the setup screen again without a fresh data folder.
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "advanced", "Lisäasetukset");
     await page
       .getByRole("button", { name: "Näytä aloitusnäyttö uudelleen" })
       .click();

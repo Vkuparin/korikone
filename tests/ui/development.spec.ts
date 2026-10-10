@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -62,9 +63,16 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     await page.getByLabel("Kieli", { exact: true }).click();
     await page.getByRole("option", { name: "English", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "advanced", "Advanced");
     await expect(
       page.getByLabel("Development mode", { exact: true }),
     ).toBeChecked();
+    await expect(
+      page.getByLabel("Development mode", { exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByLabel("AI fixture scenario").locator("option"),
+    ).toHaveCount(13);
     await page.getByLabel("AI fixture scenario").selectOption("invalidOnce");
     await page
       .getByRole("button", { name: "Shopping list", exact: true })
@@ -165,6 +173,7 @@ test("settings enable and persist development mode with separate profiles", asyn
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "advanced", "Lisäasetukset");
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toBeVisible();
     // The development profile starts with setup done, as in the real profile.
@@ -179,6 +188,7 @@ test("settings enable and persist development mode with separate profiles", asyn
     page = await app.firstWindow();
     await expect(page.getByTestId("development-banner")).toBeVisible();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "advanced", "Lisäasetukset");
     await page.getByLabel("Kehitystila", { exact: true }).click();
     await expect(page.getByTestId("development-banner")).toHaveCount(0);
     await expect(

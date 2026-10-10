@@ -1,7 +1,8 @@
 import { test, expect, _electron as electron } from "@playwright/test";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { settingsCategory } from "./settings-helper";
 
 for (const language of ["fi", "en"] as const) {
   test(`Settings categories retain drafts, focus and real saves in ${language}`, async () => {
@@ -189,3 +190,74 @@ for (const language of ["fi", "en"] as const) {
     }
   });
 }
+
+test("Advanced retains locked development tools and the real diagnostic preview/export", async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), "korikone-settings-diagnostics-"),
+  );
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = directory;
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({ args: ["."], env });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "advanced", "Lisäasetukset");
+    await expect(
+      page.getByLabel("Kehitystila", { exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Muokkaa vakiotuotteita", exact: true }),
+    ).toHaveCount(0);
+    const path = join(directory, "diagnostics.json");
+    await app.evaluate(({ dialog }, filePath) => {
+      dialog.showMessageBox = async (...args: unknown[]) => {
+        const options = args.at(-1) as { detail?: string };
+        Object.assign(globalThis, { diagnosticPreview: options.detail });
+        return { response: 0, checkboxChecked: false };
+      };
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath });
+    }, path);
+    await page
+      .getByRole("button", {
+        name: "Tallenna vianetsintätiedot (ei henkilötietoja)",
+        exact: true,
+      })
+      .click();
+    await expect
+      .poll(async () => {
+        try {
+          return await readFile(path, "utf8");
+        } catch {
+          return "";
+        }
+      })
+      .not.toBe("");
+    expect(await readFile(path, "utf8")).toBe(
+      await app.evaluate(
+        () =>
+          (globalThis as unknown as { diagnosticPreview: string })
+            .diagnosticPreview,
+      ),
+    );
+    const snapshot = (await page.evaluate(async () => window.korikone.load()))
+      .value;
+    expect(snapshot.developmentRequests).toBe(0);
+    await settingsCategory(page, "ai", "ChatGPT ja tekoäly");
+    await expect(page.getByLabel("Kehitystila", { exact: true })).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Muokkaa vakiotuotteita", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveCount(1);
+  } finally {
+    await app.close();
+  }
+});

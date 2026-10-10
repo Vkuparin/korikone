@@ -4,21 +4,8 @@ import { chooseModel } from "./models";
 import { setTimeout as delay } from "node:timers/promises";
 import { mealFixtures } from "./meal-fixtures";
 
-export const aiScenarios = [
-  "success",
-  "delayedSuccess",
-  "delayedModels",
-  "invalidOnce",
-  "invalidDraft",
-  "usageLimit",
-  "incompleteDraft",
-  "aiFailed",
-  "noSmallModel",
-  "removedModel",
-  "emptyModels",
-  "modelsFailed",
-  "handoffFailed",
-] as const;
+import { aiScenarios } from "./scenarios";
+export { aiScenarios } from "./scenarios";
 
 /** Local responses exercise the same validation and approval path as live AI. */
 export class FixtureAI {

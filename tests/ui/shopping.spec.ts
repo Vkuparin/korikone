@@ -1,3 +1,4 @@
+import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -413,6 +414,7 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "data", "Tiedot");
     await app.evaluate(({ dialog }, path) => {
       dialog.showOpenDialog = async () => ({
         canceled: false,
@@ -428,6 +430,12 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
     await expect(page.getByLabel("Kuittien ostosrivit")).toContainText(
       "Yogurtti 2.49",
     );
+    await page.getByLabel("Kuittien ostosrivit").fill("Unsaved receipt lines");
+    await settingsCategory(page, "household", "Kotitalous");
+    await settingsCategory(page, "data", "Tiedot");
+    await expect(page.getByLabel("Kuittien ostosrivit")).toHaveValue(
+      "Unsaved receipt lines",
+    );
     await writeFile(path, "broken PDF");
     await page
       .getByRole("button", {
@@ -438,9 +446,13 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
     await expect(page.getByRole("alert")).toContainText(
       "Kuitin lukeminen epäonnistui",
     );
-    await expect(page.getByLabel("Kuittien ostosrivit")).toContainText(
-      "Yogurtti 2.49",
+    await expect(page.getByLabel("Kuittien ostosrivit")).toHaveValue(
+      "Unsaved receipt lines",
     );
+    expect(
+      (await page.evaluate(async () => window.korikone.load())).value.state
+        .receiptText,
+    ).toContain("Yogurtti 2.49");
   } finally {
     await app.close();
   }
