@@ -6,6 +6,7 @@ import { en, type Key } from "./i18n";
 import { isLive } from "../stores/provider";
 import { aiScenarios } from "../ai/scenarios";
 import { useSettingsDraft } from "./settings";
+import { CategoryPreferences } from "./category-preferences";
 const field = (label: string, control: React.ReactNode) => (
   <label>
     {label}
@@ -23,6 +24,7 @@ export function AdvancedSettings({
 }: SettingsSectionProps) {
   return (
     <section className="card form">
+      <CategoryPreferences snapshot={snapshot} busy={busy} call={call} />
       <label>
         <input
           type="checkbox"
