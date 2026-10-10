@@ -10,6 +10,7 @@ Current release sequencing is in [roadmap.md](roadmap.md); implementation status
 - Show immediate actual status/Cancel and clearly marked provisional validated meal/product results as they arrive. Keep committed state until atomic success; provisional results cannot be transferred.
 - Choose lowest total price for enough whole packs, subject to suitability/requirements/preferences. This resolves the previous cost-basis question.
 - Accept local models running on the same machine as a later alternative to ChatGPT (F21, release unassigned). Explicit provider choice, initial installed-runner integration and shared validation/transfer rules; no silent cloud fallback. Local inference does not remove retailer network access.
+- Close this design review with the owner: existing-list edit context is always visible; New list is easy to find; previews have one clear active region without competing totals; ordinary corrections stay beside rows, with “I meant something else” for type/quantity/alternative mistakes. Advanced manages remembered rules. Request coverage is an explicit acceptance gate against independently authored note expectations, not the model's self-reported completeness.
 
 ## Agreed 9 October 2026
 

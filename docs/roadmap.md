@@ -41,6 +41,7 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 - Cheapest suitable means lowest total for enough whole packs. Explicit requirements and exclusions take precedence over preferences and price.
 - Keep F15's optional grouped review and explicit Remember this consent. Reuse F6/F7 history and F5 prices; no competing memory/matcher/transfer systems.
 - Later, offer models running on the same machine as an explicitly selected alternative to ChatGPT (F21). Start with an installed local runner; preserve the same validation and transfer rules, and never silently fall back to cloud inference.
+- Design review closed on 10 October 2026: make edit/New list context unmistakable, use one clear preview region, keep current-list corrections on rows, add “I meant something else” (F15.14–F15.15), and require every reference-case request to have a visible result or unresolved entry (F16.15). Prioritize correct products and understandable correction before speed. Coders proceed with assigned cards; revisit product design when implementation evidence or a named gate needs a decision.
 
 ## Decisions still needed
 
