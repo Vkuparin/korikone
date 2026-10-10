@@ -25,7 +25,7 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 0.10.0 | Plan the week and take it along | [Week and exports](tasks/0.10.0.md): F9, F10, F11, F12, F13 | Remaining feature/owner checks; OCR adoption conditional |
 | 0.11.0 | Beta and feature freeze | [Beta](tasks/0.11.0.md): F14 | Feature freeze, accessibility, install/upgrade checks and household pilot; blockers fixed |
 | 1.0.0 | Stable | [Pre-release gates](pre-release.md) | All gates met; no open blocker bugs |
-| Unassigned | Swedish, price-constrained meals, optional routing and local models | [Later](tasks/later.md): L1, F19, F20, F21 | Policy and release assignment before implementation |
+| Unassigned | Swedish, predefined colour palettes, price-constrained meals, optional routing and local models | [Later](tasks/later.md): L1, U17, F19, F20, F21 | Policy and release assignment before implementation |
 
 Every release preparation runs full checks under [AGENTS.md](../AGENTS.md), including packaged checks. Routine card work uses focused checks. Done features in a future milestone stay Done; that milestone still needs its remaining cards and release acceptance.
 
@@ -41,6 +41,7 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 - Cheapest suitable means lowest total for enough whole packs. Explicit requirements and exclusions take precedence over preferences and price.
 - Keep F15's optional grouped review and explicit Remember this consent. Reuse F6/F7 history and F5 prices; no competing memory/matcher/transfer systems.
 - Later, offer models running on the same machine as an explicitly selected alternative to ChatGPT (F21). Start with an installed local runner; preserve the same validation and transfer rules, and never silently fall back to cloud inference.
+- Later, offer predefined colour palettes in Settings Appearance (U17), using U14.1/U14.2's replaceable semantic tokens. Palette choice stays independent of System/Light/Dark; each palette supports both modes and current users retain the Korikone default.
 - Design review closed on 10 October 2026: make edit/New list context unmistakable, use one clear preview region, keep current-list corrections on rows, add “I meant something else” (F15.14–F15.15), and require every reference-case request to have a visible result or unresolved entry (F16.15). Prioritize correct products and understandable correction before speed. Coders proceed with assigned cards; revisit product design when implementation evidence or a named gate needs a decision.
 
 ## Decisions still needed
