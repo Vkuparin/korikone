@@ -25,6 +25,12 @@ test("the transfer is confirmed and reported in the list column", async () => {
   });
   try {
     const page = await app.firstWindow();
+    if (process.env.KORIKONE_EXECUTABLE) {
+      await page.waitForLoadState("domcontentloaded");
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].show(),
+      );
+    }
     await page
       .getByRole("button", { name: "Ota käyttöön", exact: true })
       .click();
