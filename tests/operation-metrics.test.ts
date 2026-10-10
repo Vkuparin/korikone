@@ -82,6 +82,21 @@ test("failure and cancellation retain numeric metrics and never error text", asy
     unresolved: { "search-error": 1 },
   });
 });
+
+test("expanded candidate searches count actual external reads rather than requirements", async () => {
+  const result = await evaluateShoppingCase(
+    { ...coverageShoppingCase, catalogue: { "*": [] } },
+    "k-ruoka",
+  );
+  const pricing = result.operationMetrics.find(
+    (metric) => metric.kind === "pricing",
+  )!;
+  expect(pricing.searches).toBe(result.searches);
+  expect(pricing.searches).toBeGreaterThan(
+    coverageShoppingCase.expected.length,
+  );
+  expect(pricing.unresolved).toEqual(result.reasons);
+});
 test("metrics survive service restart, enforce bounds and redact hostile records", async () => {
   const db = memory();
   const service = new Service(db);
