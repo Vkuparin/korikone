@@ -24,6 +24,10 @@ export const resolutionNativeOutput = {
   name: "candidate_resolution_v1",
   schema,
 };
+export const resolutionTaskBounds = Object.freeze({
+  maxOutputCharacters: 8_000,
+  timeoutMs: 60_000,
+});
 export type ResolutionSnapshot = {
   lines: BasketLine[];
   source: ResolutionSource;
@@ -91,6 +95,7 @@ export async function resolveCandidates(
       }
     },
     repairLimit: 0,
+    bounds: resolutionTaskBounds,
     correction: "",
     nativeInstructions:
       " Use the supplied native schema exactly. Every field is required; candidateId is null only for an unresolved choice. Empty choices are [].",

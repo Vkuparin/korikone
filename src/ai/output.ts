@@ -11,6 +11,7 @@ import {
   type InferenceOutput,
   type InferenceSession,
   type InferenceTask,
+  type InferenceTaskBounds,
 } from "./provider";
 import { shoppingDraftTask, recipeImportTask } from "./tasks";
 import {
@@ -125,6 +126,7 @@ export type TaskOutput<T> = {
   repairLimit: 0 | 1;
   correction: string;
   nativeInstructions?: string;
+  bounds?: InferenceTaskBounds;
 };
 
 /** One selected format for all attempts. Provider failures are outside the validation repair. */
@@ -148,7 +150,15 @@ export async function invokeTaskOutput<T>(
         " Use the supplied native schema exactly. Every field is required on the wire; use null only for optional metadata, kind, day or leftovers. Empty optional arrays are [].")
       : "");
   const generate = async (input: string) =>
-    (await session.invoke(definition.task, input, output)).text;
+    (
+      await session.invoke(
+        definition.task,
+        input,
+        output,
+        undefined,
+        definition.bounds,
+      )
+    ).text;
   const validate = (raw: string) =>
     definition.validate(native ? definition.normalizeNative(raw) : raw);
   return definition.repairLimit === 1

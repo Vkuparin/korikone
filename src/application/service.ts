@@ -67,6 +67,7 @@ import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
+import { PlanningLifecycle } from "./planning";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -153,6 +154,7 @@ export class Service {
   developmentModelCatalogueRequests = 0;
   developmentAIProvider: string | null = null;
   state = initialState();
+  planning = new PlanningLifecycle(() => this.state);
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
   quotedAt: string | null = null;
@@ -375,6 +377,7 @@ export class Service {
       update: this.update,
       draft: this.draft,
       recipeDraft: this.recipeDraft,
+      planning: this.planning.snapshot(),
     };
   }
   private async saveState(input: unknown, allowCategoryPreferences = false) {
@@ -932,7 +935,18 @@ export class Service {
       this.save({ ...this.state, skipped: [...this.state.skipped, key] }),
     );
   }
+  assertNoProvisionalTransfer() {
+    const operation = this.planning.snapshot();
+    if (
+      operation &&
+      !["committed", "failed", "cancelled", "obsolete"].includes(
+        operation.phase,
+      )
+    )
+      throw new Error("planningPending");
+  }
   async prepare(input?: unknown) {
+    this.assertNoProvisionalTransfer();
     if (this.busy) throw new Error("busy");
     if (this.journal?.status === "partial") throw new Error("recoverFirst");
     const { allowMissing } = z
@@ -978,6 +992,7 @@ export class Service {
     });
   }
   async transferDisplayed(input: unknown) {
+    this.assertNoProvisionalTransfer();
     const { revision, quotedAt, batchKey } = z
       .object({
         revision: z.number().int(),
@@ -1045,6 +1060,7 @@ export class Service {
     }
   }
   async execute(input: unknown) {
+    this.assertNoProvisionalTransfer();
     const { id, acknowledged } = z
       .object({ id: z.string(), acknowledged: z.boolean() })
       .parse(input);

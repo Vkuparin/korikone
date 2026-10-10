@@ -58,6 +58,28 @@ export function ShoppingWorkspace({
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const currentNote = useRef(note);
+  const planningOperation = useRef<string | null>(null);
+  useEffect(
+    () =>
+      window.korikone.onPlanningChange((value) => {
+        if (
+          !["committed", "failed", "cancelled", "obsolete"].includes(
+            value.phase,
+          )
+        ) {
+          planningOperation.current = value.operationId;
+          if (running.current && value.source.note !== currentNote.current) {
+            stopRequested.current = true;
+            void window.korikone.invalidatePlanning({
+              operationId: value.operationId,
+              reason: "note-changed",
+            });
+          }
+        } else if (planningOperation.current === value.operationId)
+          planningOperation.current = null;
+      }),
+    [],
+  );
   const panel = useRef<HTMLElement>(null);
   const footer = useRef<HTMLDivElement>(null);
   const [comparing, setComparing] = useState(false);
@@ -122,6 +144,17 @@ export function ShoppingWorkspace({
     currentNote.current = state.note;
   }, [state.note]);
   const changeNote = (value: string) => {
+    if (
+      running.current &&
+      planningOperation.current &&
+      value !== currentNote.current
+    ) {
+      stopRequested.current = true;
+      void window.korikone.invalidatePlanning({
+        operationId: planningOperation.current,
+        reason: "note-changed",
+      });
+    }
     setCancelled(false);
     setUpdateFailed(false);
     sessionStorage.setItem("shopping-note", value);

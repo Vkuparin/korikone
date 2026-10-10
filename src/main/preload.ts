@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { AppearanceBootstrap } from "../domain/appearance";
+import type { PlanningSnapshot } from "../application/planning";
 const methods = [
   "load",
   "getAppInfo",
@@ -47,6 +48,8 @@ const methods = [
   "storeAction",
   "signInAI",
   "cancelAI",
+  "cancelPlanning",
+  "invalidatePlanning",
   "signOutAI",
   "modelsAI",
   "usageAI",
@@ -65,6 +68,14 @@ contextBridge.exposeInMainWorld("korikone", {
     ]),
   ),
   getAppearanceBootstrap: () => ipcRenderer.sendSync("app:appearanceBootstrap"),
+  onPlanningChange: (callback: (value: PlanningSnapshot) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      value: PlanningSnapshot,
+    ) => callback(value);
+    ipcRenderer.on("app:planningChanged", listener);
+    return () => ipcRenderer.removeListener("app:planningChanged", listener);
+  },
   onAppearanceChange: (callback: (value: AppearanceBootstrap) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,

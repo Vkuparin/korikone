@@ -140,6 +140,10 @@ export type InferenceBounds = {
   maxOutputCharacters: number;
   timeoutMs: number;
 };
+export type InferenceTaskBounds = Pick<
+  InferenceBounds,
+  "maxOutputCharacters" | "timeoutMs"
+>;
 
 /** One selected adapter/model for an operation. Tasks own prompts, schemas and repair policy. */
 export class InferenceSession {
@@ -185,6 +189,7 @@ export class InferenceSession {
     prompt: string,
     output: InferenceOutput = { mode: "text" },
     onEvent?: (event: InferenceEvent) => void,
+    taskBounds?: InferenceTaskBounds,
   ): Promise<InferenceResult> {
     if (this.operationSignal.aborted || this.stopped)
       throw new InferenceError("cancelled");
@@ -207,6 +212,23 @@ export class InferenceSession {
       throw new InferenceError("requestLimit");
     if (typeof prompt !== "string" || !prompt || prompt.length > 1_000_000)
       throw new InferenceError("invalidOutput");
+    const requested =
+      taskBounds &&
+      z
+        .object({
+          maxOutputCharacters: z.number().int().min(1).max(1_000_000),
+          timeoutMs: z.number().int().min(1).max(600_000),
+        })
+        .strict()
+        .parse(taskBounds);
+    const maxOutputCharacters = Math.min(
+      this.bounds.maxOutputCharacters,
+      requested?.maxOutputCharacters ?? this.bounds.maxOutputCharacters,
+    );
+    const timeoutMs = Math.min(
+      this.bounds.timeoutMs,
+      requested?.timeoutMs ?? this.bounds.timeoutMs,
+    );
 
     this.calls++;
     this.payloadSize += prompt.length;
@@ -231,7 +253,7 @@ export class InferenceSession {
       controller.abort();
       terminalError = new InferenceError("timeout");
       rejectAbort(terminalError);
-    }, this.bounds.timeoutMs);
+    }, timeoutMs);
     const events = onEvent
       ? (raw: InferenceEvent) => {
           if (controller.signal.aborted) return;
@@ -246,7 +268,7 @@ export class InferenceSession {
           }
           if (parsed.data.type === "text-delta")
             streamedCharacters += parsed.data.text.length;
-          if (streamedCharacters > this.bounds.maxOutputCharacters) {
+          if (streamedCharacters > maxOutputCharacters) {
             this.stopped = true;
             controller.abort();
             terminalError = new InferenceError("invalidOutput");
@@ -265,7 +287,7 @@ export class InferenceSession {
         },
         prompt,
         output: structuredClone(output),
-        maxOutputCharacters: this.bounds.maxOutputCharacters,
+        maxOutputCharacters,
       };
       const raw = await Promise.race([
         this.provider.invoke(request, controller.signal, events),
@@ -274,10 +296,7 @@ export class InferenceSession {
       if (terminalError) throw terminalError;
       if (this.operationSignal.aborted) throw new InferenceError("cancelled");
       const result = inferenceResultSchema.safeParse(raw);
-      if (
-        !result.success ||
-        result.data.text.length > this.bounds.maxOutputCharacters
-      )
+      if (!result.success || result.data.text.length > maxOutputCharacters)
         throw new InferenceError("invalidOutput");
       if (result.data.completion !== "complete")
         throw new InferenceError("incomplete");

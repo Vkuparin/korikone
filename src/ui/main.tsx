@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
 import type { AppearanceBootstrap } from "../domain/appearance";
+import type {
+  PlanningSnapshot,
+  PlanningControl,
+} from "../application/planning";
 import { subscribeAppearance } from "./appearance";
 import {
   initialState,
@@ -44,6 +48,15 @@ declare global {
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
     > & {
       getAppearanceBootstrap: () => AppearanceBootstrap;
+      onPlanningChange: (
+        callback: (value: PlanningSnapshot) => void,
+      ) => () => void;
+      cancelPlanning: (
+        input: PlanningControl,
+      ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
+      invalidatePlanning: (
+        input: PlanningControl,
+      ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
       onAppearanceChange: (
         callback: (value: AppearanceBootstrap) => void,
       ) => () => void;
@@ -85,6 +98,7 @@ function App() {
     update: null,
     draft: null,
     recipeDraft: null,
+    planning: null,
   });
   const [page, setPage] = useState<Key>("week");
   useEffect(

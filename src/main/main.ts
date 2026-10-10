@@ -22,7 +22,7 @@ import { InferenceSession, discoverInferenceModels } from "../ai/provider";
 import { inferenceAppError } from "../ai/adapter-errors";
 import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
-import { stateSchema } from "../domain/model";
+import { stateSchema, contextSchema } from "../domain/model";
 import { appearanceBootstrap } from "../domain/appearance";
 import { z } from "zod";
 import { SKaupatHost } from "./s-kaupat-host";
@@ -38,6 +38,7 @@ import { interpretShopping, extractRecipe } from "../ai/output";
 import { readReceipt } from "../receipts/read";
 import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
+import type { PlanningRun } from "../application/planning";
 import { SKaupatLibrary } from "../stores/s-kaupat-library";
 import { StoreViews } from "./store-view";
 import {
@@ -286,10 +287,18 @@ else
       height: z.number().int().min(0),
     });
     let generationRun = 0;
+    const publishPlanning = () => {
+      service.planning.onChange = (value) => {
+        if (!window.isDestroyed())
+          window.webContents.send("app:planningChanged", value);
+      };
+    };
+    publishPlanning();
     let modelLookup: AbortController | null = null;
     let inferenceController: AbortController | null = null;
-    const requestSession = async (run: number) => {
-      const preference = service.state.aiModel;
+    const requestSession = async (run: number, operation?: PlanningRun) => {
+      const preference =
+        operation?.sourceState().aiModel ?? service.state.aiModel;
       const controller = new AbortController();
       inferenceController?.abort();
       inferenceController = controller;
@@ -298,13 +307,22 @@ else
         const provider = inferenceProvider();
         const models = await discoverInferenceModels(
           provider,
-          AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]),
+          AbortSignal.any([
+            controller.signal,
+            ...(operation ? [operation.signal] : []),
+            AbortSignal.timeout(30000),
+          ]),
         );
         if (run !== generationRun) throw new Error("aiCancelled");
         const id = chooseModel(
           models.map((m) => ({ slug: m.modelId, name: m.name })),
           preference,
         );
+        if (operation)
+          return operation.bindInference(
+            provider,
+            models.find((model) => model.modelId === id)!,
+          );
         return new InferenceSession(
           provider,
           models.find((m) => m.modelId === id)!,
@@ -403,6 +421,7 @@ else
         await db.set("development-mode", enabled);
         development = enabled;
         service = next;
+        publishPlanning();
         updateChecked = null;
         ai = enabled ? fixtureAI : liveAI;
         service.developmentScenario = fixtureAI.scenario;
@@ -445,6 +464,7 @@ else
         return service.snapshot();
       },
       cancelAI: async () => {
+        service.planning.cancel();
         generationRun++;
         modelLookup?.abort();
         inferenceController?.abort();
@@ -455,7 +475,20 @@ else
         ai.cancelRequest();
         return service.snapshot();
       },
+      cancelPlanning: async (input) => {
+        service.planning.control(input);
+        service.draft = null;
+        service.draftRevision = null;
+        return service.snapshot();
+      },
+      invalidatePlanning: async (input) => {
+        service.planning.control(input, true);
+        service.draft = null;
+        service.draftRevision = null;
+        return service.snapshot();
+      },
       signOutAI: async () => {
+        service.planning.cancel();
         generationRun++;
         inferenceController?.abort();
         await ai.signOut();
@@ -503,26 +536,40 @@ else
           .parse(input);
         const revision = service.state.revision;
         const run = ++generationRun;
+        const operation = service.planning.start(request.prompt);
         return service.measureOperation("interpretation", async (metrics) => {
-          const session = await requestSession(run);
+          let session: InferenceSession | null = null;
           try {
+            session = await requestSession(run, operation);
             service.draft = null;
             service.draftRevision = null;
             service.recipeDraft = null;
-            service.draft = await runAITask(run, () =>
-              interpretShopping(session, request.prompt, service.state),
+            const draft = await runAITask(run, () =>
+              interpretShopping(
+                session!,
+                request.prompt,
+                operation.sourceState(),
+              ),
             );
+            operation.publishDraft(draft);
+            service.draft = operation.validatedDraft();
             service.draftRevision = revision;
             service.draftNote = request.prompt;
             return service.snapshot();
+          } catch (error) {
+            operation.fail(error);
+            if (operation.snapshot().phase === "obsolete")
+              throw new Error("draftStale");
+            throw error;
           } finally {
-            metrics.aiCalls = session.callCount;
-            metrics.repairCalls = Math.max(0, session.callCount - 1);
-            metrics.payloadCharacters = session.payloadCharacters;
+            metrics.aiCalls = session?.callCount ?? 0;
+            metrics.repairCalls = Math.max(0, (session?.callCount ?? 0) - 1);
+            metrics.payloadCharacters = session?.payloadCharacters ?? 0;
           }
         });
       },
       importRecipe: async (input) => {
+        service.planning.invalidate();
         const request = z
           .object({
             text: z.string().trim().min(1).max(10000),
@@ -884,11 +931,39 @@ else
         )
           throw new Error("forbidden");
         try {
+          if (["prepare", "transferDisplayed", "execute"].includes(name))
+            service.assertNoProvisionalTransfer();
+          if (name === "save") {
+            const next = stateSchema.parse(input);
+            if (next.revision === service.state.revision)
+              service.planning.invalidateFor(next);
+          }
+          if (name === "changeContext") {
+            const next = z
+              .object({
+                context: contextSchema,
+                revision: z.number().int().nonnegative(),
+              })
+              .parse(input);
+            if (
+              next.revision === service.state.revision &&
+              JSON.stringify(next.context) !==
+                JSON.stringify(service.state.context)
+            )
+              service.planning.invalidate();
+          }
+          if (
+            name === "setAIModel" &&
+            z.string().min(1).max(200).parse(input) !== service.state.aiModel
+          )
+            service.planning.invalidate();
           if (
             name === "setLanguage" ||
             name === "setAppearance" ||
             name === "cancelTransfer" ||
             name === "cancelAI" ||
+            name === "cancelPlanning" ||
+            name === "invalidatePlanning" ||
             name === "storeView" ||
             name === "hideStore" ||
             name === "storeAction" ||
@@ -931,6 +1006,7 @@ else
       event.preventDefault();
       closing = true;
       inferenceController?.abort();
+      service.planning.cancel();
       nativeTheme.removeListener("updated", systemAppearanceChanged);
       ai.cancel();
       ai.cancelRequest();
