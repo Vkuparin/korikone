@@ -5,7 +5,7 @@ import {
   type InferenceProvider,
   type InferenceRequest,
 } from "./provider";
-import { interpretationTasks } from "./tasks";
+import { inferenceTasks } from "./tasks";
 import { adapterFailure } from "./adapter-errors";
 
 /** Development-only alternative: no network, authentication transport or cloud fallback. */
@@ -24,7 +24,7 @@ export class FakeInferenceProvider implements InferenceProvider {
         modelId: m.slug,
         name: m.name,
         capabilities: {
-          tasks: interpretationTasks,
+          tasks: inferenceTasks,
           outputModes: ["text"],
           streaming: false,
         },
@@ -37,7 +37,7 @@ export class FakeInferenceProvider implements InferenceProvider {
     if (request.model.providerId !== this.id)
       throw new InferenceError("unsupportedProvider");
     if (
-      !interpretationTasks.some(
+      !inferenceTasks.some(
         (t) => t.id === request.task.id && t.version === request.task.version,
       )
     )

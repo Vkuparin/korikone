@@ -62,7 +62,7 @@ F16.16 initially supplied the seam without migrating app dispatch. F16.17 migrat
 
 ## F16.17 implemented adapter and dispatch
 
-`src/ai/chatgpt-provider.ts` exports `ChatGPTInferenceProvider` and the narrow `ChatGPTConnection` interface (`models`, `generatePinned`). Discovery returns provider-scoped model identities, preserving the connection's catalogue order/names. Its capabilities support `shopping-draft` v1 and `recipe-import` v1 from `src/ai/tasks.ts`, text output only, and no forwarded streaming events. Internal HTTP/SSE streaming does not claim provisional planning output.
+`src/ai/chatgpt-provider.ts` exports `ChatGPTInferenceProvider` and the narrow `ChatGPTConnection` interface (`models`, `generatePinned`). Discovery returns provider-scoped model identities, preserving the connection's catalogue order/names. Its capabilities support `shopping-draft` v1, `recipe-import` v1 and F15.10 `candidate-resolution` v1 through `inferenceTasks` in `src/ai/tasks.ts`, text output only, and no forwarded streaming events. Internal HTTP/SSE streaming does not claim provisional planning output. The development alternative supports the same tasks. Resolution uses the existing pinned session with one attempt and no repair; see [resolution-contract.md](resolution-contract.md).
 
 `ChatGPT.generatePinned` accepts the already selected slug and AbortSignal, skips catalogue rediscovery and carries cancellation to the existing request controller. Credentials, refresh, public account status and sign-in remain inside the connection. Existing legacy `generate` behavior remains available for connection tests, but app task dispatch no longer calls it directly. `AIStatus` now lives in `src/ai/connection.ts`; service and fixture types import no ChatGPT implementation.
 

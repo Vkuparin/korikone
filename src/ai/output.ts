@@ -124,6 +124,7 @@ export type TaskOutput<T> = {
   validate: (raw: string) => T;
   repairLimit: 0 | 1;
   correction: string;
+  nativeInstructions?: string;
 };
 
 /** One selected format for all attempts. Provider failures are outside the validation repair. */
@@ -143,7 +144,8 @@ export async function invokeTaskOutput<T>(
   const prompt =
     definition.prompt +
     (native
-      ? " Use the supplied native schema exactly. Every field is required on the wire; use null only for optional metadata, kind, day or leftovers. Empty optional arrays are []."
+      ? (definition.nativeInstructions ??
+        " Use the supplied native schema exactly. Every field is required on the wire; use null only for optional metadata, kind, day or leftovers. Empty optional arrays are [].")
       : "");
   const generate = async (input: string) =>
     (await session.invoke(definition.task, input, output)).text;

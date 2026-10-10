@@ -4,7 +4,7 @@ import {
   type InferenceProvider,
   type InferenceRequest,
 } from "./provider";
-import { interpretationTasks } from "./tasks";
+import { inferenceTasks } from "./tasks";
 import { chatGPTOutputModes } from "./protocol";
 import { adapterFailure } from "./adapter-errors";
 
@@ -27,7 +27,7 @@ export class ChatGPTInferenceProvider implements InferenceProvider {
         modelId: m.slug,
         name: m.name,
         capabilities: {
-          tasks: interpretationTasks,
+          tasks: inferenceTasks,
           outputModes: [...chatGPTOutputModes],
           streaming: false,
         },
@@ -40,7 +40,7 @@ export class ChatGPTInferenceProvider implements InferenceProvider {
     if (request.model.providerId !== this.id)
       throw new InferenceError("unsupportedProvider");
     if (
-      !interpretationTasks.some(
+      !inferenceTasks.some(
         (t) => t.id === request.task.id && t.version === request.task.version,
       )
     )

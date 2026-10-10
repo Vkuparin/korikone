@@ -3,6 +3,7 @@ import { initialState } from "../domain/model";
 import { chooseModel } from "./models";
 import { setTimeout as delay } from "node:timers/promises";
 import { mealFixtures } from "./meal-fixtures";
+import { resolutionRequestSchema } from "../domain/resolution";
 
 import { aiScenarios } from "./scenarios";
 export { aiScenarios } from "./scenarios";
@@ -130,6 +131,19 @@ export class FixtureAI {
       !["noSmallModel", "removedModel"].includes(this.scenario)
     )
       throw new Error(this.scenario);
+    const resolutionData = input.split("\nResolution data JSON:\n")[1];
+    if (resolutionData) {
+      const request = resolutionRequestSchema.parse(JSON.parse(resolutionData));
+      return JSON.stringify({
+        version: 1,
+        choices: request.rows.map((row) => ({
+          rowId: row.rowId,
+          candidateId: row.candidates[0].candidateId,
+          status: "approval-required",
+          reason: "type-alternative",
+        })),
+      });
+    }
     const recipeText = input.match(/Recipe text: ("(?:[^"\\]|\\.)*")/)?.[1];
     if (recipeText) {
       const request = JSON.parse(recipeText).toLocaleLowerCase("fi");

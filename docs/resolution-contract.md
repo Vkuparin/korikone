@@ -1,6 +1,6 @@
 # Bounded candidate resolution
 
-F15.9 defines the read-only contract in `src/domain/resolution.ts`. It uses the [matching policy](matching-contract.md), [catalogue facts](candidate-contract.md) and [portable preferences](preference-contract.md). Inference dispatch belongs to F15.10; operation ownership and integration belong to F16.9/F16.10/F15.11.
+F15.9 defines the read-only contract in `src/domain/resolution.ts`. F15.10 implements its provider task in `src/ai/resolve.ts`. They use the [matching policy](matching-contract.md), [catalogue facts](candidate-contract.md) and [portable preferences](preference-contract.md). Operation ownership and integration belong to F16.9/F16.10/F15.11.
 
 ## Building a batch
 
@@ -46,4 +46,16 @@ The validator rechecks current constraints and pack eligibility. It returns prop
 
 `tests/resolution.test.ts` has 14 focused fixtures: clear milk/eggs/coffee require zero batches; cream alternatives create one batch; hard conflicts and unknown purchase facts are filtered; same-type cost includes deposits; partial/invented/duplicate/fabricated responses are checked; changed snapshots reject; payload/row bounds preserve coverage; model assumptions and Required/Preferred rules retain their meanings. Both real retailer adapters feed Service pricing with synthetic external responses. Building and validating the batch adds no catalogue calls, retailer writes or application state changes.
 
-F15.10 should use these exact schemas and validator with `invokeTaskOutput` and repair limit zero. It must preserve the original operation-owned batch until current snapshot validation. F16.9/F16.10 supply operation revision/context, complete current matching options and actual inference counters; F15.11 supplies the persisted enable switch. No live acceptance or UI flow is introduced by this contract card.
+## Provider task
+
+`src/ai/tasks.ts` exports `candidateResolutionTask` (`candidate-resolution` v1) and `inferenceTasks`. Both the ChatGPT adapter and development alternative advertise this task, retaining their verified text-only transport capabilities. Native output is tested through a deterministic provider that explicitly supports it; no native ChatGPT capability is inferred.
+
+`src/ai/resolve.ts` exports `resolveCandidates(session, batch, current)`, `resolutionPrompt`, `resolutionNativeOutput` and `ResolutionSnapshot {lines, source, options?}`. The `current` callback supplies fresh operation-owned lines, revision/context and complete matching options before dispatch and again after output arrives. Stale preflight dispatches zero requests. An empty batch returns no suggestions and uses zero requests.
+
+The resolver uses the existing pinned `InferenceSession` through `invokeTaskOutput`, with repair limit zero. It consumes at most one attempt per batch and per session, including errors. Rebuilding a batch cannot spend a corrective resolver call; the original batch cannot be retried through another session. Interpretation and its one allowed repair share the session's total request cap with resolution. No catalogue discovery, model selection, provider fallback, search, persistence or retailer writes occur in the task.
+
+The prompt treats names and payload fields as untrusted data and retains domain-computed cost. Native output uses the strict `candidate_resolution_v1` result schema with all fields required; meaningful null candidate IDs remain null. Text output uses the same strict result/domain validator. `TaskOutput.nativeInstructions` allows this null rule without inheriting interpretation-only metadata instructions. Invalid syntax, fields, invented IDs or choices raise `InferenceError("invalidOutput")`; changed snapshots retain `resolutionStale`. Provider errors, request limits, cancellation, timeout and incomplete output retain their fixed inference codes, with no correction or format switch.
+
+`FixtureAI` recognizes the bounded resolver payload and returns deterministic supplied candidates as approval-required proposals. Its existing error/cancellation scenarios apply before this response. `tests/ai-resolve.test.ts` contains 18 fixtures checked through local ChatGPT and alternative adapters plus native-capable scripted providers: partial output, strict/invented/fabricated choices, constraints and pack changes during generation, provider failures, shared caps, cancellation/late output, timeout, development responses, native nulls/schema rejection, stale preflight and zero-call clear rows. The affected 24 adapter/output regression fixtures also pass. These checks use no live accounts.
+
+F16.9/F16.10 supply operation revision/context, current matching options, the original batch and shared session, actual inference counters and visible handling of rejected or unresolved proposals. F15.11 supplies the persisted enable switch and service/UI integration. No live acceptance, planning preview or UI flow is established by the task module alone.

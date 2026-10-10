@@ -8,3 +8,8 @@ export const recipeImportTask = {
   version: 1,
 } satisfies InferenceTask;
 export const interpretationTasks = [shoppingDraftTask, recipeImportTask];
+export const candidateResolutionTask = {
+  id: "candidate-resolution",
+  version: 1,
+} satisfies InferenceTask;
+export const inferenceTasks = [...interpretationTasks, candidateResolutionTask];
