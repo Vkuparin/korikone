@@ -30,7 +30,7 @@ declare global {
       getAppearanceBootstrap: () => AppearanceBootstrap;
       getAppInfo: () => Promise<{
         ok: boolean;
-        value: { version: string };
+        value: { version: string; developmentLocked: boolean };
         error?: string;
       }>;
     };

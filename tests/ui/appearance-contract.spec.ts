@@ -18,6 +18,15 @@ test("saved appearance is synchronously available before async snapshots and set
   try {
     let page = await app.firstWindow();
     await page.waitForFunction(() => !!window.korikone);
+    const info = await page.evaluate(async () => window.korikone.getAppInfo());
+    expect(info.ok).toBe(true);
+    expect(info.value.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(info.value.developmentLocked).toBe(true);
+    const disabled = await page.evaluate(async () =>
+      window.korikone.setDevelopmentMode(false),
+    );
+    expect(disabled.ok).toBe(false);
+    expect(disabled.error).toBe("developmentRequired");
     expect(
       await page.evaluate(
         async () => (await window.korikone.setAppearance("dark")).ok,

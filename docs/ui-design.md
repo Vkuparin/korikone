@@ -1,6 +1,6 @@
 # Korikone 0.6.0 design contract
 
-Proposal for U14.1, 10 October 2026. Owner accepted on 10 October 2026, provided palette colours remain replaceable CSS variables. This document specifies presentation of current behavior; it does not authorize staged previews, natural-language list edits or new product rules. Application code is unchanged.
+Proposal for U14.1, 10 October 2026. Owner accepted on 10 October 2026, provided palette colours remain replaceable CSS variables. This document specifies presentation of current behavior; it does not authorize staged previews, natural-language list edits or new product rules. The gallery remains a static proposal; implementation status and handoff contracts are stated below.
 
 ## Review artifacts
 
@@ -78,15 +78,15 @@ Ratios use sRGB relative luminance. Normal text passes ≥4.5:1; focus and contr
 
 ## Component boundaries for follow-up cards
 
-| Card  | Existing files/symbols and presentation scope                                                                                                                                          |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| U14.2 | `src/ui/style.css`: tokens and shared card/form/button/Choice/dialog surfaces; preserve handlers and renderer-only scope                                                               |
-| U14.3 | `ShoppingWorkspace` in `src/ui/shopping.tsx`: title, `.note-box`, `.note-footer`, unapplied note; existing `ModelSelector` in `model.tsx` and ShoppingContext remain                   |
-| U14.4 | `ShoppingWorkspace` meal cards / `.grocery-row`, `RowDetails` in `details.tsx`, `i18n.ts`: wrap names, readable amounts/costs, visible corrections and keyboard names                  |
-| U14.5 | `.shopping-panel`, `.shopping-total`, `ConfirmPanel` in `confirm.tsx`: separate scroll region and footer, exception/recovery presentation; no transfer behavior changes                |
-| U14.6 | `ShoppingWorkspace.update`, `working`, `requesting`, `cancelled`, `korikone:cancel-ai`: honest immediate status with existing generate/approveDraft boundary; no invented stage events |
-| U15.1 | `AppState` schema/defaults in `src/domain/model.ts`, persistence/bootstrap boundary as needed; U15.2 files/API are fixed by this Strong card after layout acceptance                   |
-| U16.1 | Inventory below is a review baseline. Fix actual `Settings` section/props/draft preservation contract before U16.2/U16.3 handoff; do not invent application APIs in layout work        |
+| Card  | Existing files/symbols and presentation scope                                                                                                                                                                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U14.2 | `src/ui/style.css`: tokens and shared card/form/button/Choice/dialog surfaces; preserve handlers and renderer-only scope                                                                                       |
+| U14.3 | `ShoppingWorkspace` in `src/ui/shopping.tsx`: title, `.note-box`, `.note-footer`, unapplied note; existing `ModelSelector` in `model.tsx` and ShoppingContext remain                                           |
+| U14.4 | `ShoppingWorkspace` meal cards / `.grocery-row`, `RowDetails` in `details.tsx`, `i18n.ts`: wrap names, readable amounts/costs, visible corrections and keyboard names                                          |
+| U14.5 | `.shopping-panel`, `.shopping-total`, `ConfirmPanel` in `confirm.tsx`: separate scroll region and footer, exception/recovery presentation; no transfer behavior changes                                        |
+| U14.6 | `ShoppingWorkspace.update`, `working`, `requesting`, `cancelled`, `korikone:cancel-ai`: honest immediate status with existing generate/approveDraft boundary; no invented stage events                         |
+| U15.1 | `AppState` schema/defaults in `src/domain/model.ts`, persistence/bootstrap boundary as needed; validated preference and synchronous `getAppearanceBootstrap`; exact U15.2 consumer/subscription contract below |
+| U16.1 | Inventory and exact `SettingsProps`/`SettingsSectionProps` mounting, focus and draft contracts below; section extraction remains U16.2/U16.3                                                                   |
 
 ## Appearance boundary: U15.1 handoff
 
@@ -109,14 +109,14 @@ U15.1 evidence: focused persistence/bootstrap unit tests cover legacy defaults, 
 
 U15.3 uses `setAppearance` with FI `Järjestelmä/Vaalea/Tumma` and EN `System/Light/Dark` and shows the current resolved System value. Its `tests/ui/settings.spec.ts` must cover keyboard selection, zero new generation/catalogue calls, restart and real backup restore, while preserving typed note/list and household drafts.
 
-## Settings inventory baseline
+## Settings inventory
 
 Read `src/ui/main.tsx` Settings block and its child components, plus current recurring-items page. One Settings page has seven categories. Each existing function must remain reachable. Row alternatives, quantity, pack confirmation, at-home and remove remain in Shopping, outside Advanced.
 
 | Proposed section | Current control / state                                                                                         | Existing handler or source                                                                                                        |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | General          | FI/EN language selector; Svenska remains disabled/unoffered                                                     | header `Choice`, `changeLanguage`, `setLanguage`; reuse one shared preference                                                     |
-| General          | System/Light/Dark with resolved System indicator                                                                | New U15 preference; no existing control to move                                                                                   |
+| General          | System/Light/Dark with resolved System indicator                                                                | `state.appearance`, `setAppearance`; U15.3 adds the selector                                                                      |
 | Household        | Servings 1–100, budget decimal → cents, exclusions, exclusions help, Save                                       | household form in `main.tsx`, `save(AppState)`; retain native required/min/max validation                                         |
 | Household        | Recurring-items explanation and edit entry                                                                      | `editStaples`, `setPage("staples")`; child page retains enable/edit/remove and add/save/cancel                                    |
 | Household child  | Item name, amount, unit g/ml/pcs, cadence days 1–365, last-purchased date, enabled flag                         | staples page, `parseAmount`, `editingStapleId`; `duplicateStaple` and `invalidQuantity` errors                                    |
@@ -135,10 +135,47 @@ Read `src/ui/main.tsx` Settings block and its child components, plus current rec
 | Advanced         | Restart setup, development scenario selector with all existing scenarios                                        | `setupComplete: false` save; `developmentScenario`; retain all current options without renaming protocol values                   |
 | Advanced         | Export diagnostics                                                                                              | `exportDiagnostics`, moved from Data details; real local export                                                                   |
 | About            | Runtime version / unavailable fallback                                                                          | `getAppInfo`, `appVersion`, `app-version` test id                                                                                 |
-| About            | Notices/release entry                                                                                           | Preserve existing release-banner `openRelease`; exact local notices entry decided in U16.1, no invented IPC                       |
+| About            | Notices/release entry                                                                                           | Preserve existing release-banner `openRelease`; U16.2 adds explicitly specified fixed-path `openNotices` boundary below           |
 | Shared           | Global translated alert, busy status, Cancel; update/development/demo banners                                   | `error`, `busy`, `cancelTransfer`, `cancelAI`, `snapshot.update`; remain visible outside active section                           |
 
-Settings must keep unsaved household/receipt/query input when navigating categories. U16.1 will choose controlled draft state or persistent mounted sections, name the exact files/props and reconcile child navigation. Returning from recurring items must select Household. Direct AI/store error links should select their section; development/diagnostics links select Advanced. Category changes announce the section heading and focus deliberately; background status updates must not steal focus. Only one section is exposed to accessibility/navigation at a time.
+## Settings contract: U16.1 handoff
+
+`src/ui/settings-contract.ts` is the settled shared type boundary. It exports `settingsSections` in order `general, household, stores, ai, data, advanced, about`, `SettingsSection`, `SettingsProps` and `SettingsSectionProps`. No Settings UI has been extracted by U16.1.
+
+`SettingsProps` contains `visible`, `activeSection`, `onSectionChange`, `sections: Record<SettingsSection, ReactNode>` and `t`. App owns `settingsSection` state and the existing page state. `SettingsSectionProps` reuses `snapshot`, `busy`, `call`, `save`, `t`, `changeLanguage`, `editStaples`, `appVersion`, `aiRequestLimit` and `developmentLocked`; no second service/snapshot/preference store. `getAppInfo` now returns `{version, developmentLocked}` where the lock is the main process's actual `forcedDevelopment` flag. Keep the version-unavailable fallback; an information-read failure must not disable the real development-mode guard.
+
+### U16.2 files, mounting and focus
+
+Create `src/ui/settings.tsx` with named exports `Settings`, `GeneralSettings`, `HouseholdSettings`, `AboutSettings`, using the contract types. App constructs the seven section nodes and passes them to `Settings`. During U16.2, the four remaining sections are the actual current JSX blocks in `main.tsx` passed through `sections`; do not replace them with placeholders or temporarily hide functions. U16.3 extracts those nodes afterward. Retain the global header language `Choice`; General uses the same `changeLanguage` callback. General hosts U15.3's appearance selector when available.
+
+Mount `Settings` once inside `.app-main` after onboarding, and keep it mounted while other main pages/recurring items are shown, with its outer wrapper `hidden={!visible}`. The shell lazily mounts a section on its first visit, then retains it with a native `hidden` attribute while inactive. Only the active section participates in layout, accessibility or Tab navigation. Explicit `[hidden] { display: none !important; }` protects against component display rules. Lazy mounting prevents hidden AI ModelSelector effects at startup. Never key the shell/section by language, snapshot revision or selected category.
+
+Uncontrolled household fields, receipt textarea and store search query remain mounted so their drafts survive category/page changes and unrelated snapshot updates. Receipt form must lose the current `key={state.receiptText}` reset trigger during extraction. Track its committed baseline: update a field on import/restore only if its current value still equals that baseline; retain edited draft values and label them unapplied otherwise. The same baseline rule applies to household inputs on backup restore. Use refs or controlled draft values inside the section without forcing a shell remount. A successful household save commits its current draft; failed save keeps inputs and displays App's real error. Do not reset household drafts when language or appearance changes.
+
+Desktop category control: a labelled `nav` with buttons using `aria-current="page"`; no tab roles requiring invented keyboard behavior. Narrow category control: labelled native `select`, with options for every category. Use `settingsGeneral`, `settingsHousehold`, `settingsStores`, `settingsAI`, `settingsData`, `settingsAdvanced`, `settingsAbout`, `settingsCategory` translation keys in `src/ui/i18n.ts`. Keep only the relevant navigation control visible at widths ≤900 px.
+
+Each section has one `h2` with stable `id="settings-section-{section}"` and `tabIndex={-1}`. On a category change or explicit section entry, focus that heading after mount with `preventScroll`, then scroll nearest only when needed. Do not focus on status/snapshot/busy updates or language changes. Preserve the title “Asetukset” / “Settings” as the page `h1`. Header language menu behavior remains unchanged.
+
+App adds `openSettings(section: SettingsSection = "general")`, which selects that section and sets page to Settings. Existing household chips call `openSettings("household")`. Recurring-items entry remains its current page and save handlers; its Back button calls `openSettings("household")`. Keep `editingStapleId` and its native form validation/error handling in App during this release. The recurring child page is outside the category shell and must not be unmounted by a preference event.
+
+About retains `app-version` and runtime getter. Show a releases entry using existing `openRelease` only when `snapshot.update` exists, with current development suppression; do not imply an available update when none was found. Provide a local notices entry under U16.2 using named IPC `openNotices`: main resolves only `join(app.getAppPath(), "THIRD_PARTY_NOTICES.txt")`, verifies the local file, opens it via `shell.openPath` and returns the ordinary snapshot. Treat a nonempty shell error as `noticesUnavailable`; add FI/EN text. Preload adds only this named method. No renderer-supplied path/URL. This is an explicitly specified U16.2 boundary addition, not an existing handler. Development testing may stub the OS opener at this boundary, while reading the notices stays real and local.
+
+### U16.3 section extraction
+
+Create `src/ui/settings-sections.tsx` exporting `StoresSettings`, `AISettings`, `DataSettings`, `AdvancedSettings`, each using `SettingsSectionProps`. Replace App's four legacy section nodes with these components; leave App's `call`/`save`, polling, update/development/error banners and navigation ownership in place.
+
+- `StoresSettings` retains the demo provider/fulfillment details, selected live store, both explanatory status paragraphs, `Chains`, legacy store search and results. `Chains` keeps its `picking`/`searched` state while its section is hidden. It continues real `searchStores`/`save`/login handlers. Do not deduplicate either search workflow in this extraction.
+- `AISettings` retains connection status/email/error, sign-in/out, waiting cancellation, usage entry, `ModelSelector`, `ai-allowance`, rate-limit message and Automatic explanation. Its model catalogue fetch can run on first visit as it already does on Settings entry; never generate a list on navigation.
+- `DataSettings` retains local receipt import/paste/save, max length 50000, extraction/OCR explanation, local-data explanation and actual export/restore dialogs. Apply the draft-baseline rule above; do not replace IPC for fixture coverage.
+- `AdvancedSettings` retains all `aiScenarios` values from `src/ai/fixtures.ts` (use that list rather than maintaining a divergent copy), development mode/explanation, restart setup and diagnostics. Disable the checkbox when `busy || developmentLocked`; show FI/EN lock explanation. The real main handler still rejects disabling forced test mode. No future preference/resolver switches appear yet.
+
+### U16.4 direct entries and fixture handoff
+
+Use `openSettings("ai")` for Shopping's disconnected/model/permission/rate-limit paths and `openSettings("stores")` for store connection/context paths. `ShoppingWorkspace` currently has only generic `settings`; extend to `settings(section?: SettingsSection)` or named callbacks without changing unrelated handlers. Household count and recurring entries route to Household. Named diagnostics/development links route to Advanced. StorePage's Settings action routes to Stores. Global alerts stay visible outside the section; links are added only for relevant actionable errors, not every validation failure.
+
+`tests/ui/settings.spec.ts` is the focused new navigation/draft/FI/EN/narrow/keyboard coverage file. Exercise real household save, receipt save/import failure and backup restore; test switching sections and returning from recurring items with unsaved values. Check zero new `developmentRequests` and product catalogue requests for category/preference changes, using a post-setup baseline count rather than assuming the example basket has zero requests. Model catalogue refresh remains separately counted and is not generation.
+
+Retain affected cases from `tests/ui/settings-info.spec.ts`, `forms.spec.ts`, `chains.spec.ts`, `setup.spec.ts`, `models.spec.ts`, `backup.spec.ts` and `development.spec.ts`; run only affected files or named cases, not the full desktop suite. Use existing delayed/failed AI model fixtures, real service forced-mode rejection and local file dialog selection. `exportDiagnostics` keeps its actual local preview/export. Ordinary row corrections remain in Shopping, outside Advanced. U14.7 covers final combined owner visual acceptance.
 
 ## Owner review gate
 

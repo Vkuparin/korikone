@@ -302,7 +302,10 @@ else
         }
       };
     const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
-      getAppInfo: async () => ({ version: app.getVersion() }),
+      getAppInfo: async () => ({
+        version: app.getVersion(),
+        developmentLocked: forcedDevelopment,
+      }),
       load: async () => {
         service.developmentModelCatalogueRequests = development
           ? fixtureAI.catalogueRequests
