@@ -142,7 +142,7 @@ export async function evaluateShoppingCase(
     const amount = requestedRows.reduce((sum, r) => sum + r.amount, 0);
     if (
       requestedRows.some(
-        (r) => r.classification?.category !== expected.category,
+        (r) => (r.classification?.category ?? null) !== expected.category,
       )
     )
       result.wrongCategory.push(expected.id);

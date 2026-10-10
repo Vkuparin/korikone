@@ -17,8 +17,10 @@ export const expectedRequestSchema = z
     id: z.string().min(1),
     kind: z.enum(["grocery", "dish"]),
     names: z.array(z.string().min(1)).min(1),
-    category: categorySchema.optional(),
-    amount: z.number().int().positive().optional(),
+    // null explicitly expects a grocery outside the eight matcher categories.
+    category: categorySchema.nullable().optional(),
+    // null means the note supplied no quantity; an invented number must fail.
+    amount: z.number().int().positive().nullable().optional(),
     unit: unitSchema.optional(),
     admissible: z.array(z.string()).default([]),
     forbidden: z.array(z.string()).default([]),
@@ -27,7 +29,9 @@ export const expectedRequestSchema = z
   .refine(
     (r) =>
       r.kind === "dish" ||
-      (!!r.category && r.amount !== undefined && r.unit !== undefined),
+      (r.category !== undefined &&
+        r.amount !== undefined &&
+        r.unit !== undefined),
   );
 export const shoppingCaseSchema = z
   .object({
@@ -69,6 +73,8 @@ export const shoppingCaseSchema = z
           "store-change",
           "preferences",
           "compact-context",
+          "dietary-evidence",
+          "unknown-quantity",
         ]),
       )
       .default([]),
