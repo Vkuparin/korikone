@@ -15,7 +15,7 @@ import {
 /** Only inputs that affect catalogue matching belong in a quote's binding. */
 export function pricingKey(state: AppState): string {
   return JSON.stringify({
-    matchingVersion: 1,
+    matchingVersion: 2,
     context: state.context,
     requirements: requirements(state).map(
       ({ id, name, amount, unit, sources, classification }) => ({
@@ -30,6 +30,7 @@ export function pricingKey(state: AppState): string {
     accepted: state.accepted,
     exclusions: state.household.exclusions,
     preference: state.productPreference,
+    categoryPreferences: state.categoryPreferences,
     ...(Object.keys(state.packSizes).length
       ? { packSizes: state.packSizes }
       : {}),

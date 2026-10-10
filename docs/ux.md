@@ -2,7 +2,7 @@
 
 Revised 9 October 2026. Follow the first-round refined feedback and redesign PDF. The original human feedback explains the friction; where they conflict, the refined direction takes precedence.
 
-The shared [category matcher](matching-contract.md) now keeps unknown default types unresolved for explicit approval, hides hard-conflicting alternatives and applies the same eligibility to cheaper suggestions. Generic onion labels do not establish yellow onion; ordinary product choice remains a one-time SKU acceptance. Stored category rules and grouped review remain assigned follow-ups.
+The shared [category matcher](matching-contract.md) now keeps unknown default types unresolved for explicit approval, hides hard-conflicting alternatives and applies the same eligibility to cheaper suggestions. Generic onion labels do not establish yellow onion; ordinary product choice remains a one-time SKU acceptance. Portable rule storage and explicit Service/IPC memory actions are implemented in [preference-contract.md](preference-contract.md). Row/Advanced controls and grouped review remain assigned follow-ups.
 
 ## Navigation and first use
 

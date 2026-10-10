@@ -279,6 +279,54 @@ test("alias-found quote is freshly verified and changed type stops before writes
   expect(provider.writes).toBe(0);
 });
 
+test("fresh review and transfer read the saved type alias and reject a changed Required type", async () => {
+  const provider = new DemoProvider("k-ruoka");
+  const context = {
+    providerId: provider.id,
+    storeId: "synthetic-store",
+    storeName: "Synthetic",
+    fulfillment: "pickup" as const,
+  };
+  const req = { ...request("Maito"), amount: 1000, unit: "ml" as const };
+  const options = {
+    preferences: [
+      categoryPreferenceSchema.parse({
+        category: "milk",
+        qualifiers: [{ kind: "fat", value: "skimmed" }],
+        strength: "required",
+      }),
+    ],
+  };
+  let current = product("Rasvaton maito 1 l", {
+    id: "skim",
+    unit: "ml",
+    packAmount: 1000,
+  });
+  const reads: string[] = [];
+  provider.searchProducts = async (_context, query) => {
+    reads.push(query);
+    return query === "rasvaton maito" ? [current] : [];
+  };
+  const line = matchRequirement(req, [current], { context, ...options });
+  const review = await createReview(provider, context, 0, [line], {}, options);
+  expect(reads).toEqual(["Maito", "rasvaton maito"]);
+  current = product("Täysmaito 1 l", {
+    id: "skim",
+    unit: "ml",
+    packAmount: 1000,
+  });
+  const journal = await transfer(
+    provider,
+    { review, status: "ready", verified: [], uncertain: null, error: null },
+    () => {},
+    undefined,
+    {},
+    options,
+  );
+  expect(journal.error).toBe("priceChanged");
+  expect(provider.writes).toBe(0);
+});
+
 test.each(["k-ruoka", "s-kaupat"] as const)(
   "real %s adapter, Service acceptance and quote restart enforce suitability",
   async (chain) => {

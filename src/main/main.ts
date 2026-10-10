@@ -558,6 +558,13 @@ else
       changeContext: (input) => service.changeContext(input),
       recordError: (input) => service.recordError(input),
       accept: (input) => service.accept(input),
+      rememberCategoryPreference: (input) =>
+        service.rememberCategoryPreference(input),
+      editCategoryPreference: (input) => service.editCategoryPreference(input),
+      forgetCategoryPreference: (input) =>
+        service.forgetCategoryPreference(input),
+      resetCategoryPreferences: (input) =>
+        service.resetCategoryPreferences(input),
       setPackSize: (input) => service.setPackSize(input),
       omit: (input) => service.omit(input),
       prepare: (input) => service.prepare(input),

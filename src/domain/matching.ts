@@ -2,12 +2,19 @@ import { z } from "zod";
 import {
   categorySchema,
   classificationSchema,
-  qualifierSchema,
-  qualifierValues,
   validateAIClassification,
   type Category,
   type Qualifier,
 } from "./categories";
+import {
+  categoryPreferenceSchema,
+  categoryPreferencesSchema,
+  type CategoryPreference,
+} from "./preferences";
+export {
+  categoryPreferenceSchema,
+  type CategoryPreference,
+} from "./preferences";
 import { foodNameFacts } from "./food-names";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
 import { match, relevant } from "./planner";
@@ -42,40 +49,9 @@ const categoryRules: Record<
     type: { kind: "coffee", defaults: ["ground"] },
   },
 };
-export const categoryPreferenceSchema = z
-  .object({
-    category: categorySchema,
-    qualifiers: z
-      .array(
-        z
-          .object({
-            kind: qualifierSchema.shape.kind,
-            value: z.string().min(1).max(40),
-          })
-          .strict()
-          .refine((q) =>
-            (qualifierValues[q.kind] as readonly string[]).includes(q.value),
-          ),
-      )
-      .min(1)
-      .max(8),
-    strength: z.enum(["required", "preferred"]),
-  })
-  .strict()
-  .refine(
-    (p) =>
-      classificationSchema.safeParse({
-        category: p.category,
-        provenance: "remembered",
-        qualifiers: p.qualifiers.map((q) => ({
-          ...q,
-          provenance: "remembered",
-        })),
-      }).success,
-  );
-export type CategoryPreference = z.infer<typeof categoryPreferenceSchema>;
 export type MatchingOptions = {
   preference?: CategoryPreference;
+  preferences?: CategoryPreference[];
   productPreference?: AppState["productPreference"];
   exclusions?: string[];
   accepted?: string[];
@@ -163,8 +139,11 @@ export function matchingPolicy(
           source: q.provenance as Constraint["source"],
         }))
     : named.qualifiers.map((q) => ({ ...q, source: "legacy-name" }));
-  const preference =
-    options.preference && categoryPreferenceSchema.parse(options.preference);
+  const preferences =
+    options.preferences && categoryPreferencesSchema.parse(options.preferences);
+  const rule =
+    options.preference ?? preferences?.find((p) => p.category === category);
+  const preference = rule && categoryPreferenceSchema.parse(rule);
   const preferred: Value[] = [];
   let conflict = false;
   if (preference?.category === category)
@@ -189,6 +168,72 @@ export function matchingPolicy(
     unsupported,
     defaulted: required.length === 0 && preferred.length === 0,
   };
+}
+
+/** One deterministic type-specific alias; inferred model specificity never changes retrieval. */
+export function requirementQueryHints(
+  requirement: Requirement,
+  options: MatchingOptions = {},
+): string[] {
+  const policy = matchingPolicy(requirement, options);
+  if (!policy.category || policy.conflict || policy.unsupported) return [];
+  const values = new Map(policy.preferred.map((q) => [q.kind, q.value]));
+  for (const q of policy.required) values.set(q.kind, q.value);
+  if (!values.size) return [];
+  const names: Partial<Record<Value["kind"], Record<string, string>>> = {
+    fat: {
+      skimmed: "rasvaton maito",
+      "semi-skimmed": "kevytmaito",
+      whole: "täysmaito",
+    },
+    meat: {
+      beef: "naudan jauheliha",
+      pork: "sian jauheliha",
+      "beef-pork": "sika-nauta jauheliha",
+      chicken: "broilerin jauheliha",
+      turkey: "kalkkunan jauheliha",
+    },
+    grain: {
+      rye: "ruisleipä",
+      wheat: "vehnäleipä",
+      wholegrain: "täysjyväleipä",
+    },
+    onion: {
+      yellow: "keltasipuli",
+      red: "punasipuli",
+      shallot: "salottisipuli",
+      spring: "kevätsipuli",
+    },
+    rice: {
+      white: "valkoinen riisi",
+      brown: "täysjyväriisi",
+      jasmine: "jasmiiniriisi",
+      basmati: "basmatiriisi",
+    },
+    cream: { cooking: "ruokakerma", whipping: "kuohukerma" },
+    coffee: {
+      ground: "kahvi suodatinjauhatus",
+      beans: "kahvipavut",
+      instant: "pikakahvi",
+    },
+  };
+  const base = {
+    milk: "maito",
+    bread: "leipä",
+    eggs: "kananmuna",
+    mince: "jauheliha",
+    onion: "sipuli",
+    rice: "riisi",
+    cream: "kerma",
+    coffee: "kahvi",
+  }[policy.category];
+  let query = base;
+  for (const [kind, value] of values)
+    if (names[kind]?.[value]) query = names[kind]![value];
+  const lactose = values.get("lactose");
+  if (lactose)
+    query = `${lactose === "free" ? "laktoositon" : "vähälaktoosinen"} ${query}`;
+  return [query];
 }
 
 const dietary = new Set([

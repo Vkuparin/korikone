@@ -1,17 +1,13 @@
 import { z } from "zod";
 import { classificationSchema } from "../domain/categories";
 import { recipeSchema, type AppState, type Recipe } from "../domain/model";
+import { categoryPreferencesSchema } from "../domain/preferences";
 
 export const MAX_CONTEXT_CHARACTERS = 24_000;
 export const MAX_CONTEXT_RECIPES = 12;
-export const MAX_CONTEXT_PREFERENCES = 20;
+export const MAX_CONTEXT_PREFERENCES = 8;
 export const MAX_OBSERVED_SUMMARIES = 20;
 
-const rememberedSchema = classificationSchema.refine(
-  (c) =>
-    c.provenance === "remembered" &&
-    c.qualifiers.every((q) => q.provenance === "remembered"),
-);
 /** Future F18 input: bounded semantic hints only; no free text, dates or transaction identity. */
 export const observedSummarySchema = z
   .object({
@@ -25,10 +21,7 @@ export const observedSummarySchema = z
   .strict();
 export const contextOptionsSchema = z
   .object({
-    categoryPreferences: z
-      .array(rememberedSchema)
-      .max(MAX_CONTEXT_PREFERENCES)
-      .default([]),
+    categoryPreferences: categoryPreferencesSchema.optional(),
     observedSummaries: z
       .array(observedSummarySchema)
       .max(MAX_OBSERVED_SUMMARIES)
@@ -40,7 +33,8 @@ export type ObservedSummary = z.infer<typeof observedSummarySchema>;
 export type ContextState = Pick<
   AppState,
   "language" | "household" | "recipes" | "productPreference"
->;
+> &
+  Partial<Pick<AppState, "categoryPreferences">>;
 
 const words = (text: string) =>
   text
@@ -134,7 +128,17 @@ export function buildCompactContext(
     },
     productPreference: state.productPreference,
     recipes,
-    categoryPreferences: inputs.categoryPreferences,
+    categoryPreferences: categoryPreferencesSchema
+      .parse(inputs.categoryPreferences ?? state.categoryPreferences ?? [])
+      .map((rule) => ({
+        category: rule.category,
+        strength: rule.strength,
+        provenance: "remembered" as const,
+        qualifiers: rule.qualifiers.map((q) => ({
+          ...q,
+          provenance: "remembered" as const,
+        })),
+      })),
     observedSummaries: inputs.observedSummaries,
   };
   if (JSON.stringify({ request, context }).length > MAX_CONTEXT_CHARACTERS)

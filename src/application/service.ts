@@ -48,7 +48,19 @@ import {
   type PriceObservation,
 } from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
-import { matchRequirement, selectableCandidate } from "../domain/matching";
+import {
+  matchRequirement,
+  selectableCandidate,
+  matchingPolicy,
+  requirementQueryHints,
+} from "../domain/matching";
+import {
+  rememberCategoryPreferenceSchema,
+  editCategoryPreferenceSchema,
+  forgetCategoryPreferenceSchema,
+  resetCategoryPreferencesSchema,
+  type CategoryPreference,
+} from "../domain/preferences";
 import { searchCandidates } from "../stores/candidates";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/connection";
@@ -282,7 +294,9 @@ export class Service {
       raw && typeof raw === "object" && "priceHistory" in raw
         ? priceObservationsSchema.parse(raw.priceHistory)
         : null;
-    const saved = await this.save({ ...next, revision: this.state.revision });
+    const saved = await this.writeState(() =>
+      this.saveState({ ...next, revision: this.state.revision }, true),
+    );
     if (prices)
       await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
     return saved;
@@ -363,44 +377,154 @@ export class Service {
       recipeDraft: this.recipeDraft,
     };
   }
+  private async saveState(input: unknown, allowCategoryPreferences = false) {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const next = stateSchema.parse(input);
+    if (
+      !allowCategoryPreferences &&
+      JSON.stringify(next.categoryPreferences) !==
+        JSON.stringify(this.state.categoryPreferences)
+    )
+      throw new Error("preferenceActionRequired");
+    this.registry.get(next.context.providerId);
+    if (next.revision !== this.state.revision) throw new Error("draftStale");
+    next.language = this.state.language;
+    for (const meal of next.meals)
+      if (!next.recipes.some((r) => r.id === meal.recipeId))
+        throw new Error("missingRecipe");
+    // Scheduling is independent of the shopping list and its current approval.
+    const previousShoppingState = {
+      ...this.state,
+      language: next.language,
+      calendar: next.calendar,
+      aiModel: next.aiModel,
+      appearance: next.appearance,
+    };
+    const changed =
+      JSON.stringify(previousShoppingState) !== JSON.stringify(next);
+    if (changed) {
+      next.revision = this.state.revision + 1;
+    }
+    const pricingChanged = pricingKey(next) !== pricingKey(this.state);
+    await this.db.set("state", next);
+    this.state = next;
+    if (changed) {
+      this.review = null;
+      this.comparison = null;
+    }
+    if (pricingChanged) {
+      this.basket = [];
+      this.pickupFee = null;
+      this.quotedAt = null;
+      this.pricingError = null;
+    }
+    return this.snapshot();
+  }
   async save(input: unknown) {
-    return this.writeState(async () => {
-      if (this.busy || this.transferPending) throw new Error("busy");
-      const next = stateSchema.parse(input);
-      this.registry.get(next.context.providerId);
-      if (next.revision !== this.state.revision) throw new Error("draftStale");
-      next.language = this.state.language;
-      for (const meal of next.meals)
-        if (!next.recipes.some((r) => r.id === meal.recipeId))
-          throw new Error("missingRecipe");
-      // Scheduling is independent of the shopping list and its current approval.
-      const previousShoppingState = {
-        ...this.state,
-        language: next.language,
-        calendar: next.calendar,
-        aiModel: next.aiModel,
-        appearance: next.appearance,
+    return this.writeState(() => this.saveState(input));
+  }
+  /** Memory changes are explicit, revision-bound operations; ordinary save cannot write them. */
+  private changeCategoryPreferences(
+    revision: number,
+    change: (state: AppState) => {
+      rules: CategoryPreference[];
+      affected: string[];
+      chosen?: { key: string; id: string };
+    },
+  ) {
+    return this.refreshAfterChange(() =>
+      this.writeState(async () => {
+        if (this.busy || this.transferPending) throw new Error("busy");
+        if (revision !== this.state.revision) throw new Error("draftStale");
+        const { rules, affected, chosen } = change(this.state);
+        const ids = requirements(this.state)
+          .filter((r) => affected.includes(matchingPolicy(r).category ?? ""))
+          .map((r) => r.id);
+        const accepted = Object.fromEntries(
+          Object.entries(this.state.accepted).filter(
+            ([key]) => !ids.some((id) => key.endsWith(`:${id}`)),
+          ),
+        );
+        if (chosen) accepted[chosen.key] = [chosen.id];
+        return this.saveState(
+          { ...this.state, categoryPreferences: rules, accepted },
+          true,
+        );
+      }),
+    );
+  }
+  async rememberCategoryPreference(input: unknown) {
+    const { revision, requirementKey, productId, preference } =
+      rememberCategoryPreferenceSchema.parse(input);
+    return this.changeCategoryPreferences(revision, (state) => {
+      const line = this.basket.find(
+        (l) => `${l.requirement.id}:${l.requirement.unit}` === requirementKey,
+      );
+      const product = line?.candidates.find((p) => p.id === productId);
+      if (
+        !line ||
+        !product ||
+        matchingPolicy(line.requirement).category !== preference.category ||
+        !preference.qualifiers.every((q) =>
+          product.evidence?.qualifiers.some(
+            (fact) => fact.kind === q.kind && fact.value === q.value,
+          ),
+        ) ||
+        !selectableCandidate(line.requirement, product, {
+          preference,
+          accepted: [productId],
+          context: state.context,
+          exclusions: exclusionTerms(state.household.exclusions),
+        })
+      )
+        throw new Error("unresolved");
+      return {
+        rules: [
+          ...state.categoryPreferences.filter(
+            (p) => p.category !== preference.category,
+          ),
+          preference,
+        ].sort((a, b) => a.category.localeCompare(b.category)),
+        affected: [preference.category],
+        chosen: {
+          key: `${state.context.providerId}:${state.context.storeId}:${line.requirement.id}`,
+          id: productId,
+        },
       };
-      const changed =
-        JSON.stringify(previousShoppingState) !== JSON.stringify(next);
-      if (changed) {
-        next.revision = this.state.revision + 1;
-      }
-      const pricingChanged = pricingKey(next) !== pricingKey(this.state);
-      await this.db.set("state", next);
-      this.state = next;
-      if (changed) {
-        this.review = null;
-        this.comparison = null;
-      }
-      if (pricingChanged) {
-        this.basket = [];
-        this.pickupFee = null;
-        this.quotedAt = null;
-        this.pricingError = null;
-      }
-      return this.snapshot();
     });
+  }
+  async editCategoryPreference(input: unknown) {
+    const { revision, preference } = editCategoryPreferenceSchema.parse(input);
+    return this.changeCategoryPreferences(revision, (state) => {
+      if (
+        !state.categoryPreferences.some(
+          (p) => p.category === preference.category,
+        )
+      )
+        throw new Error("preferenceMissing");
+      return {
+        rules: state.categoryPreferences.map((p) =>
+          p.category === preference.category ? preference : p,
+        ),
+        affected: [preference.category],
+      };
+    });
+  }
+  async forgetCategoryPreference(input: unknown) {
+    const { revision, category } = forgetCategoryPreferenceSchema.parse(input);
+    return this.changeCategoryPreferences(revision, (state) => ({
+      rules: state.categoryPreferences.filter((p) => p.category !== category),
+      affected: state.categoryPreferences.some((p) => p.category === category)
+        ? [category]
+        : [],
+    }));
+  }
+  async resetCategoryPreferences(input: unknown) {
+    const { revision } = resetCategoryPreferencesSchema.parse(input);
+    return this.changeCategoryPreferences(revision, (state) => ({
+      rules: [],
+      affected: state.categoryPreferences.map((p) => p.category),
+    }));
   }
   private knownContext(input: unknown): StoreContext {
     const requested = contextSchema.parse(input);
@@ -665,12 +789,14 @@ export class Service {
           ] ?? [];
         const options = {
           accepted,
+          preferences: state.categoryPreferences,
           exclusions: exclusionTerms(state.household.exclusions),
           productPreference: state.productPreference,
           context,
         };
         const products = applyPackSizes(
           await searchCandidates(provider, context, requirement, {
+            queryHints: requirementQueryHints(requirement, options),
             onSearch: () => {
               metrics.searches++;
             },
@@ -772,6 +898,7 @@ export class Service {
           p.id === productId &&
           selectableCandidate(line.requirement, p, {
             accepted: [productId],
+            preferences: this.state.categoryPreferences,
             context: this.state.context,
             exclusions: exclusionTerms(this.state.household.exclusions),
           }),
@@ -822,7 +949,10 @@ export class Service {
         ? this.basket.filter((line) => line.product && line.total !== null)
         : this.basket,
       this.state.packSizes,
-      { exclusions: exclusionTerms(this.state.household.exclusions) },
+      {
+        exclusions: exclusionTerms(this.state.household.exclusions),
+        preferences: this.state.categoryPreferences,
+      },
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     return this.snapshot();
@@ -960,7 +1090,10 @@ export class Service {
         },
         this.controller.signal,
         this.state.packSizes,
-        { exclusions: exclusionTerms(this.state.household.exclusions) },
+        {
+          exclusions: exclusionTerms(this.state.household.exclusions),
+          preferences: this.state.categoryPreferences,
+        },
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
@@ -1034,7 +1167,10 @@ export class Service {
       this.registry.get(this.journal.review.context.providerId),
       this.journal,
       this.state.packSizes,
-      { exclusions: exclusionTerms(this.state.household.exclusions) },
+      {
+        exclusions: exclusionTerms(this.state.household.exclusions),
+        preferences: this.state.categoryPreferences,
+      },
     );
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { appearanceSchema } from "./appearance";
 import { classificationSchema } from "./categories";
+import { categoryPreferencesSchema } from "./preferences";
 
 export const unitSchema = z.enum(["g", "ml", "pcs"]);
 export type Unit = z.infer<typeof unitSchema>;
@@ -91,6 +92,7 @@ export const stateSchema = z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
     aiModel: z.string().min(1).max(200).default("auto"),
+    categoryPreferences: categoryPreferencesSchema.default([]),
     receiptText: z.string().max(50000).default(""),
     listHistory: z
       .array(

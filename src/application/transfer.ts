@@ -8,7 +8,11 @@ import type {
   Product,
 } from "../domain/model";
 import { applyPackSizes } from "../domain/planner";
-import { candidateSuitability, type MatchingOptions } from "../domain/matching";
+import {
+  candidateSuitability,
+  requirementQueryHints,
+  type MatchingOptions,
+} from "../domain/matching";
 import { searchCandidates } from "../stores/candidates";
 import type { StoreProvider } from "../stores/provider";
 /** Fresh reads must retain the facts on which the quoted selection depended. */
@@ -42,10 +46,12 @@ async function freshProduct(
   line: BasketLine,
   packSizes: AppState["packSizes"],
   signal?: AbortSignal,
+  options: MatchingOptions = {},
 ) {
   try {
     return applyPackSizes(
       await searchCandidates(provider, context, line.requirement, {
+        queryHints: requirementQueryHints(line.requirement, options),
         signal,
         isHit: (p) => p.id === line.product!.id,
       }),
@@ -86,7 +92,14 @@ export async function createReview(
     const p = line.product!;
     if (p.providerId !== context.providerId || p.storeId !== context.storeId)
       throw new Error("contextChanged");
-    const fresh = await freshProduct(provider, context, line, packSizes);
+    const fresh = await freshProduct(
+      provider,
+      context,
+      line,
+      packSizes,
+      undefined,
+      matchingOptions,
+    );
     if (
       !fresh ||
       fresh.available !== true ||
@@ -167,6 +180,7 @@ export async function transfer(
         line,
         packSizes,
         signal,
+        matchingOptions,
       );
       if (
         !fresh ||
@@ -258,6 +272,8 @@ export async function resumeReview(
       journal.review.context,
       line,
       packSizes,
+      undefined,
+      matchingOptions,
     );
     if (
       !fresh ||

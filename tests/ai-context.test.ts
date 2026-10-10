@@ -85,11 +85,11 @@ test("context treats selected recipe content and note injections as quoted data,
 });
 
 test("bounded remembered and observed inputs contain semantic fields only and preserve consent provenance", () => {
-  const remembered: Classification = {
+  const remembered = {
     category: "milk",
-    provenance: "remembered",
-    qualifiers: [{ kind: "lactose", value: "free", provenance: "remembered" }],
-  };
+    strength: "required",
+    qualifiers: [{ kind: "lactose", value: "free" }],
+  } as const;
   const observed: ObservedSummary = {
     classification: {
       category: "coffee",
@@ -99,10 +99,19 @@ test("bounded remembered and observed inputs contain semantic fields only and pr
     observations: 3,
   };
   const context = buildCompactContext("Maitoa", initialState(), {
-    categoryPreferences: [remembered],
+    categoryPreferences: [
+      { ...remembered, qualifiers: [...remembered.qualifiers] },
+    ],
     observedSummaries: [observed],
   });
-  expect(context.categoryPreferences[0]).toEqual(remembered);
+  expect(context.categoryPreferences[0]).toEqual({
+    ...remembered,
+    provenance: "remembered",
+    qualifiers: remembered.qualifiers.map((q) => ({
+      ...q,
+      provenance: "remembered",
+    })),
+  });
   expect(context.observedSummaries[0]).toEqual(observed);
   for (const invalid of [
     { observedSummaries: [{ ...observed, transactionId: "private" }] },
@@ -191,7 +200,10 @@ test("compact context setup uses the same independent coverage evaluator and rep
       receiptText: "PRIVATE RECEIPT card loyalty transaction",
       recipes: initialState().recipes,
     },
-    requiredCapabilities: ["compact-context" as const],
+    requiredCapabilities: [
+      "compact-context" as const,
+      "dietary-evidence" as const,
+    ],
   };
   for (const chain of ["k-ruoka", "s-kaupat"] as const) {
     const result = await evaluateShoppingCase(fixture, chain);
@@ -199,8 +211,9 @@ test("compact context setup uses the same independent coverage evaluator and rep
       missingRequests: [],
       wrongQuantity: [],
       wrongCategory: [],
-      safePriced: 2,
-      unsupported: [],
+      safePriced: 0,
+      unresolved: 2,
+      unsupported: ["dietary-evidence"],
       aiRequests: 1,
       retailerWrites: 0,
     });

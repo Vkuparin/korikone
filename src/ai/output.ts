@@ -160,6 +160,7 @@ function taskSnapshot(state: ContextState, note: string) {
     recipes: structuredClone(state.recipes),
     household: structuredClone(state.household),
     productPreference: state.productPreference,
+    categoryPreferences: structuredClone(state.categoryPreferences ?? []),
     note,
   };
 }

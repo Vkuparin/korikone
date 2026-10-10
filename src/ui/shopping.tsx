@@ -905,6 +905,7 @@ export function ShoppingWorkspace({
                         purchasable(r, p) &&
                         candidateSuitability(r, p, {
                           context: state.context,
+                          preferences: state.categoryPreferences,
                           exclusions: exclusionTerms(
                             state.household.exclusions,
                           ),

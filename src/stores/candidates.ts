@@ -36,11 +36,23 @@ const aliases: Record<Category, readonly string[]> = {
   cream: ["kerma", "ruokakerma"],
   coffee: ["kahvi", "suodatinjauhatus"],
 };
-export function candidateQueries(requirement: Requirement): string[] {
+export function candidateQueries(
+  requirement: Requirement,
+  hints: string[] = [],
+): string[] {
+  if (
+    hints.length > 2 ||
+    hints.some((hint) => !hint.trim() || hint.length > 200)
+  )
+    throw new Error("invalidCandidates");
   const category =
     requirement.classification?.category ??
     foodNameFacts(requirement.name).category;
-  const queries = [requirement.name, ...(category ? aliases[category] : [])];
+  const queries = [
+    requirement.name,
+    ...hints,
+    ...(category ? aliases[category] : []),
+  ];
   const seen = new Set<string>();
   return queries
     .filter((query) => {
@@ -53,6 +65,8 @@ export function candidateQueries(requirement: Requirement): string[] {
 }
 
 export type CandidateSearchOptions = {
+  /** Bounded deterministic aliases supplied by effective domain constraints. */
+  queryHints?: string[];
   /** Numeric operation telemetry; called once immediately before each external read. */
   onSearch?: () => void;
   /** The matcher/coordinator can supply a stricter hit test; this never authorizes selection. */
@@ -103,7 +117,7 @@ export async function searchCandidates(
       p.unit === request.unit &&
       relevant(p.name, request.name));
   const candidates = new Map<string, Product>();
-  for (const query of candidateQueries(request)) {
+  for (const query of candidateQueries(request, options.queryHints)) {
     options.signal?.throwIfAborted();
     options.onSearch?.();
     const products = await abortableRead(
