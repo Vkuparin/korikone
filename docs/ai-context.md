@@ -18,7 +18,7 @@ All submitted note, recipe and exclusion strings are quoted JSON data. The promp
 
 ## Fixture and handoff evidence
 
-`tests/context.test.ts` verifies omitted private markers, a receipt getter that throws if read, recipe ingredients/exclusions/brand preference, JSON-quoted injection text, removed cooking text and stale source spans, bounded typed preference/observation inputs, large unrelated stores, oversized relevant input before inference, and saved recipe references. A 900-unrelated-recipe fixture produces fewer than 1,000 serialized characters while preserving its requested recipe ingredients.
+`tests/ai-context.test.ts` verifies omitted private markers, a receipt getter that throws if read, recipe ingredients/exclusions/brand preference, JSON-quoted injection text, removed cooking text and stale source spans, bounded typed preference/observation inputs, large unrelated stores, oversized relevant input before inference, and saved recipe references. A 900-unrelated-recipe fixture produces fewer than 1,000 serialized characters while preserving its requested recipe ingredients.
 
 The shared shopping evaluator now accepts `ShoppingCase.contextSetup` with optional household, recipes, receiptText and productPreference. It saves them through real `Service.save`. It records `contextCharacters`, and summaries record `maxContextCharacters`. Only compact-context capability is now supported; preferences/lifecycle/preview/edit/resolver markers remain unsupported. Independent milk/egg expectations still pass on both chains after context changes.
 
