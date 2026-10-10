@@ -28,7 +28,11 @@ export type SettingsProps = {
 export type SettingsSectionProps = {
   snapshot: Snapshot;
   busy: boolean;
-  call: (method: string, input?: unknown) => Promise<boolean>;
+  call: (
+    method: string,
+    input?: unknown,
+    options?: { preserveError?: boolean },
+  ) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   t: (key: Key) => string;
   changeLanguage: (language: "fi" | "en") => Promise<void>;
