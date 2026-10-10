@@ -503,16 +503,24 @@ else
           .parse(input);
         const revision = service.state.revision;
         const run = ++generationRun;
-        const session = await requestSession(run);
-        service.draft = null;
-        service.draftRevision = null;
-        service.recipeDraft = null;
-        service.draft = await runAITask(run, () =>
-          interpretShopping(session, request.prompt, service.state),
-        );
-        service.draftRevision = revision;
-        service.draftNote = request.prompt;
-        return service.snapshot();
+        return service.measureOperation("interpretation", async (metrics) => {
+          const session = await requestSession(run);
+          try {
+            service.draft = null;
+            service.draftRevision = null;
+            service.recipeDraft = null;
+            service.draft = await runAITask(run, () =>
+              interpretShopping(session, request.prompt, service.state),
+            );
+            service.draftRevision = revision;
+            service.draftNote = request.prompt;
+            return service.snapshot();
+          } finally {
+            metrics.aiCalls = session.callCount;
+            metrics.repairCalls = Math.max(0, session.callCount - 1);
+            metrics.payloadCharacters = session.payloadCharacters;
+          }
+        });
       },
       importRecipe: async (input) => {
         const request = z
@@ -523,12 +531,20 @@ else
           })
           .parse(input);
         const run = ++generationRun;
-        const session = await requestSession(run);
-        service.recipeDraft = null;
-        service.recipeDraft = await runAITask(run, () =>
-          extractRecipe(session, request.text, service.state),
-        );
-        return service.snapshot();
+        return service.measureOperation("recipe-import", async (metrics) => {
+          const session = await requestSession(run);
+          try {
+            service.recipeDraft = null;
+            service.recipeDraft = await runAITask(run, () =>
+              extractRecipe(session, request.text, service.state),
+            );
+            return service.snapshot();
+          } finally {
+            metrics.aiCalls = session.callCount;
+            metrics.repairCalls = Math.max(0, session.callCount - 1);
+            metrics.payloadCharacters = session.payloadCharacters;
+          }
+        });
       },
       approveDraft: () =>
         service.refreshAfterChange(() => service.approveDraft()),
@@ -813,6 +829,7 @@ else
               packaged: String(app.isPackaged),
             },
             await service.errorLog(),
+            await service.operationMetrics(),
           ),
           null,
           2,

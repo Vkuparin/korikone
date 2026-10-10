@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { categorySchema } from "../../../src/domain/categories";
 import { recipeSchema, unitSchema } from "../../../src/domain/model";
+import type { OperationMetric } from "../../../src/application/metrics";
 
 const productSchema = z
   .object({
@@ -119,6 +120,7 @@ export type UnresolvedReason =
   | "invalid-output"
   | "incomplete";
 export type EvaluationResult = {
+  operationMetrics: OperationMetric[];
   id: string;
   chain: "k-ruoka" | "s-kaupat";
   requested: number;

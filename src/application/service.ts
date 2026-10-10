@@ -46,11 +46,93 @@ import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
+import {
+  METRICS_KEY,
+  METRICS_LIMIT,
+  operationMetricSchema,
+  readMetrics,
+  unresolvedReason,
+  type OperationMetric,
+  type OperationCounters,
+} from "./metrics";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
 }
 export class Service {
+  private metricWrites: Promise<void> = Promise.resolve();
+  async operationMetrics() {
+    try {
+      return readMetrics(await this.db.get(METRICS_KEY));
+    } catch {
+      return [];
+    }
+  }
+  async recordOperation(input: unknown) {
+    const parsed = operationMetricSchema.safeParse(input);
+    if (!parsed.success) return;
+    const write = this.metricWrites.then(async () => {
+      const saved = await this.operationMetrics();
+      await this.db.set(
+        METRICS_KEY,
+        [...saved, parsed.data].slice(-METRICS_LIMIT),
+      );
+    });
+    // Telemetry storage must never fail an application operation.
+    this.metricWrites = write.catch(() => {});
+    await this.metricWrites;
+  }
+  async measureOperation<T>(
+    kind: OperationMetric["kind"],
+    operation: (counters: OperationCounters) => Promise<T>,
+  ): Promise<T> {
+    const started = performance.now();
+    const counters: OperationCounters = {
+      aiCalls: 0,
+      repairCalls: 0,
+      payloadCharacters: 0,
+      searches: 0,
+      resolverCalls: 0,
+      unresolved: {},
+    };
+    let outcome: OperationMetric["outcome"] = "success";
+    try {
+      return await operation(counters);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      outcome =
+        code === "aiCancelled" ||
+        code === "cancelled" ||
+        (error instanceof Error && error.name === "AbortError")
+          ? "cancelled"
+          : code === "draftStale"
+            ? "obsolete"
+            : "failed";
+      const reason =
+        code === "invalidDraft"
+          ? "invalid-output"
+          : code === "incomplete" || code === "incompleteDraft"
+            ? "incomplete"
+            : kind === "pricing" && counters.searches > 0
+              ? error instanceof z.ZodError
+                ? "normalization"
+                : "search-error"
+              : undefined;
+      if (reason)
+        counters.unresolved[reason] = (counters.unresolved[reason] ?? 0) + 1;
+      throw error;
+    } finally {
+      await this.recordOperation({
+        ...counters,
+        kind,
+        outcome,
+        latencyMs: Math.min(
+          600_000,
+          Math.max(0, Math.round(performance.now() - started)),
+        ),
+      });
+    }
+  }
   developmentMode = false;
   developmentScenario = "success";
   developmentRequests = 0;
@@ -572,61 +654,69 @@ export class Service {
     context: StoreContext,
     state = this.state,
   ): Promise<BasketLine[]> {
-    const provider = this.registry.get(context.providerId);
-    const result = [];
-    for (const requirement of requirements(state)) {
-      const products = applyPackSizes(
-        await provider.searchProducts(
-          context,
-          requirement.name,
-          requirement.id,
-        ),
-        state.packSizes,
-      );
-      const accepted =
-        state.accepted[
-          `${context.providerId}:${context.storeId}:${requirement.id}`
-        ] ?? [];
-      const exclusions = exclusionTerms(state.household.exclusions);
-      const available = products.filter(
-        (p) =>
-          p.available &&
-          p.price !== null &&
-          p.unit === requirement.unit &&
-          p.packAmount > 0 &&
-          !exclusions.some((term) =>
-            p.name.toLocaleLowerCase("fi").includes(term),
+    return this.measureOperation("pricing", async (metrics) => {
+      const provider = this.registry.get(context.providerId);
+      const result = [];
+      for (const requirement of requirements(state)) {
+        metrics.searches++;
+        const products = applyPackSizes(
+          await provider.searchProducts(
+            context,
+            requirement.name,
+            requirement.id,
           ),
-      );
-      const storeBrand = (name: string) =>
-        /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
-      // Automatic choice only among products that are the ingredient itself;
-      // the shopper can still accept any other candidate by hand.
-      // Demo catalogues match by ingredient ID only, so they skip this check.
-      const fitting = isLive(context.providerId)
-        ? available.filter((p) => relevant(p.name, requirement.name))
-        : available;
-      const preferred = fitting.filter((p) =>
-        state.productPreference === "storeBrand"
-          ? storeBrand(p.name)
-          : state.productPreference === "avoidStoreBrand"
-            ? !storeBrand(p.name)
-            : true,
-      );
-      const auto = (preferred.length ? preferred : fitting).map((p) => p.id);
-      const selected = accepted.filter((id) =>
-        available.some((p) => p.id === id),
-      );
-      result.push(
-        match(
-          requirement,
-          products,
-          selected.length ? selected : auto,
-          exclusions,
-        ),
-      );
-    }
-    return result;
+          state.packSizes,
+        );
+        const accepted =
+          state.accepted[
+            `${context.providerId}:${context.storeId}:${requirement.id}`
+          ] ?? [];
+        const exclusions = exclusionTerms(state.household.exclusions);
+        const available = products.filter(
+          (p) =>
+            p.available &&
+            p.price !== null &&
+            p.unit === requirement.unit &&
+            p.packAmount > 0 &&
+            !exclusions.some((term) =>
+              p.name.toLocaleLowerCase("fi").includes(term),
+            ),
+        );
+        const storeBrand = (name: string) =>
+          /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(name);
+        // Automatic choice only among products that are the ingredient itself;
+        // the shopper can still accept any other candidate by hand.
+        // Demo catalogues match by ingredient ID only, so they skip this check.
+        const fitting = isLive(context.providerId)
+          ? available.filter((p) => relevant(p.name, requirement.name))
+          : available;
+        const preferred = fitting.filter((p) =>
+          state.productPreference === "storeBrand"
+            ? storeBrand(p.name)
+            : state.productPreference === "avoidStoreBrand"
+              ? !storeBrand(p.name)
+              : true,
+        );
+        const auto = (preferred.length ? preferred : fitting).map((p) => p.id);
+        const selected = accepted.filter((id) =>
+          available.some((p) => p.id === id),
+        );
+        result.push(
+          match(
+            requirement,
+            products,
+            selected.length ? selected : auto,
+            exclusions,
+          ),
+        );
+        const line = result[result.length - 1];
+        if (!line.product || line.total === null) {
+          const reason = unresolvedReason(line, products);
+          metrics.unresolved[reason] = (metrics.unresolved[reason] ?? 0) + 1;
+        }
+      }
+      return result;
+    });
   }
   /**
    * Prices the list at the other chain's remembered store too, without changing either account,

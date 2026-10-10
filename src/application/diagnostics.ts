@@ -1,5 +1,6 @@
 import type { ErrorEntry } from "./errors";
 import type { Snapshot } from "./service";
+import { readMetrics } from "./metrics";
 /**
  * A support report without personal data: no recipes, product names, account IDs,
  * e-mail addresses, prompts, tokens or store sessions.
@@ -8,10 +9,12 @@ export function diagnostics(
   snapshot: Snapshot,
   runtime: Record<string, string>,
   errors: ErrorEntry[] = [],
+  operationMetrics: unknown = [],
 ) {
   const { state, journal } = snapshot;
   return {
     generatedAt: new Date().toISOString(),
+    operationMetrics: readMetrics(operationMetrics),
     runtime,
     developmentMode: snapshot.developmentMode,
     language: state.language,
