@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from "@playwright/test";
+import { settingsCategory } from "./settings-helper";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -37,6 +38,7 @@ test("calendar backup uses real export and restore handlers", async () => {
       if (!saved.ok) throw new Error(saved.error);
     }, calendar);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "data", "Data");
     await page.getByText("Backups and data", { exact: true }).click();
     await app.evaluate(({ dialog }, filePath) => {
       dialog.showSaveDialog = async () => ({ canceled: false, filePath });

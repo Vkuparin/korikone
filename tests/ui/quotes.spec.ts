@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
+import { settingsCategory } from "./settings-helper";
 
 test("view return and restart retain quotes without searches, while explicit edits refresh", async () => {
   const env = Object.fromEntries(
@@ -84,6 +85,7 @@ test("view return and restart retain quotes without searches, while explicit edi
     expect((await load()).journal).toBeNull();
     await page.evaluate(() => window.korikone.scenario("price"));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settingsCategory(page, "stores", "Stores");
     await page.getByText("Advanced settings", { exact: true }).click();
     const beforeSwitch = (await load()).developmentCatalogueRequests;
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
@@ -102,7 +104,7 @@ test("view return and restart retain quotes without searches, while explicit edi
       switched.developmentCatalogueRequests,
     );
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await settingsCategory(page, "ai", "ChatGPT and AI");
     await page
       .getByRole("button", { name: "Continue with ChatGPT", exact: true })
       .click();

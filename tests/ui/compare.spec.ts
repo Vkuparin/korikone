@@ -1,4 +1,5 @@
 import { completeFixtureLogin } from "./store-helpers";
+import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -36,13 +37,23 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     await page.getByRole("button", { name: "Valmis", exact: true }).click();
 
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
-    await page.getByLabel("Etsi K-Ruoka- tai S-kaupat-kauppa").fill("Helsinki");
-    await page.getByRole("button", { name: "Etsi", exact: true }).click();
-    await page
+    await settingsCategory(page, "stores", "Kaupat");
+    const other = page.getByRole("listitem", { name: "S-kaupat" });
+    await other
+      .getByRole("button", { name: "S-kaupat: Valitse kauppa" })
+      .click();
+    await other
+      .getByLabel("S-kaupat: paikkakunta tai kaupan nimi")
+      .fill("Helsinki");
+    await other.getByRole("button", { name: "Etsi", exact: true }).click();
+    await other
       .getByRole("button", {
         name: "S-kaupat · Helsinki (fixture)",
         exact: true,
       })
+      .click();
+    await other
+      .getByRole("button", { name: "S-kaupat: Käytä tätä kauppaa" })
       .click();
     await page
       .getByRole("listitem", { name: "S-kaupat" })

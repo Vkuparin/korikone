@@ -17,7 +17,7 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
   try {
     const page = await app.firstWindow();
     await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0].setContentSize(1100, 560),
+      BrowserWindow.getAllWindows()[0].setContentSize(1100, 800),
     );
     await page
       .getByRole("button", { name: "Ota käyttöön", exact: true })
@@ -54,12 +54,13 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
       const height = await page.evaluate(() => window.innerHeight);
       return box.y >= 0 && box.y + box.height <= height;
     };
-    // The list is taller than the window, so it scrolls inside its own column.
-    expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    // Rows scroll independently; the footer occupies a separate fixed space.
+    const rows = list.locator(".shopping-rows");
+    expect(await rows.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
       true,
     );
     await expect.poll(inView).toBe(true);
-    await list.evaluate((el) => el.scrollTo(0, el.scrollHeight / 2));
+    await rows.evaluate((el) => el.scrollTo(0, el.scrollHeight / 2));
     await expect.poll(inView).toBe(true);
     // Scrolling the note column scrolls the page; the list column stays put.
     for (const y of [0, 10000]) {
@@ -68,6 +69,14 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
     }
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: "test-results/pinned.png" });
+    // A short window uses normal flow when the footer would crowd the rows.
+    await page.setViewportSize({ width: 1100, height: 600 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(list).toHaveAttribute("data-flow", "true");
+    await transfer.scrollIntoViewIfNeeded();
+    await transfer.focus();
+    await expect(transfer).toBeFocused();
+    await expect.poll(inView).toBe(true);
   } finally {
     await app.close();
   }

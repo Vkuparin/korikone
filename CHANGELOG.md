@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.6.0 — pre-release, 10 October 2026
+
+- Refresh the shopping workspace with clearer product rows, a compact note composer and a transfer footer that stays separate from scrolling rows. Explicit updates and verified, duplicate-safe store transfers remain available.
+- Add System, Light and Dark appearance in Settings. Saved choices apply at startup; System follows Windows while the app runs. Retailer pages keep their own appearance.
+- Organize Settings into General, Household, Stores, ChatGPT and AI, Data, Advanced and About. Contextual shortcuts open the relevant section. Drafts, validation errors and local saves survive section changes.
+- Show immediate update feedback and cancellation while retaining the saved list until a valid result is ready. Provisional product previews and smarter matching remain planned for v0.7.0.
+- Improve keyboard focus, contrast, reduced-motion behavior and Finnish/English layouts at normal and narrow window sizes. Owner layout and dark/System startup acceptance is recorded in the task list.
+- Keep the unsigned Windows x64 pre-release channel and manual checkout. See [release verification](docs/release-0.6.0.md) for checks and remaining installation/pilot gates.
+
 ## 0.5.0 — pre-release, 10 October 2026
 
 - Integrate the published v0.4.0 explicit-update, retained-price and one-approval transfer flow with embedded K-Ruoka and S-kaupat tabs. Verified transfers open the selected basket or account list automatically; reopening does not add products again.

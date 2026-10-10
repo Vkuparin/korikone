@@ -1,4 +1,5 @@
 import { settingsCategory } from "./settings-helper";
+import { aiScenarios } from "../../src/ai/scenarios";
 import { completeFixtureLogin } from "./store-helpers";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -72,7 +73,7 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
     ).toBeDisabled();
     await expect(
       page.getByLabel("AI fixture scenario").locator("option"),
-    ).toHaveCount(13);
+    ).toHaveCount(aiScenarios.length);
     await page.getByLabel("AI fixture scenario").selectOption("invalidOnce");
     await page
       .getByRole("button", { name: "Shopping list", exact: true })

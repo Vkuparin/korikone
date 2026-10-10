@@ -45,6 +45,7 @@ test("app palette tokens keep text and keyboard focus readable without generatio
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Kokeile esimerkkiä" }).click();
+    await expect(page.getByText(/Viimeksi haetut hinnat/)).toBeVisible();
     const catalogueRequests = await page.evaluate(
       async () =>
         (await window.korikone.load()).value.developmentCatalogueRequests,
