@@ -566,17 +566,25 @@ body:has(.app-main) .demo {
 .shopping-workspace {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(350px, 390px);
-  gap: 28px;
+  gap: 24px;
   align-items: start;
 }
 .planning-pane {
   min-width: 0;
 }
+.planning-pane > h1 {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: normal;
+  font-size: 28px;
+  line-height: 1.25;
+  margin-bottom: 16px;
+}
 .note-box {
   background: var(--kk-surface);
   border: 1px solid var(--kk-action);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 0 0 3px var(--kk-subtle);
   transition: box-shadow 0.2s;
 }
@@ -588,15 +596,41 @@ body:has(.app-main) .demo {
   resize: vertical;
   min-height: 130px;
   padding: 0;
-  line-height: 1.8;
-  outline: none;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.note-box textarea:focus-visible {
+  outline: 3px solid var(--kk-focus);
+  outline-offset: 3px;
 }
 .note-footer {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--kk-border);
+  margin-top: 16px;
+}
+.note-context,
+.note-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding-top: 12px;
+  gap: 8px;
+}
+.note-actions .update-note {
+  margin-left: auto;
+}
+.note-footer .chip {
+  font-size: 14px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+.note-footer .model-control {
+  margin: 0;
+  font-size: 14px;
+}
+.note-footer .model-selector {
+  font-size: 14px;
 }
 .chip {
   display: inline-flex;
@@ -616,16 +650,15 @@ body:has(.app-main) .demo {
   text-overflow: ellipsis;
 }
 .note-status {
-  font-size: 10px;
+  font-size: 14px;
   color: var(--kk-muted);
-  margin-left: auto;
 }
 .update-note {
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 8px 16px;
+  font-size: 16px;
 }
 .input-notice {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--kk-muted);
   line-height: 1.6;
   margin: 13px 0 24px;
@@ -988,6 +1021,12 @@ body:has(.app-main) .demo {
   }
 }
 @media (max-width: 900px) {
+  .planning-pane > h1 {
+    font-size: 24px;
+  }
+  .note-box {
+    padding: 16px;
+  }
   .shopping-workspace {
     grid-template-columns: 1fr;
   }

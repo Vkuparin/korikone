@@ -30,6 +30,98 @@ async function launch() {
   return app;
 }
 
+for (const language of ["fi", "en"] as const) {
+  test(`composer layout retains explicit updates and keyboard model focus in ${language}`, async () => {
+    const app = await launch();
+    try {
+      const page = await app.firstWindow();
+      const state = initialState();
+      state.onboarded = true;
+      state.setupComplete = true;
+      state.language = language;
+      state.staples = [];
+      await page.evaluate(async (state) => {
+        await window.korikone.save(state);
+        await window.korikone.setLanguage(state.language as "fi" | "en");
+        await window.korikone.signInAI();
+      }, state);
+      await page.reload();
+      const fi = language === "fi";
+      const note = page.getByLabel(
+        fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
+      );
+      const model = page.getByRole("button", {
+        name: fi ? "AI-malli" : "AI model",
+        exact: true,
+      });
+      const load = () =>
+        page.evaluate(async () => (await window.korikone.load()).value);
+      await note.fill("Nakkikeitto");
+      await expect(page.locator("#note-unapplied")).toBeVisible();
+      await model.focus();
+      await model.press("ArrowDown");
+      await expect(page.getByRole("listbox")).toBeVisible();
+      await page.getByRole("listbox").press("Escape");
+      await expect(model).toBeFocused();
+      await expect(page.locator(".context")).toBeVisible();
+      await page.waitForTimeout(800);
+      expect((await load()).developmentRequests).toBe(0);
+      await page
+        .getByRole("button", {
+          name: fi ? "Päivitä lista" : "Update list",
+          exact: true,
+        })
+        .click();
+      await expect
+        .poll(async () => (await load()).state.note)
+        .toBe("Nakkikeitto");
+      expect((await load()).developmentRequests).toBe(1);
+      await expect(page.locator("#note-unapplied")).toHaveCount(0);
+      await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+      await note.fill("Kanapasta");
+      await expect(
+        page.getByRole("button", {
+          name: fi ? "Päivitä lista" : "Update list",
+          exact: true,
+        }),
+      ).toBeEnabled();
+      await note.press("Control+Enter");
+      await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect
+        .poll(async () => (await load()).state.note)
+        .toBe("Kanapasta");
+      await expect(note).toBeFocused();
+      expect((await load()).developmentRequests).toBe(2);
+      await expect(page.locator("#note-unapplied")).toHaveCount(0);
+      for (const width of [1280, 800]) {
+        await app.evaluate(
+          ({ BrowserWindow }, width) =>
+            BrowserWindow.getAllWindows()[0].setSize(
+              width,
+              width === 800 ? 600 : 800,
+            ),
+          width,
+        );
+        await note.focus();
+        await expect(note).toBeFocused();
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path: `test-results/composer-${language}-${width}.png`,
+          fullPage: true,
+        });
+      }
+      expect((await load()).developmentRequests).toBe(2);
+    } finally {
+      await app.close();
+    }
+  });
+}
+
 test("manual groceries accept decimal units and merge into quoted ingredient rows", async () => {
   const app = await launch();
   try {

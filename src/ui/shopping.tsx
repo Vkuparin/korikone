@@ -353,55 +353,59 @@ export function ShoppingWorkspace({
             }}
           />
           <div className="note-footer">
-            <button className="chip" onClick={settings}>
-              {state.household.servings} {tr("henkeä", "people")}
-            </button>
-            <span className="chip">
-              {new Date().toLocaleDateString(fi ? "fi-FI" : "en-FI", {
-                day: "numeric",
-                month: "long",
-              })}
-            </span>
-            <button className="chip store-chip" onClick={settings}>
-              {state.context.storeName}
-            </button>
-            <span id="note-update-help" className="note-status" role="status">
-              {working
-                ? tr("Muodostetaan listaa…", "Building your list…")
-                : cancelled
-                  ? tr("Listan päivitys peruutettu", "List update cancelled")
-                  : tr(
-                      "Ctrl + Enter päivittää listan",
-                      "Ctrl + Enter to update the list",
-                    )}
-            </span>
-            {requesting && (
-              <button
-                className="secondary"
-                onClick={() => {
-                  window.dispatchEvent(new Event("korikone:cancel-ai"));
-                  void call("cancelAI");
-                }}
-                disabled={cancelled}
-              >
-                {tr("Peruuta listan päivitys", "Cancel list update")}
+            <div className="note-context">
+              <button className="chip" onClick={settings}>
+                {state.household.servings} {tr("henkeä", "people")}
               </button>
-            )}
-            <button
-              className="update-note"
-              disabled={
-                busy ||
-                working ||
-                !note.trim() ||
-                snapshot.ai.state !== "connected"
-              }
-              onClick={() => void update()}
-            >
-              {tr("Päivitä lista", "Update list")}
-            </button>
+              <span className="chip">
+                {new Date().toLocaleDateString(fi ? "fi-FI" : "en-FI", {
+                  day: "numeric",
+                  month: "long",
+                })}
+              </span>
+              <button className="chip store-chip" onClick={settings}>
+                {state.context.storeName}
+              </button>
+            </div>
+            <ModelSelector snapshot={snapshot} busy={busy} call={call} />
+            <div className="note-actions">
+              <span id="note-update-help" className="note-status" role="status">
+                {working
+                  ? tr("Muodostetaan listaa…", "Building your list…")
+                  : cancelled
+                    ? tr("Listan päivitys peruutettu", "List update cancelled")
+                    : tr(
+                        "Ctrl + Enter päivittää listan",
+                        "Ctrl + Enter to update the list",
+                      )}
+              </span>
+              {requesting && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    window.dispatchEvent(new Event("korikone:cancel-ai"));
+                    void call("cancelAI");
+                  }}
+                  disabled={cancelled}
+                >
+                  {tr("Peruuta listan päivitys", "Cancel list update")}
+                </button>
+              )}
+              <button
+                className="update-note"
+                disabled={
+                  busy ||
+                  working ||
+                  !note.trim() ||
+                  snapshot.ai.state !== "connected"
+                }
+                onClick={() => void update()}
+              >
+                {tr("Päivitä lista", "Update list")}
+              </button>
+            </div>
           </div>
         </div>
-        <ModelSelector snapshot={snapshot} busy={busy} call={call} />
         {note !== state.note && (
           <p id="note-unapplied" className="muted" role="status">
             {tr(
