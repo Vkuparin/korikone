@@ -4,6 +4,7 @@ import { chooseModel } from "./models";
 import { setTimeout as delay } from "node:timers/promises";
 import { mealFixtures } from "./meal-fixtures";
 import { resolutionRequestSchema } from "../domain/resolution";
+import { planningFixtureReply } from "./planning-fixtures";
 
 import { aiScenarios } from "./scenarios";
 export { aiScenarios } from "./scenarios";
@@ -153,6 +154,13 @@ export class FixtureAI {
       return JSON.stringify(structuredClone(recipe));
     }
     const note = input.match(/User note: ("(?:[^"\\]|\\.)*")/)?.[1];
+    if (input.startsWith("Planning intent ledger v1.\n"))
+      return JSON.stringify(
+        planningFixtureReply(
+          note ? JSON.parse(note) : "",
+          Number(input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4),
+        ),
+      );
     const request = note ? JSON.parse(note).toLocaleLowerCase("fi") : "";
     const servings = Number(
       input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4,

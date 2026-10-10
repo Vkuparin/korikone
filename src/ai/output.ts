@@ -13,11 +13,13 @@ import {
   type InferenceTask,
   type InferenceTaskBounds,
 } from "./provider";
-import { shoppingDraftTask, recipeImportTask } from "./tasks";
+import { shoppingDraftTask, recipeImportTask, shoppingPlanTask } from "./tasks";
+import { requestIntentSchema } from "../domain/intents";
 import {
   draftPrompt,
   recipePrompt,
   validateDraft,
+  validatePlanningDraft,
   validateRecipe,
   generateValidated,
 } from "./draft";
@@ -92,6 +94,13 @@ function nativeOutput(
 export const shoppingNativeOutput = nativeOutput(
   "shopping_draft_v1",
   shoppingWireSchema,
+);
+export const shoppingPlanningWireSchema = shoppingWireSchema
+  .extend({ intents: z.array(requestIntentSchema).min(1).max(100) })
+  .strict();
+export const shoppingPlanningNativeOutput = nativeOutput(
+  "shopping_plan_v1",
+  shoppingPlanningWireSchema,
 );
 export const recipeNativeOutput = nativeOutput(
   "recipe_import_v1",
@@ -191,6 +200,41 @@ export function interpretShopping(
     repairLimit: 1,
     correction:
       " The previous response failed validation. Check integer quantities, unique recipe IDs, source evidence and that every meal references an existing or new recipe. Return complete JSON only.",
+  });
+}
+/** Required-ledger interpretation for the F16 coordinator. Legacy composer migration is F16.10. */
+export function interpretPlanning(
+  session: InferenceSession,
+  note: string,
+  state: ContextState,
+) {
+  const snapshot = taskSnapshot(state, note);
+  return invokeTaskOutput(session, {
+    task: shoppingPlanTask,
+    prompt:
+      "Planning intent ledger v1.\n" +
+      draftPrompt(note, snapshot) +
+      " Required planning intent ledger v1. Identify every requested meal and direct grocery with an exact, non-overlapping note span. Add required intents array. Each intent has id (unique temporary reference), kind meal or grocery, label exactly the quoted note span, evidence {start,end,quote} with UTF-16 offsets, provenance explicit-note, quantity, mealIndex, itemIndex, unresolvedReason. Every returned meal/item must be targeted exactly once by an intent; new recipes must have a meal. mealIndex/itemIndex are zero-based positions and exactly one is set for represented requests. Meals have quantity null and itemIndex null. Grocery quantity is {amount,unit,provenance}. Only literal numeric g/kg/ml/l/kpl/pcs units prove direct grocery quantities; normalize kg/l to integer g/ml. Do not infer package weight or substitute a household default quantity. If quantity is unknown, keep {amount:null,unit:null,provenance:unknown}, both target indexes null and unresolvedReason unknown-quantity. A literal count with unknown unit keeps its number, unit null and provenance explicit-note, unresolvedReason unknown-unit. Known quantities that cannot become positive integer g/ml/pcs remain in quantity with null targets and unresolvedReason unsupported-quantity; never round or guess them. Other unrepresentable requests keep null target indexes and unresolvedReason unsupported-request, ambiguous-request or excluded-request. For represented requests unresolvedReason is null. Unresolved-only drafts are valid; never invent items or a fallback meal to fill them. Use literal enum strings with JSON quotes. Return complete JSON only.",
+    native: shoppingPlanningNativeOutput,
+    normalizeNative: (raw) => {
+      try {
+        const { intents, ...shopping } = shoppingPlanningWireSchema.parse(
+          JSON.parse(raw),
+        );
+        return JSON.stringify({
+          ...(omitNulls(shopping) as Record<string, unknown>),
+          intents,
+        });
+      } catch {
+        throw new Error("invalidDraft");
+      }
+    },
+    validate: (raw) => validatePlanningDraft(raw, snapshot, note),
+    repairLimit: 1,
+    correction:
+      " The previous planning response failed validation. Preserve every request with exact source evidence and a unique valid target or explicit unresolved reason. Do not invent unknown quantities. Return the entire JSON draft and intent ledger.",
+    nativeInstructions:
+      " Use the supplied native schema exactly. All fields are required. Preserve meaningful null quantity amounts/units, target indexes and unresolvedReason; classification/evidence/kind/day/leftovers nullable metadata follow their schema.",
   });
 }
 export function extractRecipe(

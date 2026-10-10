@@ -1,6 +1,6 @@
 # Planning lifecycle and ownership
 
-F16.9 implements `src/application/planning.ts`. This is the operation/event contract and the existing interpretation dispatch migration. F16.10 supplies execution across interpretation, requirements, searches and resolution; F16.11 supplies atomic state/quote persistence. The existing composer still submits generation followed by draft approval.
+F16.9 implements `src/application/planning.ts`. This is the operation/event contract and the existing interpretation dispatch migration. F16.15 adds required `PlanningSnapshot.intents` and draft-to-result mapping; its fields, quantity rules and normalized artifact ownership are in [intent-contract.md](intent-contract.md). F16.10 supplies execution across interpretation, requirements, searches and resolution; F16.11 supplies atomic state/quote persistence. The existing composer still submits generation followed by draft approval.
 
 ## Ownership
 
