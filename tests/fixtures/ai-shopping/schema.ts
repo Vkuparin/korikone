@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { categorySchema } from "../../../src/domain/categories";
-import { unitSchema } from "../../../src/domain/model";
+import { recipeSchema, unitSchema } from "../../../src/domain/model";
 
 const productSchema = z
   .object({
@@ -39,6 +39,23 @@ export const shoppingCaseSchema = z
     completion: z.enum(["complete", "incomplete"]).default("complete"),
     catalogue: z.record(z.string(), z.array(productSchema)),
     boundaryFailure: z.enum(["search-error", "malformed"]).optional(),
+    contextSetup: z
+      .object({
+        household: z
+          .object({
+            servings: z.number().int().min(1).max(100),
+            budget: z.number().int().min(0).max(1_000_000),
+            exclusions: z.string().max(1000),
+          })
+          .optional(),
+        recipes: z.array(recipeSchema).max(1000).optional(),
+        receiptText: z.string().max(50_000).optional(),
+        productPreference: z
+          .enum(["price", "storeBrand", "avoidStoreBrand"])
+          .optional(),
+      })
+      .strict()
+      .optional(),
     requiredCapabilities: z
       .array(
         z.enum([
@@ -109,6 +126,7 @@ export type EvaluationResult = {
   aiRequests: number;
   searches: number;
   retailerWrites: number;
+  contextCharacters: number;
   // Task adapters and current UI capability tests land in their assigned cards.
   unsupported: ShoppingCase["requiredCapabilities"];
   editCorrectness: "unsupported";

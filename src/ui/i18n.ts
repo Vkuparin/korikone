@@ -73,7 +73,9 @@ export const en = {
   draftReview: "Review the meal draft",
   approveDraft: "Approve recipes and replace this week",
   aiConsent:
-    "Draft a week sends this request, saved recipes and household preferences to OpenAI using the account shown above.",
+    "Draft a week sends this request, relevant saved recipes and household preferences to ChatGPT using the account shown above. Raw receipts and unrelated history stay local.",
+  contextTooLarge:
+    "The relevant recipes exceed the planning limit. Request fewer dishes or simplify the saved recipes, then update again.",
   aiConnectionInfo:
     "Connect an eligible ChatGPT plan. Requests use your plan allowance; Korikone never switches to API billing. Korikone retains one account registration per local profile.",
   waitingAI: "Complete authorization in your browser.",
@@ -349,7 +351,9 @@ export const fi: Record<Key, string> = {
   draftReview: "Tarkista aterialuonnos",
   approveDraft: "Hyväksy reseptit ja korvaa tämä viikko",
   aiConsent:
-    "Luonnostele viikko lähettää pyynnön, tallennetut reseptit ja kotitalouden toiveet OpenAI:lle yllä näkyvällä ChatGPT-tilillä.",
+    "Luonnostele viikko lähettää pyynnön, siihen liittyvät tallennetut reseptit ja kotitalouden toiveet yllä näkyvälle ChatGPT-tilille. Raakakuitit ja muu historia pysyvät paikallisina.",
+  contextTooLarge:
+    "Pyyntöön liittyvät reseptit ylittävät suunnittelurajan. Pyydä vähemmän ruokia tai yksinkertaista tallennettuja reseptejä ja päivitä uudelleen.",
   aiConnectionInfo:
     "Yhdistä soveltuva ChatGPT-tilaus. Pyynnöt käyttävät tilauksesi käyttörajaa; Korikone ei vaihda API-laskutukseen. Korikone säilyttää yhden tilirekisteröinnin paikallista profiilia kohti.",
   waitingAI: "Viimeistele valtuutus selaimessa.",

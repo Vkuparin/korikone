@@ -4,6 +4,7 @@ import {
   validateDraft,
 } from "../../../src/ai/draft";
 import { InferenceError, InferenceSession } from "../../../src/ai/provider";
+import { buildCompactContext } from "../../../src/ai/context";
 import type { BasketLine, Product } from "../../../src/domain/model";
 import { relevant, requirements } from "../../../src/domain/planner";
 import { ScriptedInferenceProvider } from "../../helpers/inference";
@@ -43,6 +44,12 @@ export async function evaluateShoppingCase(
     fixture.catalogue,
     fixture.boundaryFailure,
   );
+  if (fixture.contextSetup)
+    await service.save({ ...service.state, ...fixture.contextSetup });
+  const contextCharacters = JSON.stringify({
+    request: fixture.note,
+    context: buildCompactContext(fixture.note, service.state),
+  }).length;
   let calls = 0;
   const provider = new ScriptedInferenceProvider(
     "fixture-evaluation",
@@ -102,7 +109,10 @@ export async function evaluateShoppingCase(
     searches: tools.filter((t) => t === "search_products").length,
     retailerWrites: tools.filter((t) => /add|set|create|execute/.test(t))
       .length,
-    unsupported: fixture.requiredCapabilities,
+    contextCharacters,
+    unsupported: fixture.requiredCapabilities.filter(
+      (capability) => capability !== "compact-context",
+    ),
     editCorrectness: "unsupported",
   };
   const count = (value: UnresolvedReason) => {
@@ -188,6 +198,10 @@ export function evaluationSummary(results: EvaluationResult[]) {
     aiRequests: sum((r) => r.aiRequests),
     searches: sum((r) => r.searches),
     retailerWrites: sum((r) => r.retailerWrites),
+    maxContextCharacters: Math.max(
+      0,
+      ...results.map((r) => r.contextCharacters),
+    ),
     unsupported: [...new Set(results.flatMap((r) => r.unsupported))],
     reasons,
   };

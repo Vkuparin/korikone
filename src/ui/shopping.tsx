@@ -473,8 +473,8 @@ export function ShoppingWorkspace({
             )
           ) : snapshot.ai.state === "connected" ? (
             tr(
-              "Päivitä lista lähettää muistiinpanon, reseptit, talouden tiedot ja tuodut kuitit ChatGPT:lle. Kirjoittaminen ei lähetä niitä.",
-              "Update list sends your note, recipes, household preferences and imported receipts to ChatGPT. Typing does not send them.",
+              "Päivitä lista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle. Raakakuitit ja muu historia pysyvät paikallisina. Kirjoittaminen ei lähetä tietoja.",
+              "Update list sends your note, relevant recipes and household preferences to ChatGPT. Raw receipts and unrelated history stay local. Typing does not send data.",
             )
           ) : (
             <>

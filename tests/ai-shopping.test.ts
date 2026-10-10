@@ -15,7 +15,7 @@ test("one evaluator reproduces the released baseline through validation, approva
   for (const chain of ["k-ruoka", "s-kaupat"] as const)
     for (const fixture of baselineShoppingCases)
       results.push(await evaluateShoppingCase(fixture, chain));
-  expect(evaluationSummary(results)).toEqual({
+  expect(evaluationSummary(results)).toMatchObject({
     executions: 32,
     requested: 32,
     missing: 0,

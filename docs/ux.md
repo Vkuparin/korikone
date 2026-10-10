@@ -74,9 +74,9 @@ The AI card explains that remaining ChatGPT allowance and reset time are unavail
 
 ## Receipts
 
-Settings offers PDF, TXT and CSV import plus an editable text area. PDF text extraction is local and runs off the main thread. Only future AI note interpretation sends imported text to ChatGPT. Show distinct errors for unreadable/protected files, image-only PDFs needing OCR, and size limits. Import failure preserves all existing receipt text.
+Settings offers PDF, TXT and CSV import plus an editable text area. PDF text extraction is local and runs off the main thread. Shopping-note interpretation never sends imported raw receipt text. Receipt import/paste/save stays local; future optional receipt enrichment has separate consent. Show distinct errors for unreadable/protected files, image-only PDFs needing OCR, and size limits. Import failure preserves all existing receipt text.
 
-Planned v0.7.0 context removes raw receipt text from shopping prompts. Planned v0.9.0 [receipt learning](receipt-learning.md) presents actual parse/accounting stages, printed totals, balance/unknowns and one optional grouped correction entry. Local import remains usable without AI. First import offers a small optional sanitized-label enrichment consent, also changeable in Settings; disclose the selected provider and distinguish one-receipt use from future automatic enrichment. Sanitized evidence is retained by default, originals only by explicit local-retention choice. No receipt correction automatically saves a household preference or changes the shopping list.
+The v0.7.0 compact context implementation removes raw receipt text and unrelated history from shopping prompts; see [the payload and bounds](ai-context.md). Planned v0.9.0 [receipt learning](receipt-learning.md) presents actual parse/accounting stages, printed totals, balance/unknowns and one optional grouped correction entry. Local import remains usable without AI. First import offers a small optional sanitized-label enrichment consent, also changeable in Settings; disclose the selected provider and distinguish one-receipt use from future automatic enrichment. Sanitized evidence is retained by default, originals only by explicit local-retention choice. No receipt correction automatically saves a household preference or changes the shopping list.
 
 ## Visual and interaction checks
 
