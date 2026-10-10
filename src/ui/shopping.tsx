@@ -529,6 +529,11 @@ export function ShoppingWorkspace({
                         {tr("ainesta", "ingredients")}
                         {cost > 0 ? ` · ≈ ${money(cost)}` : ""}
                       </small>
+                      {selected === recipe.name && (
+                        <small className="meal-selection">
+                          {tr("Ainekset korostettu", "Ingredients highlighted")}
+                        </small>
+                      )}
                     </button>
                     <div className="portion-control">
                       <button
@@ -845,7 +850,7 @@ export function ShoppingWorkspace({
                   .sort((a, b) => cost(a) - cost(b))[0];
                 return (
                   <div
-                    className={`grocery-row ${home ? "at-home" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
+                    className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
                     key={key}
                   >
                     <button
@@ -909,12 +914,14 @@ export function ShoppingWorkspace({
                           .filter((s, i, a) => a.indexOf(s) === i)
                           .join(" · ")}
                       </small>
-                      <small>
+                      <small className="row-amount">
                         {r.amount} {unitLabel(r.unit, state.language)}
-                        {!home && !line?.product
-                          ? ` · ${tr("Tuote puuttuu", "Needs a product")}`
-                          : ""}
                       </small>
+                      {!home && !line?.product && (
+                        <small className="warning">
+                          {tr("Tuote puuttuu", "Needs a product")}
+                        </small>
+                      )}
                     </div>
                     <div className="quantity-control">
                       <button
@@ -933,6 +940,14 @@ export function ShoppingWorkspace({
                         −
                       </button>
                       <span>{count}</span>
+                      <small>
+                        {line?.product
+                          ? tr(
+                              count === 1 ? "pakkaus" : "pakkausta",
+                              count === 1 ? "pack" : "packs",
+                            )
+                          : unitLabel(r.unit, state.language)}
+                      </small>
                       <button
                         aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
                         disabled={busy}
@@ -954,7 +969,7 @@ export function ShoppingWorkspace({
                         ? tr("kotona", "at home")
                         : line?.total != null
                           ? money(line.total)
-                          : "—"}
+                          : tr("Hinta puuttuu", "Price unknown")}
                     </strong>
                     <button
                       className="delete-row"

@@ -6,7 +6,7 @@ const catalogue: [
   string,
   number,
   "g" | "ml" | "pcs",
-  number,
+  number | null,
   string?,
 ][] = [
   ["pasta", "Pasta 500 g", 500, "g", 129],
@@ -45,6 +45,27 @@ const catalogue: [
   ["salt", "JOZO 125g suola jodioitu sirotin", 125, "g", 99],
   ["egg", "Kotimaista vapaan kanan munat M10", 10, "pcs", 255, "kananmuna"],
   ["egg-slicer", "House kananmunaleikkuri", 1, "pcs", 550],
+  [
+    "layout-long",
+    "Pitkän tuotenimen paikallinen testituote, jonka koko nimi ja pakkaustiedot pitää voida lukea myös kapeassa ostoslistassa 500 g",
+    500,
+    "g",
+    219,
+  ],
+  [
+    "layout-unknown-pack",
+    "Testituote ilman ilmoitettua pakkauskokoa",
+    0,
+    "g",
+    199,
+  ],
+  [
+    "layout-unknown-price",
+    "Testituote ilman ilmoitettua hintaa 500 g",
+    500,
+    "g",
+    null,
+  ],
 ];
 // The K-Ruoka fixture differs from the S-kaupat one so a comparison has something to show:
 // its mince costs more and it does not stock the salt.
@@ -114,10 +135,12 @@ export class DemoProvider implements StoreProvider {
           packAmount,
           unit,
           price:
-            price +
-            (["demo-s", "s-kaupat"].includes(this.id) ? 10 : 0) +
-            (adjust[id] ?? 0) +
-            (this.priceChange ? 20 : 0),
+            price === null
+              ? null
+              : price +
+                (["demo-s", "s-kaupat"].includes(this.id) ? 10 : 0) +
+                (adjust[id] ?? 0) +
+                (this.priceChange ? 20 : 0),
           available: id !== "carrot",
           deposit: 0,
           nativeUnit: "kpl",

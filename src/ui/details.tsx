@@ -96,7 +96,7 @@ export function RowDetails({
         <ul className="candidates">
           {line.candidates.map((p) => (
             <li className="candidate" key={p.id}>
-              <span>{p.name}</span>
+              <span className="candidate-name">{p.name}</span>
               <small>
                 {p.packAmount
                   ? `${p.packAmount} ${u(p.unit)}`
@@ -182,7 +182,7 @@ function PackSizeForm({
       />
       <select
         value={unit}
-        aria-label={`${t("packSizeAmount")}: ${product.name}`}
+        aria-label={`${t("packSizeUnit")}: ${product.name}`}
         onChange={(event) => setUnit(event.target.value as Unit)}
       >
         {(["g", "ml", "pcs"] as const).map((x) => (

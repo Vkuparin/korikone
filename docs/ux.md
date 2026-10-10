@@ -30,6 +30,8 @@ The list stays on the right on desktop and moves below the note in narrow window
 
 Each row contains a product name (or unresolved ingredient), required amount, source meals, pack quantity when quoted, cost, home marker, remove action and optional replacement picker. All controls have text or accessible labels. Highlighting and selection must not rely solely on color.
 
+Product and meal names wrap in full. Row names use 16 px text; amounts, sources and quantity units use 14 px. Home and remove controls stay visible. Unresolved rows show “Hinta puuttuu” / “Price unknown” rather than a blank price. A selected meal also says its ingredients are highlighted. Product details keep unknown pack sizes and prices visible and prevent selecting unavailable or incomplete candidates; confirming a pack size reprices through the normal saved-list path.
+
 - Plus/minus changes the required quantity by a pack when a quote is available, or a base amount otherwise.
 - “Löytyy kotoa” retains a muted row and excludes it from the total and transfer. Clicking again restores it.
 - Remove hides the row independently from home status.
@@ -74,7 +76,7 @@ For explicit updates and retained quotes, use the [U8 owner-check steps](testing
 
 ## Preserved store and support features
 
-Both retailers remain searchable during setup. Settings lists K-Ruoka and S-kaupat side by side, each with its own sign-in state, remembered store and a *Use this store* action; one is marked active, and switching keeps the other chain signed in. Setup connects one chain. When exactly one chain is signed in, the pinned shopping total offers the other chain and leads to its store selection and sign-in in Settings. Keep S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.
+Both retailers remain searchable during setup. Settings lists K-Ruoka and S-kaupat side by side, each with its own sign-in state, remembered store and a _Use this store_ action; one is marked active, and switching keeps the other chain signed in. Setup connects one chain. When exactly one chain is signed in, the pinned shopping total offers the other chain and leads to its store selection and sign-in in Settings. Keep S-kaupat sign-out and its authenticated handoff. Redacted diagnostic export stays in settings. Household exclusion terms filter products before automatic selection. The basket detail view retains decision reasons, unit prices, surplus and omission. Earlier-week reuse remains available in History alongside the new verified-transfer history.
 
 Development tools and diagnostic export are under Advanced. Forced test launches show a locked development checkbox. Data contains receipt import/paste/save and backup export/restore. Edited receipt text survives category changes and imports; untouched text follows the saved value, and edited text shows an unsaved message.
 
