@@ -44,6 +44,11 @@ body:has(.app-main) nav.settings-navigation {
   font-size: 16px;
   line-height: 1.5;
 }
+.settings-content label,
+.settings-category label,
+.model-control small {
+  font-size: 14px;
+}
 .settings-content button,
 .settings-content input,
 .settings-content select,
@@ -455,6 +460,11 @@ aside > button {
   border-left: 4px solid var(--kk-error);
   padding: 18px 5vw;
   color: var(--kk-error);
+}
+.error .text,
+.demo .text {
+  margin-left: 8px;
+  font-size: 14px;
 }
 .progress {
   padding: 6px 5vw;
@@ -1474,7 +1484,7 @@ body:has(.app-main) > #root > .progress {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 .model-selector > span {
   white-space: nowrap;

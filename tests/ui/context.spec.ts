@@ -255,6 +255,21 @@ test("unavailable fulfillment and adapter errors keep the current selection and 
     await expect(dialog).toHaveCount(0);
     expect((await load()).state.context.storeId).toBe("demo-helsinki");
     expect((await load()).developmentRequests).toBe(0);
+    const beforeSettings = await load();
+    await page.evaluate(() => window.korikone.scenario("context"));
+    await page.getByRole("button", { name: /Vaihda toimitustapaa/ }).click();
+    dialog = page.getByRole("dialog", {
+      name: "Vaihda toimitustapaa",
+      exact: true,
+    });
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await dialog
+      .getByRole("button", { name: "Avaa kauppojen asetukset", exact: true })
+      .click();
+    await expect(page.locator("#settings-section-stores")).toBeFocused();
+    await expect(dialog).toHaveCount(0);
+    expect((await load()).state).toEqual(beforeSettings.state);
+    expect((await load()).basket).toEqual(beforeSettings.basket);
   } finally {
     await app.close();
   }

@@ -117,6 +117,9 @@ export function StorePage({
             {tr("Avaa selaimessa", "Open in browser")}
           </button>
         )}
+        <button className="text" onClick={settings}>
+          {tr("Kauppojen asetukset", "Store settings")}
+        </button>
       </div>
       <p className="muted">
         {tr(

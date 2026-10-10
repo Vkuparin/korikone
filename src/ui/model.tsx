@@ -6,10 +6,16 @@ export function ModelSelector({
   snapshot,
   busy,
   call,
+  settings,
 }: {
   snapshot: Snapshot;
   busy: boolean;
-  call: (method: string, input?: unknown) => Promise<boolean>;
+  call: (
+    method: string,
+    input?: unknown,
+    options?: { preserveError?: boolean },
+  ) => Promise<boolean>;
+  settings?: () => void;
 }) {
   const [error, setError] = useState(false);
   const tr = (fi: string, en: string) =>
@@ -18,7 +24,10 @@ export function ModelSelector({
   const models = snapshot.ai.models;
   const selected = snapshot.state.aiModel;
   useEffect(() => {
-    if (connected) void call("modelsAI").then((ok) => setError(!ok));
+    if (connected)
+      void call("modelsAI", undefined, { preserveError: true }).then((ok) =>
+        setError(!ok),
+      );
   }, [connected]);
   const missing =
     selected !== "auto" && !models.some((model) => model.slug === selected);
@@ -82,6 +91,11 @@ export function ModelSelector({
           onClick={async () => setError(!(await call("modelsAI")))}
         >
           {tr("Hae mallit uudelleen", "Reload models")}
+        </button>
+      )}
+      {settings && (!connected || error || missing || !models.length) && (
+        <button className="text" onClick={settings}>
+          {tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI")}
         </button>
       )}
     </div>

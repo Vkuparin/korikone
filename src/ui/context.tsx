@@ -7,11 +7,13 @@ export function ShoppingContext({
   busy,
   apply,
   setBusy,
+  settings,
 }: {
   snapshot: Snapshot;
   busy: boolean;
   apply: (snapshot: Snapshot) => void;
   setBusy: (busy: boolean) => void;
+  settings: () => void;
 }) {
   const current = snapshot.state.context;
   const fi = snapshot.state.language === "fi";
@@ -301,6 +303,18 @@ export function ShoppingContext({
             </p>
           )}
           {error && <p role="alert">{error}</p>}
+          {error && (
+            <button
+              className="text"
+              disabled={saving}
+              onClick={() => {
+                close();
+                settings();
+              }}
+            >
+              {tr("Avaa kauppojen asetukset", "Open store settings")}
+            </button>
+          )}
           {error && !options && (
             <button
               disabled={pending || saving}

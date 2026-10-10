@@ -21,6 +21,7 @@ export const sectionLabels: Record<SettingsSection, Key> = {
 export function Settings({
   visible,
   activeSection,
+  entry = 0,
   onSectionChange,
   sections,
   t,
@@ -42,7 +43,7 @@ export function Settings({
         heading.getBoundingClientRect().bottom > innerHeight)
     )
       heading.scrollIntoView({ block: "nearest" });
-  }, [visible, activeSection]);
+  }, [visible, activeSection, entry]);
   return (
     <div ref={root} hidden={!visible} className="settings-page">
       <h1>{t("settings")}</h1>

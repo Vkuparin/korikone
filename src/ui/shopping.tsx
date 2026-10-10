@@ -17,6 +17,7 @@ import {
   feeRange,
 } from "./compare";
 import { MealCalendarView } from "./calendar";
+import type { SettingsSection } from "./settings-contract";
 
 export function ShoppingWorkspace({
   snapshot,
@@ -32,7 +33,7 @@ export function ShoppingWorkspace({
   busy: boolean;
   call: (method: string, input?: unknown) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
-  settings: () => void;
+  settings: (section?: SettingsSection) => void;
   staples: () => void;
   openStore: (chain: "k-ruoka" | "s-kaupat") => void;
   view?: "list" | "schedule" | "history";
@@ -372,7 +373,7 @@ export function ShoppingWorkspace({
           />
           <div className="note-footer">
             <div className="note-context">
-              <button className="chip" onClick={settings}>
+              <button className="chip" onClick={() => settings("household")}>
                 {state.household.servings} {tr("henkeä", "people")}
               </button>
               <span className="chip">
@@ -381,11 +382,19 @@ export function ShoppingWorkspace({
                   month: "long",
                 })}
               </span>
-              <button className="chip store-chip" onClick={settings}>
+              <button
+                className="chip store-chip"
+                onClick={() => settings("stores")}
+              >
                 {state.context.storeName}
               </button>
             </div>
-            <ModelSelector snapshot={snapshot} busy={busy} call={call} />
+            <ModelSelector
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              settings={() => settings("ai")}
+            />
             <div className="note-actions">
               <span
                 id="note-update-help"
@@ -475,7 +484,7 @@ export function ShoppingWorkspace({
                   "Connect ChatGPT to turn your note into a list, or add recipes and groceries manually.",
                 )}
               </span>{" "}
-              <button className="text" onClick={settings}>
+              <button className="text" onClick={() => settings("ai")}>
                 {tr("Yhdistä", "Connect")}
               </button>
             </>
@@ -1248,6 +1257,9 @@ export function ShoppingWorkspace({
                 "Tuotteiden ja hintojen haku epäonnistui. Yritä uudelleen.",
                 "Could not retrieve products and prices. Try again.",
               )}
+              <button className="text" onClick={() => settings("stores")}>
+                {tr("Avaa kauppojen asetukset", "Open store settings")}
+              </button>
             </p>
           )}
           {snapshot.quotedAt ? (
@@ -1273,7 +1285,7 @@ export function ShoppingWorkspace({
           ).length === 1 &&
             isLive(state.context.providerId) && (
               <p className="compare-hint">
-                <button className="text" onClick={settings}>
+                <button className="text" onClick={() => settings("stores")}>
                   {tr("Vertaa", "Compare with")}{" "}
                   {snapshot.storeLogins["k-ruoka"] === "signedIn"
                     ? "S-kaupat"

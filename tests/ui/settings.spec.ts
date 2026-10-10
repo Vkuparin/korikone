@@ -3,6 +3,197 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { settingsCategory } from "./settings-helper";
+import { initialState } from "../../src/domain/model";
+
+for (const language of ["fi", "en"] as const) {
+  test(`contextual Settings entries retain errors and reversible saves in ${language}`, async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        (e): e is [string, string] => typeof e[1] === "string",
+      ),
+    );
+    delete env.ELECTRON_RUN_AS_NODE;
+    env.KORIKONE_TEST_DATA = await mkdtemp(
+      join(tmpdir(), "korikone-settings-entry-"),
+    );
+    env.KORIKONE_TEST_HIDDEN = "1";
+    const app = await electron.launch({ args: ["."], env });
+    try {
+      const page = await app.firstWindow();
+      await page.setViewportSize({ width: 800, height: 600 });
+      const state = initialState();
+      state.onboarded = state.setupComplete = true;
+      state.staples = [];
+      state.meals = [];
+      state.extras = [{ id: "coffee", name: "Kahvi", amount: 500, unit: "g" }];
+      state.context = {
+        ...state.context,
+        providerId: "k-ruoka",
+        storeName: "K-Ruoka fixture",
+      };
+      await page.evaluate(
+        async ({ state, language }) => {
+          await window.korikone.save(state);
+          await window.korikone.setLanguage(language);
+        },
+        { state, language },
+      );
+      await page.reload();
+      const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+      const nav = (name: string) =>
+        page
+          .getByRole("navigation")
+          .first()
+          .getByRole("button", { name, exact: true });
+      const note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      await note.fill("Retained contextual note");
+      const heading = (section: string) =>
+        page.locator(`#settings-section-${section}`);
+      await page
+        .getByRole("button", {
+          name: `4 ${tr("henkeä", "people")}`,
+          exact: true,
+        })
+        .click();
+      await expect(heading("household")).toBeFocused();
+      const budget = page.getByLabel(
+        tr("Viikkobudjetti (€)", "Weekly budget (€)"),
+      );
+      await budget.fill("123.45");
+      await nav(tr("Ostoslista", "Shopping list")).click();
+      await page.locator(".store-chip").click();
+      await expect(heading("stores")).toBeFocused();
+      await nav(tr("Ostoslista", "Shopping list")).click();
+      await expect(note).toHaveValue("Retained contextual note");
+      await page
+        .getByRole("button", {
+          name: tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI"),
+          exact: true,
+        })
+        .click();
+      await expect(heading("ai")).toBeFocused();
+      await page
+        .getByRole("button", { name: "Continue with ChatGPT", exact: true })
+        .click();
+      await expect
+        .poll(
+          async () =>
+            (await page.evaluate(() => window.korikone.load())).value.ai.state,
+        )
+        .toBe("connected");
+      await nav(tr("Ostoslista", "Shopping list")).click();
+      await note.fill("Makaronilaatikko");
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedFailure"),
+      );
+      await note.press("Control+Enter");
+      const error = page.locator("#root > .error");
+      await expect(error).toContainText(
+        tr(
+          "ChatGPT-pyyntö epäonnistui",
+          "ChatGPT could not complete the request",
+        ),
+      );
+      const originalError = await error.innerText();
+      await error
+        .getByRole("button", {
+          name: tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI"),
+          exact: true,
+        })
+        .click();
+      await expect(heading("ai")).toBeFocused();
+      await expect(page.locator(".progress")).toHaveCount(0);
+      await expect(error).toHaveText(originalError);
+      await nav(tr("Ostoslista", "Shopping list")).click();
+      await page
+        .getByRole("button", {
+          name: `4 ${tr("henkeä", "people")}`,
+          exact: true,
+        })
+        .click();
+      await expect(heading("household")).toBeFocused();
+      await expect(budget).toHaveValue("123.45");
+      expect(
+        await budget
+          .locator("xpath=ancestor::label")
+          .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+      ).toBeGreaterThanOrEqual(14);
+      expect(
+        await budget.evaluate((el) =>
+          parseFloat(getComputedStyle(el).fontSize),
+        ),
+      ).toBeGreaterThanOrEqual(16);
+      const save = budget
+        .locator("xpath=ancestor::form")
+        .getByRole("button", { name: tr("Tallenna", "Save"), exact: true });
+      await budget.fill("-1");
+      await save.click();
+      await expect(error).toBeVisible();
+      await expect(budget).toHaveValue("-1");
+      await error
+        .getByRole("button", {
+          name: tr("Avaa Kotitalous", "Open Household"),
+          exact: true,
+        })
+        .click();
+      await expect(heading("household")).toBeFocused();
+      await budget.fill("123.45");
+      await save.click();
+      await expect(error).toHaveCount(0);
+      await expect
+        .poll(
+          async () =>
+            (await page.evaluate(() => window.korikone.load())).value.state
+              .household.budget,
+        )
+        .toBe(12345);
+      await expect(save).toBeEnabled();
+      await expect(
+        save.locator("xpath=ancestor::form").getByRole("status"),
+      ).toHaveCount(0);
+      await budget.fill(String(state.household.budget / 100));
+      await save.click();
+      await expect
+        .poll(
+          async () =>
+            (await page.evaluate(() => window.korikone.load())).value.state
+              .household.budget,
+        )
+        .toBe(state.household.budget);
+      await expect(save).toBeEnabled();
+      await page.getByTestId("development-banner").getByRole("button").click();
+      await expect(heading("advanced")).toBeFocused();
+      await expect(
+        page.getByLabel(tr("Kehitystila", "Development mode"), { exact: true }),
+      ).toBeDisabled();
+      await nav(tr("Kauppa", "Store")).click();
+      await page
+        .getByRole("button", {
+          name: tr("Kauppojen asetukset", "Store settings"),
+          exact: true,
+        })
+        .click();
+      await expect(heading("stores")).toBeFocused();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.locator(".settings-page").screenshot({
+        path: `test-results/settings-entry-${language}-800.png`,
+      });
+      const result = (await page.evaluate(() => window.korikone.load())).value;
+      expect(result.state.extras).toEqual(state.extras);
+      expect(result.state.meals).toEqual([]);
+      expect(result.state.household).toEqual(state.household);
+      expect(result.developmentRequests).toBe(1);
+    } finally {
+      await app.close();
+    }
+  });
+}
 
 for (const language of ["fi", "en"] as const) {
   test(`Settings categories retain drafts, focus and real saves in ${language}`, async () => {

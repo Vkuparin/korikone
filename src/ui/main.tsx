@@ -27,6 +27,7 @@ import {
   GeneralSettings,
   HouseholdSettings,
   AboutSettings,
+  sectionLabels,
 } from "./settings";
 import type {
   SettingsSection,
@@ -107,11 +108,16 @@ function App() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorSettings, setErrorSettings] = useState<SettingsSection | null>(
+    null,
+  );
   const [appVersion, setAppVersion] = useState("");
   const [developmentLocked, setDevelopmentLocked] = useState(false);
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("general");
+  const [settingsEntry, setSettingsEntry] = useState(0);
   function openSettings(section: SettingsSection = "general") {
+    setSettingsEntry((current) => current + 1);
     setSettingsSection(section);
     setPage("settings");
   }
@@ -129,7 +135,11 @@ function App() {
       style: "currency",
       currency: "EUR",
     }).format(cents / 100);
-  async function call(method: string, input?: unknown) {
+  async function call(
+    method: string,
+    input?: unknown,
+    options?: { preserveError?: boolean },
+  ) {
     if (method === "setAppearance") {
       try {
         const result = await window.korikone.setAppearance(input);
@@ -148,7 +158,10 @@ function App() {
       }
     }
     setBusy(true);
-    setError("");
+    if (!options?.preserveError) {
+      setError("");
+      setErrorSettings(null);
+    }
     try {
       const result = await window.korikone[method](input);
       if (method === "generate" || method === "importRecipe")
@@ -184,7 +197,41 @@ function App() {
       return true;
     } catch (e) {
       const code = e instanceof Error ? e.message : "operationFailed";
-      setError(code);
+      setError((current) =>
+        options?.preserveError && current ? current : code,
+      );
+      const target: SettingsSection | null =
+        /AI$/.test(method) ||
+        ["generate", "importRecipe", "openAIUsage"].includes(method)
+          ? "ai"
+          : [
+                "buildBasket",
+                "transferDisplayed",
+                "prepare",
+                "execute",
+                "recover",
+                "openStoreCart",
+                "searchStores",
+                "selectStore",
+                "signInStore",
+                "signOutStore",
+              ].includes(method)
+            ? "stores"
+            : [
+                  "exportDiagnostics",
+                  "setDevelopmentMode",
+                  "developmentScenario",
+                  "restartSetup",
+                ].includes(method)
+              ? "advanced"
+              : ["importReceipt", "importData", "exportData"].includes(method)
+                ? "data"
+                : page === "settings"
+                  ? settingsSection
+                  : null;
+      setErrorSettings((current) =>
+        options?.preserveError && current ? current : target,
+      );
       // The code and the view go to the local error log for the diagnostic export.
       if (method !== "recordError")
         void window.korikone.recordError({ code, view: page }).catch(() => {});
@@ -338,7 +385,13 @@ function App() {
       </header>
       {snapshot.developmentMode && (
         <div className="demo" data-testid="development-banner">
-          {t("developmentMode")}
+          {state.onboarded && state.setupComplete ? (
+            <button className="text" onClick={() => openSettings("advanced")}>
+              {t("developmentMode")}
+            </button>
+          ) : (
+            t("developmentMode")
+          )}
         </div>
       )}
       <div className="demo">
@@ -359,6 +412,15 @@ function App() {
       {error && (
         <div role="alert" className="error">
           {t(error in en ? (error as Key) : "operationFailed")}
+          {errorSettings && state.onboarded && state.setupComplete && (
+            <button
+              className="text"
+              onClick={() => openSettings(errorSettings)}
+            >
+              {state.language === "fi" ? "Avaa" : "Open"}{" "}
+              {t(sectionLabels[errorSettings])}
+            </button>
+          )}
         </div>
       )}
       {busy && (
@@ -521,6 +583,7 @@ function App() {
           </nav>
           <main className="app-main">
             <ShoppingContext
+              settings={() => openSettings("stores")}
               snapshot={snapshot}
               busy={busy}
               setBusy={setBusy}
@@ -542,7 +605,7 @@ function App() {
                 busy={busy}
                 call={call}
                 save={save}
-                settings={() => setPage("settings")}
+                settings={openSettings}
                 staples={() => setPage("staples")}
                 openStore={(chain) => {
                   setStoreChain(chain);
@@ -562,7 +625,7 @@ function App() {
                 snapshot={snapshot}
                 chain={storeChain}
                 setChain={setStoreChain}
-                settings={() => setPage("settings")}
+                settings={() => openSettings("stores")}
               />
             )}
             {page === "recipes" && (
@@ -791,6 +854,7 @@ function App() {
               </>
             )}
             <Settings
+              entry={settingsEntry}
               visible={page === "settings"}
               activeSection={settingsSection}
               onSectionChange={setSettingsSection}

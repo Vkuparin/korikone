@@ -18,6 +18,7 @@ export type SettingsSection = (typeof settingsSections)[number];
 export type SettingsProps = {
   visible: boolean;
   activeSection: SettingsSection;
+  entry?: number;
   onSectionChange: (section: SettingsSection) => void;
   sections: Record<SettingsSection, ReactNode>;
   t: (key: Key) => string;
