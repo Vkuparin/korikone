@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appearanceSchema } from "./appearance";
 
 export const unitSchema = z.enum(["g", "ml", "pcs"]);
 export type Unit = z.infer<typeof unitSchema>;
@@ -38,6 +39,7 @@ export const stateSchema = z
   .object({
     version: z.literal(1),
     language: z.enum(["fi", "en"]),
+    appearance: appearanceSchema.default("system"),
     onboarded: z.boolean(),
     setupComplete: z.boolean().default(true),
     household: z.object({

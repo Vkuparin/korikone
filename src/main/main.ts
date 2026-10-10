@@ -7,6 +7,7 @@ import {
   shell,
   clipboard,
   net,
+  nativeTheme,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -18,6 +19,7 @@ import { chooseModel } from "../ai/models";
 import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
 import { stateSchema } from "../domain/model";
+import { appearanceBootstrap } from "../domain/appearance";
 import { z } from "zod";
 import { SKaupatHost } from "./s-kaupat-host";
 import { KRuokaProvider } from "../stores/k-ruoka";
@@ -196,15 +198,29 @@ else
     };
     let updateChecked: Promise<void> | null = null;
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
+    // Service initialization above loads the saved preference before any window exists.
+    const getAppearanceBootstrap = () =>
+      appearanceBootstrap(
+        service.state.appearance,
+        nativeTheme.shouldUseDarkColors,
+      );
+    const initialAppearance = getAppearanceBootstrap();
+    const initialBackground =
+      initialAppearance.resolved === "dark" ? "#141c18" : "#f3f6f3";
     const window = new BrowserWindow({
       show: process.env.KORIKONE_TEST_HIDDEN !== "1",
       width: 1280,
       height: 900,
       minWidth: 680,
       minHeight: 600,
-      backgroundColor: "#f3f6f3",
+      backgroundColor: initialBackground,
       titleBarStyle: "hidden",
-      titleBarOverlay: { color: "#f3f6f3", symbolColor: "#30483b", height: 38 },
+      titleBarOverlay: {
+        color: initialBackground,
+        symbolColor:
+          initialAppearance.resolved === "dark" ? "#edf5ef" : "#203b2e",
+        height: 38,
+      },
       webPreferences: {
         backgroundThrottling: process.env.KORIKONE_TEST_HIDDEN !== "1",
         preload: fileURLToPath(new URL("./preload.cjs", import.meta.url)),
@@ -212,6 +228,14 @@ else
         nodeIntegration: false,
         sandbox: true,
       },
+    });
+    // This narrow synchronous read is for a blocking head bootstrap, before CSS/React paint.
+    ipcMain.on("app:appearanceBootstrap", (event) => {
+      event.returnValue =
+        event.sender === window.webContents &&
+        event.senderFrame === window.webContents.mainFrame
+          ? getAppearanceBootstrap()
+          : null;
     });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
@@ -355,6 +379,7 @@ else
         });
       },
       setLanguage: (input) => service.setLanguage(input),
+      setAppearance: (input) => service.setAppearance(input),
       setAIModel: (input) => service.setAIModel(input),
       cancelTransfer: async () => {
         service.controller?.abort();
@@ -770,6 +795,7 @@ else
         try {
           if (
             name === "setLanguage" ||
+            name === "setAppearance" ||
             name === "cancelTransfer" ||
             name === "cancelAI" ||
             name === "storeView" ||

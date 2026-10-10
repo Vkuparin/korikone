@@ -44,6 +44,7 @@ import { DemoProvider } from "../stores/demo";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/chatgpt";
 import type { MealDraft } from "../ai/draft";
+import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
 export interface Storage {
   get(key: string): Promise<any>;
@@ -127,6 +128,15 @@ export class Service {
     const aiModel = z.string().min(1).max(200).parse(input);
     return this.writeState(async () => {
       const next = { ...this.state, aiModel };
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
+  }
+  async setAppearance(input: unknown) {
+    const appearance = appearanceSchema.parse(input);
+    return this.writeState(async () => {
+      const next = { ...this.state, appearance };
       await this.db.set("state", next);
       this.state = next;
       return this.snapshot();
@@ -275,6 +285,7 @@ export class Service {
         language: next.language,
         calendar: next.calendar,
         aiModel: next.aiModel,
+        appearance: next.appearance,
       };
       const changed =
         JSON.stringify(previousShoppingState) !== JSON.stringify(next);

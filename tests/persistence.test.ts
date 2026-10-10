@@ -16,6 +16,105 @@ import {
 import { stateSchema, initialState, type Product } from "../src/domain/model";
 
 const workerURL = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
+test("appearance defaults old profiles to System and survives save, restart and backup in every mode", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-appearance-"));
+  const path = join(directory, "saved.sqlite");
+  let database = new Database(path, workerURL);
+  try {
+    const { appearance: _appearance, ...legacy } = initialState();
+    await database.set("state", legacy);
+    let service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    expect(service.state.appearance).toBe("system");
+    expect(stateSchema.parse(legacy).appearance).toBe("system");
+    for (const appearance of ["dark", "light", "system"] as const) {
+      const revision = service.state.revision;
+      await service.save({ ...service.state, appearance });
+      expect(service.state.revision).toBe(revision);
+      const backup = JSON.parse(JSON.stringify(await service.exportBackup()));
+      await database.close();
+      database = new Database(path, workerURL);
+      service = new Service(database);
+      service.developmentMode = true;
+      await service.init();
+      expect(service.state.appearance).toBe(appearance);
+      await service.setAppearance(appearance === "light" ? "dark" : "light");
+      await service.importBackup(backup);
+      expect(service.state.appearance).toBe(appearance);
+      expect((await database.get("state")).appearance).toBe(appearance);
+    }
+  } finally {
+    await database.close();
+  }
+});
+
+test("invalid appearance values leave the saved profile and backup state intact", async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), "korikone-appearance-invalid-"),
+  );
+  const database = new Database(join(directory, "saved.sqlite"), workerURL);
+  try {
+    const service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    await service.setAppearance("dark");
+    const before = structuredClone(service.state);
+    for (const appearance of ["sepia", "Dark", "", null, false, 1, {}]) {
+      await expect(
+        service.save({ ...service.state, appearance }),
+      ).rejects.toThrow();
+      await expect(service.setAppearance(appearance)).rejects.toThrow();
+      await expect(
+        service.importBackup({ ...service.state, appearance }),
+      ).rejects.toThrow();
+      expect(service.state).toEqual(before);
+      expect(await database.get("state")).toEqual(before);
+    }
+  } finally {
+    await database.close();
+  }
+});
+
+test("appearance preference changes preserve the priced list, approval and revision", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-appearance-list-"));
+  const database = new Database(join(directory, "saved.sqlite"), workerURL);
+  try {
+    const service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    await service.save({
+      ...service.state,
+      meals: [
+        {
+          id: "meal",
+          recipeId: "pasta",
+          day: 0,
+          servings: 4,
+          leftovers: false,
+        },
+      ],
+    });
+    await service.buildBasket();
+    await service.prepare();
+    const before = service.snapshot();
+    await service.save({ ...service.state, appearance: "dark" });
+    expect(service.basket).toBe(before.basket);
+    expect(service.review).toBe(before.review);
+    expect(service.quotedAt).toBe(before.quotedAt);
+    expect(service.state.revision).toBe(before.state.revision);
+    // Preference writes can run while planning is busy, without replacing its state.
+    service.busy = true;
+    await service.setAppearance("light");
+    expect(service.state.appearance).toBe("light");
+    expect(service.basket).toBe(before.basket);
+    expect(service.review).toBe(before.review);
+    expect(service.state.revision).toBe(before.state.revision);
+  } finally {
+    await database.close();
+  }
+});
+
 test("model preference migrates and survives SQLite and backup restore", async () => {
   const directory = await mkdtemp(join(tmpdir(), "korikone-model-backup-"));
   const path = join(directory, "saved.sqlite");

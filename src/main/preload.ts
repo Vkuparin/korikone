@@ -9,6 +9,7 @@ const methods = [
   "importReceipt",
   "save",
   "setLanguage",
+  "setAppearance",
   "setAIModel",
   "cancelTransfer",
   "buildBasket",
@@ -50,12 +51,12 @@ const methods = [
   "newWeek",
   "reuseWeek",
 ] as const;
-contextBridge.exposeInMainWorld(
-  "korikone",
-  Object.fromEntries(
+contextBridge.exposeInMainWorld("korikone", {
+  ...Object.fromEntries(
     methods.map((method) => [
       method,
       (input: unknown) => ipcRenderer.invoke(`app:${method}`, input),
     ]),
   ),
-);
+  getAppearanceBootstrap: () => ipcRenderer.sendSync("app:appearanceBootstrap"),
+});

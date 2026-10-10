@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
+import type { AppearanceBootstrap } from "../domain/appearance";
 import {
   initialState,
   parseAmount,
@@ -26,6 +27,7 @@ declare global {
         input?: unknown,
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
     > & {
+      getAppearanceBootstrap: () => AppearanceBootstrap;
       getAppInfo: () => Promise<{
         ok: boolean;
         value: { version: string };
