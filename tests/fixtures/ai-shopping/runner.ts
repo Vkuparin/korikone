@@ -1,8 +1,8 @@
 import { interpretShopping } from "../../../src/ai/output";
 import { InferenceError, InferenceSession } from "../../../src/ai/provider";
 import { buildCompactContext } from "../../../src/ai/context";
-import type { BasketLine, Product } from "../../../src/domain/model";
-import { relevant, requirements } from "../../../src/domain/planner";
+import { requirements } from "../../../src/domain/planner";
+import { unresolvedReason as reason } from "../../../src/application/metrics";
 import { ScriptedInferenceProvider } from "../../helpers/inference";
 import { createFixtureService, type FixtureChain } from "./environment";
 import {
@@ -13,21 +13,6 @@ import {
 } from "./schema";
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase("fi");
-function reason(line: BasketLine, products: Product[]): UnresolvedReason {
-  if (!products.length) return "empty-search";
-  const available = products.filter((p) => p.available);
-  if (!available.length) return "stock";
-  if (available.every((p) => p.packAmount === 0)) return "pack";
-  const compatible = available.filter((p) => p.unit === line.requirement.unit);
-  if (!compatible.length) return "unit";
-  const packed = compatible.filter((p) => p.packAmount > 0);
-  if (!packed.length) return "pack";
-  const priced = packed.filter((p) => p.price !== null);
-  if (!priced.length) return "price";
-  if (!priced.some((p) => relevant(p.name, line.requirement.name)))
-    return "suitability";
-  return "ranking";
-}
 
 /** Real draft validation, approval, persistence and both adapters; no IPC handler replacement. */
 export async function evaluateShoppingCase(
@@ -62,10 +47,17 @@ export async function evaluateShoppingCase(
   );
   let failure: UnresolvedReason | undefined;
   try {
-    service.draft = await interpretShopping(
-      session,
-      fixture.note,
-      service.state,
+    service.draft = await service.measureOperation(
+      "interpretation",
+      async (metrics) => {
+        try {
+          return await interpretShopping(session, fixture.note, service.state);
+        } finally {
+          metrics.aiCalls = session.callCount;
+          metrics.repairCalls = Math.max(0, session.callCount - 1);
+          metrics.payloadCharacters = session.payloadCharacters;
+        }
+      },
     );
     service.draftRevision = service.state.revision;
     service.draftNote = fixture.note;
@@ -88,6 +80,7 @@ export async function evaluateShoppingCase(
             : "invalid-output";
   }
   const result: EvaluationResult = {
+    operationMetrics: await service.operationMetrics(),
     id: fixture.id,
     chain,
     requested: fixture.expected.length,

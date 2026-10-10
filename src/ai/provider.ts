@@ -145,6 +145,10 @@ export type InferenceBounds = {
 export class InferenceSession {
   readonly model: Readonly<InferenceModel>;
   private calls = 0;
+  private payloadSize = 0;
+  get payloadCharacters() {
+    return this.payloadSize;
+  }
   private inFlight = false;
   private stopped = false;
   private readonly bounds: InferenceBounds;
@@ -205,6 +209,7 @@ export class InferenceSession {
       throw new InferenceError("invalidOutput");
 
     this.calls++;
+    this.payloadSize += prompt.length;
     this.inFlight = true;
     const controller = new AbortController();
     let streamedCharacters = 0;
