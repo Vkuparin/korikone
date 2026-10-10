@@ -59,7 +59,22 @@ U14.2 will establish these `--kk-*` variables in `src/ui/style.css`, scoped to t
 | `--kk-error`      | `#ae303b` | `#ffb3ba` | Failure text                                                                        |
 | `--kk-error-bg`   | `#fff0f1` | `#3b2227` | Failure surface                                                                     |
 
-U14.2 measures actual text and focus contrast after migration: normal text ≥4.5:1, large text ≥3:1, focus against adjacent surfaces ≥3:1. Do not treat the proposal as completed app contrast verification. Existing controls with transparent backgrounds must be checked against their actual parent surface.
+U14.2 migrated all literal component colours in `src/ui/style.css` to these roles. `:root[data-theme="dark"]` selects the resolved dark palette; U15.2 supplies production mode selection. The preference is separate from palette values. Later palette changes edit the two variable blocks, without component changes. Added `--kk-control-border` (`#76877c` / `#82998b`) for input/menu boundaries, plus control/menu/footer shadow and pulse roles. Retailer WebContentsViews have separate styles and receive no injection.
+
+The focused `tests/ui/palette.spec.ts` checks text on app/card/selected surfaces, primary actions, warning/error/success roles and keyboard outlines, plus actual list/menu computed styles. It captures real Shopping and Settings at both sizes in `design/0.6.0/screens/app-*.png`. Local fixtures generate the initial basket; palette changes and navigation add zero AI or catalogue requests. Layout and tiny row typography still belong to U14.3–U14.5.
+
+| Contrast pair                  | Light   | Dark    |
+| ------------------------------ | ------- | ------- |
+| Main text / card               | 12.16:1 | 13.27:1 |
+| Secondary text / card          | 6.16:1  | 8.21:1  |
+| Primary action text / action   | 7.13:1  | 8.97:1  |
+| Focus / card                   | 5.46:1  | 8.06:1  |
+| Focus / app background         | 5.02:1  | 9.50:1  |
+| Warning text / warning surface | 6.12:1  | 8.30:1  |
+| Error text / error surface     | 5.78:1  | 8.59:1  |
+| Control border / card          | 3.80:1  | 4.83:1  |
+
+Ratios use sRGB relative luminance. Normal text passes ≥4.5:1; focus and control boundaries pass ≥3:1. Transparent controls were checked against app/card/selected parent surfaces. Disabled controls and at-home de-emphasis retain existing behavior; later keyboard/layout acceptance remains U14.7.
 
 ## Component boundaries for follow-up cards
 
