@@ -46,6 +46,9 @@ export function ShoppingWorkspace({
   const [working, setWorking] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [updateFailed, setUpdateFailed] = useState(false);
+  const noteElement = useRef<HTMLTextAreaElement>(null);
+  const requestInFlight = useRef(false);
   const stopRequested = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -97,7 +100,7 @@ export function ShoppingWorkspace({
   useEffect(() => {
     active.current = true;
     const stop = () => {
-      if (!running.current) return;
+      if (!running.current || !requestInFlight.current) return;
       stopRequested.current = true;
       setCancelled(true);
     };
@@ -117,6 +120,7 @@ export function ShoppingWorkspace({
   }, [state.note]);
   const changeNote = (value: string) => {
     setCancelled(false);
+    setUpdateFailed(false);
     sessionStorage.setItem("shopping-note", value);
     currentNote.current = value;
     setNote(value);
@@ -133,8 +137,10 @@ export function ShoppingWorkspace({
     running.current = true;
     stopRequested.current = false;
     setCancelled(false);
+    setUpdateFailed(false);
     setWorking(true);
     setRequesting(true);
+    requestInFlight.current = true;
     try {
       const generated = await call("generate", {
         prompt: requested,
@@ -142,6 +148,7 @@ export function ShoppingWorkspace({
         consent: true,
       });
       setRequesting(false);
+      requestInFlight.current = false;
       if (generated) {
         if (
           !stopRequested.current &&
@@ -149,9 +156,11 @@ export function ShoppingWorkspace({
           currentNote.current === requested
         )
           await call("approveDraft");
-      }
+      } else if (!stopRequested.current && active.current)
+        setUpdateFailed(true);
     } finally {
       running.current = false;
+      requestInFlight.current = false;
       if (active.current) {
         setWorking(false);
         setRequesting(false);
@@ -340,6 +349,7 @@ export function ShoppingWorkspace({
             {tr("Mitä haluaisit valmistaa?", "What would you like to cook?")}
           </label>
           <textarea
+            ref={noteElement}
             id="shopping-note"
             aria-describedby={
               note !== state.note
@@ -377,15 +387,35 @@ export function ShoppingWorkspace({
             </div>
             <ModelSelector snapshot={snapshot} busy={busy} call={call} />
             <div className="note-actions">
-              <span id="note-update-help" className="note-status" role="status">
+              <span
+                id="note-update-help"
+                className="note-status"
+                role="status"
+                aria-atomic="true"
+              >
                 {working
-                  ? tr("Muodostetaan listaa…", "Building your list…")
+                  ? cancelled
+                    ? tr(
+                        "Peruutetaan listan päivitystä…",
+                        "Cancelling list update…",
+                      )
+                    : requesting
+                      ? tr("Muodostetaan listaa…", "Building your list…")
+                      : tr(
+                          "Tallennetaan ja hinnoitellaan listaa…",
+                          "Saving and pricing your list…",
+                        )
                   : cancelled
                     ? tr("Listan päivitys peruutettu", "List update cancelled")
-                    : tr(
-                        "Ctrl + Enter päivittää listan",
-                        "Ctrl + Enter to update the list",
-                      )}
+                    : updateFailed
+                      ? tr(
+                          "Listan muodostaminen epäonnistui. Tarkista virheilmoitus.",
+                          "Could not build the list. Check the error message.",
+                        )
+                      : tr(
+                          "Ctrl + Enter päivittää listan",
+                          "Ctrl + Enter to update the list",
+                        )}
               </span>
               {requesting && (
                 <button
@@ -393,6 +423,7 @@ export function ShoppingWorkspace({
                   onClick={() => {
                     window.dispatchEvent(new Event("korikone:cancel-ai"));
                     void call("cancelAI");
+                    noteElement.current?.focus({ preventScroll: true });
                   }}
                   disabled={cancelled}
                 >
@@ -407,7 +438,10 @@ export function ShoppingWorkspace({
                   !note.trim() ||
                   snapshot.ai.state !== "connected"
                 }
-                onClick={() => void update()}
+                onClick={() => {
+                  noteElement.current?.focus({ preventScroll: true });
+                  void update();
+                }}
               >
                 {tr("Päivitä lista", "Update list")}
               </button>
@@ -690,6 +724,14 @@ export function ShoppingWorkspace({
       </section>
       <aside className="shopping-panel" ref={panel}>
         <div className="shopping-rows">
+          {working && (
+            <p className="saved-list-status">
+              {tr(
+                "Tallennettu lista näkyy päivityksen ajan. Hinnat ovat edellisestä hausta.",
+                "Your saved list stays visible during the update. Prices are from the previous lookup.",
+              )}
+            </p>
+          )}
           <div className="section-heading compact">
             <h2>
               {tr("Ostoslista", "Shopping list")}{" "}

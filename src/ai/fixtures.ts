@@ -87,8 +87,12 @@ export class FixtureAI {
       (this.scenario === "invalidOnce" && this.calls === 1)
     )
       return "{invalid";
-    if (this.scenario === "delayedSuccess")
+    if (
+      this.scenario === "delayedSuccess" ||
+      this.scenario === "delayedFailure"
+    )
       await delay(2500, undefined, { signal });
+    if (this.scenario === "delayedFailure") throw new Error("aiFailed");
     if (
       this.scenario !== "success" &&
       this.scenario !== "delayedSuccess" &&

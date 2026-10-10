@@ -77,11 +77,13 @@ test("AI fixtures cover valid responses and failure cases without a network requ
         ).toHaveLength(3);
       } else
         await expect(ai.generate("auto", prompt)).rejects.toThrow(
-          scenario === "noSmallModel"
-            ? "modelSelectionRequired"
-            : scenario === "emptyModels" || scenario === "modelsFailed"
-              ? "modelsUnavailable"
-              : scenario,
+          scenario === "delayedFailure"
+            ? "aiFailed"
+            : scenario === "noSmallModel"
+              ? "modelSelectionRequired"
+              : scenario === "emptyModels" || scenario === "modelsFailed"
+                ? "modelsUnavailable"
+                : scenario,
         );
     }
     await ai.signOut();

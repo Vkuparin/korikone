@@ -570,3 +570,114 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await app.close();
   }
 });
+
+for (const language of ["fi", "en"] as const) {
+  test(`update lifecycle preserves the saved list and focus in ${language}`, async () => {
+    const app = await launch();
+    try {
+      const page = await app.firstWindow();
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.setViewportSize({ width: 800, height: 600 });
+      const state = initialState();
+      state.onboarded = state.setupComplete = true;
+      state.staples = [];
+      state.meals = [];
+      state.extras = [{ id: "coffee", name: "Kahvi", amount: 500, unit: "g" }];
+      await page.evaluate(
+        async ({ state, language }) => {
+          await window.korikone.save(state);
+          await window.korikone.setLanguage(language);
+          await window.korikone.signInAI();
+          await window.korikone.setAppearance("dark");
+        },
+        { state, language },
+      );
+      await page.reload();
+      const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+      const note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      const status = page.locator("#note-update-help");
+      const load = () =>
+        page
+          .evaluate(() => window.korikone.load())
+          .then((result) => result.value);
+      const baseline = await load();
+      await note.fill("Makaronilaatikko");
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedSuccess"),
+      );
+      await note.press("Control+Enter");
+      await expect(status).toHaveText(
+        tr("Muodostetaan listaa…", "Building your list…"),
+        { timeout: 1000 },
+      );
+      await expect(page.locator(".saved-list-status")).toBeVisible();
+      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      await expect(note).toBeFocused();
+      expect(
+        await page
+          .locator(".note-box")
+          .evaluate((el) => getComputedStyle(el).animationName),
+      ).toBe("none");
+      expect((await load()).state).toEqual(baseline.state);
+      const cancel = page.locator(".note-actions").getByRole("button", {
+        name: tr("Peruuta listan päivitys", "Cancel list update"),
+        exact: true,
+      });
+      await cancel.focus();
+      await page.keyboard.press("Enter");
+      await expect(status).toHaveText(
+        tr("Listan päivitys peruutettu", "List update cancelled"),
+      );
+      await expect(note).toBeFocused();
+      await expect(note).toHaveValue("Makaronilaatikko");
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      expect((await load()).state).toEqual(baseline.state);
+      expect((await load()).basket).toEqual(baseline.basket);
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedFailure"),
+      );
+      await note.press("Control+Enter");
+      await expect(status).toHaveText(
+        tr("Muodostetaan listaa…", "Building your list…"),
+        { timeout: 1000 },
+      );
+      await expect(status).toHaveText(
+        tr(
+          "Listan muodostaminen epäonnistui. Tarkista virheilmoitus.",
+          "Could not build the list. Check the error message.",
+        ),
+      );
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(note).toBeFocused();
+      expect((await load()).state).toEqual(baseline.state);
+      expect((await load()).basket).toEqual(baseline.basket);
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedSuccess"),
+      );
+      await page
+        .getByRole("button", {
+          name: tr("Päivitä lista", "Update list"),
+          exact: true,
+        })
+        .click();
+      await expect(status).toHaveText(
+        tr("Muodostetaan listaa…", "Building your list…"),
+        { timeout: 1000 },
+      );
+      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      await expect(page.locator(".note-box")).not.toHaveClass(/is-working/, {
+        timeout: 10000,
+      });
+      await expect(page.locator(".grocery-row")).toHaveCount(7);
+      await expect(note).toBeFocused();
+      await expect(note).toHaveValue("Makaronilaatikko");
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      expect((await load()).state.note).toBe("Makaronilaatikko");
+      expect((await load()).developmentRequests).toBe(1);
+    } finally {
+      await app.close();
+    }
+  });
+}
