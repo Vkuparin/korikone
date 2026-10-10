@@ -68,6 +68,12 @@ import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote } from "./quotes";
 import { PlanningLifecycle } from "./planning";
+import {
+  coordinatePlanning,
+  planningRequestSchema,
+  type PlanningDependencies,
+  type PlanningResult,
+} from "./coordinator";
 export interface Storage {
   get(key: string): Promise<any>;
   set(key: string, value: unknown): Promise<any>;
@@ -155,6 +161,77 @@ export class Service {
   developmentAIProvider: string | null = null;
   state = initialState();
   planning = new PlanningLifecycle(() => this.state);
+  private readyPlanning: PlanningResult | null = null;
+  async planShopping(
+    input: unknown,
+    session: PlanningDependencies["session"],
+    resolverEnabled = true,
+  ) {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const request = planningRequestSchema.parse(input);
+    const run = this.planning.start(request.prompt);
+    this.readyPlanning = null;
+    this.draft = null;
+    this.draftRevision = null;
+    return this.measureOperation("planning", async (metrics) => {
+      const inference: {
+        session: Awaited<ReturnType<PlanningDependencies["session"]>> | null;
+      } = { session: null };
+      let resolverBase: number | null = null;
+      try {
+        const result = await coordinatePlanning(run, {
+          session: async (operation) => {
+            inference.session = await session(operation);
+            return inference.session;
+          },
+          provider: this.registry.get(run.sourceState().context.providerId),
+          resolverEnabled,
+          onResolverStart: (calls) => {
+            resolverBase = calls;
+          },
+        });
+        run.assertCurrent();
+        this.readyPlanning = structuredClone(result);
+        for (const line of result.lines) {
+          if (!line.product || line.total === null) {
+            const reason = unresolvedReason(line, line.candidates);
+            metrics.unresolved[reason] = (metrics.unresolved[reason] ?? 0) + 1;
+          }
+        }
+        const missingRequests = result.intents.filter(
+          (intent) => intent.intent.unresolvedReason !== null,
+        ).length;
+        if (missingRequests)
+          metrics.unresolved["missing-request"] = missingRequests;
+        return this.snapshot();
+      } catch (error) {
+        run.fail(error);
+        throw error;
+      } finally {
+        const preview = run.snapshot();
+        metrics.aiCalls = inference.session?.callCount ?? 0;
+        metrics.payloadCharacters = inference.session?.payloadCharacters ?? 0;
+        metrics.searches = preview.counters.searches;
+        metrics.resolverCalls =
+          resolverBase === null ? 0 : metrics.aiCalls - resolverBase;
+        metrics.repairCalls = Math.max(
+          0,
+          (resolverBase ?? metrics.aiCalls) - 1,
+        );
+      }
+    });
+  }
+  /** Internal commit handoff only. A stale or non-ready operation cannot expose the retained result. */
+  planningResult(operationId: string): PlanningResult {
+    const snapshot = this.planning.snapshot();
+    if (
+      !this.readyPlanning ||
+      snapshot?.operationId !== operationId ||
+      snapshot.phase !== "ready"
+    )
+      throw new Error("planningStale");
+    return structuredClone(this.readyPlanning);
+  }
   registry = new ProviderRegistry();
   basket: BasketLine[] = [];
   quotedAt: string | null = null;

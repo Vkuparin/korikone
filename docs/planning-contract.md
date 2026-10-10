@@ -2,6 +2,8 @@
 
 F16.9 implements `src/application/planning.ts`. This is the operation/event contract and the existing interpretation dispatch migration. F16.15 adds required `PlanningSnapshot.intents` and draft-to-result mapping; its fields, quantity rules and normalized artifact ownership are in [intent-contract.md](intent-contract.md). F16.10 supplies execution across interpretation, requirements, searches and resolution; F16.11 supplies atomic state/quote persistence. The existing composer still submits generation followed by draft approval.
 
+F16.10 implements that execution in `src/application/coordinator.ts` and the real `planShopping` IPC entry. Exact read-slot ownership, deadline, failure behavior, complete frozen result and commit/UI handoff are in [coordinator-contract.md](coordinator-contract.md). The existing composer migration remains the progress UI card.
+
 ## Ownership
 
 `PlanningLifecycle` belongs to Service and reads its current AppState. `start(note)` creates a server UUID and an immutable source snapshot. A replacement start obsoletes and aborts the previous run. `snapshot`, `invalidateFor(state)`, `invalidate`, `cancel` and operation-bound `control` manage current ownership. A cancellation naming an old UUID raises `planningStale` and cannot cancel a newer run.

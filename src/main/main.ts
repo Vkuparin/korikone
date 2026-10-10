@@ -568,6 +568,14 @@ else
           }
         });
       },
+      planShopping: async (input) => {
+        const run = ++generationRun;
+        return runAITask(run, () =>
+          service.planShopping(input, (operation) =>
+            requestSession(run, operation),
+          ),
+        );
+      },
       importRecipe: async (input) => {
         service.planning.invalidate();
         const request = z
@@ -977,7 +985,9 @@ else
           const submittedRun = generationRun;
           const pending = queue.then(() => {
             if (
-              (name === "generate" || name === "importRecipe") &&
+              (name === "generate" ||
+                name === "planShopping" ||
+                name === "importRecipe") &&
               submittedRun !== generationRun
             )
               throw new Error("aiCancelled");

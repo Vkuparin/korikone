@@ -268,6 +268,10 @@ export function planningFailure(error: unknown): PlanningFailure {
   if (["incomplete", "incompleteDraft"].includes(code)) return "incomplete";
   if (code === "timeout") return "timeout";
   if (["draftStale", "resolutionStale"].includes(code)) return "source-changed";
+  if (
+    ["storeUnavailable", "contextChanged", "invalidCandidates"].includes(code)
+  )
+    return "search";
   return "provider";
 }
 
@@ -492,6 +496,11 @@ export class PlanningRun {
       intents: pendingIntentResults(this.mappings),
     });
     this.draft = validated;
+  }
+  inferenceSession(): InferenceSession {
+    this.assertCurrent();
+    if (!this.session) throw new Error("planningPhase");
+    return this.session;
   }
   setRequirements(input: Requirement[]) {
     this.assertCurrent();

@@ -69,6 +69,8 @@ export type CandidateSearchOptions = {
   queryHints?: string[];
   /** Numeric operation telemetry; called once immediately before each external read. */
   onSearch?: () => void;
+  /** Acquire one operation read slot; release after this actual external read, even on failure. */
+  beginRead?: () => () => void;
   /** The matcher/coordinator can supply a stricter hit test; this never authorizes selection. */
   isHit?: (product: Product) => boolean;
   signal?: AbortSignal;
@@ -119,11 +121,17 @@ export async function searchCandidates(
   const candidates = new Map<string, Product>();
   for (const query of candidateQueries(request, options.queryHints)) {
     options.signal?.throwIfAborted();
-    options.onSearch?.();
-    const products = await abortableRead(
-      provider.searchProducts(structuredClone(snapshot), query, request.id),
-      options.signal,
-    );
+    const release = options.beginRead?.();
+    let products: Product[];
+    try {
+      options.onSearch?.();
+      products = await abortableRead(
+        provider.searchProducts(structuredClone(snapshot), query, request.id),
+        options.signal,
+      );
+    } finally {
+      release?.();
+    }
     options.signal?.throwIfAborted();
     if (
       products.length > MAX_SEARCH_RESULTS ||

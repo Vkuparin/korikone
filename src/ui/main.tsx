@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Snapshot } from "../application/service";
+import type { PlanningRequest } from "../application/coordinator";
 import type { AppearanceBootstrap } from "../domain/appearance";
 import type {
   PlanningSnapshot,
@@ -48,6 +49,9 @@ declare global {
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>
     > & {
       getAppearanceBootstrap: () => AppearanceBootstrap;
+      planShopping: (
+        input: PlanningRequest,
+      ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
       onPlanningChange: (
         callback: (value: PlanningSnapshot) => void,
       ) => () => void;
