@@ -16,8 +16,13 @@ export const shoppingPlanTask = {
   id: "shopping-plan",
   version: 1,
 } satisfies InferenceTask;
+export const shoppingEditTask = {
+  id: "shopping-edit",
+  version: 1,
+} satisfies InferenceTask;
 export const inferenceTasks = [
   ...interpretationTasks,
   candidateResolutionTask,
   shoppingPlanTask,
+  shoppingEditTask,
 ];

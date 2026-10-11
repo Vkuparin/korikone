@@ -108,7 +108,7 @@ export const recipeNativeOutput = nativeOutput(
 );
 
 /** Null means omitted only for optional native fields declared above. No permissive domain parsing. */
-function omitNulls(value: unknown): unknown {
+export function omitNulls(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(omitNulls);
   if (value && typeof value === "object")
     return Object.fromEntries(

@@ -5,6 +5,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { mealFixtures } from "./meal-fixtures";
 import { resolutionRequestSchema } from "../domain/resolution";
 import { planningFixtureReply } from "./planning-fixtures";
+import { EDIT_DATA_MARKER, EDIT_PROMPT_PREFIX } from "./edit";
+import { editFixtureReply } from "./edit-fixtures";
 
 import { aiScenarios } from "./scenarios";
 export { aiScenarios } from "./scenarios";
@@ -145,6 +147,10 @@ export class FixtureAI {
         })),
       });
     }
+    const editData = input.startsWith(EDIT_PROMPT_PREFIX)
+      ? input.split(EDIT_DATA_MARKER)[1]
+      : undefined;
+    if (editData) return JSON.stringify(editFixtureReply(JSON.parse(editData)));
     const recipeText = input.match(/Recipe text: ("(?:[^"\\]|\\.)*")/)?.[1];
     if (recipeText) {
       const request = JSON.parse(recipeText).toLocaleLowerCase("fi");
