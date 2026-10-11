@@ -1,5 +1,7 @@
 # Portable category preferences
 
+F15.14's typed `correctRow` action can explicitly opt into the same evidence-supported memory change. One-time correction choices are cleared for a new list; quantity and unresolved corrections create no rule. See [correction-contract.md](correction-contract.md) for revision binding, persistence and row-control handoff.
+
 F15.3 implements explicit portable memory using the accepted [category policy](category-policy.md) and [shared matcher](matching-contract.md). Stored rules apply on both chains; product IDs remain separate store-specific choices. Review and Advanced controls remain F15.12/F15.13.
 
 ## Schema and migration

@@ -22,6 +22,7 @@ const methods = [
   "openRelease",
   "openNotices",
   "accept",
+  "correctRow",
   "rememberCategoryPreference",
   "editCategoryPreference",
   "forgetCategoryPreference",

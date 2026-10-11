@@ -1,3 +1,4 @@
+import { clearRowCorrections } from "../domain/corrections";
 import { z } from "zod";
 import { interpretPlanning } from "../ai/output";
 import type { MealDraft } from "../ai/draft";
@@ -95,6 +96,7 @@ export async function coordinatePlanning(
       quantities: {},
       removed: [],
       skipped: [],
+      ...clearRowCorrections(source),
     });
     const wanted = requirements(state);
     run.setRequirements(wanted);
@@ -118,7 +120,7 @@ export async function coordinatePlanning(
         const rowOptions = {
           ...options,
           accepted:
-            source.accepted[
+            state.accepted[
               `${source.context.providerId}:${source.context.storeId}:${requirement.id}`
             ] ?? [],
         };

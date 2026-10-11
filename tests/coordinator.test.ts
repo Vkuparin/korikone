@@ -81,6 +81,51 @@ function expectUnchanged(env: Awaited<ReturnType<typeof setup>>) {
     ),
   ).toBe(true);
 }
+
+test("fresh planning clears row holds and one-time correction choices with the same note", async () => {
+  const note = "1 l maitoa";
+  const env = await setup({
+    "*": [
+      { ...milk, price: 1 },
+      { ...milk, id: "other", name: "Rasvaton maito 1 l", price: 2 },
+    ],
+  });
+  const plan = () =>
+    env.service.planShopping({ prompt: note, consent: true }, bind(ai(note)));
+  const first = await plan();
+  await env.service.commitPlanning({
+    operationId: first.planning!.operationId,
+  });
+  const row = env.service.basket[0].requirement;
+  await env.service.correctRow({
+    revision: env.service.state.revision,
+    requirementKey: `${row.id}:${row.unit}`,
+    reason: "wrong-product-type",
+    replacementProductId: "other",
+  });
+  expect(env.service.basket[0].product?.id).toBe("other");
+  const second = await plan();
+  expect(second.planning!.provisional.rows[0].product?.id).toBe("milk");
+  await env.service.commitPlanning({
+    operationId: second.planning!.operationId,
+  });
+  expect(env.service.state.correctionChoices).toEqual([]);
+  const currentRow = env.service.basket[0].requirement;
+  await env.service.correctRow({
+    revision: env.service.state.revision,
+    requirementKey: `${currentRow.id}:${currentRow.unit}`,
+    reason: "unsuitable-alternative",
+    replacementProductId: null,
+  });
+  expect(env.service.basket[0].product).toBeNull();
+  const third = await plan();
+  await env.service.commitPlanning({
+    operationId: third.planning!.operationId,
+  });
+  expect(env.service.basket[0].product?.id).toBe("milk");
+  expect(env.service.state.correctionHolds).toEqual([]);
+  expect(env.service.state.categoryPreferences).toEqual([]);
+});
 test.each(["k-ruoka", "s-kaupat"] as const)(
   "%s: mixed identified requests reach ready without saving or transferring",
   async (chain) => {

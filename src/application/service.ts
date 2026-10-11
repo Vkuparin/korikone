@@ -62,6 +62,11 @@ import {
   type CategoryPreference,
 } from "../domain/preferences";
 import { searchCandidates } from "../stores/candidates";
+import {
+  correctRowSchema,
+  correctionKey,
+  clearRowCorrections,
+} from "../domain/corrections";
 import { createReview, resumeReview, transfer } from "./transfer";
 import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
@@ -639,6 +644,16 @@ export class Service {
       !allowCategoryPreferences &&
       input &&
       typeof input === "object" &&
+      (JSON.stringify((input as AppState).correctionHolds ?? []) !==
+        JSON.stringify(this.state.correctionHolds) ||
+        JSON.stringify((input as AppState).correctionChoices ?? []) !==
+          JSON.stringify(this.state.correctionChoices))
+    )
+      throw new Error("correctionActionRequired");
+    if (
+      !allowCategoryPreferences &&
+      input &&
+      typeof input === "object" &&
       JSON.stringify((input as AppState).requestIntents ?? []) !==
         JSON.stringify(this.state.requestIntents)
     )
@@ -649,7 +664,7 @@ export class Service {
         "note" in input &&
         input.note !== this.state.note &&
         !allowCategoryPreferences
-        ? { ...input, requestIntents: [] }
+        ? { ...input, requestIntents: [], ...clearRowCorrections(this.state) }
         : input,
     );
     if (
@@ -662,6 +677,14 @@ export class Service {
   }
   async save(input: unknown) {
     return this.writeState(() => this.saveState(input));
+  }
+  private saveNewList(state: AppState) {
+    return this.writeState(() =>
+      this.saveState(
+        { ...state, requestIntents: [], ...clearRowCorrections(this.state) },
+        true,
+      ),
+    );
   }
   /** Memory changes are explicit, revision-bound operations; ordinary save cannot write them. */
   private changeCategoryPreferences(
@@ -687,7 +710,19 @@ export class Service {
         );
         if (chosen) accepted[chosen.key] = [chosen.id];
         return this.saveState(
-          { ...this.state, categoryPreferences: rules, accepted },
+          {
+            ...this.state,
+            categoryPreferences: rules,
+            accepted,
+            correctionHolds: chosen
+              ? this.state.correctionHolds.filter(
+                  (key) => !key.startsWith(`${chosen.key}:`),
+                )
+              : this.state.correctionHolds,
+            correctionChoices: this.state.correctionChoices.filter(
+              (key) => !ids.some((id) => key.endsWith(`:${id}`)),
+            ),
+          },
           true,
         );
       }),
@@ -696,42 +731,55 @@ export class Service {
   async rememberCategoryPreference(input: unknown) {
     const { revision, requirementKey, productId, preference } =
       rememberCategoryPreferenceSchema.parse(input);
-    return this.changeCategoryPreferences(revision, (state) => {
-      const line = this.basket.find(
-        (l) => `${l.requirement.id}:${l.requirement.unit}` === requirementKey,
-      );
-      const product = line?.candidates.find((p) => p.id === productId);
-      if (
-        !line ||
-        !product ||
-        matchingPolicy(line.requirement).category !== preference.category ||
-        !preference.qualifiers.every((q) =>
-          product.evidence?.qualifiers.some(
-            (fact) => fact.kind === q.kind && fact.value === q.value,
-          ),
-        ) ||
-        !selectableCandidate(line.requirement, product, {
-          preference,
-          accepted: [productId],
-          context: state.context,
-          exclusions: exclusionTerms(state.household.exclusions),
-        })
-      )
-        throw new Error("unresolved");
-      return {
-        rules: [
-          ...state.categoryPreferences.filter(
-            (p) => p.category !== preference.category,
-          ),
-          preference,
-        ].sort((a, b) => a.category.localeCompare(b.category)),
-        affected: [preference.category],
-        chosen: {
-          key: `${state.context.providerId}:${state.context.storeId}:${line.requirement.id}`,
-          id: productId,
-        },
-      };
-    });
+    return this.changeCategoryPreferences(revision, (state) =>
+      this.rememberedCategoryChange(
+        state,
+        requirementKey,
+        productId,
+        preference,
+      ),
+    );
+  }
+  private rememberedCategoryChange(
+    state: AppState,
+    requirementKey: string,
+    productId: string,
+    preference: CategoryPreference,
+  ) {
+    const line = this.basket.find(
+      (l) => `${l.requirement.id}:${l.requirement.unit}` === requirementKey,
+    );
+    const product = line?.candidates.find((p) => p.id === productId);
+    if (
+      !line ||
+      !product ||
+      matchingPolicy(line.requirement).category !== preference.category ||
+      !preference.qualifiers.every((q) =>
+        product.evidence?.qualifiers.some(
+          (fact) => fact.kind === q.kind && fact.value === q.value,
+        ),
+      ) ||
+      !selectableCandidate(line.requirement, product, {
+        preference,
+        accepted: [productId],
+        context: state.context,
+        exclusions: exclusionTerms(state.household.exclusions),
+      })
+    )
+      throw new Error("unresolved");
+    return {
+      rules: [
+        ...state.categoryPreferences.filter(
+          (p) => p.category !== preference.category,
+        ),
+        preference,
+      ].sort((a, b) => a.category.localeCompare(b.category)),
+      affected: [preference.category],
+      chosen: {
+        key: `${state.context.providerId}:${state.context.storeId}:${line.requirement.id}`,
+        id: productId,
+      },
+    };
   }
   async editCategoryPreference(input: unknown) {
     const { revision, preference } = editCategoryPreferenceSchema.parse(input);
@@ -863,7 +911,7 @@ export class Service {
   async approveDraft() {
     if (!this.draft || this.draftRevision !== this.state.revision)
       throw new Error("draftStale");
-    const result = await this.save({
+    const result = await this.saveNewList({
       ...this.state,
       recipes: [...this.state.recipes, ...this.draft.recipes],
       meals: this.draft.meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
@@ -871,6 +919,7 @@ export class Service {
       note: this.draftNote,
       assumptions: this.draft.notes,
       quantities: {},
+      correctionHolds: [],
       removed: [],
       skipped: [],
     });
@@ -889,7 +938,7 @@ export class Service {
   }
   async newWeek() {
     if (this.busy) throw new Error("busy");
-    return this.save({
+    return this.saveNewList({
       ...this.state,
       history: this.archived(this.state),
       meals: [],
@@ -899,6 +948,7 @@ export class Service {
       extras: [],
       removed: [],
       quantities: {},
+      correctionHolds: [],
       staples: this.state.staples.map((item) => ({ ...item, enabled: false })),
     });
   }
@@ -909,7 +959,7 @@ export class Service {
     const meals = last.meals.filter((m) =>
       this.state.recipes.some((r) => r.id === m.recipeId),
     );
-    return this.save({
+    return this.saveNewList({
       ...this.state,
       meals: meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
       note: "",
@@ -918,6 +968,7 @@ export class Service {
       removed: [],
       skipped: [],
       quantities: {},
+      correctionHolds: [],
     });
   }
   async confirmPurchase() {
@@ -1030,6 +1081,7 @@ export class Service {
         const options = {
           accepted,
           preferences: state.categoryPreferences,
+          holds: state.correctionHolds,
           exclusions: exclusionTerms(state.household.exclusions),
           productPreference: state.productPreference,
           context,
@@ -1147,16 +1199,171 @@ export class Service {
       throw new Error("unresolved");
     const context = this.state.context;
     return this.refreshAfterChange(() =>
-      this.save({
-        ...this.state,
-        accepted: {
-          ...this.state.accepted,
-          [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
-            productId,
-          ],
-        },
-      }),
+      this.writeState(() =>
+        this.saveState(
+          {
+            ...this.state,
+            correctionHolds: this.state.correctionHolds.filter(
+              (key) => key !== correctionKey(context, line!.requirement),
+            ),
+            accepted: {
+              ...this.state.accepted,
+              [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
+                productId,
+              ],
+            },
+          },
+          true,
+        ),
+      ),
     );
+  }
+  /** Explicit correction changes a retained row, never a retailer cart or inference task. */
+  async correctRow(input: unknown) {
+    const correction = correctRowSchema.parse(input);
+    return this.measureOperation("correction", async (metrics) => {
+      metrics.corrections = { [correction.reason]: 1 };
+      return this.writeState(async () => {
+        this.assertNoProvisionalTransfer();
+        if (this.busy || this.transferPending) throw new Error("busy");
+        if (correction.revision !== this.state.revision || !this.quotedAt)
+          throw new Error("draftStale");
+        const line = this.basket.find(
+          (l) =>
+            `${l.requirement.id}:${l.requirement.unit}` ===
+            correction.requirementKey,
+        );
+        if (!line) throw new Error("unresolved");
+        const next = structuredClone(this.state);
+        const rowKey = correctionKey(next.context, line.requirement);
+        const acceptedKey = `${next.context.providerId}:${next.context.storeId}:${line.requirement.id}`;
+        const affected = new Set([correction.requirementKey]);
+        if (correction.reason === "wrong-quantity") {
+          next.quantities[correction.requirementKey] = correction.amount;
+        } else {
+          const product =
+            correction.replacementProductId === null
+              ? null
+              : line.candidates.find(
+                  (p) => p.id === correction.replacementProductId,
+                );
+          if (correction.replacementProductId !== null && !product)
+            throw new Error("unresolved");
+          if (correction.remember && product) {
+            const change = this.rememberedCategoryChange(
+              next,
+              correction.requirementKey,
+              product.id,
+              correction.remember,
+            );
+            next.categoryPreferences = change.rules;
+            for (const requirement of requirements(next)) {
+              const category = matchingPolicy(requirement).category;
+              if (!category || !change.affected.includes(category)) continue;
+              affected.add(`${requirement.id}:${requirement.unit}`);
+              delete next.accepted[
+                `${next.context.providerId}:${next.context.storeId}:${requirement.id}`
+              ];
+            }
+          }
+          delete next.accepted[acceptedKey];
+          next.correctionChoices = next.correctionChoices.filter(
+            (key) => key !== acceptedKey,
+          );
+          const supported =
+            product &&
+            selectableCandidate(line.requirement, product, {
+              accepted: [product.id],
+              preferences: next.categoryPreferences,
+              context: next.context,
+              sourceNote: next.note,
+              exclusions: exclusionTerms(next.household.exclusions),
+            });
+          next.correctionHolds = next.correctionHolds.filter(
+            (key) => key !== rowKey,
+          );
+          if (supported) {
+            next.accepted[acceptedKey] = [product.id];
+            if (!correction.remember) next.correctionChoices.push(acceptedKey);
+          } else next.correctionHolds.push(rowKey);
+        }
+        next.revision++;
+        const validated = stateSchema.parse(next);
+        const oldRows = new Map(
+          this.basket.map((l) => [
+            `${l.requirement.id}:${l.requirement.unit}`,
+            l,
+          ]),
+        );
+        const basket = requirements(validated).map((requirement) => {
+          const key = `${requirement.id}:${requirement.unit}`;
+          const previous = oldRows.get(key);
+          if (!previous) throw new Error("draftStale");
+          if (!affected.has(key)) return structuredClone(previous);
+          return matchRequirement(
+            requirement,
+            applyPackSizes(previous.candidates, validated.packSizes),
+            {
+              context: validated.context,
+              sourceNote: validated.note,
+              preferences: validated.categoryPreferences,
+              holds: validated.correctionHolds,
+              accepted:
+                validated.accepted[
+                  `${validated.context.providerId}:${validated.context.storeId}:${requirement.id}`
+                ] ?? [],
+              exclusions: exclusionTerms(validated.household.exclusions),
+              productPreference: validated.productPreference,
+            },
+          );
+        });
+        const quote = persistedQuoteSchema.parse({
+          key: pricingKey(validated),
+          context: validated.context,
+          quotedAt: this.quotedAt,
+          pickupFee: this.pickupFee,
+          basket,
+        });
+        if (!restoredQuote(quote, validated)) throw new Error("draftStale");
+        if (!this.db.setMany) throw new Error("storageFailed");
+        const priorState = await this.db.get("state");
+        const priorQuote = await this.db.get("last-quote");
+        try {
+          await this.db.setMany([
+            { key: "state", value: validated },
+            { key: "last-quote", value: quote },
+          ]);
+        } catch (error) {
+          let storedState: unknown, storedQuote: unknown;
+          try {
+            storedState = await this.db.get("state");
+            storedQuote = await this.db.get("last-quote");
+          } catch {
+            this.commitUncertain = true;
+            throw new Error("commitUnknown");
+          }
+          if (
+            JSON.stringify(storedState) !== JSON.stringify(validated) ||
+            JSON.stringify(storedQuote) !== JSON.stringify(quote)
+          ) {
+            if (
+              JSON.stringify(storedState) === JSON.stringify(priorState) &&
+              JSON.stringify(storedQuote) === JSON.stringify(priorQuote)
+            )
+              throw error;
+            this.commitUncertain = true;
+            throw new Error("commitUnknown");
+          }
+        }
+        this.planning.invalidateFor(validated);
+        this.state = validated;
+        this.basket = basket;
+        this.review = null;
+        this.comparison = null;
+        this.pricingError = null;
+        return this.snapshot();
+      });
+    });
   }
   /** "Already have this" from the basket: skip the requirement and rematch. */
   async omit(input: unknown) {

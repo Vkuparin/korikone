@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BasketLine, Product } from "../domain/model";
 import { relevant } from "../domain/planner";
+import { correctionReasonSchema } from "../domain/corrections";
 
 export const METRICS_KEY = "metrics:operations";
 export const METRICS_LIMIT = 100;
@@ -22,7 +23,13 @@ export type UnresolvedReason = z.infer<typeof unresolvedReasonSchema>;
 const count = z.number().int().min(0).max(1_000_000);
 export const operationMetricSchema = z
   .object({
-    kind: z.enum(["interpretation", "recipe-import", "pricing", "planning"]),
+    kind: z.enum([
+      "interpretation",
+      "recipe-import",
+      "pricing",
+      "planning",
+      "correction",
+    ]),
     outcome: z.enum(["success", "failed", "cancelled", "obsolete"]),
     latencyMs: z.number().int().min(0).max(600_000),
     aiCalls: count,
@@ -31,6 +38,7 @@ export const operationMetricSchema = z
     searches: count,
     resolverCalls: count,
     unresolved: z.partialRecord(unresolvedReasonSchema, count),
+    corrections: z.partialRecord(correctionReasonSchema, count).optional(),
   })
   .strict();
 export type OperationMetric = z.infer<typeof operationMetricSchema>;

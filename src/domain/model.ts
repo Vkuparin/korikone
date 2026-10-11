@@ -2,6 +2,7 @@ import { z } from "zod";
 import { appearanceSchema } from "./appearance";
 import { classificationSchema } from "./categories";
 import { categoryPreferencesSchema } from "./preferences";
+import { correctionHoldsSchema } from "./corrections";
 import {
   intentMappingSchema,
   validStoredIntents,
@@ -100,6 +101,8 @@ export const stateSchema = z
     aiModel: z.string().min(1).max(200).default("auto"),
     resolverEnabled: z.boolean().default(true),
     categoryPreferences: categoryPreferencesSchema.default([]),
+    correctionHolds: correctionHoldsSchema.default([]),
+    correctionChoices: correctionHoldsSchema.default([]),
     receiptText: z.string().max(50000).default(""),
     listHistory: z
       .array(

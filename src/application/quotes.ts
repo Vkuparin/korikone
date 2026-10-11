@@ -35,6 +35,12 @@ export function pricingKey(state: AppState): string {
     exclusions: state.household.exclusions,
     preference: state.productPreference,
     categoryPreferences: state.categoryPreferences,
+    ...(state.correctionHolds.length
+      ? { correctionHolds: state.correctionHolds }
+      : {}),
+    ...(state.correctionChoices.length
+      ? { correctionChoices: state.correctionChoices }
+      : {}),
     ...(state.requestIntents.length
       ? { requestIntents: state.requestIntents }
       : {}),
@@ -121,6 +127,7 @@ export function restoredQuote(input: unknown, state: AppState) {
         context: state.context,
         sourceNote: state.note,
         preferences: state.categoryPreferences,
+        holds: state.correctionHolds,
         exclusions: exclusionTerms(state.household.exclusions),
         productPreference: state.productPreference,
         accepted:

@@ -1,3 +1,4 @@
+import { clearRowCorrections } from "../domain/corrections";
 import { z } from "zod";
 import {
   contextSchema,
@@ -623,7 +624,7 @@ export class PlanningRun {
       exclusions: exclusionTerms(this.state.household.exclusions),
       productPreference: this.state.productPreference,
       accepted:
-        this.state.accepted[
+        clearRowCorrections(this.state).accepted[
           `${this.state.context.providerId}:${this.state.context.storeId}:${requirement.id}`
         ] ?? [],
     });

@@ -614,6 +614,7 @@ else
       changeContext: (input) => service.changeContext(input),
       recordError: (input) => service.recordError(input),
       accept: (input) => service.accept(input),
+      correctRow: (input) => service.correctRow(input),
       rememberCategoryPreference: (input) =>
         service.rememberCategoryPreference(input),
       editCategoryPreference: (input) => service.editCategoryPreference(input),

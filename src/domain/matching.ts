@@ -16,6 +16,7 @@ export {
   type CategoryPreference,
 } from "./preferences";
 import { foodNameFacts } from "./food-names";
+import { correctionKey } from "./corrections";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
 import { match, relevant, approximateCost } from "./planner";
 import type {
@@ -57,6 +58,7 @@ export type MatchingOptions = {
   accepted?: string[];
   context?: StoreContext;
   sourceNote?: string;
+  holds?: string[];
 };
 export const matchingReasonSchema = z.enum([
   "resolved",
@@ -82,6 +84,7 @@ export const matchingReasonSchema = z.enum([
   "pack",
   "unit",
   "name",
+  "owner-correction",
 ]);
 export type MatchingReason = z.infer<typeof matchingReasonSchema>;
 const decisionSchema = z.object({
@@ -464,5 +467,16 @@ export function matchRequirement(
     defaulted: policy.defaulted,
     decisions,
   };
+  if (
+    options.context &&
+    options.holds?.includes(correctionKey(options.context, requirement))
+  ) {
+    line.product = null;
+    line.total = null;
+    line.packs = 0;
+    delete line.approximate;
+    line.matching.status = "unresolved";
+    line.matching.reason = "owner-correction";
+  }
   return line;
 }
