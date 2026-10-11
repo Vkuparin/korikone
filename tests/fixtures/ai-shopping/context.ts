@@ -310,54 +310,98 @@ const explicitQualifiers: Record<string, Pick<Qualifier, "kind" | "value">[]> =
     "coffee-beans": [{ kind: "coffee", value: "beans" }],
   };
 // Only source-backed qualifiers claim explicit-note provenance; no dietary guarantees.
-export const contextCases: ShoppingCase[] = specifications.map((s) =>
-  shoppingCaseSchema.parse({
-    id: `context-${s.id}`,
-    note: s.note,
-    expected: [
-      {
-        id: "requested-grocery",
-        kind: "grocery",
-        names: [s.name],
-        category: s.category,
-        amount: s.amount,
-        unit: s.unit,
-        admissible: s.admissible,
-        forbidden: s.forbidden,
-      },
-    ],
-    replies: [
-      JSON.stringify({
-        items: [
-          {
-            id: "model-item",
-            name: s.name,
-            amount: s.amount,
-            unit: s.unit,
-            ...(explicitQualifiers[s.id]
-              ? {
-                  classification: {
-                    category: s.category,
-                    provenance: "explicit-note",
-                    evidence: { start: 0, end: s.note.length, quote: s.note },
-                    qualifiers: explicitQualifiers[s.id].map((q) => ({
-                      ...q,
+export const contextCases: ShoppingCase[] = specifications
+  .map((s) =>
+    shoppingCaseSchema.parse({
+      id: `context-${s.id}`,
+      note: s.note,
+      expected: [
+        {
+          id: "requested-grocery",
+          kind: "grocery",
+          names: [s.name],
+          category: s.category,
+          amount: s.amount,
+          unit: s.unit,
+          admissible: s.admissible,
+          forbidden: s.forbidden,
+        },
+      ],
+      replies: [
+        JSON.stringify({
+          items: [
+            {
+              id: "model-item",
+              name: s.name,
+              amount: s.amount,
+              unit: s.unit,
+              ...(explicitQualifiers[s.id]
+                ? {
+                    classification: {
+                      category: s.category,
                       provenance: "explicit-note",
                       evidence: { start: 0, end: s.note.length, quote: s.note },
-                    })),
-                  },
-                }
-              : {}),
-          },
-        ],
+                      qualifiers: explicitQualifiers[s.id].map((q) => ({
+                        ...q,
+                        provenance: "explicit-note",
+                        evidence: {
+                          start: 0,
+                          end: s.note.length,
+                          quote: s.note,
+                        },
+                      })),
+                    },
+                  }
+                : {}),
+            },
+          ],
+        }),
+      ],
+      catalogue: { "*": s.products },
+      contextSetup: {
+        household: {
+          servings: 2,
+          budget: 10000,
+          exclusions: s.exclusions ?? "",
+        },
+      },
+      requiredCapabilities: s.dietary
+        ? ["dietary-evidence", "compact-context"]
+        : ["compact-context"],
+    }),
+  )
+  .map((fixture) =>
+    shoppingCaseSchema.parse({
+      ...fixture,
+      // These cases each script one grocery. The ledger extends the canned response,
+      // while the note-derived expectations above remain a separate scoring input.
+      planningReplies: fixture.replies.map((reply) => {
+        const output = JSON.parse(reply);
+        const item = output.items[0];
+        return JSON.stringify({
+          ...output,
+          intents: [
+            {
+              id: "model-request",
+              kind: "grocery",
+              label: fixture.note,
+              evidence: {
+                start: 0,
+                end: fixture.note.length,
+                quote: fixture.note,
+              },
+              provenance: "explicit-note",
+              quantity: {
+                amount: item.amount,
+                unit: item.unit,
+                provenance: "explicit-note",
+              },
+              mealIndex: null,
+              itemIndex: 0,
+              unresolvedReason: null,
+            },
+          ],
+        });
       }),
-    ],
-    catalogue: { "*": s.products },
-    contextSetup: {
-      household: { servings: 2, budget: 10000, exclusions: s.exclusions ?? "" },
-    },
-    requiredCapabilities: s.dietary
-      ? ["dietary-evidence", "compact-context"]
-      : ["compact-context"],
-  }),
-);
+    }),
+  );

@@ -196,6 +196,56 @@ export const multiDishCases: ShoppingCase[] = notes.flatMap(
     [fi, en].map((note, language) => {
       const output = outputs[index];
       const recipes = "recipes" in output ? (output.recipes ?? []) : [];
+      // Authored source segmentation for the finite canned replies. This does not
+      // read the expected category/quantity/SKU table used by the evaluator.
+      const spans =
+        index <= 4
+          ? note.split(language === 0 ? " ja " : " and ")
+          : index <= 6
+            ? [note]
+            : index === 7
+              ? note.split(language === 0 ? ". Lisäksi " : ". Also ")
+              : index === 8
+                ? note
+                    .split(language === 0 ? ") ja " : ") and ")
+                    .map((part, i) => (i === 0 ? `${part})` : part))
+                : language === 0
+                  ? [
+                      "Riisiruoka kahdelle (riisiä 200 g, sipulia 100 g)",
+                      "pakastepizza 350 g",
+                      "aamupalaksi leipää 500 g",
+                      "välipalaksi jogurttia 400 g",
+                    ]
+                  : [
+                      "Rice meal for two (200 g rice, 100 g onion)",
+                      "350 g frozen pizza",
+                      "breakfast bread 500 g",
+                      "snack yoghurt 400 g",
+                    ];
+      const items = "items" in output ? (output.items ?? []) : [];
+      const intents = spans.map((quote, target) => {
+        const start = note.indexOf(quote);
+        if (start < 0) throw new Error("Canned intent span missing");
+        const meal = target < recipes.length;
+        const item = items[target - recipes.length];
+        return {
+          id: `model-request-${target}`,
+          kind: meal ? "meal" : "grocery",
+          label: quote,
+          evidence: { start, end: start + quote.length, quote },
+          provenance: "explicit-note",
+          quantity: meal
+            ? null
+            : {
+                amount: item.amount,
+                unit: item.unit,
+                provenance: "explicit-note",
+              },
+          mealIndex: meal ? target : null,
+          itemIndex: meal ? null : target - recipes.length,
+          unresolvedReason: null,
+        };
+      });
       return shoppingCaseSchema.parse({
         id: `multidish-${index + 1}-${language === 0 ? "fi" : "en"}`,
         note,
@@ -227,6 +277,13 @@ export const multiDishCases: ShoppingCase[] = notes.flatMap(
             [{ id, name: productName, price }],
           ]),
         ),
+        planningReplies: [
+          JSON.stringify({
+            ...output,
+            meals: recipes.map((r) => ({ recipeId: r.id, servings: 2 })),
+            intents,
+          }),
+        ],
       });
     }),
 );

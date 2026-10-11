@@ -45,3 +45,22 @@ test("wrong selection remains a gate failure even with no unresolved rows", asyn
   expect(result.safePriced).toBe(0);
   expect(evaluationGate([result], 1).failures).toContain("forbidden-selection");
 });
+
+test("context corpus coordinator mode retains independent dietary and quantity measurements", async () => {
+  const results = [];
+  for (const chain of ["k-ruoka", "s-kaupat"] as const)
+    for (const fixture of contextCases) {
+      const result = await evaluateShoppingCase(fixture, chain, "coordinator");
+      expect(result.retailerWrites).toBe(0);
+      expect(result.aiRequests).toBeLessThanOrEqual(3);
+      expect(result.contextCharacters).toBeLessThanOrEqual(24000);
+      results.push(result);
+    }
+  const gate = evaluationGate(results, 20);
+  expect(results).toHaveLength(40);
+  expect(gate.failures).not.toContain("missing-chain");
+  expect(gate.failures).not.toContain("request-cap");
+  expect(gate.failures).not.toContain("retailer-write");
+  expect(gate.metrics.unsupported).toEqual(["dietary-evidence"]);
+  console.log("Context coordinator gate", JSON.stringify(gate));
+});

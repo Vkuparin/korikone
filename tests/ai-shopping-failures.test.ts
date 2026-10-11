@@ -88,3 +88,25 @@ test("failure corpus coordinator execution reports real contract gaps without in
     expect(result.reasons).toEqual({ "invalid-output": 1 });
   }
 });
+
+test("sixty cases execute the current coordinator and record the unmodified acceptance gate", async () => {
+  const cases = [...multiDishCases, ...contextCases, ...failureCases];
+  expect(new Set(cases.map((fixture) => fixture.id)).size).toBe(60);
+  const results = [];
+  for (const chain of ["k-ruoka", "s-kaupat"] as const)
+    for (const fixture of cases)
+      results.push(await evaluateShoppingCase(fixture, chain, "coordinator"));
+  const gate = evaluationGate(results);
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  await mkdir("scratch/evaluation", { recursive: true });
+  await writeFile(
+    "scratch/evaluation/coordinator-gate.json",
+    JSON.stringify({ gate, results }, null, 2),
+  );
+  expect(results).toHaveLength(120);
+  expect(gate.failures).not.toContain("insufficient-cases");
+  expect(gate.failures).not.toContain("missing-chain");
+  expect(gate.failures).not.toContain("retailer-write");
+  expect(gate.failures).not.toContain("request-cap");
+  // Measurement succeeds only as a report. Release acceptance still requires gate.passed.
+});
