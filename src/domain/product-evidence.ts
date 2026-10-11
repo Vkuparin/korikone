@@ -86,3 +86,25 @@ export const cataloguePricingSchema = z
   })
   .strict();
 export type CataloguePricing = z.infer<typeof cataloguePricingSchema>;
+
+/** Explicit retailer weight per ordered piece; final weighed amount can vary. */
+export const pieceOrderingSchema = z
+  .object({
+    unit: z.literal("kpl"),
+    increment: z.literal(1),
+    estimatedWeightGrams: z.number().positive().max(100_000),
+  })
+  .strict();
+export type PieceOrdering = z.infer<typeof pieceOrderingSchema>;
+
+export function pieceOrdering(
+  weightKg: number | null | undefined,
+): PieceOrdering | undefined {
+  if (weightKg == null) return undefined;
+  const result = pieceOrderingSchema.safeParse({
+    unit: "kpl",
+    increment: 1,
+    estimatedWeightGrams: weightKg * 1000,
+  });
+  return result.success ? result.data : undefined;
+}

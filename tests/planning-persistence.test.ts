@@ -18,6 +18,42 @@ import type { PlanningRun } from "../src/application/planning";
 
 const worker = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
 const note = "1 l maitoa ja kahvia";
+test("F4.3 neutral inference previews piece quantities and commits their metadata through SQLite restart", async () => {
+  const env = await fixture();
+  let restarted: Database | undefined;
+  try {
+    const id = await ready(env.service, "500 g banaania");
+    expect(env.service.planning.snapshot()!.provisional.rows).toEqual([
+      expect.objectContaining({
+        status: "resolved",
+        approximate: true,
+        packs: 3,
+        orderUnit: "kpl",
+        total: 120,
+      }),
+    ]);
+    await env.service.commitPlanning({ operationId: id });
+    await env.db.close();
+    restarted = new Database(env.path, worker);
+    const restored = new Service(restarted);
+    await restored.init();
+    expect(restored.basket[0]).toMatchObject({
+      approximate: true,
+      packs: 3,
+      total: 120,
+      product: { pieceOrdering: { estimatedWeightGrams: 175 } },
+    });
+    await restored.prepare();
+    expect(restored.review!.targets[0]).toMatchObject({
+      quantity: 3,
+      unit: "kpl",
+      price: 120,
+    });
+    expect(writes(restored)).toBe(0);
+  } finally {
+    await (restarted ?? env.db).close();
+  }
+});
 test("weighed estimates commit and restart honestly but cannot become transfer targets", async () => {
   const env = await fixture();
   let restarted: Database | undefined;

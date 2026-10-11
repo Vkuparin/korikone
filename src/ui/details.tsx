@@ -3,7 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 import { purchasable } from "../domain/matching";
-import { approximateCost } from "../domain/planner";
+import { approximateCost, pieceQuote } from "../domain/planner";
 
 /**
  * The decision details of one list row: what is needed and bought, why this product,
@@ -40,6 +40,7 @@ export function RowDetails({
           ? `${money(p.price / p.packAmount)} / ${t("perPiece")}`
           : `${money(Math.round((p.price * 1000) / p.packAmount))} / ${p.unit === "g" ? "kg" : "l"}`;
   const { requirement, product } = line;
+  const piece = product ? pieceQuote(requirement, product) : null;
   const context = state.context;
   const accepted =
     state.accepted[
@@ -64,6 +65,13 @@ export function RowDetails({
           </>
         )}
       </p>
+      {piece && (
+        <p>
+          {language === "fi" ? "Tilataan" : "Order"}: {piece.pieces} {u("pcs")}{" "}
+          · {language === "fi" ? "paino noin" : "weight about"}{" "}
+          {Math.round(piece.weightGrams)} g
+        </p>
+      )}
       {line.approximate && (
         <p className="muted">
           {language === "fi"
@@ -116,7 +124,11 @@ export function RowDetails({
                 {p.deposit > 0 && ` · ${t("deposit")} ${money(p.deposit)}`}
               </small>
               <strong>
-                {p.price === null ? t("unknown") : money(p.price)}
+                {approximateCost(requirement, p) !== null
+                  ? `${language === "fi" ? "noin " : "about "}${money(approximateCost(requirement, p)!)}`
+                  : p.price === null
+                    ? t("unknown")
+                    : money(p.price)}
               </strong>
               <button
                 className="secondary"

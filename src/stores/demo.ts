@@ -17,6 +17,7 @@ const catalogue: [
   ["cream", "Ruokakerma 2 dl", 200, "ml", 109],
   ["whipping-cream", "Kuohukerma 200 ml", 200, "ml", 199],
   ["weighed-apple", "Omena", 0, "g", 249],
+  ["loose-banana", "Banaani", 0, "g", 40],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],
@@ -82,6 +83,9 @@ export class DemoProvider implements StoreProvider {
   searchRequests = 0;
   failSearch = false;
   failContext = false;
+  refusePieces = false;
+  pieceReadbackAdjustment = 0;
+  pieceWeightChange = false;
   constructor(
     public id: string,
     private save?: () => void,
@@ -187,6 +191,25 @@ export class DemoProvider implements StoreProvider {
               },
             }
           : {}),
+        ...(p.id === "loose-banana"
+          ? {
+              price: null,
+              cataloguePricing: {
+                amount: p.price,
+                unit: "kpl",
+                basis: "per_item",
+                approximate: true,
+                deposit: 0,
+              },
+              pieceOrdering: {
+                unit: "kpl" as const,
+                increment: 1 as const,
+                estimatedWeightGrams:
+                  (["demo-s", "s-kaupat"].includes(this.id) ? 163 : 175) +
+                  (this.pieceWeightChange ? 5 : 0),
+              },
+            }
+          : {}),
       }));
   }
   async pickupFee() {
@@ -208,6 +231,8 @@ export class DemoProvider implements StoreProvider {
     return structuredClone(this.carts.get(key)!);
   }
   async setQuantity(context: StoreContext, target: Target): Promise<void> {
+    if (target.productId === "loose-banana" && this.refusePieces)
+      throw new Error("unitMismatch");
     const cart = await this.getCart(context);
     const existing = cart.lines.find((l) => l.productId === target.productId);
     if (existing) existing.quantity = target.quantity;
@@ -218,6 +243,10 @@ export class DemoProvider implements StoreProvider {
         unit: target.unit,
         name: target.name,
       });
+    if (target.productId === "loose-banana")
+      cart.lines.find(
+        (line) => line.productId === target.productId,
+      )!.quantity += this.pieceReadbackAdjustment;
     this.carts.set(JSON.stringify(context), cart);
     this.writes++;
     this.save?.();

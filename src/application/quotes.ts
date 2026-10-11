@@ -14,6 +14,7 @@ import { matchingSummarySchema, matchRequirement } from "../domain/matching";
 import {
   cataloguePricingSchema,
   productEvidenceSchema,
+  pieceOrderingSchema,
 } from "../domain/product-evidence";
 
 /** Only inputs that affect catalogue matching belong in a quote's binding. */
@@ -66,6 +67,7 @@ const productSchema = z.object({
   observedAt: z.string(),
   evidence: productEvidenceSchema.optional(),
   cataloguePricing: cataloguePricingSchema.optional(),
+  pieceOrdering: pieceOrderingSchema.optional(),
 });
 export const persistedQuoteSchema = z.object({
   operationId: z.uuid().optional(),
@@ -149,6 +151,11 @@ export function restoredQuote(input: unknown, state: AppState) {
     if (
       Boolean(line.approximate) !== Boolean(matched.approximate) ||
       line.product?.id !== matched.product?.id ||
+      ((line.product?.pieceOrdering || matched.product?.pieceOrdering) &&
+        (JSON.stringify(line.product?.pieceOrdering) !==
+          JSON.stringify(matched.product?.pieceOrdering) ||
+          JSON.stringify(line.product?.cataloguePricing) !==
+            JSON.stringify(matched.product?.cataloguePricing))) ||
       line.packs !== matched.packs ||
       line.total !== matched.total
     )

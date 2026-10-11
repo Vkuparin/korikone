@@ -18,7 +18,7 @@ export {
 import { foodNameFacts } from "./food-names";
 import { correctionKey } from "./corrections";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
-import { match, relevant, approximateCost } from "./planner";
+import { match, relevant, approximateCost, pieceQuote } from "./planner";
 import type {
   AppState,
   BasketLine,
@@ -366,6 +366,7 @@ export function purchasable(
   requirement: Requirement,
   product: Product,
 ): boolean {
+  if (product.pieceOrdering) return pieceQuote(requirement, product) !== null;
   if (approximateCost(requirement, product) !== null) return false;
   if (
     product.available !== true ||

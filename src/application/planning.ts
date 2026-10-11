@@ -10,7 +10,7 @@ import {
 } from "../domain/model";
 import { categorySchema, provenanceSchema } from "../domain/categories";
 import { matchRequirement, matchingReasonSchema } from "../domain/matching";
-import { exclusionTerms } from "../domain/planner";
+import { exclusionTerms, pieceQuote } from "../domain/planner";
 import { validateDraft, type MealDraft } from "../ai/draft";
 import {
   InferenceError,
@@ -88,6 +88,7 @@ const previewRowSchema = z
     packs: z.number().nonnegative(),
     total: z.number().nonnegative().nullable(),
     approximate: z.boolean().optional(),
+    orderUnit: z.literal("kpl").optional(),
   })
   .strict();
 export const planningSnapshotSchema = z
@@ -202,11 +203,18 @@ export const planningSnapshotSchema = z
         row.status === "resolved"
           ? !row.product ||
             row.total === null ||
-            (row.approximate ? row.packs !== 0 : row.packs <= 0)
+            (row.approximate
+              ? row.orderUnit === "kpl"
+                ? !Number.isSafeInteger(row.packs) ||
+                  row.packs <= 0 ||
+                  row.packs > 100
+                : row.packs !== 0
+              : row.packs <= 0 || row.orderUnit !== undefined)
           : row.product !== null ||
             row.total !== null ||
             row.packs !== 0 ||
-            row.approximate === true
+            row.approximate === true ||
+            row.orderUnit !== undefined
       )
         issue();
     }
@@ -645,6 +653,9 @@ export class PlanningRun {
             packs: local.packs,
             total: local.total,
             ...(local.approximate ? { approximate: true } : {}),
+            ...(local.product && pieceQuote(requirement, local.product)
+              ? { orderUnit: "kpl" as const }
+              : {}),
           },
     );
     this.resultLines = [

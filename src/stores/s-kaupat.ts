@@ -4,7 +4,11 @@ import type { StoreProvider } from "./provider";
 import { packFromName, type ToolCall } from "./k-ruoka";
 import { McpWorker } from "./worker";
 import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
-import { cataloguePricingSchema } from "../domain/product-evidence";
+import {
+  cataloguePricingSchema,
+  pieceOrdering,
+} from "../domain/product-evidence";
+import type { PieceCatalogueReader } from "./s-kaupat-pieces";
 
 /** Pinned s-kaupat-mcp release. Update together with scripts/prepare-s-kaupat.mjs. */
 export const S_KAUPAT_VERSION = "1.3.0";
@@ -131,7 +135,10 @@ const writeSchema = z.object({
 export class SKaupatProvider implements StoreProvider {
   id = "s-kaupat";
   capabilities = { catalogue: true, cart: true, orderHistory: false };
-  constructor(private call: ToolCall) {}
+  constructor(
+    private call: ToolCall,
+    private readPieces?: PieceCatalogueReader,
+  ) {}
   async searchStores(query: string): Promise<StoreContext[]> {
     const data = z
       .object({
@@ -230,6 +237,23 @@ export class SKaupatProvider implements StoreProvider {
       }
     }
     const observedAt = new Date().toISOString();
+    const pieceIds = data.products
+      .filter(
+        (p) =>
+          p.priceBasis === "per_item" &&
+          p.quantityUnit?.toUpperCase() === "KPL" &&
+          p.approximatePrice === true,
+      )
+      .map((p) => p.id);
+    const pieces =
+      this.readPieces && pieceIds.length
+        ? await this.readPieces(context, pieceIds)
+        : [];
+    if (
+      new Set(pieces.map((p) => p.id)).size !== pieces.length ||
+      pieces.some((p) => !pieceIds.includes(p.id))
+    )
+      throw new Error("storeUnavailable");
     return data.products.map((p) => {
       const pack = packFromName(p.packSize ?? p.name);
       // Weighed goods and unclear packs stay unpriced, as with K-Ruoka.
@@ -238,6 +262,18 @@ export class SKaupatProvider implements StoreProvider {
         p.approximatePrice === false &&
         p.quantityUnit?.toUpperCase() === "KPL";
       const status = stock.get(p.id);
+      const piece = pieces.find((item) => item.id === p.id);
+      if (
+        piece &&
+        (piece.unit !== "KPL" ||
+          piece.approximate !== true ||
+          piece.price !== p.price)
+      )
+        throw new Error("priceChanged");
+      const ordering =
+        piece?.salesUnit === "PCE" && piece.multiplier === 1
+          ? pieceOrdering(piece.weightKg)
+          : undefined;
       return {
         id: p.id,
         providerId: this.id,
@@ -257,7 +293,7 @@ export class SKaupatProvider implements StoreProvider {
               : null,
         deposit: p.depositPrice ? Math.round(p.depositPrice * 100) : 0,
         nativeUnit: p.quantityUnit?.toLowerCase() ?? "unknown",
-        increment: supported ? 1 : 0,
+        increment: supported || ordering ? 1 : 0,
         observedAt,
         evidence: retailerEvidence(p.name, p.category ?? null, p.labels ?? []),
         cataloguePricing: cataloguePricingSchema.parse({
@@ -268,6 +304,7 @@ export class SKaupatProvider implements StoreProvider {
           deposit:
             p.depositPrice != null ? Math.round(p.depositPrice * 100) : null,
         }),
+        ...(ordering ? { pieceOrdering: ordering } : {}),
       };
     });
   }
@@ -311,7 +348,12 @@ export class SKaupatProvider implements StoreProvider {
         productId: i.productId,
         name: i.name ?? i.productId,
         quantity: i.quantity,
-        unit: i.product?.priceBasis === "per_item" ? "kpl" : "kg",
+        unit:
+          i.product?.priceBasis === "per_item"
+            ? "kpl"
+            : i.product?.priceBasis === "per_weight"
+              ? "kg"
+              : "unknown",
       })),
     };
   }

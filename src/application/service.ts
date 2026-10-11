@@ -25,6 +25,7 @@ import {
   requirements,
   exclusionTerms,
   applyPackSizes,
+  transferableLine,
 } from "../domain/planner";
 import {
   ProviderRegistry,
@@ -1397,9 +1398,7 @@ export class Service {
     const { allowMissing } = z
       .object({ allowMissing: z.boolean().default(false) })
       .parse(input ?? {});
-    const unresolved = this.basket.filter(
-      (line) => !line.product || line.total === null || line.approximate,
-    );
+    const unresolved = this.basket.filter((line) => !transferableLine(line));
     const unresolvedIntents = this.snapshot().committedIntents.filter(
       (intent) => intent.status !== "resolved",
     );
@@ -1410,9 +1409,7 @@ export class Service {
       this.state.context,
       this.state.revision,
       allowMissing
-        ? this.basket.filter(
-            (line) => line.product && line.total !== null && !line.approximate,
-          )
+        ? this.basket.filter((line) => transferableLine(line))
         : this.basket,
       this.state.packSizes,
       {
@@ -1441,6 +1438,9 @@ export class Service {
           line.product.unit,
           line.product.nativeUnit,
           line.product.increment,
+          ...(line.product.pieceOrdering
+            ? [line.product.pieceOrdering, line.product.cataloguePricing]
+            : []),
         ],
         line.packs,
         line.total,

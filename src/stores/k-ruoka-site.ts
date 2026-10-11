@@ -27,6 +27,17 @@ const searchSchema = z.object({
             localizedName: localized,
             isAvailable: z.boolean().nullish(),
             store: z.object({ id: z.string() }).nullish(),
+            productAttributes: z
+              .object({
+                measurements: z
+                  .object({
+                    averageWeight: z.number().positive().nullish(),
+                  })
+                  .passthrough()
+                  .nullish(),
+              })
+              .passthrough()
+              .nullish(),
             mobilescan: z
               .object({
                 pricing: z
@@ -279,6 +290,8 @@ export class KRuokaSite {
               price: normal?.price ?? null,
               priceUnit: normal?.unit ?? null,
               priceIsApproximate: normal?.isApproximate ?? null,
+              averagePieceWeightKg:
+                product.productAttributes?.measurements?.averageWeight ?? null,
               isAvailable: product.isAvailable ?? null,
             },
           ];

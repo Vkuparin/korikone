@@ -7,6 +7,9 @@ import {
   exclusionTerms,
   requirements,
   priceBreakdown,
+  transferableLine,
+  approximateCost,
+  pieceQuote,
 } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
@@ -227,9 +230,7 @@ export function ShoppingWorkspace({
   const estimated = snapshot.basket.filter(
     (line) => line.approximate && line.total !== null,
   );
-  const transferable = snapshot.basket.filter(
-    (line) => line.product && line.total !== null && !line.approximate,
-  ).length;
+  const transferable = snapshot.basket.filter(transferableLine).length;
   const missing = rows.filter(
     (r) =>
       !snapshot.basket.some(
@@ -948,9 +949,10 @@ export function ShoppingWorkspace({
                   const count =
                     line?.product && !line.approximate ? line.packs : r.amount;
                   const cost = (p: Product) =>
+                    approximateCost(r, p) ??
                     Math.ceil(r.amount / p.packAmount / p.increment) *
-                    p.increment *
-                    (p.price! + p.deposit);
+                      p.increment *
+                      (p.price! + p.deposit);
                   const cheaper = line?.candidates
                     .filter(
                       (p) =>
@@ -1000,6 +1002,17 @@ export function ShoppingWorkspace({
                           </button>
                         ) : (
                           <strong>{r.name}</strong>
+                        )}
+                        {line?.product && pieceQuote(r, line.product) && (
+                          <small className="piece-order-summary">
+                            {tr("Tilataan", "Order")} {line.packs}{" "}
+                            {unitLabel("pcs", state.language)} ·{" "}
+                            {tr("paino noin", "weight about")}{" "}
+                            {Math.round(
+                              pieceQuote(r, line.product)!.weightGrams,
+                            )}{" "}
+                            g
+                          </small>
                         )}
                         {!!line?.excluded && (
                           <small>
@@ -1336,9 +1349,14 @@ export function ShoppingWorkspace({
             {estimated.length > 0 && (
               <p className="muted">
                 {tr(
-                  "Punnittavien tuotteiden hinnat ovat arvioita. Lisää ne itse kaupassa; niiden siirto ei ole vielä käytössä.",
-                  "Weighed prices are estimates. Add those products in the store yourself; their transfer is not available yet.",
+                  "Punnittavien tuotteiden hinnat ovat arvioita. Lopullinen paino ja hinta vahvistuvat kaupassa.",
+                  "Weighed prices are estimates. Final weight and price are confirmed by the store.",
                 )}
+                {estimated.some((line) => !transferableLine(line)) &&
+                  tr(
+                    " Lisää kaupassa itse tuotteet, joiden kappalemäärää ei voida varmistaa.",
+                    " Add products in the store yourself when their piece quantity cannot be verified.",
+                  )}
               </p>
             )}
             {snapshot.pricingError && (

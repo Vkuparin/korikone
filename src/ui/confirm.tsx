@@ -6,6 +6,7 @@ import { compareTransfers, hasChanges } from "../domain/changes";
 import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { en, fi, unitLabel, type Key } from "./i18n";
+import { approximateCost } from "../domain/planner";
 
 const chainName = (review: Review) =>
   review.context.providerId === "k-ruoka"
@@ -38,9 +39,10 @@ export function attention(
       .map((p) => ({
         product: p,
         total:
+          approximateCost(line.requirement, p) ??
           Math.ceil(line.requirement.amount / p.packAmount / p.increment) *
-          p.increment *
-          (p.price! + p.deposit),
+            p.increment *
+            (p.price! + p.deposit),
       }))
       .sort((a, b) => a.total - b.total)[0];
     return best && best.total < line.total
@@ -175,6 +177,14 @@ export function ConfirmPanel({
         {review.context.providerId === "s-kaupat" && (
           <p className="muted">{t("sKaupatListInfo")}</p>
         )}
+        {review.quotes.some((line) => line.approximate) && (
+          <p className="muted">
+            {tr(
+              "Punnittavat tuotteet tilataan kappaleina. Lopullinen paino ja hinta voivat muuttua.",
+              "Weighed products are ordered in pieces. Final weight and price may change.",
+            )}
+          </p>
+        )}
         {changes && (
           <details open={hasChanges(changes)} key={review.id}>
             <summary>
@@ -251,7 +261,10 @@ export function ConfirmPanel({
             }
           >
             {tr("Vahvista", "Confirm")}: {count} {tr("tuotetta", "products")} →{" "}
-            {chainName(review)} · {money(review.total)}
+            {chainName(review)} ·{" "}
+            {review.quotes.some((line) => line.approximate) &&
+              tr("noin ", "about ")}
+            {money(review.total)}
           </button>
           <button className="text" disabled={busy} onClick={onClose}>
             {tr("Peru", "Cancel")}

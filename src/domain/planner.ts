@@ -1,5 +1,63 @@
 import type { AppState, BasketLine, Product, Requirement } from "./model";
 import { classificationKey } from "./categories";
+import { pieceOrderingSchema } from "./product-evidence";
+
+/** Order whole pieces from an explicit average weight; final weight remains estimated. */
+export function pieceQuote(
+  requirement: Requirement,
+  product: Product,
+): { pieces: number; total: number; weightGrams: number } | null {
+  const ordering = pieceOrderingSchema.safeParse(product.pieceOrdering);
+  const source = product.cataloguePricing;
+  if (
+    !ordering.success ||
+    !source ||
+    product.available !== true ||
+    product.nativeUnit !== "kpl" ||
+    product.increment !== 1 ||
+    source.unit?.toLowerCase() !== "kpl" ||
+    ![null, "per_item"].includes(source.basis) ||
+    source.approximate !== true ||
+    source.amount === null ||
+    !Number.isSafeInteger(source.amount) ||
+    source.amount < 0 ||
+    product.deposit !== 0 ||
+    (source.deposit !== null && source.deposit !== 0) ||
+    !Number.isSafeInteger(requirement.amount) ||
+    requirement.amount <= 0 ||
+    !["g", "pcs"].includes(requirement.unit)
+  )
+    return null;
+  const pieces =
+    requirement.unit === "pcs"
+      ? requirement.amount
+      : Math.ceil(requirement.amount / ordering.data.estimatedWeightGrams);
+  const total = pieces * source.amount;
+  const maximum = ["s-kaupat", "demo-s"].includes(product.providerId)
+    ? 99
+    : 100;
+  if (
+    !Number.isSafeInteger(pieces) ||
+    pieces <= 0 ||
+    pieces > maximum ||
+    !Number.isSafeInteger(total)
+  )
+    return null;
+  return {
+    pieces,
+    total,
+    weightGrams: pieces * ordering.data.estimatedWeightGrams,
+  };
+}
+
+export function transferableLine(line: BasketLine): boolean {
+  if (!line.product || line.total === null) return false;
+  if (!line.approximate) return !line.product.pieceOrdering && line.packs > 0;
+  const quote = pieceQuote(line.requirement, line.product);
+  return (
+    quote !== null && quote.pieces === line.packs && quote.total === line.total
+  );
+}
 export function requirements(
   state: AppState,
   now = new Date(),
@@ -109,6 +167,8 @@ export function approximateCost(
   requirement: Requirement,
   product: Product,
 ): number | null {
+  const piece = pieceQuote(requirement, product);
+  if (piece) return piece.total;
   const source = product.cataloguePricing;
   const unit = source?.unit?.toLowerCase();
   if (
@@ -201,10 +261,13 @@ export function match(
   const approximate =
     product !== null && approximateCost(requirement, product) !== null;
   const packs =
-    product && !approximate
-      ? Math.ceil(requirement.amount / product.packAmount / product.increment) *
-        product.increment
-      : 0;
+    product && approximate
+      ? (pieceQuote(requirement, product)?.pieces ?? 0)
+      : product
+        ? Math.ceil(
+            requirement.amount / product.packAmount / product.increment,
+          ) * product.increment
+        : 0;
   return {
     requirement,
     ...(approximate ? { approximate: true } : {}),
@@ -228,7 +291,7 @@ export function applyPackSizes(
 ): Product[] {
   return products.map((p) => {
     const size = sizes[p.id];
-    return !p.packAmount && size
+    return !p.pieceOrdering && !p.packAmount && size
       ? { ...p, packAmount: size.amount, unit: size.unit }
       : p;
   });

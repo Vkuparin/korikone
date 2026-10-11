@@ -14,6 +14,157 @@ function memory() {
     },
   };
 }
+
+async function pieceReady(chain: "demo-k" | "demo-s", storage = memory()) {
+  const service = new Service(storage);
+  const provider = service.registry.get(chain) as DemoProvider;
+  service.state.context = (await provider.searchStores())[0];
+  service.state.meals = [];
+  service.state.staples = [];
+  service.state.extras = [
+    { id: "banana", name: "Banaani", amount: 500, unit: "g" },
+  ];
+  await service.save(service.state);
+  await service.buildBasket();
+  return { service, provider, storage };
+}
+
+test.each(["demo-k", "demo-s"] as const)(
+  "F4.3 %s rounds requested mass up to pieces and verifies exact readback once",
+  async (chain) => {
+    const { service, provider, storage } = await pieceReady(chain);
+    const pieces = chain === "demo-k" ? 3 : 4;
+    const total = chain === "demo-k" ? 120 : 200;
+    expect(service.basket[0]).toMatchObject({
+      approximate: true,
+      packs: pieces,
+      total,
+      product: { id: "loose-banana", price: null },
+    });
+    const cart = await provider.getCart(service.state.context);
+    cart.lines.push({
+      productId: "loose-banana",
+      name: "Banaani",
+      quantity: 2,
+      unit: "kpl",
+    });
+    provider.carts.set(JSON.stringify(service.state.context), cart);
+    await service.prepare();
+    expect(service.review!.targets).toEqual([
+      expect.objectContaining({
+        productId: "loose-banana",
+        before: 2,
+        quantity: 2 + pieces,
+        unit: "kpl",
+        price: total,
+      }),
+    ]);
+    await service.execute({ id: service.review!.id, acknowledged: true });
+    expect(service.journal?.status).toBe("verified");
+    expect(provider.writes).toBe(1);
+    expect(
+      (await provider.getCart(service.state.context)).lines.find(
+        (line) => line.productId === "loose-banana",
+      )?.quantity,
+    ).toBe(2 + pieces);
+    const restarted = new Service(storage);
+    await restarted.init();
+    expect(restarted.basket[0]).toMatchObject({
+      approximate: true,
+      packs: pieces,
+      total,
+    });
+    await restarted.transferDisplayed({
+      revision: restarted.state.revision,
+      quotedAt: restarted.quotedAt,
+      batchKey: restarted.snapshot().transferBatchKey,
+    });
+    expect((restarted.registry.get(chain) as DemoProvider).writes).toBe(0);
+  },
+);
+
+test("F4.3 rejects refused quantities and fractional rounded readback without tolerating or repeating a write", async () => {
+  const refused = await pieceReady("demo-k");
+  await refused.service.prepare();
+  refused.provider.refusePieces = true;
+  await refused.service.execute({
+    id: refused.service.review!.id,
+    acknowledged: true,
+  });
+  expect(refused.service.journal).toMatchObject({
+    status: "partial",
+    error: "unitMismatch",
+    verified: [],
+  });
+  expect(refused.provider.writes).toBe(0);
+  const rounded = await pieceReady("demo-s");
+  await rounded.service.prepare();
+  rounded.provider.pieceReadbackAdjustment = -0.001;
+  await rounded.service.execute({
+    id: rounded.service.review!.id,
+    acknowledged: true,
+  });
+  expect(rounded.service.journal).toMatchObject({
+    status: "partial",
+    error: "verificationFailed",
+    verified: [],
+  });
+  expect(rounded.provider.writes).toBe(1);
+  await expect(rounded.service.recover()).rejects.toThrow("unitMismatch");
+  expect(rounded.provider.writes).toBe(1);
+});
+
+test("F4.3 rechecks piece weight and price before writes and recovers a lost reply without adding twice", async () => {
+  for (const change of ["pieceWeightChange", "priceChange"] as const) {
+    const { service, provider } = await pieceReady("demo-k");
+    await service.prepare();
+    provider[change] = true;
+    await service.execute({ id: service.review!.id, acknowledged: true });
+    expect(service.journal).toMatchObject({
+      status: "partial",
+      error: "priceChanged",
+    });
+    expect(provider.writes).toBe(0);
+  }
+  const { service, provider } = await pieceReady("demo-k");
+  await service.prepare();
+  provider.failAfter = 1;
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  expect(service.journal).toMatchObject({
+    status: "partial",
+    error: "interrupted",
+  });
+  await service.recover();
+  expect(service.review!.targets).toEqual([]);
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  expect(service.journal?.status).toBe("verified");
+  expect(provider.writes).toBe(1);
+});
+
+test("F4.3 recovery presents a changed piece price for a new approval and restart rejects mismatched quote metadata", async () => {
+  const { service, provider, storage } = await pieceReady("demo-k");
+  await service.prepare();
+  provider.refusePieces = true;
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  provider.refusePieces = false;
+  provider.priceChange = true;
+  await service.recover();
+  expect(service.review!.targets[0]).toMatchObject({ quantity: 3, price: 180 });
+  expect(service.review!.quotes[0]).toMatchObject({
+    total: 180,
+    approximate: true,
+  });
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  expect(service.journal?.status).toBe("verified");
+  expect(provider.writes).toBe(1);
+  const saved = (await storage.get("last-quote")) as any;
+  saved.basket[0].product = structuredClone(saved.basket[0].product);
+  saved.basket[0].product.pieceOrdering.estimatedWeightGrams = 170;
+  await storage.set("last-quote", saved);
+  const restarted = new Service(storage);
+  await restarted.init();
+  expect(restarted.quotedAt).toBeNull();
+});
 test("displayed transfer writes once and remains protected after restart", async () => {
   const storage = memory();
   const service = new Service(storage);

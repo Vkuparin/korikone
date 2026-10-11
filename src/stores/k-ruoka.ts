@@ -8,7 +8,10 @@ import type {
 } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
-import { cataloguePricingSchema } from "../domain/product-evidence";
+import {
+  cataloguePricingSchema,
+  pieceOrdering,
+} from "../domain/product-evidence";
 export type ToolCall = (
   name: string,
   args: Record<string, unknown>,
@@ -21,6 +24,7 @@ const productSchema = z.object({
   priceUnit: z.string().nullish(),
   priceIsApproximate: z.boolean().nullish(),
   isAvailable: z.boolean().nullish(),
+  averagePieceWeightKg: z.number().positive().nullish(),
 });
 const cartSchema = z.object({
   basketId: z.string().min(1),
@@ -114,6 +118,12 @@ export class KRuokaProvider implements StoreProvider {
       const pack = packFromName(p.name);
       // Weight pricing and missing pack data remain unresolved; never assume a kg is a pack.
       const supported = p.priceIsApproximate === false && p.priceUnit === "kpl";
+      const ordering =
+        p.priceIsApproximate === true &&
+        p.priceUnit === "kpl" &&
+        p.price != null
+          ? pieceOrdering(p.averagePieceWeightKg)
+          : undefined;
       return {
         id: p.ean,
         providerId: this.id,
@@ -126,7 +136,7 @@ export class KRuokaProvider implements StoreProvider {
         available: p.isAvailable ?? null,
         deposit: 0,
         nativeUnit: p.priceUnit ?? "unknown",
-        increment: supported ? 1 : 0,
+        increment: supported || ordering ? 1 : 0,
         observedAt: new Date().toISOString(),
         evidence: retailerEvidence(p.name),
         cataloguePricing: cataloguePricingSchema.parse({
@@ -136,6 +146,7 @@ export class KRuokaProvider implements StoreProvider {
           approximate: p.priceIsApproximate ?? null,
           deposit: null,
         }),
+        ...(ordering ? { pieceOrdering: ordering } : {}),
       };
     });
   }

@@ -7,7 +7,11 @@ import type {
   StoreContext,
   Product,
 } from "../domain/model";
-import { applyPackSizes } from "../domain/planner";
+import {
+  applyPackSizes,
+  transferableLine,
+  pieceQuote,
+} from "../domain/planner";
 import {
   candidateSuitability,
   requirementQueryHints,
@@ -21,8 +25,22 @@ function sameSuitability(
   fresh: Product,
   context: StoreContext,
   options: MatchingOptions,
+  allowPriceChange = false,
 ): boolean {
   const original = line.product!;
+  const pricingFacts = (p: Product) => {
+    if (!allowPriceChange || !p.cataloguePricing) return p.cataloguePricing;
+    const { amount: _amount, ...facts } = p.cataloguePricing;
+    return facts;
+  };
+  if (
+    (original.pieceOrdering || fresh.pieceOrdering) &&
+    (JSON.stringify(original.pieceOrdering) !==
+      JSON.stringify(fresh.pieceOrdering) ||
+      JSON.stringify(pricingFacts(original)) !==
+        JSON.stringify(pricingFacts(fresh)))
+  )
+    return false;
   const facts = (p: Product) =>
     p.evidence
       ? JSON.stringify({
@@ -82,7 +100,7 @@ export async function createReview(
   if (
     !provider.capabilities.cart ||
     !lines.length ||
-    lines.some((l) => !l.product || l.total === null || l.approximate)
+    lines.some((l) => !transferableLine(l))
   )
     throw new Error("unresolved");
   const baseline = await provider.getCart(context);
@@ -113,6 +131,8 @@ export async function createReview(
     )
       throw new Error("priceChanged");
     const existing = baseline.lines.find((l) => l.productId === p.id);
+    if (existing && p.pieceOrdering && !Number.isSafeInteger(existing.quantity))
+      throw new Error("unitMismatch");
     if (existing && existing.unit !== p.nativeUnit)
       throw new Error("unitMismatch");
     const previous = targets.find((t) => t.productId === p.id);
@@ -133,7 +153,10 @@ export async function createReview(
   if (
     targets.some(
       (t) =>
-        t.quantity > 100 || t.quantity <= 0 || !Number.isFinite(t.quantity),
+        t.quantity >
+          (provider.id === "s-kaupat" || provider.id === "demo-s" ? 99 : 100) ||
+        t.quantity <= 0 ||
+        !Number.isSafeInteger(t.quantity),
     )
   )
     throw new Error("excessiveQuantity");
@@ -253,6 +276,15 @@ export async function resumeReview(
   const targets = journal.review.targets
     .filter((t) => {
       const current = baseline.lines.find((l) => l.productId === t.productId);
+      if (
+        current &&
+        journal.review.quotes.some(
+          (line) =>
+            line.product?.id === t.productId && line.product.pieceOrdering,
+        ) &&
+        !Number.isSafeInteger(current.quantity)
+      )
+        throw new Error("unitMismatch");
       if (current && current.unit !== t.unit) throw new Error("unitMismatch");
       if (current && current.quantity > t.quantity)
         throw new Error("cartChanged");
@@ -277,8 +309,14 @@ export async function resumeReview(
     );
     if (
       !fresh ||
-      !sameSuitability(line, fresh, journal.review.context, matchingOptions) ||
-      fresh.price === null ||
+      !sameSuitability(
+        line,
+        fresh,
+        journal.review.context,
+        matchingOptions,
+        true,
+      ) ||
+      (fresh.price === null && pieceQuote(line.requirement, fresh) === null) ||
       fresh.available !== true ||
       fresh.packAmount !== line.product!.packAmount ||
       fresh.unit !== line.product!.unit ||
@@ -286,8 +324,14 @@ export async function resumeReview(
     )
       throw new Error("priceChanged");
     line.product = fresh;
+    if (line.approximate)
+      line.total = line.packs * fresh.cataloguePricing!.amount!;
     target.price =
-      (target.quantity - target.before) * (fresh.price + fresh.deposit);
+      (target.quantity - target.before) *
+      ((pieceQuote(line.requirement, fresh)
+        ? fresh.cataloguePricing!.amount!
+        : fresh.price!) +
+        fresh.deposit);
   }
   return {
     ...journal.review,

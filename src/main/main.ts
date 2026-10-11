@@ -26,6 +26,7 @@ import { stateSchema, contextSchema } from "../domain/model";
 import { appearanceBootstrap } from "../domain/appearance";
 import { z } from "zod";
 import { SKaupatHost } from "./s-kaupat-host";
+import { sKaupatPieceCatalogue } from "../stores/s-kaupat-pieces";
 import { KRuokaProvider } from "../stores/k-ruoka";
 import { KRuokaWorker, findChrome } from "../stores/worker";
 import {
@@ -143,8 +144,11 @@ else
           dataDir: join(app.getPath("userData"), "retailers/s-kaupat"),
           host: sKaupatViaTab ? { url: sHost.url, key: sHost.key } : undefined,
         });
-    const sKaupat = new SKaupatProvider((name, args) =>
-      sWorker.call(name, args),
+    const sKaupat = new SKaupatProvider(
+      (name, args) => sWorker.call(name, args),
+      sKaupatViaTab
+        ? sKaupatPieceCatalogue((request) => sHost.handle("fetch", request))
+        : undefined,
     );
     const sSession = new SKaupatSession(
       (name, args, timeout) => sWorker.call(name, args, timeout),

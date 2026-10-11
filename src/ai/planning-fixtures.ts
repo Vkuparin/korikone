@@ -53,6 +53,7 @@ export function planningFixtureReply(
     [/riisi|rice/i, "Riisi"],
     [/kerma|cream/i, "Kerma"],
     [/omena|apples?/i, "Omena"],
+    [/banaan|bananas?/i, "Banaani"],
     [/leip|bread/i, "Leipä"],
     [/pakastepizza|frozen pizza/i, "Pakastepizza"],
   ];
@@ -62,9 +63,11 @@ export function planningFixtureReply(
     if (!quote) continue;
     const start = range.start + raw.indexOf(quote),
       end = start + quote.length;
-    const recipe = recipes.find((fixture) =>
-      fixture.pattern.test(quote),
-    )?.recipe;
+    const measuredBanana =
+      /^\d+(?:[.,]\d+)?\s*(?:kg|g)\s+(?:banaan\p{L}*|bananas?)$/iu.test(quote);
+    const recipe = measuredBanana
+      ? undefined
+      : recipes.find((fixture) => fixture.pattern.test(quote))?.recipe;
     const intent: RequestIntent = {
       id: `fixture-${start}`,
       kind: recipe ? "meal" : "grocery",

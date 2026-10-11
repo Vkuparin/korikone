@@ -183,6 +183,7 @@ export type Product = {
   /** Optional for legacy quotes and demo providers; missing evidence stays unknown. */
   evidence?: import("./product-evidence").ProductEvidence;
   cataloguePricing?: import("./product-evidence").CataloguePricing;
+  pieceOrdering?: import("./product-evidence").PieceOrdering;
 };
 export type BasketLine = {
   /** Price estimate for the requested mass/volume; does not authorize a retailer quantity. */
