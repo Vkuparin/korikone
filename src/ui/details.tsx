@@ -215,18 +215,19 @@ export function RowDetails({
                       ? t("unavailable")
                       : t("stockUnknown")}
               </button>
-              {line.matching?.decisions.find(
-                (decision) => decision.id === p.id,
-              ) && (
-                <small className="candidate-reason">
-                  {matchingReasonLabel(
-                    line.matching.decisions.find(
-                      (decision) => decision.id === p.id,
-                    )!.reason,
-                    language,
-                  )}
-                </small>
-              )}
+              {p.id !== product?.id &&
+                line.matching?.decisions.find(
+                  (decision) => decision.id === p.id,
+                ) && (
+                  <small className="candidate-reason">
+                    {matchingReasonLabel(
+                      line.matching.decisions.find(
+                        (decision) => decision.id === p.id,
+                      )!.reason,
+                      language,
+                    )}
+                  </small>
+                )}
               {(() => {
                 const rule = categoryPreferenceSchema.safeParse({
                   category: matchingPolicy(requirement).category,
@@ -278,6 +279,12 @@ export function RowDetails({
       {memoryDraft && (
         <form
           className="form row-memory"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && !busy) {
+              event.stopPropagation();
+              closeMemory();
+            }
+          }}
           onSubmit={async (event) => {
             event.preventDefault();
             const applied = await remember({

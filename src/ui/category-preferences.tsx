@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { classificationSchema, qualifierValues } from "../domain/categories";
+import {
+  classificationSchema,
+  qualifierValues,
+  type Category,
+} from "../domain/categories";
 import type { CategoryPreference } from "../domain/preferences";
 import type { SettingsSectionProps } from "./settings-contract";
 
@@ -69,6 +73,12 @@ const categories = {
     coffee: "Coffee",
   },
 };
+export function preferenceCategoryLabel(
+  category: Category,
+  language: string,
+): string {
+  return categories[language === "fi" ? "fi" : "en"][category];
+}
 const labels: Record<string, [string, string]> = {
   fat: ["Rasvapitoisuus", "Fat content"],
   lactose: ["Laktoosi", "Lactose"],

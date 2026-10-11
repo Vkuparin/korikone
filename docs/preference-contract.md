@@ -2,7 +2,7 @@
 
 F15.14's typed `correctRow` action can explicitly opt into the same evidence-supported memory change. One-time correction choices are cleared for a new list; quantity and unresolved corrections create no rule. See [correction-contract.md](correction-contract.md) for revision binding, persistence and row-control handoff.
 
-F15.3 implements explicit portable memory using the accepted [category policy](category-policy.md) and [shared matcher](matching-contract.md). Stored rules apply on both chains; product IDs remain separate store-specific choices. F15.12 supplies row controls, F15.13 Advanced management; optional grouped review remains F15.6.
+F15.3 implements explicit portable memory using the accepted [category policy](category-policy.md) and [shared matcher](matching-contract.md). Stored rules apply on both chains; product IDs remain separate store-specific choices. F15.12 supplies row controls, F15.13 Advanced management and F15.6 optional grouped review.
 
 ## Schema and migration
 
@@ -52,6 +52,12 @@ F16.9 should snapshot portable rules with the rest of operation context and bind
 `RowDetails` renders fixed matching reasons in Finnish and English, including unavailable preferred types and current-note overrides. Use once invokes the existing `accept` action and retains portable rules. Rejected candidates cannot be accepted; unavailable products and missing prices/packs remain visible without a usable choice. Remember appears only for an evidence-supported, valid category rule and opens a separate inline form showing the exact attributes and Required/Preferred meaning. Only its explicit submit invokes `rememberCategoryPreference` with the displayed revision, row key and product ID. Cancellation or closing row details invokes no preference action. Stale submissions reload current rows while preserving the error and require reopening rather than retrying automatically.
 
 Focused development UI fixtures cover one-time approval, cancelled and explicit memory, keyboard focus, unavailable Preferred/Required types, rejected and empty results, SQLite restart, stale actions and a current-note override through real planning validation/atomic commit. The override uses the finite synthetic note “500 g suodatinjauhettua kahvia” and its exact source span; saved bean preference stays unchanged.
+
+## Optional grouped review (F15.6)
+
+`GroupedReview` in `src/ui/grouped-review.tsx` opens only from the Shopping unresolved-count button. It owns a captured set of row keys and local “Leave unresolved” display state, with no independent quote, total, storage or transfer. Categories and current row data come from the same saved snapshot. It reuses `RowDetails`, `accept` and revision-bound `rememberCategoryPreference`; dismissing the panel or a memory draft invokes no action. Captured rows remain after approval to preserve keyboard context. Missing products remain unresolved for the existing U10 transfer decision. Escape and closing restore focus, with a saved-list heading fallback when the opener disappears.
+
+Focused FI/EN development journeys verify mixed uncertain categories, a useful resolved row, no automatic opening while typing, dismissal with unchanged saved state/quote/counters, nested draft cancellation, explicit Required memory, one-time SKU approval, Leave unresolved and incomplete-transfer confirmation with zero retailer writes. A separate all-resolved check verifies the heading fallback. Candidate-reason geometry and narrow captures verify readable details.
 
 ## Advanced management (F15.13)
 

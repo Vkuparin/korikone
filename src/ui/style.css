@@ -1247,6 +1247,20 @@ body:has(.app-main) .demo {
 .shopping-workspace .grocery-row {
   padding: 12px 0;
 }
+.grouped-review {
+  margin: 12px 0;
+  min-width: 0;
+}
+.review-row {
+  padding: 12px 0;
+  border-top: 1px solid var(--kk-border);
+}
+.review-row h4 {
+  overflow-wrap: anywhere;
+}
+.grouped-review .row-details {
+  grid-column: auto;
+}
 .shopping-workspace .note-box textarea {
   min-height: 110px;
 }
@@ -1433,6 +1447,11 @@ body:has(.app-main) > #root > .progress {
   grid-column: 1;
   grid-row: 2;
   font-size: 14px;
+}
+.row-details .candidate .candidate-reason {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  overflow-wrap: anywhere;
 }
 .row-details .candidate strong {
   grid-column: 2;

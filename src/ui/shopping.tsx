@@ -1,9 +1,10 @@
 import { candidateSuitability, purchasable } from "../domain/matching";
 import { currentOffer } from "../domain/prices";
 import { matchingReasonLabel } from "./matching-reasons";
+import { GroupedReview } from "./grouped-review";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
-import type { AppState, Product } from "../domain/model";
+import type { AppState, Product, Requirement } from "../domain/model";
 import { ModelSelector } from "./model";
 import {
   exclusionTerms,
@@ -70,6 +71,15 @@ export function ShoppingWorkspace({
   const [copied, setCopied] = useState(false);
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
+  const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
+  const reviewOpener = useRef<HTMLButtonElement>(null);
+  const listHeading = useRef<HTMLHeadingElement>(null);
+  const closeReview = () => {
+    setReviewRows(null);
+    requestAnimationFrame(() =>
+      (reviewOpener.current ?? listHeading.current)?.focus(),
+    );
+  };
   const currentNote = useRef(note);
   const planningOperation = useRef<string | null>(null);
   useEffect(
@@ -800,7 +810,7 @@ export function ShoppingWorkspace({
             </p>
           )}
           <div className="section-heading compact">
-            <h2>
+            <h2 ref={listHeading} tabIndex={-1}>
               {tr("Ostoslista", "Shopping list")}{" "}
               <span className="muted">· {all.length}</span>
             </h2>
@@ -921,6 +931,36 @@ export function ShoppingWorkspace({
               </option>
             </select>
           </label>
+          {(missing.length > 0 || reviewRows !== null) && (
+            <button
+              ref={reviewOpener}
+              type="button"
+              className="text"
+              aria-expanded={reviewRows !== null}
+              aria-controls="optional-product-review"
+              disabled={busy}
+              onClick={() =>
+                reviewRows
+                  ? closeReview()
+                  : setReviewRows(structuredClone(missing))
+              }
+            >
+              {tr("Tarkista ratkaisemattomat rivit", "Review unresolved rows")}{" "}
+              · {missing.length}
+            </button>
+          )}
+          {reviewRows && (
+            <div id="optional-product-review">
+              <GroupedReview
+                snapshot={snapshot}
+                requirements={reviewRows}
+                busy={busy}
+                money={money}
+                call={call}
+                close={closeReview}
+              />
+            </div>
+          )}
           {!all.length && (
             <div className="empty-list">
               <span aria-hidden="true">☷</span>
