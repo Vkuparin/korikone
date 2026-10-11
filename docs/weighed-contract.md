@@ -1,6 +1,6 @@
 # Weighed catalogue and quantity audit
 
-F4.1 source audit, 11 October 2026. `tests/fixtures/weighed-contract.ts` contains independently authored wire examples, not captured store results. `tests/weighed-contract.test.ts` passes two real-adapter cases for source-price retention, fractional readback and rejected writes. No retailer account, live AI or retailer write was used.
+F4.1 source audit, 11 October 2026. `tests/fixtures/weighed-contract.ts` contains independently authored wire examples, not captured store results. `tests/weighed-contract.test.ts` passes two real-adapter cases for source-price retention, fractional readback and rejected writes. Actual anonymous public search-card facts are saved separately in `tests/fixtures/weighed-public-k-search.json` and `weighed-public-s-search.json`. These are normalized visible DOM observations, not tool wire captures. No retailer account, live AI or agent retailer write was used.
 
 ## Pricing facts
 
@@ -31,13 +31,15 @@ On 11 October 2026 the owner confirmed that S-kaupat works the same way as K-Ruo
 
 For both retailer-cart paths, F4.3 must preserve piece ordering. A kg catalogue price remains pricing evidence only. Converting a gram requirement to pieces needs explicit product-specific estimated weight per piece, a documented rounding rule and piece readback. Do not send kg amounts based on the kg price. The displayed estimated piece weight is not an exact pack size; final weight and price can change. The S-kaupat worker's per-weight list quantity semantics must be reconciled with website piece ordering before writes are enabled; a saved list and the checkout cart are different boundaries.
 
-## Remaining owner check
+## Remaining technical reconciliation
 
-F4.1 says "Read-only unless the owner runs the write check." The remaining completion evidence is one actual sanitized search result per chain and observed quantity/readback behavior. The synthetic fixtures do not satisfy that live-result requirement.
+F4.1 says "Read-only unless the owner runs the write check." The owner observations above establish piece ordering and estimated final prices for the displayed loose produce in both website carts. Anonymous browser search samples now supply actual public catalogue evidence without accounts: K-Ruoka lists the organic banana at an estimated 42 cents per piece and 239 cents/kg; its detail page explicitly states average weight 175 g. S-kaupat lists Coop banana at an estimated 28 cents per piece and 169 cents/kg with one-piece controls. No explicit average piece weight was visible for that S-kaupat product; do not infer it by dividing rounded prices. Public default prices are observation-time facts, not owner-store quotes or verified stock.
 
-The owner can check one weighed product in each retailer's own site, record the product's displayed price basis and approximation, the selectable unit and quantity step, then manually set a small amount in the cart/list and read it back. Record requested versus returned quantity, unit, refusal or rounding and whether the site shows piece count instead of kg. Restore the previous amount afterward. The owner chooses the product and amount; this audit does not authorize an agent write. No checkout, payment or AI request is needed (expected ChatGPT usage: zero).
+Direct anonymous HTTP requests to the product pages were refused (K-Ruoka 403, S-kaupat 429); the public S-kaupat catalogue API also refused the read-only request with 403. Normal anonymous browser pages loaded successfully. No challenges were solved, account sessions used or writes attempted. The saved JSON facts are sanitized DOM observations, not API/tool wire responses; the wire-field audit remains source-based.
 
-Only product/search/quantity fields belong in a committed sanitized result. Omit account, basket/list IDs, names of people, session tokens and loyalty/payment data. Do not assert a readback tolerance from worker duplicate arithmetic. F4.3 remains gated on this evidence; F4.1 is incomplete until actual search samples and the adapter/list-to-cart quantity contract are recorded. The owner observations above establish piece ordering and estimated final prices for the displayed loose produce in both website carts. Further agent work should reconcile technical boundaries before requesting another owner check.
+The remaining technical gate is reconciling each catalogue's explicit price basis, order unit and estimated piece weight with actual adapter/list readback. In particular, the installed S-kaupat client derives both priceBasis and quantityUnit from priceUnit; the application then derives list readback kg from any non-per-item basis. This does not establish website-cart ordering. Do not grant weighed transfer authority from that derivation, from rounded price ratios or from the worker's three-decimal duplicate-merging arithmetic. F4.3 needs separate explicit ordering evidence and product-specific conversion, with exact whole-piece readback on a piece path. Further agent work should settle the technical boundary before requesting another owner check.
+
+Only product/search/quantity fields belong in committed captures. Omit account, basket/list IDs, names of people, session tokens and loyalty/payment data. The two public samples contain no private session or cart data. Private owner screenshots stay outside the repository.
 
 ## F4.2 estimate contract
 

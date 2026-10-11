@@ -1,0 +1,22 @@
+{
+  "capturedOn": "2026-10-11",
+  "source": "anonymous-browser-visible-search-card",
+  "url": "https://www.k-ruoka.fi/kauppa/tuotehaku/hedelmat-ja-vihannekset/hedelmat/banaanit",
+  "store": "K-Citymarket Iso Omena",
+  "product": {
+    "ean": "2000686300003",
+    "name": "Pirkka luomu Reilun kaupan banaani",
+    "estimatedPiecePriceCents": 42,
+    "pricePerKilogramCents": 239,
+    "displayedPieceUnit": "kpl",
+    "approximate": true
+  },
+  "detail": {
+    "url": "https://www.k-ruoka.fi/kauppa/tuote/pirkka-banaani-luomu-reilu-kauppa-kg-2000686300003-n106",
+    "explicitAveragePieceWeightGrams": 175,
+    "finalWeightAndPriceCanVary": true
+  },
+  "wireResponseCaptured": false,
+  "stockVerified": false,
+  "agentCartWrites": 0
+}

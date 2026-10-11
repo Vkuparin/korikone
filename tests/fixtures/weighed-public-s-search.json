@@ -1,0 +1,24 @@
+{
+  "capturedOn": "2026-10-11",
+  "source": "anonymous-browser-visible-search-card",
+  "url": "https://www.s-kaupat.fi/hakutulokset?queryString=banaani",
+  "store": null,
+  "product": {
+    "ean": "2005603200008",
+    "name": "Coop banaani",
+    "estimatedPiecePriceCents": 28,
+    "pricePerKilogramCents": 169,
+    "displayedPieceUnit": "kpl",
+    "displayedQuantity": 0,
+    "visibleIncrementPieces": 1,
+    "approximate": true
+  },
+  "detail": {
+    "url": "https://www.s-kaupat.fi/tuote/coop-banaani/2005603200008",
+    "explicitAveragePieceWeightGrams": null,
+    "availabilityAndExactPriceRequireDeliverySelection": true
+  },
+  "wireResponseCaptured": false,
+  "stockVerified": false,
+  "agentCartWrites": 0
+}
