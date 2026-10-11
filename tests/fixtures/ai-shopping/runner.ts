@@ -2,6 +2,8 @@ import { interpretShopping } from "../../../src/ai/output";
 import { InferenceError, InferenceSession } from "../../../src/ai/provider";
 import { buildCompactContext } from "../../../src/ai/context";
 import { inferenceTasks } from "../../../src/ai/tasks";
+import { isDeepStrictEqual } from "node:util";
+import { PRICE_KEY } from "../../../src/domain/prices";
 import { requirements } from "../../../src/domain/planner";
 import { unresolvedReason as reason } from "../../../src/application/metrics";
 import { ScriptedInferenceProvider } from "../../helpers/inference";
@@ -24,13 +26,18 @@ export async function evaluateShoppingCase(
   const fixture = shoppingCaseSchema.parse(input);
   if (execution === "coordinator" && !fixture.planningReplies)
     throw new Error(`Missing explicit planning replies: ${fixture.id}`);
-  const { service, tools, normalized } = await createFixtureService(
+  const { service, tools, normalized, storage } = await createFixtureService(
     chain,
     fixture.catalogue,
     fixture.boundaryFailure,
   );
   if (fixture.contextSetup)
     await service.save({ ...service.state, ...fixture.contextSetup });
+  const before = service.snapshot();
+  const retainedKeys = ["state", "last-quote", PRICE_KEY];
+  const storedBefore = await Promise.all(
+    retainedKeys.map((key) => storage.get(key)),
+  );
   const contextCharacters = JSON.stringify({
     request: fixture.note,
     context: buildCompactContext(fixture.note, service.state),
@@ -119,6 +126,7 @@ export async function evaluateShoppingCase(
     missingRequests: [],
     wrongCategory: [],
     wrongQuantity: [],
+    outcomeErrors: [],
     unsuitable: [],
     safePriced: 0,
     unresolved: 0,
@@ -146,6 +154,32 @@ export async function evaluateShoppingCase(
   const count = (value: UnresolvedReason) => {
     result.reasons[value] = (result.reasons[value] ?? 0) + 1;
   };
+  if (execution === "coordinator" && fixture.expectedFailure) {
+    const after = service.snapshot();
+    if (
+      failure !== fixture.expectedFailure ||
+      after.planning?.phase !== "failed"
+    )
+      result.outcomeErrors.push("unexpected-terminal-outcome");
+    const storedAfter = await Promise.all(
+      retainedKeys.map((key) => storage.get(key)),
+    );
+    if (
+      !["state", "basket", "quotedAt", "review", "journal"].every((key) =>
+        isDeepStrictEqual(
+          after[key as keyof typeof after],
+          before[key as keyof typeof before],
+        ),
+      ) ||
+      !isDeepStrictEqual(storedAfter, storedBefore)
+    )
+      result.outcomeErrors.push("failed-run-changed-saved-data");
+    if (!result.outcomeErrors.length) {
+      result.unresolved = fixture.expected.length;
+      result.reasons[fixture.expectedFailure] = fixture.expected.length;
+      return result;
+    }
+  }
   for (const expected of fixture.expected) {
     if (expected.kind === "dish") {
       const found = service.state.meals.some((m) =>
@@ -238,6 +272,7 @@ export function evaluationSummary(results: EvaluationResult[]) {
     wrongCategory: sum((r) => r.wrongCategory.length),
     unsuitable: sum((r) => r.unsuitable.length),
     wrongQuantity: sum((r) => r.wrongQuantity.length),
+    outcomeErrors: sum((r) => r.outcomeErrors.length),
     safePriced: sum((r) => r.safePriced),
     unresolved: sum((r) => r.unresolved),
     aiRequests: sum((r) => r.aiRequests),
@@ -261,6 +296,7 @@ export function evaluationGate(results: EvaluationResult[], minimumCases = 60) {
   if (metrics.missing) failures.push("missing-request");
   if (metrics.wrongQuantity) failures.push("wrong-quantity");
   if (metrics.wrongCategory) failures.push("wrong-category");
+  if (metrics.outcomeErrors) failures.push("unexpected-outcome");
   if (metrics.retailerWrites) failures.push("retailer-write");
   if (results.some((r) => r.aiRequests > 3)) failures.push("request-cap");
   if (

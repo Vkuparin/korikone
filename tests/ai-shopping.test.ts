@@ -255,3 +255,45 @@ test("coordinator evaluator preserves unknown quantities and detects omitted led
     ),
   ).rejects.toThrow("Missing explicit planning replies");
 });
+
+test("coordinator expected failure requires matching outcome and unchanged durable data", async () => {
+  const { failureCases } = await import("./fixtures/ai-shopping/failures");
+  for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+    const invalid = failureCases.find(
+      (fixture) => fixture.id === "failure-invalid-eggs",
+    )!;
+    const retained = await evaluateShoppingCase(invalid, chain, "coordinator");
+    expect(retained).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      safePriced: 0,
+      unresolved: 1,
+      reasons: { "invalid-output": 1 },
+    });
+    const empty = failureCases.find(
+      (fixture) => fixture.id === "failure-empty-onion",
+    )!;
+    const wrongOutcome = await evaluateShoppingCase(
+      { ...empty, expectedFailure: "invalid-output" },
+      chain,
+      "coordinator",
+    );
+    expect(wrongOutcome.outcomeErrors).toEqual([
+      "unexpected-terminal-outcome",
+      "failed-run-changed-saved-data",
+    ]);
+    expect(evaluationGate([wrongOutcome], 1).failures).toContain(
+      "unexpected-outcome",
+    );
+    const wordQuantity = failureCases.find(
+      (fixture) => fixture.id === "failure-search-error-eggs",
+    )!;
+    const wrongFailure = await evaluateShoppingCase(
+      wordQuantity,
+      chain,
+      "coordinator",
+    );
+    expect(wrongFailure.outcomeErrors).toEqual(["unexpected-terminal-outcome"]);
+    expect(wrongFailure.missingRequests).toEqual(["requested-grocery"]);
+  }
+});

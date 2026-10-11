@@ -47,6 +47,9 @@ export const shoppingCaseSchema = z
     completion: z.enum(["complete", "incomplete"]).default("complete"),
     catalogue: z.record(z.string(), z.array(productSchema)),
     boundaryFailure: z.enum(["search-error", "malformed"]).optional(),
+    expectedFailure: z
+      .enum(["search-error", "normalization", "invalid-output", "incomplete"])
+      .optional(),
     contextSetup: z
       .object({
         household: z
@@ -130,6 +133,7 @@ export type EvaluationResult = {
   missingRequests: string[];
   wrongCategory: string[];
   wrongQuantity: string[];
+  outcomeErrors: string[];
   unsuitable: string[];
   safePriced: number;
   unresolved: number;

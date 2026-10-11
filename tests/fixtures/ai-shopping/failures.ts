@@ -281,6 +281,16 @@ export const failureCases: ShoppingCase[] = inputs.map((c) =>
     ],
     completion: c.completion,
     boundaryFailure: c.boundaryFailure,
+    expectedFailure:
+      c.boundaryFailure === "search-error"
+        ? "search-error"
+        : c.boundaryFailure === "malformed"
+          ? "normalization"
+          : c.completion === "incomplete"
+            ? "incomplete"
+            : c.id === "invalid-eggs"
+              ? "invalid-output"
+              : undefined,
     requiredCapabilities: c.requiredCapabilities,
   }),
 );
