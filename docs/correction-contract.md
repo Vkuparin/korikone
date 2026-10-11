@@ -1,6 +1,6 @@
 # Current-row corrections
 
-F15.14 implements the service and IPC contract. Row controls and copy remain F15.12/F15.15; this card does not claim those UI cards complete.
+F15.14 implements the service and IPC contract. F15.15's `RowCorrection` supplies inline correction controls on Shopping rows; ordinary alternative review remains in F15.12's `RowDetails`.
 
 `src/domain/corrections.ts` exports `correctRowSchema`, `CorrectRow`, `correctionReasonSchema`, `correctionHoldsSchema`, `correctionKey` and `clearRowCorrections`. Main/preload expose `correctRow`; `Service.correctRow(input)` returns the ordinary snapshot through the existing IPC reply envelope.
 
@@ -25,3 +25,11 @@ F16.6's `operationMetricSchema` accepts kind `correction` and an optional bounde
 F15.15 should show the entry on resolved and unresolved rows, retain the displayed revision/key, then choose one of the three reasons. Quantity uses the existing row unit. Replacement uses the existing retained alternatives; a missing suitable replacement can submit null and show the unresolved result. Remember requires an explicit rule/strength choice and explanation, then supplies `remember` in the same correction action. Cancel/dismiss invokes no action. Handle `draftStale` by reloading instead of resubmitting; handle `commitUnknown` through the existing restart-required safety message. No new wizard or AI request is needed. F15.12 can continue using the existing Use once/Remember methods for ordinary alternative review.
 
 Focused evidence: `tests/corrections.test.ts` covers both real retailer adapters at deterministic synthetic boundaries, each reason, missing/stale/malformed inputs, unavailable/refused replacements, local redaction, one-time versus remembered choices, restart and atomic-write outcomes. `tests/ui/corrections.spec.ts` exercises real IPC, approval invalidation, SQLite restart, visible unresolved state and new-list clearing in a temporary development profile. `tests/coordinator.test.ts` verifies fresh same-note planning does not retain correction choices or holds. No live account or AI allowance is used.
+
+## Inline controls (F15.15)
+
+“Tarkoitin jotain muuta” / “I meant something else” is available beside resolved and unresolved quoted rows without opening Advanced. It opens one inline form and captures the row, retained candidates and displayed revision. The user explicitly chooses Wrong product type, Wrong quantity or Unsuitable alternative. Quantity accepts a positive whole amount in the existing row unit. Replacement lists only retained candidates and includes an explicit no-suitable-product option that submits null. An unsuitable replacement leaves a hold through the service; the UI never chooses another product automatically.
+
+Remember is unchecked by default. It appears only for an evidence-supported, selectable portable rule and shows the exact attributes plus Required/Preferred meaning when checked. Save submits the memory choice with the same correction; a quantity or unresolved correction creates no rule. Cancel or Escape invokes no action and restores the opener's focus. Stale submissions reload current rows while keeping the error; the draft is disabled until cancelled and reopened. Successful saves restore focus after the busy state ends.
+
+`tests/ui/row-corrections.spec.ts` exercises the real form and `correctRow` IPC in Finnish and English: resolved-row entry, keyboard/cancel, each reason, invalid quantities, explicit unresolved replacement, once versus remembered type, approval invalidation, unchanged unrelated rows/quote time, stale rejection and SQLite restart. Fixture counters verify no additional catalogue or AI requests from correction actions and no retailer writes. Narrow form geometry and captures cover readable controls without horizontal overflow.

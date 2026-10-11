@@ -2,6 +2,7 @@ import { candidateSuitability, purchasable } from "../domain/matching";
 import { currentOffer } from "../domain/prices";
 import { matchingReasonLabel } from "./matching-reasons";
 import { GroupedReview } from "./grouped-review";
+import { RowCorrection } from "./row-correction";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
@@ -1256,6 +1257,21 @@ export function ShoppingWorkspace({
                               ingredientId: r.id,
                               productId: p.id,
                             });
+                          }}
+                        />
+                      )}
+                      {line && !home && (
+                        <RowCorrection
+                          snapshot={snapshot}
+                          line={line}
+                          busy={busy}
+                          correct={async (input) => {
+                            const applied = await call("correctRow", input);
+                            if (!applied)
+                              await call("load", undefined, {
+                                preserveError: true,
+                              });
+                            return applied;
                           }}
                         />
                       )}
