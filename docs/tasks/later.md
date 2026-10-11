@@ -2,6 +2,14 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## R2. Live development dashboard
+
+Owner requested and authorized on 11 October 2026. Repository tooling, independent of product releases. Read existing roadmap/task Markdown directly, with automatic local refresh and no AI calls, duplicate reporting or extra agent bookkeeping. Show release goals, feature progress, task evidence and parse problems honestly; task counts do not establish release readiness.
+
+| ID | Task and Done when | Agent | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| R2.1 | Implement a read-only local browser dashboard under `scripts/dashboard/`, with a launch command and usage documentation. Parse existing roadmap/task table formats, group features, retain statuses/evidence/dependencies and visibly flag unknown or malformed data. Auto-refresh local changes, preserve UI selections and label local/unpublished source freshness. Done when focused synthetic parser/server/browser fixtures cover success, malformed data, live task/roadmap updates and retained filtering, and the owner can open the running dashboard without agent reporting changes. No AI, retailer calls, external assets, hosted publication or product-release dependency. | Strong | Existing task-file conventions | In progress: PM agent, current Korikone thread; branch `codex/v0.7.0-strong`, root workspace. Scope: dashboard scripts/tests, package launch commands and dashboard documentation only; preserve concurrent coder work. |
+
 ## R1. One full pre-release validation flow
 
 Owner decision, 10 October 2026. Trust focused checks recorded by coder agents. One full release flow is sufficient; fixes use failed/affected checks only. Let v0.6.0's existing runs finish unchanged. The standing policy is in AGENTS.md; CI enforcement is a later tooling task. Prevent duplicate full runs after branch promotion, tag publication and documentation-only pushes.
