@@ -1,5 +1,7 @@
 # Store integration decisions
 
+F4.1's source-proven weighed-price fields, quantity boundaries, deterministic fixtures and remaining owner-observed rounding check are in [weighed-contract.md](weighed-contract.md). Synthetic fixture success does not establish retailer quantity acceptance.
+
 ## F5.2 offer fields, 11 October 2026
 
 This is a read-only source audit of the versions Korikone consumes. No account was opened, retailer request sent or price eligibility verified live.
