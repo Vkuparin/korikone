@@ -2,6 +2,8 @@
 
 Proposal for U14.1, 10 October 2026. Owner accepted on 10 October 2026, provided palette colours remain replaceable CSS variables. This document specifies presentation of current behavior; it does not authorize staged previews, natural-language list edits or new product rules. The gallery remains a static proposal; implementation status and handoff contracts are stated below.
 
+The 11 October U18 direction below plans chain accents and revised dark colours for v0.8.0. The v0.6.0 token table, screenshots and acceptance evidence retain their historical values. U18.1 will document the replacement values separately.
+
 ## Review artifacts
 
 Open [the layout gallery](design/0.6.0/layouts.html) and choose Shopping or Settings, light or dark, and empty, populated, working, unresolved or exception. The selectors change local example content only. All figures are illustrative, not fresh retailer quotes. Annotations 1–6 identify the layout decisions.
@@ -190,3 +192,31 @@ U15.2 implements the blocking bootstrap and runtime subscription. The built head
 U16.2 implements the retained Settings shell and General, Household and About. The four other sections still use their original App JSX through sections. Household drafts adopt restored values only when untouched and show an unsaved message otherwise. About opens the fixed bundled notices path through real IPC; tests stub only the OS opener. Focused FI/EN navigation/save/failure/retention checks and affected recipe/runtime-info checks pass. Owner combined visual acceptance remains U14.7.
 
 U16.3 extracts StoresSettings, AISettings, DataSettings and AdvancedSettings into settings-sections.tsx. Advanced contains development tools and diagnostics; Household is the only recurring-item maintenance entry. Receipt drafts use the shared baseline rule. aiScenarios remains re-exported by fixtures.ts and is defined in renderer-safe src/ai/scenarios.ts. Nine affected fixture checks and a real local diagnostic preview/export check pass; no live requests.
+
+## U18. Chain accents and neutral dark surfaces
+
+Owner request, 11 October 2026; planned for [v0.8.0](tasks/0.8.0.md). Give the selected shopping chain a visible cue: green for S-kaupat stores and orange for K-Ruoka stores. Replace the default green-tinted dark surfaces with neutral charcoal so the accents stand out. These are planned rules, not shipped changes or completed visual acceptance. U18.1 fixes exact shades, tokens and event fields before implementation.
+
+### Colour roles
+
+Keep base surfaces, chain identity and semantic status separate. Dark background/cards/menus use near-black and charcoal, with neutral text/borders/shadows. Keep enough difference between surfaces to identify controls. Light mode retains its layout and uses an accessible counterpart of each chain accent; adjust base colours only where needed for contrast or a clear chain cue.
+
+Use the chain accent on primary actions, selected navigation and the confirmed-store control. Keep neutral secondary controls restrained. Define paired foreground/on-accent/soft-selection roles rather than replacing every green literal with orange. Audit `--kk-action`, `--kk-on-action`, `--kk-subtle`, `--kk-pulse` and their consumers: the existing selected-surface token also serves neutral surfaces, so U18.1 must separate those uses. Success, warning, error and approval-required states retain semantic roles and text/icons; they must not inherit a K-Ruoka action colour. Keyboard focus keeps its accessible role, with measured contrast against both accent backgrounds.
+
+Store/chain names and selected-state text/checkmarks remain visible. Colour supplements them. Comparison entries can show their own labelled chain cue, while the global accent identifies the saved shopping context. A normal orange action and an orange/yellow warning need distinct shape, placement and wording, as well as readable colours. No animations are needed when the accent changes.
+
+Measure normal text at least 4.5:1 and focus/control boundaries at least 3:1 against actual parent surfaces, including transparent controls, selected navigation and menus. Hex values and measured results belong to the U18.1 contract. Preserve the v0.6.0 token table and captures above as historical evidence.
+
+### Selected context and appearance lifecycle
+
+Derive chain identity from committed `state.context.providerId`: `s-kaupat`/`demo-s` use S green; `k-ruoka`/`demo-k` use K orange. An unknown provider uses a neutral accent. Do not infer identity from display names, the viewed Kauppa tab, sign-in state, comparison candidates or an unconfirmed selector choice. Opening or cancelling a selector keeps the current accent. A confirmed context change adopts the new accent only after the application commits that context; a saved but unpriced context still determines identity. Same-chain store and pickup/delivery changes retain the chain colour.
+
+Read the saved context alongside appearance before first paint using the existing restricted bootstrap boundary. Runtime committed-context changes, ordinary save, comparison adoption, backup restore and development reset must all publish the correct identity. U18.1 specifies event ordering and how stale snapshots are prevented from reverting a newer context. Keep the existing subscription cleanup and System resolution. Native background/titlebar stay neutral and match the resolved renderer base palette.
+
+Persist System/Light/Dark as today. Derive the accent without a second saved setting, chain preference or migration that duplicates store context. Appearance application never triggers interpretation, catalogue reads or writes, approval changes, navigation or draft resets. The existing confirmed store-change workflow can still reprice products; the appearance consumer adds no requests. Retailer WebContentsViews keep their own styles.
+
+### Later palettes and verification
+
+U17 remains unassigned. Its predefined base palettes use this same contract: palette choice and System/Light/Dark stay independent of chain identity. Retain the default palette identity for old profiles with the revised neutral dark values. Every later palette must support both chain accents, status and focus; avoid a competing accent selector in U18.
+
+U18.2–U18.4 add focused unit/IPC/UI evidence for the changed paths. U18.5 reuses those checks, covers remaining contrast/state gaps and prepares desktop/narrow Shopping and Settings captures for owner review. Use development mode and deterministic local fixtures, including failed provisional changes and restart/restore. Record acceptance honestly; this planning document does not close it. Follow the one-flow release policy and do not repeat full suites for colour changes.

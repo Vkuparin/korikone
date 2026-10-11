@@ -1,6 +1,6 @@
 # Korikone roadmap to 1.0.0
 
-Updated with the owner on 10 October 2026. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
+Updated with the owner on 11 October 2026. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
 
 ## Current release
 
@@ -20,7 +20,7 @@ The owner chose design and Settings first for v0.6.0. The former matching milest
 | 0.5.0 | Stores inside Korikone | [Embedded stores](tasks/0.5.0.md) | Published pre-release; verification above |
 | 0.6.0 | Calm workspace, dark mode and organized Settings | [Design](tasks/0.6.0.md): U14, U15, U16 | Published pre-release; reviewed layouts, modes and Settings; U8/U10 preserved; release checks and owner visual/startup acceptance complete |
 | 0.7.0 | Suitable products, complete prices, useful previews and shared AI-provider foundation | [Matching](tasks/0.7.0.md): F4, F5, F15, F16 | Measured safe matching; bounded resolution/previews; saved list survives failure; honest prices; provider-neutral tasks with ChatGPT default and fake alternatives; no raw receipts in ordinary prompts |
-| 0.8.0 | Edit the current list naturally | [Edits](tasks/0.8.0.md): F17 | Atomic edits, affected-only requoting, explicit New list and undo; unrelated groceries retained |
+| 0.8.0 | Edit the current list naturally and make the selected chain visible | [Edits and chain appearance](tasks/0.8.0.md): F17, U18 | Atomic edits, affected-only requoting, explicit New list and undo; unrelated groceries retained; confirmed chain accents in both modes and neutral dark surfaces with readable status/focus |
 | 0.9.0 | Receipt learning, purchase history and repeat shopping | [Memory](tasks/0.9.0.md): F6, F7, F8, U5, F18 | Structured local facts/accounting; receipt/order dedupe; optional consented one-call enrichment; evidenced suggestions; repeat without AI; transfers excluded from actual spending |
 | 0.10.0 | Plan the week and take it along | [Week and exports](tasks/0.10.0.md): F9, F10, F11, F12, F13 | Remaining feature/owner checks; OCR adoption conditional |
 | 0.11.0 | Beta and feature freeze | [Beta](tasks/0.11.0.md): F14 | Feature freeze, accessibility, install/upgrade checks and household pilot; blockers fixed |
@@ -32,6 +32,8 @@ Owner release policy, 10 October 2026: trust recorded coder-agent focused checks
 ## Accepted direction
 
 K-Ruoka direction, agreed 11 October 2026: expand the local client using the existing Kauppa session. For offer features in [0.10.0](tasks/0.10.0.md), F11.4 fixes the audited contract and F11.5 implements supported local reads before offer aggregation/ideas. Keep retailer access reusable and separate from shopping policy/UI; retain the pinned worker fallback. A maintained MCP fork or extracted standalone package is future scope only if another consumer justifies it. This adds no v0.7.0 release dependency.
+
+Chain appearance, requested 11 October 2026: green accents for the confirmed S-kaupat shopping context and orange for K-Ruoka, with neutral charcoal dark surfaces replacing the green-tinted default. Schedule U18 in [0.8.0](tasks/0.8.0.md) as a bounded follow-up to the shipped theme foundation; keep active v0.7.0 matching work focused. Accents follow saved shopping context, never a browsed retailer tab or provisional store choice. Preserve chain labels, semantic warning/error/success roles and System/Light/Dark. The [planned appearance rules](ui-design.md#u18-chain-accents-and-neutral-dark-surfaces) also govern later U17 palettes.
 
 The [shopping experience plan](shopping-experience.md) integrates the pitch with existing [product decisions](product-decisions.md). Agreed on 10 October 2026:
 
@@ -45,7 +47,7 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 - Later, offer models running on the same machine as an explicitly selected alternative to ChatGPT (F21). Start with an installed local runner; preserve the same validation and transfer rules, and never silently fall back to cloud inference.
 - From v0.7.0, establish provider-neutral AI tasks now (F16.16–F16.18). ChatGPT stays default; model/capability/auth/transport boundaries admit local and other adapters without rewriting task/domain code. Fake alternatives are tested now; live providers/settings arrive only with assigned later integrations.
 - Adopt [receipt learning](receipt-learning.md) for v0.9.0: deterministic source facts and accounting first, then optional sanitized-label enrichment through that shared seam. Owner chose a small first-import opt-in plus Settings control, sanitized evidence by default and optional local retention of originals. One bounded enrichment request per explicit action, grouped review, no implicit preferences, and no double-counted receipts/orders or transfer-as-purchase spending. Private source receipts remain under ignored scratch/receipts.
-- Later, offer predefined colour palettes in Settings Appearance (U17), using U14.1/U14.2's replaceable semantic tokens. Palette choice stays independent of System/Light/Dark; each palette supports both modes and current users retain the Korikone default.
+- Later, offer predefined colour palettes in Settings Appearance (U17), using replaceable semantic tokens and U18's separate chain accents. Palette choice stays independent of System/Light/Dark and the selected chain; each palette supports both modes. Keep the Korikone default identity for existing profiles, with U18's updated neutral dark values.
 - Design review closed on 10 October 2026: make edit/New list context unmistakable, use one clear preview region, keep current-list corrections on rows, add “I meant something else” (F15.14–F15.15), and require every reference-case request to have a visible result or unresolved entry (F16.15). Prioritize correct products and understandable correction before speed. Coders proceed with assigned cards; revisit product design when implementation evidence or a named gate needs a decision.
 
 ## Decisions still needed

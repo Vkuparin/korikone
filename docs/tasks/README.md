@@ -34,7 +34,7 @@ AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live loca
 | [0.5.0](0.5.0.md) | Embedded stores |
 | [0.6.0](0.6.0.md) | Design, appearance, Settings |
 | [0.7.0](0.7.0.md) | Matching, prices, evaluation, pipeline |
-| [0.8.0](0.8.0.md) | Edits |
+| [0.8.0](0.8.0.md) | Edits, chain accents and neutral dark surfaces |
 | [0.9.0](0.9.0.md) | Purchases, memory, repetition |
 | [0.10.0](0.10.0.md) | Calendar, recipes, exports |
 | [0.11.0](0.11.0.md) | Beta gates |

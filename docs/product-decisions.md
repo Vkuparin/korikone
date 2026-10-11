@@ -10,6 +10,10 @@ Current release sequencing is in [roadmap.md](roadmap.md); implementation status
 
 Expand K-Ruoka functionality locally through Korikone's embedded-session client. Use upstream MCP implementation as request-behavior reference; keep fallback worker pinned and avoid a maintained fork. F11.4 audits offer capabilities, F11.5 implements supported reads and F11.1 aggregates them. Keep transport/normalization independent of shopping rules/UI. Extract a shared client only when a second consumer needs it; standalone K-Ruoka MCP support remains unassigned scope.
 
+Use the selected shopping chain as a visible UI cue: green for S-kaupat, orange for K-Ruoka. Replace the default green-tinted dark surfaces with neutral charcoal. U18 is scheduled for v0.8.0; v0.7.0 keeps its current scope. Accents derive from confirmed `state.context.providerId`, including equivalent development providers. Shopping context changes only through existing application actions; merely opening a retailer tab or choosing a comparison candidate does not change the global accent. Keep visible chain/store names and semantic status colours. System/Light/Dark remains the saved appearance setting; no additional accent selector is required in this scope.
+
+Later U17 palette choices control the base palette separately from chain identity. Existing profiles keep the default palette identity with the revised dark values. This updates the 10 October default-colour decision below; the accepted v0.6.0 green screenshots remain historical evidence. Exact shades and component mappings are U18.1's measured implementation contract; see [UI design](ui-design.md#u18-chain-accents-and-neutral-dark-surfaces).
+
 ## Agreed 10 October 2026
 
 - Ship the visual overhaul, System/Light/Dark appearance and organized Settings in v0.6.0 before new matching/editing behavior. Default appearance to System; the preference controls Korikone, not retailer styling.
