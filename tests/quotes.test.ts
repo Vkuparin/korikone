@@ -222,3 +222,41 @@ test("changed state during a catalogue request cannot publish a stale quote", as
   await expect(pending).rejects.toThrow("draftStale");
   expect(service.basket).toEqual([]);
 });
+
+test("restart retains an unavailable Required type rejection without new catalogue reads", async () => {
+  const { service, storage } = await ready();
+  await service.save({
+    ...service.state,
+    staples: [],
+    meals: [],
+    extras: [{ id: "coffee", name: "Kahvi", amount: 500, unit: "g" }],
+  });
+  await service.buildBasket();
+  await service.rememberCategoryPreference({
+    revision: service.state.revision,
+    requirementKey: "coffee:g",
+    productId: "coffee",
+    preference: {
+      category: "coffee",
+      qualifiers: [{ kind: "coffee", value: "ground" }],
+      strength: "required",
+    },
+  });
+  await service.editCategoryPreference({
+    revision: service.state.revision,
+    preference: {
+      category: "coffee",
+      qualifiers: [{ kind: "coffee", value: "beans" }],
+      strength: "required",
+    },
+  });
+  const saved = structuredClone(service.basket);
+  expect(saved[0].product).toBeNull();
+  expect(saved[0].matching?.reason).toBe("qualifier-conflict");
+  const restored = new Service(storage);
+  await restored.init();
+  expect(restored.basket).toEqual(saved);
+  expect((restored.registry.get("demo-k") as DemoProvider).searchRequests).toBe(
+    0,
+  );
+});

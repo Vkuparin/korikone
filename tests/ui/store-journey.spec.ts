@@ -53,7 +53,9 @@ for (const [chain, name, destination] of [
       clicks += 2; // One fixture sign-in button and one return to setup.
       await click("Continue with ChatGPT");
       await click("Valmis");
-      await page.getByLabel("Mitä haluaisit valmistaa?").fill("Kahvia");
+      await page
+        .getByLabel("Mitä haluaisit valmistaa?")
+        .fill("500 g suodatinjauhettua kahvia");
       // Typing has no side effects; only the update button submits the note.
       expect(
         (await page.evaluate(async () => (await window.korikone.load()).value))

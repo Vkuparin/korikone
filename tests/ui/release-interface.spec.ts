@@ -161,7 +161,7 @@ for (const language of ["fi", "en"] as const) {
           await tabTo(page, note);
           await page.keyboard.press("Control+Enter");
           await expect(page.locator("#note-update-help")).toHaveText(
-            tr("Muodostetaan listaa…", "Building your list…"),
+            tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
           );
           expect(
             await page
@@ -216,7 +216,12 @@ for (const language of ["fi", "en"] as const) {
             "layout-unknown-pack",
             "layout-unknown-price",
             "carrot",
-          ].map((id) => ({ id, name: id, amount: 500, unit: "g" as const }));
+          ].map((id) => ({
+            id: id === "layout-unknown-pack" ? "mince" : id,
+            name: id === "layout-unknown-pack" ? "Jauheliha" : id,
+            amount: 500,
+            unit: "g" as const,
+          }));
           await page.evaluate(async (state) => {
             state.revision = (
               await window.korikone.load()
@@ -248,29 +253,32 @@ for (const language of ["fi", "en"] as const) {
           await expect(
             row("layout-unknown-price")
               .getByRole("region")
-              .getByRole("button", {
-                name: /^(Käytä kerran|Use once)/,
-              }),
-          ).toBeDisabled();
+              .getByRole("button", { name: /^(Käytä kerran|Use once)/ })
+              .and(page.locator("button:enabled")),
+          ).toHaveCount(0);
           await capture("shopping-unresolved", row("layout-unknown-price"));
-          const packName = row("layout-unknown-pack").locator(".row-name");
+          const packName = row("Jauheliha").locator(".row-name");
           await tabTo(page, packName);
           await page.keyboard.press("Enter");
-          const amount = row("layout-unknown-pack").getByRole("spinbutton");
+          const amount = row("Jauheliha").getByRole("spinbutton");
           await tabTo(page, amount);
           await page.keyboard.type("500");
           await page.keyboard.press("Enter");
-          await expect(row("layout-unknown-pack")).not.toHaveClass(
-            /unresolved/,
-          );
-          const increase = row("layout-unknown-pack").getByRole("button", {
-            name: `${tr("Lisää", "Increase")}: layout-unknown-pack`,
+          await row("Jauheliha")
+            .getByRole("button", {
+              name: /^(Käytä kerran|Use once): Luomujauheliha$/,
+            })
+            .click();
+          await expect(row("Jauheliha")).not.toHaveClass(/unresolved/);
+          const increase = row("Jauheliha").getByRole("button", {
+            name: `${tr("Lisää", "Increase")}: Jauheliha`,
             exact: true,
           });
+          await expect(increase).toBeEnabled();
           await tabTo(page, increase);
           await page.keyboard.press("Enter");
           await expect(
-            row("layout-unknown-pack").locator(".quantity-control span"),
+            row("Jauheliha").locator(".quantity-control span"),
           ).toHaveText("2");
           await expect(meal).toHaveAttribute("aria-pressed", "true");
           const transfer = page.locator(".transfer-button");

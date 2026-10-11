@@ -15,7 +15,7 @@ test("routine changes select affected fixtures without a full flow", () => {
     {
       full: false,
       unit: ["tests/persistence.test.ts"],
-      ui: ["tests/ui/packsize.spec.ts"],
+      ui: [],
     },
   );
 });

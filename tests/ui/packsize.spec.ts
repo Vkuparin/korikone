@@ -53,7 +53,7 @@ test("a product without a stated pack size can be confirmed from the row details
       .filter({ hasText: "Luomujauheliha" });
     await expect(candidate).toContainText("Pakkauskokoa ei ilmoiteta");
     await expect(
-      candidate.getByRole("button", { name: /^Valitse tuote/ }),
+      candidate.getByRole("button", { name: /^Käytä kerran:/ }),
     ).toBeDisabled();
     await candidate
       .getByLabel("Pakkauskoko: Luomujauheliha")
@@ -64,7 +64,7 @@ test("a product without a stated pack size can be confirmed from the row details
       .click();
     await expect(candidate).toContainText("500 g");
     await expect(candidate).not.toContainText("Pakkauskokoa ei ilmoiteta");
-    await candidate.getByRole("button", { name: /^Valitse tuote/ }).click();
+    await candidate.getByRole("button", { name: /^Käytä kerran:/ }).click();
     await expect(
       list.getByRole("button", { name: "Luomujauheliha", exact: true }),
     ).toHaveAttribute("aria-expanded", "true");

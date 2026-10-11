@@ -55,7 +55,7 @@ test("the store cart opens in the Kauppa tab, which stays sandboxed and inside t
     ).toBeHidden();
     await page.getByRole("button", { name: "Valmis", exact: true }).click();
     const note = page.getByLabel("Mitä haluaisit valmistaa?");
-    await note.fill("Makaronilaatikko");
+    await note.fill("500 g suodatinjauhettua kahvia");
     await note.press("Control+Enter");
     const bar = page
       .getByRole("complementary")

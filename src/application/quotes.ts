@@ -181,6 +181,19 @@ export function restoredQuote(input: unknown, state: AppState) {
       );
       for (const decision of decisions.values())
         if (!seen.has(decision.id)) matched.matching.decisions.push(decision);
+      // A pruned rejection still explains an unresolved cached row after restart.
+      // This restores display metadata only, after selection/cost revalidation.
+      if (
+        !matched.product &&
+        matched.matching.reason === "empty-search" &&
+        line.matching.status === "unresolved" &&
+        matched.matching.decisions.some(
+          (decision) =>
+            decision.status === "rejected" &&
+            decision.reason === line.matching!.reason,
+        )
+      )
+        matched.matching.reason = line.matching.reason;
       if (!matchingSummarySchema.safeParse(matched.matching).success)
         return null;
     }

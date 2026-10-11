@@ -25,7 +25,7 @@ export function ciScope({
       : {
           full: false,
           unit: changed.filter((file) => unitPath.test(file)),
-          ui: changed.filter((file) => uiPath.test(file)),
+          ui: [],
         };
   if (mode === "focused" && !selected.unit.length && !selected.ui.length)
     throw new Error("Focused mode requires at least one test file");

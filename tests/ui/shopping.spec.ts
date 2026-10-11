@@ -338,11 +338,11 @@ test("typing, view return and restored edits never submit without an explicit ac
       page.getByRole("button", { name: "Update list", exact: true }),
     ).toBeEnabled();
     const englishNote = page.getByLabel("What would you like to cook?");
-    await englishNote.fill("Pakastepizza");
+    await englishNote.fill("700 g pakastepizza");
     await englishNote.press("Control+Enter");
     await expect
       .poll(async () => (await load()).state.note)
-      .toBe("Pakastepizza");
+      .toBe("700 g pakastepizza");
     expect((await load()).developmentRequests).toBe(2);
     await expect(page.locator(".grocery-row")).toHaveCount(1);
     await page.screenshot({
@@ -376,7 +376,7 @@ test("explicit updates discard an obsolete response until the next requested upd
     await expect(
       page.getByRole("button", { name: "Päivitä lista", exact: true }),
     ).toBeDisabled();
-    await note.fill("Pakastepizza");
+    await note.fill("700 g pakastepizza");
     await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
     await page.waitForTimeout(2100);
     await expect(page.locator(".grocery-row")).toHaveCount(0);
@@ -391,7 +391,7 @@ test("explicit updates discard an obsolete response until the next requested upd
       "Pakastepizza",
       { timeout: 10000 },
     );
-    await expect(note).toHaveValue("Pakastepizza");
+    await expect(note).toHaveValue("700 g pakastepizza");
     await expect(page.locator(".grocery-description")).not.toContainText(
       "Old note",
     );
@@ -478,7 +478,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await note.fill("Nakkikeitto ja kanapasta");
     await page.waitForTimeout(400);
     const fullNote =
-      "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Herkkuja viikonlopuksi.";
+      "Nakkikeitto, kanapasta, 700 g pakastepizza, jogurttia aamuksi, herkkuja viikonlopuksi";
     await note.fill(fullNote);
     await page.waitForTimeout(2100);
     await expect(page.locator(".interpretation")).toHaveCount(0);
@@ -532,7 +532,6 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await note.press("Control+Enter");
     await expect(page.locator(".note-box")).toHaveClass(/is-working/);
     await expect.poll(async () => (await load()).developmentRequests).toBe(1);
-    await note.fill("Pakastepizza");
     await page
       .getByRole("button", { name: "Peruuta listan päivitys", exact: true })
       .click();
@@ -548,6 +547,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     expect(cancelled.draft).toBeNull();
     await expect(page.locator(".interpretation")).toHaveCount(4);
 
+    await note.fill("700 g pakastepizza");
     await page.evaluate(() =>
       window.korikone.developmentScenario("usageLimit"),
     );
@@ -563,7 +563,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await note.press("Control+Enter");
     await expect
       .poll(async () => (await load()).state.note)
-      .toBe("Pakastepizza");
+      .toBe("700 g pakastepizza");
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.locator(".grocery-row")).toHaveCount(1);
     expect((await load()).developmentRequests).toBe(1);

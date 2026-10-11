@@ -103,7 +103,7 @@ The focused F16.14 report command is `npm test -- tests/ai-shopping-failures.tes
 
 ## One-flow CI policy (R1.1)
 
-Automatic main pushes and pull requests run fast build/typecheck, formatting, CI-scope fixtures and only changed unit/desktop test files. They rely on the task cards' recorded focused evidence; an unchanged test file is not claimed as rerun. Documentation-only pushes are ignored. Pushes to release branches and tags do not start another flow.
+Automatic main pushes and pull requests run fast build/typecheck, formatting, CI-scope fixtures and only changed unit test files. Desktop files run only through explicit focused or release dispatch. They rely on the task cards' recorded focused evidence; an unchanged test file is not claimed as rerun. Documentation-only pushes are ignored. Pushes to release branches and tags do not start another flow.
 
 Use the Checks workflow's explicit dispatch mode release only when the canonical full flow has not already run for the application source: build, formatting, all unit tests and desktop tests once. A failed check uses focused mode with repository test-file paths and optional test_name; it never restarts the full flow. No automatic full rerun after versioning, promotion or publication. Fast checks can repeat inexpensive build/format validation; they do not establish full-release acceptance.
 

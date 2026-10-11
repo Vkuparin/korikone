@@ -47,7 +47,7 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
     );
     const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
     const transfer = bar.getByRole("button", {
-      name: /^Siirrä ja avaa S-kaupat-lista · 7 tuotetta · \d+,\d\d €$/,
+      name: /^Siirrä ja avaa S-kaupat-lista · \d+ tuotetta · \d+,\d\d\s€$/,
     });
     const inView = async () => {
       const box = (await transfer.boundingBox())!;

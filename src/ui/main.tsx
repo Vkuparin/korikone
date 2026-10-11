@@ -192,7 +192,7 @@ function App() {
     }
     try {
       const result = await window.korikone[method](input);
-      if (method === "generate" || method === "importRecipe")
+      if (["generate", "planShopping", "importRecipe"].includes(method))
         setAIRequestLimit(!result.ok && result.error === "usageLimit");
       if (method === "signOutAI") setAIRequestLimit(false);
       if (!result.ok && result.error === "aiCancelled") return false;
@@ -231,7 +231,9 @@ function App() {
       );
       const target: SettingsSection | null =
         /AI$/.test(method) ||
-        ["generate", "importRecipe", "openAIUsage"].includes(method)
+        ["generate", "planShopping", "importRecipe", "openAIUsage"].includes(
+          method,
+        )
           ? "ai"
           : [
                 "buildBasket",

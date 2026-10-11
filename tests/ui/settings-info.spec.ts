@@ -58,14 +58,19 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page.keyboard.press("Escape");
     await expect(language).toBeFocused();
     await language.click();
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0].setContentSize(1280, 800),
-    );
-    const box = (await menu.boundingBox())!;
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(1280);
-    expect(box.y + box.height).toBeLessThanOrEqual(800);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect
+      .poll(async () => {
+        const box = await menu.boundingBox();
+        return (
+          !!box &&
+          box.x >= 0 &&
+          box.y >= 0 &&
+          box.x + box.width <= 1280 &&
+          box.y + box.height <= 800
+        );
+      })
+      .toBe(true);
     if (!process.env.KORIKONE_EXECUTABLE)
       await page.screenshot({ path: "test-results/language-menu.png" });
     await page.keyboard.press("End");
