@@ -100,13 +100,16 @@ export async function evaluateShoppingCase(
     )
       throw error;
     failure =
-      error instanceof Error && error.message === "incomplete"
-        ? "incomplete"
-        : fixture.boundaryFailure === "search-error"
-          ? "search-error"
-          : fixture.boundaryFailure === "malformed"
-            ? "normalization"
-            : "invalid-output";
+      execution === "coordinator" &&
+      service.snapshot().planning?.failure === "invalid-output"
+        ? "invalid-output"
+        : error instanceof Error && error.message === "incomplete"
+          ? "incomplete"
+          : fixture.boundaryFailure === "search-error"
+            ? "search-error"
+            : fixture.boundaryFailure === "malformed"
+              ? "normalization"
+              : "invalid-output";
   }
   const result: EvaluationResult = {
     operationMetrics: await service.operationMetrics(),

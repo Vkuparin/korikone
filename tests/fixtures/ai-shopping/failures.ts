@@ -228,6 +228,7 @@ export const failureCases: ShoppingCase[] = inputs.map((c) =>
         id: "requested-grocery",
         kind: "grocery",
         names: [c.name],
+        intentLabels: [c.note],
         category: c.category,
         amount: c.id === "unknown-milk-amount" ? null : c.amount,
         unit: c.unit,
@@ -242,6 +243,42 @@ export const failureCases: ShoppingCase[] = inputs.map((c) =>
       }),
     ],
     catalogue: { "*": c.products },
+    planningReplies: c.replies ?? [
+      JSON.stringify({
+        items:
+          c.id === "unknown-milk-amount"
+            ? []
+            : [
+                {
+                  id: "model-item",
+                  name: c.name,
+                  amount: c.amount,
+                  unit: c.unit,
+                },
+              ],
+        intents: [
+          {
+            id: "requested-grocery",
+            kind: "grocery",
+            label: c.note,
+            evidence: { start: 0, end: c.note.length, quote: c.note },
+            provenance: "explicit-note",
+            quantity:
+              c.id === "unknown-milk-amount"
+                ? { amount: null, unit: null, provenance: "unknown" }
+                : {
+                    amount: c.amount,
+                    unit: c.unit,
+                    provenance: "explicit-note",
+                  },
+            mealIndex: null,
+            itemIndex: c.id === "unknown-milk-amount" ? null : 0,
+            unresolvedReason:
+              c.id === "unknown-milk-amount" ? "unknown-quantity" : null,
+          },
+        ],
+      }),
+    ],
     completion: c.completion,
     boundaryFailure: c.boundaryFailure,
     requiredCapabilities: c.requiredCapabilities,

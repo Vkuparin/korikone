@@ -58,3 +58,33 @@ test("sixty independent cases produce an honest both-chain gate report", async (
   expect(gate.failures).toContain("unsupported-required-capability");
   expect(gate.metrics.retailerWrites).toBe(0);
 });
+
+test("failure corpus coordinator execution reports real contract gaps without invented unknown quantities", async () => {
+  const results = [];
+  for (const chain of ["k-ruoka", "s-kaupat"] as const)
+    for (const fixture of failureCases)
+      results.push(await evaluateShoppingCase(fixture, chain, "coordinator"));
+  const gate = evaluationGate(results, 20);
+  console.log("Coordinator failure corpus gate", JSON.stringify(gate));
+  expect(results).toHaveLength(40);
+  expect(gate.metrics.retailerWrites).toBe(0);
+  expect(gate.failures).not.toContain("request-cap");
+  expect(gate.failures).not.toContain("missing-chain");
+  for (const result of results.filter(
+    (result) => result.id === "failure-unknown-milk-amount",
+  ))
+    expect(result).toMatchObject({
+      missingRequests: [],
+      wrongQuantity: [],
+      unresolved: 1,
+      unsupported: [],
+    });
+  expect(gate.failures).toContain("unsupported-required-capability");
+  for (const result of results.filter((result) =>
+    ["failure-stock-milk", "failure-search-error-eggs"].includes(result.id),
+  )) {
+    expect(result.missingRequests).toEqual(["requested-grocery"]);
+    expect(result.searches).toBe(0);
+    expect(result.reasons).toEqual({ "invalid-output": 1 });
+  }
+});
