@@ -382,8 +382,20 @@ test("a profile saved before pack sizes existed still loads, and confirmed sizes
       unit: "g",
     });
     const confirmed = service.basket.find((l) => l.requirement.id === "mince");
-    // At 500 g and 299 c the confirmed pack is now the cheapest way to buy 400 g.
-    expect(confirmed?.product?.id).toBe("mince-unlabelled");
+    // Pack confirmation supplies missing size evidence; choosing it is explicit.
+    expect(
+      confirmed?.candidates.find((p) => p.id === "mince-unlabelled"),
+    ).toMatchObject({
+      packAmount: 500,
+      unit: "g",
+    });
+    await service.accept({
+      ingredientId: "mince",
+      productId: "mince-unlabelled",
+    });
+    expect(
+      service.basket.find((l) => l.requirement.id === "mince")?.product?.id,
+    ).toBe("mince-unlabelled");
     const backup = JSON.parse(JSON.stringify(await service.exportBackup()));
     expect(backup.packSizes).toEqual({
       "mince-unlabelled": { amount: 500, unit: "g" },

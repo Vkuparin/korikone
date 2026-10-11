@@ -1,27 +1,89 @@
 name: Checks
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [fast, release, focused]
+        default: fast
+        description: "Full release runs once; focused reruns only failed checks"
+      unit_tests:
+        type: string
+        description: "Focused unit test file paths, separated by spaces"
+      ui_tests:
+        type: string
+        description: "Focused UI test file paths, separated by spaces"
+      test_name:
+        type: string
+        description: "Optional focused test name filter"
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   check:
+    name: "${{ inputs.mode || 'fast' }} checks"
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Verify CI scope policy
+        run: node --test scripts/ci-scope.test.mjs
+      - name: Select check scope
+        id: scope
+        env:
+          CI_MODE: ${{ inputs.mode || 'fast' }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_UNIT: ${{ inputs.unit_tests }}
+          CI_UI: ${{ inputs.ui_tests }}
+        run: node scripts/ci-scope.mjs
       - run: npm run build
-      - run: npm test
       - run: npm run format:check
-      - run: npm run test:ui
+      - name: Full release unit checks
+        if: steps.scope.outputs.full == 'true'
+        run: npm test
+      - name: Affected unit checks
+        if: steps.scope.outputs.full != 'true' && steps.scope.outputs.unit != '[]'
+        env:
+          TEST_FILES: ${{ steps.scope.outputs.unit }}
+          TEST_NAME: ${{ inputs.test_name }}
+        run: |
+          $targets = @($env:TEST_FILES | ConvertFrom-Json)
+          if ($env:TEST_NAME) { npm test -- @targets -t $env:TEST_NAME }
+          else { npm test -- @targets }
+      - name: Prepare Electron for desktop checks
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.ui != '[]'
+        run: node -e "require('electron')"
+      - name: Full release desktop checks
+        if: steps.scope.outputs.full == 'true'
+        run: npm run test:ui -- --workers=2
+      - name: Affected desktop checks
+        if: steps.scope.outputs.full != 'true' && steps.scope.outputs.ui != '[]'
+        env:
+          TEST_FILES: ${{ steps.scope.outputs.ui }}
+          TEST_NAME: ${{ inputs.test_name }}
+        run: |
+          $targets = @($env:TEST_FILES | ConvertFrom-Json)
+          if ($env:TEST_NAME) { npm run test:ui -- @targets --workers=2 -g $env:TEST_NAME }
+          else { npm run test:ui -- @targets --workers=2 }
+      - name: Record check scope
+        if: always()
+        env:
+          FULL: ${{ steps.scope.outputs.full }}
+          UNIT: ${{ steps.scope.outputs.unit }}
+          UI: ${{ steps.scope.outputs.ui }}
+        run: |
+          "Full release flow requested: $env:FULL" >> $env:GITHUB_STEP_SUMMARY
+          "Selected unit files: $env:UNIT" >> $env:GITHUB_STEP_SUMMARY
+          "Selected desktop files: $env:UI" >> $env:GITHUB_STEP_SUMMARY
+          "Fast checks reuse coder evidence; skipped suites are not claimed as run." >> $env:GITHUB_STEP_SUMMARY
