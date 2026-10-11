@@ -24,7 +24,7 @@ F15.5 owner acceptance, 10 October 2026: [initial category policy](category-poli
 
 ## Main workspace
 
-Planned edit-usability and retail boundaries are in [retail-expansion.md](retail-expansion.md). v0.8 keeps one explicit-update composer, adds exact-row context and deterministic optional edit details, and moves recipe-import UI/QR text export forward. No non-food model migration is part of that release. Gated K-Ruoka non-food is v0.11; Prisma and mixed independent baskets remain Later. Strong cards must publish variant/store/evidence compatibility contracts before dependent UI or transfer changes.
+The v0.8.0 edit schema, atomic application, AI interpretation, affected-only pricing, one-step undo and edit delta are implemented behind `editList`/`undoEdit` and specified in [edit-contract.md](edit-contract.md); the composer UI for them is F17.6. Planned edit-usability and retail boundaries are in [retail-expansion.md](retail-expansion.md). v0.8 keeps one explicit-update composer, adds exact-row context and deterministic optional edit details, and moves recipe-import UI/QR text export forward. No non-food model migration is part of that release. Gated K-Ruoka non-food is v0.11; Prisma and mixed independent baskets remain Later. Strong cards must publish variant/store/evidence compatibility contracts before dependent UI or transfer changes.
 
 Use the green identity through replaceable semantic colour variables, a compact heading, a left navigation rail, a note and interpretation area, and a complete shopping list on the right. Light and Dark share the same roles. At narrow widths, stack the list below the note. Use the Windows title-bar overlay rather than drawing fake window buttons.
 
