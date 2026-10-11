@@ -604,12 +604,14 @@ for (const language of ["fi", "en"] as const) {
           .then((result) => result.value);
       const baseline = await load();
       await note.fill("Makaronilaatikko");
+      await expect(status).toHaveAttribute("role", "status");
+      await expect(status).toHaveAttribute("aria-atomic", "true");
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedSuccess"),
       );
       await note.press("Control+Enter");
       await expect(status).toHaveText(
-        tr("Muodostetaan listaa…", "Building your list…"),
+        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
       );
       await expect(page.locator(".saved-list-status")).toBeVisible();
@@ -621,6 +623,11 @@ for (const language of ["fi", "en"] as const) {
           .evaluate((el) => getComputedStyle(el).animationName),
       ).toBe("none");
       expect((await load()).state).toEqual(baseline.state);
+      await expect(status).toHaveAttribute(
+        "data-planning-phase",
+        "interpreting",
+      );
+      expect((await load()).quotedAt).toBe(baseline.quotedAt);
       const cancel = page.locator(".note-actions").getByRole("button", {
         name: tr("Peruuta listan päivitys", "Cancel list update"),
         exact: true,
@@ -635,24 +642,26 @@ for (const language of ["fi", "en"] as const) {
       await expect(page.getByRole("alert")).toHaveCount(0);
       expect((await load()).state).toEqual(baseline.state);
       expect((await load()).basket).toEqual(baseline.basket);
+      expect((await load()).planning?.phase).toBe("cancelled");
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedFailure"),
       );
       await note.press("Control+Enter");
       await expect(status).toHaveText(
-        tr("Muodostetaan listaa…", "Building your list…"),
+        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
       );
       await expect(status).toHaveText(
         tr(
-          "Listan muodostaminen epäonnistui. Tarkista virheilmoitus.",
-          "Could not build the list. Check the error message.",
+          "Listan päivitys epäonnistui. Aiempi lista säilyy.",
+          "List update failed. Your previous list is retained.",
         ),
       );
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(note).toBeFocused();
       expect((await load()).state).toEqual(baseline.state);
       expect((await load()).basket).toEqual(baseline.basket);
+      expect((await load()).planning?.phase).toBe("failed");
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedSuccess"),
       );
@@ -663,7 +672,7 @@ for (const language of ["fi", "en"] as const) {
         })
         .click();
       await expect(status).toHaveText(
-        tr("Muodostetaan listaa…", "Building your list…"),
+        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
       );
       await expect(page.locator(".grocery-row")).toHaveCount(1);
@@ -675,6 +684,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(note).toHaveValue("Makaronilaatikko");
       await expect(page.getByRole("alert")).toHaveCount(0);
       expect((await load()).state.note).toBe("Makaronilaatikko");
+      await expect(status).toHaveAttribute("data-planning-phase", "committed");
       expect((await load()).developmentRequests).toBe(1);
     } finally {
       await app.close();

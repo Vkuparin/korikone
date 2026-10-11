@@ -3,6 +3,8 @@ import { currentOffer } from "../domain/prices";
 import { matchingReasonLabel } from "./matching-reasons";
 import { GroupedReview } from "./grouped-review";
 import { RowCorrection } from "./row-correction";
+import type { PlanningSnapshot } from "../application/planning";
+import { planningPhaseLabel } from "./planning-status";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
@@ -46,7 +48,10 @@ export function ShoppingWorkspace({
   call: (
     method: string,
     input?: unknown,
-    options?: { preserveError?: boolean },
+    options?: {
+      preserveError?: boolean;
+      onSuccess?: (value: Snapshot) => void;
+    },
   ) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   settings: (section?: SettingsSection) => void;
@@ -65,6 +70,9 @@ export function ShoppingWorkspace({
   const [requesting, setRequesting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [updateFailed, setUpdateFailed] = useState(false);
+  const [livePlanning, setLivePlanning] = useState<PlanningSnapshot | null>(
+    null,
+  );
   const noteElement = useRef<HTMLTextAreaElement>(null);
   const requestInFlight = useRef(false);
   const stopRequested = useRef(false);
@@ -83,20 +91,36 @@ export function ShoppingWorkspace({
   };
   const currentNote = useRef(note);
   const planningOperation = useRef<string | null>(null);
+  const cancelSent = useRef<string | null>(null);
   useEffect(
     () =>
       window.korikone.onPlanningChange((value) => {
+        if (running.current || planningOperation.current === value.operationId)
+          setLivePlanning(value);
         if (
           !["committed", "failed", "cancelled", "obsolete"].includes(
             value.phase,
           )
         ) {
           planningOperation.current = value.operationId;
-          if (running.current && value.source.note !== currentNote.current) {
+          if (
+            running.current &&
+            value.source.note !== currentNote.current.trim()
+          ) {
             stopRequested.current = true;
             void window.korikone.invalidatePlanning({
               operationId: value.operationId,
               reason: "note-changed",
+            });
+          } else if (
+            running.current &&
+            stopRequested.current &&
+            value.phase !== "committing" &&
+            cancelSent.current !== value.operationId
+          ) {
+            cancelSent.current = value.operationId;
+            void window.korikone.cancelPlanning({
+              operationId: value.operationId,
             });
           }
         } else if (planningOperation.current === value.operationId)
@@ -193,29 +217,44 @@ export function ShoppingWorkspace({
       snapshot.ai.state !== "connected"
     )
       return;
-    const requested = note;
+    const requested = note.trim();
     running.current = true;
     stopRequested.current = false;
     setCancelled(false);
     setUpdateFailed(false);
+    setLivePlanning(null);
+    planningOperation.current = null;
+    cancelSent.current = null;
     setWorking(true);
     setRequesting(true);
     requestInFlight.current = true;
     try {
-      const generated = await call("generate", {
-        prompt: requested,
-        model: "auto",
-        consent: true,
-      });
+      let operationId: string | null = null;
+      const planned = await call(
+        "planShopping",
+        {
+          prompt: requested,
+          consent: true,
+        },
+        {
+          onSuccess: (value) => {
+            operationId = value.planning?.operationId ?? null;
+          },
+        },
+      );
       setRequesting(false);
       requestInFlight.current = false;
-      if (generated) {
+      if (planned && operationId) {
         if (
           !stopRequested.current &&
           active.current &&
-          currentNote.current === requested
+          currentNote.current.trim() === requested
         )
-          await call("approveDraft");
+          if (
+            !(await call("commitPlanning", { operationId })) &&
+            active.current
+          )
+            setUpdateFailed(true);
       } else if (!stopRequested.current && active.current)
         setUpdateFailed(true);
     } finally {
@@ -470,6 +509,9 @@ export function ShoppingWorkspace({
                 className="note-status"
                 role="status"
                 aria-atomic="true"
+                data-planning-phase={
+                  livePlanning?.phase ?? (working ? "starting" : "idle")
+                }
               >
                 {working
                   ? cancelled
@@ -477,30 +519,34 @@ export function ShoppingWorkspace({
                         "Peruutetaan listan päivitystä…",
                         "Cancelling list update…",
                       )
-                    : requesting
-                      ? tr("Muodostetaan listaa…", "Building your list…")
+                    : livePlanning
+                      ? planningPhaseLabel(livePlanning.phase, state.language)
                       : tr(
-                          "Tallennetaan ja hinnoitellaan listaa…",
-                          "Saving and pricing your list…",
+                          "Aloitetaan listan päivitystä…",
+                          "Starting list update…",
                         )
                   : cancelled
                     ? tr("Listan päivitys peruutettu", "List update cancelled")
                     : updateFailed
-                      ? tr(
-                          "Listan muodostaminen epäonnistui. Tarkista virheilmoitus.",
-                          "Could not build the list. Check the error message.",
-                        )
-                      : tr(
-                          "Ctrl + Enter päivittää listan",
-                          "Ctrl + Enter to update the list",
-                        )}
+                      ? planningPhaseLabel("failed", state.language)
+                      : livePlanning &&
+                          ["committed", "obsolete"].includes(livePlanning.phase)
+                        ? planningPhaseLabel(livePlanning.phase, state.language)
+                        : tr(
+                            "Ctrl + Enter päivittää listan",
+                            "Ctrl + Enter to update the list",
+                          )}
               </span>
               {requesting && (
                 <button
                   className="secondary"
                   onClick={() => {
                     window.dispatchEvent(new Event("korikone:cancel-ai"));
-                    void call("cancelAI");
+                    const operationId = planningOperation.current;
+                    if (operationId) {
+                      cancelSent.current = operationId;
+                      void call("cancelPlanning", { operationId });
+                    }
                     noteElement.current?.focus({ preventScroll: true });
                   }}
                   disabled={cancelled}

@@ -67,7 +67,8 @@ export function planningFixtureReply(
       /^\d+(?:[.,]\d+)?\s*(?:kg|g)\s+(?:banaan\p{L}*|bananas?)$/iu.test(quote);
     const recipe = measuredBanana
       ? undefined
-      : recipes.find((fixture) => fixture.pattern.test(quote))?.recipe;
+      : recipes.find((fixture) => fixture.pattern.test(quote.toLowerCase()))
+          ?.recipe;
     const intent: RequestIntent = {
       id: `fixture-${start}`,
       kind: recipe ? "meal" : "grocery",

@@ -163,7 +163,10 @@ function App() {
   async function call(
     method: string,
     input?: unknown,
-    options?: { preserveError?: boolean },
+    options?: {
+      preserveError?: boolean;
+      onSuccess?: (value: Snapshot) => void;
+    },
   ) {
     if (method === "setAppearance") {
       try {
@@ -194,6 +197,7 @@ function App() {
       if (method === "signOutAI") setAIRequestLimit(false);
       if (!result.ok && result.error === "aiCancelled") return false;
       if (!result.ok) throw new Error(result.error);
+      options?.onSuccess?.(result.value);
       if (method === "setDevelopmentMode")
         sessionStorage.removeItem("shopping-note");
       // A store whose sign-in happens in its own tab: show that tab.
