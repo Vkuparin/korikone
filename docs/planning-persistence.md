@@ -22,7 +22,7 @@ Shopping displays requests without rows and labels known prices as a subtotal. S
 
 ## Dependent implementation
 
-F16.12 migrates the composer to `planShopping({prompt,consent:true})`, validated events and `commitPlanning({operationId})` for the still-current ready operation. Handle commit locking and `commitUnknown`; show intent results without requirement rows. The composer still uses its earlier generation/approval path.
+The composer uses `planShopping({prompt,consent:true})`, validated events and `commitPlanning({operationId})` for the still-current ready operation. Cancel ends before commit locking begins; commit failures retain the error and saved quote. Provisional intent and row presentation remains F16.13.
 
 F15.11 adds the saved resolver switch/proposal presentation while preserving request coverage. F16.13 extends progress/cancellation UI checks. F16.18 extends both-adapter pipeline acceptance using real atomic storage. Reuse `tests/planning-persistence.test.ts` and `tests/ui/planning-commit.spec.ts` without replacing IPC handlers.
 

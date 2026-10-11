@@ -691,3 +691,132 @@ for (const language of ["fi", "en"] as const) {
     }
   });
 }
+
+for (const language of ["fi", "en"] as const) {
+  test(`coordinator composer phases and obsolete search preserve the quote in ${language}`, async () => {
+    const app = await launch();
+    try {
+      const page = await app.firstWindow();
+      const state = initialState();
+      state.onboarded = state.setupComplete = true;
+      state.staples = [];
+      state.extras = [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }];
+      state.context.storeId = "demo-delayed-search";
+      await page.evaluate(
+        async ({ state, language }) => {
+          await window.korikone.save(state);
+          await window.korikone.buildBasket();
+          await window.korikone.setLanguage(language);
+          await window.korikone.signInAI();
+        },
+        { state, language },
+      );
+      await page.reload();
+      const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+      const note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      const status = page.locator("#note-update-help");
+      const load = () =>
+        page.evaluate(async () => (await window.korikone.load()).value);
+      const before = await load();
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedModels"),
+      );
+      await note.fill("200 ml kermaa");
+      await note.press("Control+Enter");
+      await expect(status).toHaveAttribute(
+        "data-planning-phase",
+        "discovering",
+      );
+      await expect(status).toHaveText(
+        tr("Etsitään käytettävää AI-mallia…", "Finding an available AI model…"),
+      );
+      await page
+        .locator(".note-actions")
+        .getByRole("button", {
+          name: tr("Peruuta listan päivitys", "Cancel list update"),
+          exact: true,
+        })
+        .click();
+      await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+      expect((await load()).state).toEqual(before.state);
+      expect((await load()).basket).toEqual(before.basket);
+      expect((await load()).developmentRequests).toBe(0);
+      await expect(note).toBeFocused();
+
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedSuccess"),
+      );
+      await note.press("Control+Enter");
+      await expect(status).toHaveAttribute("data-planning-phase", "searching", {
+        timeout: 10000,
+      });
+      await expect(status).toHaveText(
+        tr("Haetaan tuotteita ja hintoja…", "Getting products and prices…"),
+      );
+      expect((await load()).quotedAt).toBe(before.quotedAt);
+      await expect(
+        page.getByText(tr("Viimeksi haetut hinnat", "Last quoted prices"), {
+          exact: false,
+        }),
+      ).toBeVisible();
+      await note.fill("1 l maitoa");
+      await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+      await expect(status).toHaveAttribute("data-planning-phase", "obsolete");
+      await page.waitForTimeout(1500); // The fixture's outstanding catalogue read must settle.
+      expect((await load()).state).toEqual(before.state);
+      expect((await load()).basket).toEqual(before.basket);
+      await expect(note).toHaveValue("1 l maitoa");
+
+      await note.fill("200 ml kermaa");
+      await page.evaluate(() => {
+        const data = window as unknown as { phaseEvents: string[] };
+        data.phaseEvents = [];
+        window.korikone.onPlanningChange((event) =>
+          data.phaseEvents.push(event.phase),
+        );
+      });
+      const requestsBeforeRetry = (await load()).developmentRequests;
+      await note.press("Control+Enter");
+      await expect(status).toHaveAttribute("data-planning-phase", "resolving", {
+        timeout: 10000,
+      });
+      await expect(status).toHaveText(
+        tr("Tarkistetaan epäselviä tuotteita…", "Checking uncertain products…"),
+      );
+      expect((await load()).state).toEqual(before.state);
+      await expect(
+        page.locator(".note-actions").getByRole("button", {
+          name: tr("Peruuta listan päivitys", "Cancel list update"),
+          exact: true,
+        }),
+      ).toBeEnabled();
+      await expect(status).toHaveAttribute("data-planning-phase", "committed", {
+        timeout: 10000,
+      });
+      const phases = await page.evaluate(
+        () => (window as unknown as { phaseEvents: string[] }).phaseEvents,
+      );
+      for (const phase of [
+        "discovering",
+        "interpreting",
+        "interpreted",
+        "searching",
+        "resolving",
+        "ready",
+        "committing",
+        "committed",
+      ])
+        expect(phases).toContain(phase);
+      expect((await load()).state.note).toBe("200 ml kermaa");
+      expect((await load()).developmentRequests).toBe(requestsBeforeRetry + 2);
+      expect((await load()).planning?.counters.aiCalls).toBe(2);
+      expect((await load()).developmentStoreWrites).toBe(0);
+      await expect(note).toBeFocused();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+    } finally {
+      await app.close();
+    }
+  });
+}

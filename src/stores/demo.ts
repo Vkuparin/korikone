@@ -2,6 +2,7 @@ import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import { retailerEvidence } from "./candidates";
 import { SKaupatProvider } from "./s-kaupat";
+import { setTimeout as delay } from "node:timers/promises";
 // The optional last entry is a search word the store also answers with this product.
 const catalogue: [
   string,
@@ -124,6 +125,8 @@ export class DemoProvider implements StoreProvider {
     ingredientId: string,
   ): Promise<Product[]> {
     this.searchRequests++;
+    // Opt-in local fixture keeps the real catalogue phase observable in UI checks.
+    if (context.storeId === "demo-delayed-search") await delay(1200);
     if (this.failSearch) throw new Error("storeBusy");
     if (this.id === "s-kaupat" && context.storeId === "demo-campaign") {
       if (ingredientId !== "milk") return [];

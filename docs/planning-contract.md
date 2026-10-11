@@ -2,9 +2,9 @@
 
 F16.11 implements atomic commit and durable coverage in [planning-persistence.md](planning-persistence.md). `PlanningLifecycle.currentReady` checks ownership; `PlanningRun.beginCommit` locks cancellation/replacement until `committed` or `commitFailed`. Service owns the storage transaction.
 
-F16.9 implements `src/application/planning.ts`. This is the operation/event contract and the existing interpretation dispatch migration. F16.15 adds required `PlanningSnapshot.intents` and draft-to-result mapping; its fields, quantity rules and normalized artifact ownership are in [intent-contract.md](intent-contract.md). F16.10 supplies execution across interpretation, requirements, searches and resolution; F16.11 supplies atomic state/quote persistence. The existing composer still submits generation followed by draft approval.
+F16.9 implements `src/application/planning.ts`. This is the operation/event contract and the existing interpretation dispatch migration. F16.15 adds required `PlanningSnapshot.intents` and draft-to-result mapping; its fields, quantity rules and normalized artifact ownership are in [intent-contract.md](intent-contract.md). F16.10 supplies execution across interpretation, requirements, searches and resolution; F16.11 supplies atomic state/quote persistence. The composer submits `planShopping` followed by UUID-bound `commitPlanning`; saved state and quote remain visible until atomic commit.
 
-F16.10 implements that execution in `src/application/coordinator.ts` and the real `planShopping` IPC entry. Exact read-slot ownership, deadline, failure behavior, complete frozen result and commit/UI handoff are in [coordinator-contract.md](coordinator-contract.md). The existing composer migration remains the progress UI card.
+F16.10 implements that execution in `src/application/coordinator.ts` and the real `planShopping` IPC entry. Exact read-slot ownership, deadline, failure behavior, complete frozen result and commit/UI handoff are in [coordinator-contract.md](coordinator-contract.md). The composer displays validated phases and exposes UUID-bound Cancel before commit.
 
 ## Ownership
 
