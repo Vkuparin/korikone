@@ -18,6 +18,7 @@ export const expectedRequestSchema = z
     id: z.string().min(1),
     kind: z.enum(["grocery", "dish"]),
     names: z.array(z.string().min(1)).min(1),
+    intentLabels: z.array(z.string().min(1)).optional(),
     // null explicitly expects a grocery outside the eight matcher categories.
     category: categorySchema.nullable().optional(),
     // null means the note supplied no quantity; an invented number must fail.
@@ -41,6 +42,8 @@ export const shoppingCaseSchema = z
     expected: z.array(expectedRequestSchema).min(1).max(100),
     // One response per attempted interpretation/repair. Never derives the expectations above.
     replies: z.array(z.string()).min(1).max(2),
+    // Explicit canned ledger replies for the current coordinator; never synthesize from expectations.
+    planningReplies: z.array(z.string()).min(1).max(2).optional(),
     completion: z.enum(["complete", "incomplete"]).default("complete"),
     catalogue: z.record(z.string(), z.array(productSchema)),
     boundaryFailure: z.enum(["search-error", "malformed"]).optional(),

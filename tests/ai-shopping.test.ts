@@ -168,3 +168,90 @@ test("case schema rejects duplicate requests, contradictory SKU expectations and
     }).success,
   ).toBe(false);
 });
+
+test("coordinator evaluator preserves unknown quantities and detects omitted ledger requests on both chains", async () => {
+  const note = "1 l maitoa ja kahvia";
+  const milkIntent = {
+    id: "milk-request",
+    kind: "grocery",
+    label: "1 l maitoa",
+    evidence: { start: 0, end: 10, quote: "1 l maitoa" },
+    provenance: "explicit-note",
+    quantity: { amount: 1000, unit: "ml", provenance: "explicit-note" },
+    mealIndex: null,
+    itemIndex: 0,
+    unresolvedReason: null,
+  };
+  const coffeeIntent = {
+    id: "coffee-request",
+    kind: "grocery",
+    label: "kahvia",
+    evidence: { start: 14, end: 20, quote: "kahvia" },
+    provenance: "explicit-note",
+    quantity: { amount: null, unit: null, provenance: "unknown" },
+    mealIndex: null,
+    itemIndex: null,
+    unresolvedReason: "unknown-quantity",
+  };
+  const reply = {
+    items: [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }],
+    intents: [milkIntent, coffeeIntent],
+  };
+  const fixture = shoppingCaseSchema.parse({
+    id: "coordinator-ledger-measurement",
+    note,
+    expected: [
+      {
+        id: "milk",
+        kind: "grocery",
+        names: ["Maito"],
+        category: "milk",
+        amount: 1000,
+        unit: "ml",
+        admissible: ["milk"],
+      },
+      {
+        id: "coffee",
+        kind: "grocery",
+        names: ["Kahvi"],
+        intentLabels: ["kahvia"],
+        category: "coffee",
+        amount: null,
+        unit: "g",
+      },
+    ],
+    replies: [JSON.stringify({ items: reply.items })],
+    planningReplies: [JSON.stringify(reply)],
+    catalogue: { "*": [{ id: "milk", name: "Maito 1 l", price: 1.2 }] },
+    requiredCapabilities: ["unknown-quantity", "visible-unsearchable-request"],
+  });
+  for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+    const result = await evaluateShoppingCase(fixture, chain, "coordinator");
+    expect(result).toMatchObject({
+      missingRequests: [],
+      wrongQuantity: [],
+      safePriced: 1,
+      unresolved: 1,
+      unsupported: [],
+      aiRequests: 1,
+      retailerWrites: 0,
+    });
+    const omitted = await evaluateShoppingCase(
+      {
+        ...fixture,
+        planningReplies: [JSON.stringify({ ...reply, intents: [milkIntent] })],
+      },
+      chain,
+      "coordinator",
+    );
+    expect(omitted.missingRequests).toEqual(["coffee"]);
+    expect(evaluationGate([omitted], 1).failures).toContain("missing-request");
+  }
+  await expect(
+    evaluateShoppingCase(
+      { ...fixture, planningReplies: undefined },
+      "k-ruoka",
+      "coordinator",
+    ),
+  ).rejects.toThrow("Missing explicit planning replies");
+});

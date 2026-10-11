@@ -1,6 +1,7 @@
 import { interpretShopping } from "../../../src/ai/output";
 import { InferenceError, InferenceSession } from "../../../src/ai/provider";
 import { buildCompactContext } from "../../../src/ai/context";
+import { inferenceTasks } from "../../../src/ai/tasks";
 import { requirements } from "../../../src/domain/planner";
 import { unresolvedReason as reason } from "../../../src/application/metrics";
 import { ScriptedInferenceProvider } from "../../helpers/inference";
@@ -18,8 +19,11 @@ const normalize = (name: string) => name.trim().toLocaleLowerCase("fi");
 export async function evaluateShoppingCase(
   input: ShoppingCase,
   chain: FixtureChain,
+  execution: "legacy" | "coordinator" = "legacy",
 ): Promise<EvaluationResult> {
   const fixture = shoppingCaseSchema.parse(input);
+  if (execution === "coordinator" && !fixture.planningReplies)
+    throw new Error(`Missing explicit planning replies: ${fixture.id}`);
   const { service, tools, normalized } = await createFixtureService(
     chain,
     fixture.catalogue,
@@ -32,13 +36,19 @@ export async function evaluateShoppingCase(
     context: buildCompactContext(fixture.note, service.state),
   }).length;
   let calls = 0;
+  const replies =
+    execution === "coordinator" ? fixture.planningReplies! : fixture.replies;
   const provider = new ScriptedInferenceProvider(
     "fixture-evaluation",
-    async () => ({
-      text: fixture.replies[Math.min(calls++, fixture.replies.length - 1)],
+    async (request) => ({
+      text:
+        request.task.id === "candidate-resolution"
+          ? '{"version":1,"choices":[]}'
+          : replies[Math.min(calls++, replies.length - 1)],
       completion: fixture.completion,
     }),
   );
+  provider.models[0].capabilities.tasks = inferenceTasks;
   const session = new InferenceSession(
     provider,
     provider.models[0],
@@ -47,26 +57,45 @@ export async function evaluateShoppingCase(
   );
   let failure: UnresolvedReason | undefined;
   try {
-    service.draft = await service.measureOperation(
-      "interpretation",
-      async (metrics) => {
-        try {
-          return await interpretShopping(session, fixture.note, service.state);
-        } finally {
-          metrics.aiCalls = session.callCount;
-          metrics.repairCalls = Math.max(0, session.callCount - 1);
-          metrics.payloadCharacters = session.payloadCharacters;
-        }
-      },
-    );
-    service.draftRevision = service.state.revision;
-    service.draftNote = fixture.note;
-    await service.approveDraft();
-    await service.buildBasket();
+    if (execution === "coordinator") {
+      const planned = await service.planShopping(
+        { prompt: fixture.note, consent: true },
+        async (run) => run.bindInference(provider, provider.models[0]),
+      );
+      await service.commitPlanning({
+        operationId: planned.planning!.operationId,
+      });
+    } else {
+      service.draft = await service.measureOperation(
+        "interpretation",
+        async (metrics) => {
+          try {
+            return await interpretShopping(
+              session,
+              fixture.note,
+              service.state,
+            );
+          } finally {
+            metrics.aiCalls = session.callCount;
+            metrics.repairCalls = Math.max(0, session.callCount - 1);
+            metrics.payloadCharacters = session.payloadCharacters;
+          }
+        },
+      );
+      service.draftRevision = service.state.revision;
+      service.draftNote = fixture.note;
+      await service.approveDraft();
+      await service.buildBasket();
+    }
   } catch (error) {
     if (
       !(error instanceof InferenceError && error.code === "incomplete") &&
-      !(error instanceof Error && error.message === "invalidDraft") &&
+      !(
+        error instanceof Error &&
+        ["invalidDraft", "invalidOutput", "invalidIntentLedger"].includes(
+          error.message,
+        )
+      ) &&
       !fixture.boundaryFailure
     )
       throw error;
@@ -97,7 +126,17 @@ export async function evaluateShoppingCase(
       .length,
     contextCharacters,
     unsupported: fixture.requiredCapabilities.filter(
-      (capability) => capability !== "compact-context",
+      (capability) =>
+        !(
+          execution === "coordinator"
+            ? [
+                "compact-context",
+                "unknown-quantity",
+                "visible-unsearchable-request",
+                "weighed-pricing",
+              ]
+            : ["compact-context"]
+        ).includes(capability),
     ),
     editCorrectness: "unsupported",
   };
@@ -127,6 +166,23 @@ export async function evaluateShoppingCase(
       expected.names.map(normalize).includes(normalize(r.name)),
     );
     if (!requestedRows.length) {
+      const unknown =
+        execution === "coordinator" && expected.amount === null
+          ? service
+              .snapshot()
+              .committedIntents.find((result) =>
+                expected.intentLabels?.includes(result.intent.label),
+              )
+          : undefined;
+      if (unknown) {
+        if (
+          unknown.intent.quantity?.amount !== null ||
+          unknown.reason !== "unknown-quantity"
+        )
+          result.wrongQuantity.push(expected.id);
+        result.unresolved++;
+        continue;
+      }
       result.missingRequests.push(expected.id);
       result.unresolved++;
       count(failure ?? "missing-request");
