@@ -52,7 +52,31 @@ export function pieceQuote(
 
 export function transferableLine(line: BasketLine): boolean {
   if (!line.product || line.total === null) return false;
-  if (!line.approximate) return !line.product.pieceOrdering && line.packs > 0;
+  if (!line.approximate) {
+    const p = line.product;
+    if (
+      p.pieceOrdering ||
+      p.available !== true ||
+      p.price === null ||
+      !Number.isSafeInteger(p.price) ||
+      p.price < 0 ||
+      !Number.isSafeInteger(p.deposit) ||
+      p.deposit < 0 ||
+      p.unit !== line.requirement.unit ||
+      p.packAmount <= 0 ||
+      p.increment <= 0
+    )
+      return false;
+    const packs =
+      Math.ceil(line.requirement.amount / p.packAmount / p.increment) *
+      p.increment;
+    return (
+      Number.isFinite(packs) &&
+      packs > 0 &&
+      line.packs === packs &&
+      line.total === packs * (p.price + p.deposit)
+    );
+  }
   const quote = pieceQuote(line.requirement, line.product);
   return (
     quote !== null && quote.pieces === line.packs && quote.total === line.total

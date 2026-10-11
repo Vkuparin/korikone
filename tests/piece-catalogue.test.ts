@@ -199,6 +199,13 @@ test("piece arithmetic distinguishes mass rounding, piece requests and unsupport
   expect(transferableLine(line)).toBe(true);
   expect(transferableLine({ ...line, approximate: false })).toBe(false);
   expect(transferableLine({ ...line, packs: 3 })).toBe(false);
+  expect(
+    transferableLine({
+      ...line,
+      approximate: false,
+      product: { ...product, pieceOrdering: undefined },
+    }),
+  ).toBe(false);
 });
 test("real S adapter attaches only explicit piece weight with agreeing current price and unit", async () => {
   const provider = new SKaupatProvider(
