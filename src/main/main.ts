@@ -216,10 +216,14 @@ else
     let updateChecked: Promise<void> | null = null;
     const ui = fileURLToPath(new URL("../ui/index.html", import.meta.url));
     // Service initialization above loads the saved preference before any window exists.
+    // The chain accent follows the committed shopping context only.
+    let appearanceSequence = 0;
     const getAppearanceBootstrap = () =>
       appearanceBootstrap(
         service.state.appearance,
         nativeTheme.shouldUseDarkColors,
+        service.state.context.providerId,
+        appearanceSequence,
       );
     const initialAppearance = getAppearanceBootstrap();
     // Match the renderer's --kk-bg / --kk-text palette blocks.
@@ -252,16 +256,22 @@ else
     let publishedAppearance = initialAppearance;
     const publishAppearance = () => {
       if (window.isDestroyed()) return;
-      const value = getAppearanceBootstrap();
+      const current = getAppearanceBootstrap();
       if (
-        value.preference === publishedAppearance.preference &&
-        value.resolved === publishedAppearance.resolved
+        current.preference === publishedAppearance.preference &&
+        current.resolved === publishedAppearance.resolved &&
+        current.chain === publishedAppearance.chain
       )
         return;
+      const value = { ...current, sequence: ++appearanceSequence };
+      const themeChanged = value.resolved !== publishedAppearance.resolved;
       publishedAppearance = value;
-      const palette = nativePalette[value.resolved];
-      window.setBackgroundColor(palette.color);
-      window.setTitleBarOverlay(palette);
+      // The native frame stays neutral; only the resolved base palette changes it.
+      if (themeChanged) {
+        const palette = nativePalette[value.resolved];
+        window.setBackgroundColor(palette.color);
+        window.setTitleBarOverlay(palette);
+      }
       window.webContents.send("app:appearanceChanged", value);
     };
     const systemAppearanceChanged = () => {
@@ -991,7 +1001,6 @@ else
             name === "load"
           ) {
             const value = (await handler(input)) as object;
-            if (name === "setAppearance") publishAppearance();
             service.ai = ai.status();
             return { ok: true, value: { ...value, ai: service.ai } };
           }
@@ -1009,8 +1018,6 @@ else
           });
           queue = pending.catch(() => {});
           const value = (await pending) as object;
-          if (["save", "importData", "setDevelopmentMode"].includes(name))
-            publishAppearance();
           service.ai = ai.status();
           return { ok: true, value: { ...value, ai: service.ai } };
         } catch (error) {
@@ -1021,6 +1028,10 @@ else
                 ? error.message
                 : "operationFailed",
           };
+        } finally {
+          // Every path that can commit a preference or shopping context ends here, including one
+          // that failed after saving. Unchanged values publish nothing.
+          publishAppearance();
         }
       });
     await window.loadFile(ui);

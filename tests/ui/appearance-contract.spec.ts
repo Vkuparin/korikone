@@ -55,7 +55,7 @@ test("saved appearance is synchronously available before async snapshots and set
     await page.waitForFunction(() => !!window.korikone);
     expect(
       await page.evaluate(() => window.korikone.getAppearanceBootstrap()),
-    ).toEqual({ preference: "dark", resolved: "dark" });
+    ).toMatchObject({ preference: "dark", resolved: "dark" });
     await expect
       .poll(() =>
         page.evaluate(
@@ -81,7 +81,7 @@ test("saved appearance is synchronously available before async snapshots and set
     });
     expect(
       await page.evaluate(() => window.korikone.getAppearanceBootstrap()),
-    ).toEqual({ preference: "dark", resolved: "dark" });
+    ).toMatchObject({ preference: "dark", resolved: "dark" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
@@ -111,7 +111,7 @@ test("saved appearance is synchronously available before async snapshots and set
     });
     expect(
       await page.evaluate(() => window.korikone.getAppearanceBootstrap()),
-    ).toEqual({ preference: "system", resolved: "dark" });
+    ).toMatchObject({ preference: "system", resolved: "dark" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
