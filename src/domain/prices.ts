@@ -20,6 +20,47 @@ export const PRICE_KEY = "prices:observations";
 export const MAX_PRICE_DAYS = 365;
 export const MAX_PRICE_ENTRIES = 20_000;
 
+/** Public campaign evidence is independent of locally observed price changes. */
+export function currentOffer(product: Product, now = new Date()): boolean {
+  const pricing = product.cataloguePricing;
+  return (
+    product.providerId === "s-kaupat" &&
+    pricing?.campaignPrice != null &&
+    pricing.amount === pricing.campaignPrice &&
+    (pricing.campaignValidUntil == null ||
+      pricing.campaignValidUntil >= day(now))
+  );
+}
+
+/** Compare today's unit price with the last eight earlier observations at this store. */
+export function cheaperThanUsual(
+  product: Product,
+  history: PriceObservation[],
+  now = new Date(),
+): boolean {
+  if (product.price == null || product.packAmount <= 0) return false;
+  const previous = history
+    .filter(
+      (entry) =>
+        entry.productId === product.id &&
+        entry.providerId === product.providerId &&
+        entry.storeId === product.storeId &&
+        entry.date < day(now),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 8)
+    .filter((entry) => entry.unitPrice != null)
+    .map((entry) => entry.unitPrice!)
+    .sort((a, b) => a - b);
+  if (previous.length < 4) return false;
+  const middle = Math.floor(previous.length / 2);
+  const median =
+    previous.length % 2
+      ? previous[middle]
+      : (previous[middle - 1] + previous[middle]) / 2;
+  return median > 0 && product.price / product.packAmount <= median * 0.9;
+}
+
 const sameDay = (a: PriceObservation, b: PriceObservation) =>
   a.productId === b.productId &&
   a.providerId === b.providerId &&

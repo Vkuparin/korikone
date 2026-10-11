@@ -26,6 +26,128 @@ import {
 import { en, fi } from "../src/ui/i18n";
 import { matchRequirement, purchasable } from "../src/domain/matching";
 import { compareBaskets } from "../src/domain/compare";
+import { cheaperThanUsual, currentOffer } from "../src/domain/prices";
+
+test("price badges require four earlier observations and an inclusive ten percent reduction", async () => {
+  const provider = new DemoProvider("demo-s");
+  const context = {
+    providerId: "demo-s",
+    storeId: "store",
+    storeName: "Fixture",
+    fulfillment: "pickup" as const,
+  };
+  const [original] = await provider.searchProducts(context, "maito", "milk");
+  const product = {
+    ...original,
+    providerId: "s-kaupat",
+    price: 900,
+    packAmount: 1,
+  };
+  const now = new Date("2026-10-11T12:00:00Z");
+  const history = Array.from({ length: 4 }, (_, index) => ({
+    productId: product.id,
+    providerId: product.providerId,
+    storeId: product.storeId,
+    date: `2026-10-0${index + 1}`,
+    price: 1000,
+    unitPrice: 1000,
+  }));
+  expect(cheaperThanUsual(product, history, now)).toBe(true);
+  expect(cheaperThanUsual({ ...product, price: 901 }, history, now)).toBe(
+    false,
+  );
+  expect(cheaperThanUsual(product, history.slice(1), now)).toBe(false);
+  expect(cheaperThanUsual({ ...product, packAmount: 0 }, history, now)).toBe(
+    false,
+  );
+  expect(
+    cheaperThanUsual(
+      product,
+      history.map((entry) => ({ ...entry, unitPrice: 0 })),
+      now,
+    ),
+  ).toBe(false);
+  expect(
+    cheaperThanUsual(
+      product,
+      [
+        ...history,
+        ...Array.from({ length: 8 }, (_, index) => ({
+          ...history[0],
+          date: `2026-10-${String(index + 2).padStart(2, "0")}`,
+          unitPrice: null,
+        })),
+      ],
+      now,
+    ),
+  ).toBe(false);
+  expect(
+    cheaperThanUsual(
+      product,
+      history.map((entry) => ({ ...entry, storeId: "other" })),
+      now,
+    ),
+  ).toBe(false);
+  expect(
+    cheaperThanUsual(
+      product,
+      history.map((entry) => ({ ...entry, date: "2026-10-11" })),
+      now,
+    ),
+  ).toBe(false);
+  expect(
+    cheaperThanUsual(
+      product,
+      [
+        ...history.map((entry) => ({
+          ...entry,
+          date: entry.date.replace("10", "09"),
+          unitPrice: 100_000,
+        })),
+        ...Array.from({ length: 8 }, (_, index) => ({
+          ...history[0],
+          date: `2026-10-0${index + 1}`,
+          unitPrice: 500,
+        })),
+      ],
+      now,
+    ),
+  ).toBe(false);
+  const campaign = {
+    ...product,
+    cataloguePricing: {
+      amount: 900,
+      unit: "KPL",
+      basis: "per_item",
+      approximate: false,
+      deposit: 0,
+      campaignPrice: 900,
+    },
+  };
+  expect(currentOffer(campaign, now)).toBe(true);
+  expect(currentOffer({ ...campaign, providerId: "k-ruoka" }, now)).toBe(false);
+  expect(
+    currentOffer(
+      {
+        ...campaign,
+        cataloguePricing: { ...campaign.cataloguePricing, campaignPrice: 800 },
+      },
+      now,
+    ),
+  ).toBe(false);
+  expect(
+    currentOffer(
+      {
+        ...campaign,
+        cataloguePricing: {
+          ...campaign.cataloguePricing,
+          campaignValidUntil: "2026-10-10",
+        },
+      },
+      now,
+    ),
+  ).toBe(false);
+});
 
 describe("weighed estimates", () => {
   const requirement: Requirement = {

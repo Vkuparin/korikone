@@ -6,6 +6,7 @@ import { McpWorker } from "./worker";
 import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
 import {
   cataloguePricingSchema,
+  campaignDateSchema,
   pieceOrdering,
 } from "../domain/product-evidence";
 import type { PieceCatalogueReader } from "./s-kaupat-pieces";
@@ -98,19 +99,62 @@ export function sKaupatWorker(options: {
     errors: sKaupatError,
   });
 }
-const productSchema = z.object({
-  id: z.string().min(1).max(100),
-  name: z.string().min(1).max(500),
-  storeId: z.string().nullish(),
-  price: z.number().nonnegative().nullish(),
-  depositPrice: z.number().nonnegative().nullish(),
-  approximatePrice: z.boolean().nullish(),
-  priceBasis: z.string().max(40).nullish(),
-  packSize: z.string().max(100).nullish(),
-  quantityUnit: z.string().max(40).nullish(),
-  category: z.string().max(200).nullish(),
-  labels: z.array(z.string().max(100)).max(20).nullish(),
+const euroPriceSchema = z.number().nonnegative().max(1_000_000).nullish();
+const campaignFieldsSchema = z.object({
+  regularPrice: euroPriceSchema,
+  campaignPrice: euroPriceSchema,
+  campaignValidUntil: campaignDateSchema.nullish(),
+  lowest30DayPrice: euroPriceSchema,
 });
+const productSchema = z.preprocess(
+  (raw) => {
+    if (
+      !raw ||
+      typeof raw !== "object" ||
+      campaignFieldsSchema.safeParse(raw).success
+    )
+      return raw;
+    // Invalid optional campaign claims cannot confer an offer; ordinary pricing remains usable.
+    return {
+      ...raw,
+      regularPrice: null,
+      campaignPrice: null,
+      campaignValidUntil: null,
+      lowest30DayPrice: null,
+    };
+  },
+  z.object({
+    id: z.string().min(1).max(100),
+    name: z.string().min(1).max(500),
+    storeId: z.string().nullish(),
+    price: z.number().nonnegative().nullish(),
+    regularPrice: z.number().nonnegative().max(1_000_000).nullish().catch(null),
+    campaignPrice: z
+      .number()
+      .nonnegative()
+      .max(1_000_000)
+      .nullish()
+      .catch(null),
+    campaignValidUntil: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullish()
+      .catch(null),
+    lowest30DayPrice: z
+      .number()
+      .nonnegative()
+      .max(1_000_000)
+      .nullish()
+      .catch(null),
+    depositPrice: z.number().nonnegative().nullish(),
+    approximatePrice: z.boolean().nullish(),
+    priceBasis: z.string().max(40).nullish(),
+    packSize: z.string().max(100).nullish(),
+    quantityUnit: z.string().max(40).nullish(),
+    category: z.string().max(200).nullish(),
+    labels: z.array(z.string().max(100)).max(20).nullish(),
+  }),
+);
 const listSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
@@ -297,6 +341,15 @@ export class SKaupatProvider implements StoreProvider {
         observedAt,
         evidence: retailerEvidence(p.name, p.category ?? null, p.labels ?? []),
         cataloguePricing: cataloguePricingSchema.parse({
+          regularPrice:
+            p.regularPrice == null ? null : Math.round(p.regularPrice * 100),
+          campaignPrice:
+            p.campaignPrice == null ? null : Math.round(p.campaignPrice * 100),
+          campaignValidUntil: p.campaignValidUntil ?? null,
+          lowest30DayPrice:
+            p.lowest30DayPrice == null
+              ? null
+              : Math.round(p.lowest30DayPrice * 100),
           amount: p.price != null ? Math.round(p.price * 100) : null,
           unit: p.quantityUnit ?? null,
           basis: p.priceBasis ?? null,

@@ -108,6 +108,7 @@ function App() {
     planning: null,
     committedIntents: [],
     planningIncomplete: false,
+    cheaperProductIds: [],
   });
   const [page, setPage] = useState<Key>("week");
   useEffect(

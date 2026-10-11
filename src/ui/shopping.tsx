@@ -1,4 +1,5 @@
 import { candidateSuitability, purchasable } from "../domain/matching";
+import { currentOffer } from "../domain/prices";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
@@ -1104,6 +1105,23 @@ export function ShoppingWorkspace({
                             ? `${line.approximate ? tr("noin ", "about ") : ""}${money(line.total)}`
                             : tr("Hinta puuttuu", "Price unknown")}
                       </strong>
+                      {!home && line?.product && (
+                        <span className="row-price-badges">
+                          {currentOffer(line.product) && (
+                            <small>{tr("Tarjous", "Offer")}</small>
+                          )}
+                          {snapshot.cheaperProductIds.includes(
+                            line.product.id,
+                          ) && (
+                            <small>
+                              {tr(
+                                "Halvempi kuin yleensä",
+                                "Cheaper than usual",
+                              )}
+                            </small>
+                          )}
+                        </span>
+                      )}
                       <button
                         className="delete-row"
                         aria-label={`${tr("Poista", "Remove")}: ${r.name}`}

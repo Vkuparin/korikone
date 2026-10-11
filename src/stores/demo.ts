@@ -1,6 +1,7 @@
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import { retailerEvidence } from "./candidates";
+import { SKaupatProvider } from "./s-kaupat";
 // The optional last entry is a search word the store also answers with this product.
 const catalogue: [
   string,
@@ -124,6 +125,32 @@ export class DemoProvider implements StoreProvider {
   ): Promise<Product[]> {
     this.searchRequests++;
     if (this.failSearch) throw new Error("storeBusy");
+    if (this.id === "s-kaupat" && context.storeId === "demo-campaign") {
+      if (ingredientId !== "milk") return [];
+      // Opt-in synthetic worker response exercises the same campaign normalization as production.
+      const provider = new SKaupatProvider(async (tool) =>
+        tool === "search_products"
+          ? {
+              products: [
+                {
+                  id: "campaign-milk",
+                  name: "Kevytmaito 1 l",
+                  price: 1.09,
+                  regularPrice: 1.49,
+                  campaignPrice: 1.09,
+                  campaignValidUntil: null,
+                  lowest30DayPrice: 0.99,
+                  quantityUnit: "KPL",
+                  priceBasis: "per_item",
+                  packSize: "1 l",
+                  approximatePrice: false,
+                },
+              ],
+            }
+          : { items: [{ productId: "campaign-milk", status: "ok" }] },
+      );
+      return provider.searchProducts(context, query, ingredientId);
+    }
     const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
     return catalogue
       .filter(

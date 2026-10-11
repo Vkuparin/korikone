@@ -10,6 +10,8 @@ import {
 } from "../src/stores/s-kaupat";
 import { createReview, transfer } from "../src/application/transfer";
 import type { BasketLine, StoreContext } from "../src/domain/model";
+import { currentOffer } from "../src/domain/prices";
+import { persistedQuoteSchema } from "../src/application/quotes";
 const context: StoreContext = {
   providerId: "s-kaupat",
   storeId: "store-1",
@@ -26,6 +28,81 @@ const product = (overrides: Record<string, unknown> = {}) => ({
   packSize: "1 l",
   quantityUnit: "KPL",
   ...overrides,
+});
+
+test("campaign metadata survives adapter and quote validation without changing current prices", async () => {
+  const variants = [
+    {
+      campaignPrice: 1.09,
+      regularPrice: 1.49,
+      lowest30DayPrice: 0.99,
+      campaignValidUntil: "2026-10-12",
+    },
+    {},
+    { campaignPrice: 1.09, campaignValidUntil: "2026-10-10" },
+    { campaignPrice: 0.99 },
+    { campaignPrice: "cheap" },
+    { campaignPrice: 1.09, campaignValidUntil: "2026-02-30" },
+    {
+      campaignPrice: null,
+      regularPrice: null,
+      campaignValidUntil: null,
+      lowest30DayPrice: null,
+    },
+    { campaignPrice: 1.09, campaignValidUntil: null },
+    { campaignPrice: 1.09, regularPrice: -1 },
+  ];
+  const provider = new SKaupatProvider(async (name) =>
+    name === "search_products"
+      ? {
+          products: variants.map((fields, index) =>
+            product({ ...fields, id: String(index) }),
+          ),
+        }
+      : {
+          items: variants.map((_, index) => ({
+            productId: String(index),
+            status: "ok",
+          })),
+        },
+  );
+  const products = await provider.searchProducts(context, "maito", "milk");
+  expect(
+    products.map((item) =>
+      currentOffer(item, new Date("2026-10-11T12:00:00Z")),
+    ),
+  ).toEqual([true, false, false, false, false, false, false, true, false]);
+  expect(products.every((item) => item.price === 109)).toBe(true);
+  expect(products[0].cataloguePricing).toMatchObject({
+    amount: 109,
+    regularPrice: 149,
+    campaignPrice: 109,
+    lowest30DayPrice: 99,
+    campaignValidUntil: "2026-10-12",
+  });
+  const basket = products.map((item) => ({
+    requirement: {
+      id: "milk",
+      name: "Maito",
+      amount: 1000,
+      unit: "ml",
+      sources: [],
+    },
+    product: item,
+    candidates: [item],
+    packs: 1,
+    total: 109,
+  }));
+  const quote = persistedQuoteSchema.parse({
+    key: "fixture",
+    context,
+    quotedAt: "2026-10-11T12:00:00Z",
+    pickupFee: null,
+    basket,
+  });
+  expect(quote.basket.map((line) => line.product?.cataloguePricing)).toEqual(
+    products.map((item) => item.cataloguePricing),
+  );
 });
 test("maps server error codes to message keys and hides unknown ones", () => {
   const error = (code: string) =>

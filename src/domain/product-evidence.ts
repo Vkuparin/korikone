@@ -76,6 +76,16 @@ export const productEvidenceSchema = z
 export type ProductEvidence = z.infer<typeof productEvidenceSchema>;
 
 /** Source price fields remain readable even when the app cannot price/transfer that unit yet. */
+export const campaignDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((date) => {
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return (
+      Number.isFinite(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === date
+    );
+  });
 export const cataloguePricingSchema = z
   .object({
     amount: z.number().int().nonnegative().nullable(),
@@ -83,6 +93,28 @@ export const cataloguePricingSchema = z
     basis: z.string().max(40).nullable(),
     approximate: z.boolean().nullable(),
     deposit: z.number().int().nonnegative().nullable(),
+    regularPrice: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(100_000_000)
+      .nullable()
+      .optional(),
+    campaignPrice: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(100_000_000)
+      .nullable()
+      .optional(),
+    campaignValidUntil: campaignDateSchema.nullable().optional(),
+    lowest30DayPrice: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(100_000_000)
+      .nullable()
+      .optional(),
   })
   .strict();
 export type CataloguePricing = z.infer<typeof cataloguePricingSchema>;

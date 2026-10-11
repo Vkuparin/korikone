@@ -46,6 +46,7 @@ import {
   limitPrices,
   priceObservationsSchema,
   recordPrices,
+  cheaperThanUsual,
   type PriceObservation,
 } from "../domain/prices";
 import { DemoProvider } from "../stores/demo";
@@ -341,6 +342,7 @@ export class Service {
           // The atomic pair is durable despite a lost acknowledgement; no write is retried.
         }
         this.state = next;
+        this.observedPrices = observedPrices;
         this.basket = quote.basket;
         this.quotedAt = quote.quotedAt;
         this.pickupFee = quote.pickupFee;
@@ -450,16 +452,16 @@ export class Service {
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
   }
+  private observedPrices: PriceObservation[] = [];
   /** Adds the prices just read to the saved price history. A storage failure never stops pricing. */
   private recordPrices(products: Product[]) {
     return this.writeState(async () => {
       const saved = priceObservationsSchema.safeParse(
         (await this.db.get(PRICE_KEY)) ?? [],
       );
-      await this.db.set(
-        PRICE_KEY,
-        recordPrices(saved.success ? saved.data : [], products),
-      );
+      const next = recordPrices(saved.success ? saved.data : [], products);
+      await this.db.set(PRICE_KEY, next);
+      this.observedPrices = next;
     }).catch(() => {});
   }
   /** The last 50 errors the shopper saw: a code, the time and the view. Nothing else is kept. */
@@ -502,14 +504,16 @@ export class Service {
       raw && typeof raw === "object" && "priceHistory" in raw
         ? priceObservationsSchema.parse(raw.priceHistory)
         : null;
-    const saved = await this.writeState(() =>
+    await this.writeState(() =>
       this.saveState({ ...next, revision: this.state.revision }, true),
     );
     if (prices)
       await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
-    return saved;
+    this.observedPrices = await this.priceHistory();
+    return this.snapshot();
   }
   async init() {
+    this.observedPrices = await this.priceHistory();
     const state = await this.db.get("state");
     if (state) this.state = stateSchema.parse(state);
     this.journal = await this.db.get("journal");
@@ -566,6 +570,11 @@ export class Service {
         : 0,
       state: this.state,
       basket: this.basket,
+      cheaperProductIds: this.basket.flatMap((line) =>
+        line.product && cheaperThanUsual(line.product, this.observedPrices)
+          ? [line.product.id]
+          : [],
+      ),
       quotedAt: this.quotedAt,
       pricingError: this.pricingError,
       journal: this.journal,

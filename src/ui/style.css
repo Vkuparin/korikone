@@ -978,6 +978,19 @@ body:has(.app-main) .demo {
   grid-column: 3 / 5;
   grid-row: 2;
 }
+.row-price-badges {
+  grid-column: 2 / 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.row-price-badges small {
+  padding: 2px 7px;
+  border: 1px solid var(--kk-border);
+  border-radius: 6px;
+  color: var(--kk-text);
+  background: var(--kk-subtle);
+}
 .grocery-row.unresolved .row-price {
   color: var(--kk-warning);
   font-size: 14px;

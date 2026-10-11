@@ -4,6 +4,10 @@ F4.1's source-proven weighed-price fields, quantity boundaries, deterministic fi
 
 ## F5.2 offer fields, 11 October 2026
 
+F5.3 now preserves validated S-kaupat regular, campaign and lowest-30-day prices as integer cents in `Product.cataloguePricing`, with optional campaign expiry. Invalid optional campaign metadata removes campaign evidence without discarding the usable ordinary product response. Campaign badges require matching reported current/campaign prices and no explicit expiry before today. K-Ruoka has no campaign badge under the current boundary.
+
+The separate “Halvempi kuin yleensä” / “Cheaper than usual” badge compares the selected product's current unit price with the median of its last eight earlier daily observations at the same chain and store. At least four of those observations must have a known unit price; today's observation is excluded. A reduction of exactly 10% qualifies. Unknown pack size or a zero median cannot qualify. History stays outside AppState and diagnostics; the renderer receives only qualifying selected-product IDs. Backup import and quote restoration refresh the same history source. Development store `demo-campaign` opts into a synthetic S-kaupat worker response through the real adapter; no retailer account is used.
+
 This is a read-only source audit of the versions Korikone consumes. No account was opened, retailer request sent or price eligibility verified live.
 
 | Boundary                                                                | Tool and fields                                                                                                  | Meaning and current app support                                                                                                                                                                                                                                                                                                                                                           |
