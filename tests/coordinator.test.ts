@@ -132,12 +132,13 @@ test.each([false, true])(
   "resolver enabled=%s: one batch stays an approval proposal and request counters are exact",
   async (enabled) => {
     const env = await setup({ "*": creams });
+    await env.service.save({ ...env.service.state, resolverEnabled: enabled });
+    env.before = structuredClone(env.service.snapshot());
     const note = "200 ml kermaa";
     const provider = ai(note, "valid", true);
     const reply = await env.service.planShopping(
       { prompt: note, consent: true },
       bind(provider),
-      enabled,
     );
     const result = env.service.planningResult(reply.planning!.operationId);
     expect(result.lines[0].product).toBeNull();

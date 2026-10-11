@@ -15,6 +15,7 @@ const catalogue: [
   ["potato", "Peruna 1 kg", 1000, "g", 199],
   ["carrot", "Porkkana 1 kg", 1000, "g", 149],
   ["cream", "Ruokakerma 2 dl", 200, "ml", 109],
+  ["whipping-cream", "Kuohukerma 200 ml", 200, "ml", 199],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],

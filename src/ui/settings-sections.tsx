@@ -24,6 +24,19 @@ export function AdvancedSettings({
 }: SettingsSectionProps) {
   return (
     <section className="card form">
+      <h3>{t("aiBehavior")}</h3>
+      <label>
+        <input
+          type="checkbox"
+          checked={snapshot.state.resolverEnabled}
+          disabled={busy}
+          onChange={(e) =>
+            void save({ ...snapshot.state, resolverEnabled: e.target.checked })
+          }
+        />
+        {t("resolverEnabled")}
+      </label>
+      <p className="muted">{t("resolverInfo")}</p>
       <CategoryPreferences snapshot={snapshot} busy={busy} call={call} />
       <label>
         <input

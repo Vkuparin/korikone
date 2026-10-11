@@ -238,6 +238,7 @@ const sourceKey = (state: AppState) =>
     revision: state.revision,
     note: state.note,
     model: state.aiModel,
+    resolverEnabled: state.resolverEnabled,
     language: state.language,
     household: state.household,
     recipes: state.recipes,

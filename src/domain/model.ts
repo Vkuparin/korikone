@@ -98,6 +98,7 @@ export const stateSchema = z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
     aiModel: z.string().min(1).max(200).default("auto"),
+    resolverEnabled: z.boolean().default(true),
     categoryPreferences: categoryPreferencesSchema.default([]),
     receiptText: z.string().max(50000).default(""),
     listHistory: z

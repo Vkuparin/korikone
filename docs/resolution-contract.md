@@ -1,5 +1,17 @@
 # Bounded candidate resolution
 
+## Saved resolver setting (F15.11)
+
+`AppState.resolverEnabled` is a strict boolean defaulting to true, including old profiles. Settings > Advanced > AI behavior saves it through the existing revision-bound `save` IPC. SQLite state and validated backups retain it. Changing it keeps the saved quote but clears its review through ordinary save rules. It creates no inference or retailer write.
+
+`Service.planShopping(input, session)` supplies `run.sourceState().resolverEnabled` to the coordinator; callers cannot override it with a third argument. `PlanningRun` includes it in the source signature. A changed setting obsoletes in-flight work before queued main saves and through subsequent source checks; late results cannot overwrite that choice. A new operation uses the newly saved value.
+
+Off skips the optional resolver, retaining deterministic matching and unresolved/approval-required rows. On still skips clear, empty or unsuitable rows; meaningful ambiguity uses one batch with no resolver repair. Failure retains safe local matches. Interpretation, its optional repair and resolution share at most three requests and one selected provider/model. Proposals remain private coordinator results and confer no transfer approval; composer/progress and row-choice presentation remain F16.12/F15.12.
+
+FI/EN consent explains the bounded requirement/constraint and candidate names, packs, stock and prices sent to the selected provider. Raw receipts, credentials and unrelated history stay local. Advanced explains the optional extra request and required approval.
+
+Focused evidence: 18 coordinator cases passed, including off/on, one repair plus one resolver (three total), safe failure and stale/cancelled output. Three setting cases cover defaults, invalid types, real SQLite restart/quote retention and source invalidation. The first SQLite fixture used the wrong worker path/type; its corrected focused rerun passed (the other two passed initially). Two real Electron cases passed through both development adapters: real Advanced toggle, restart, ambiguous off/on calls (one/two), explicit large-model retention and clear-row zero resolver calls. An immediate checkbox assertion was replaced by waiting for its real asynchronous save. Typecheck and renderer/main compilation passed. No live accounts or retailer writes were used.
+
 F15.9 defines the read-only contract in `src/domain/resolution.ts`. F15.10 implements its provider task in `src/ai/resolve.ts`. They use the [matching policy](matching-contract.md), [catalogue facts](candidate-contract.md) and [portable preferences](preference-contract.md). Operation ownership and integration belong to F16.9/F16.10/F15.11.
 
 ## Building a batch

@@ -165,11 +165,7 @@ export class Service {
   planning = new PlanningLifecycle(() => this.state);
   private readyPlanning: PlanningResult | null = null;
   private commitUncertain = false;
-  async planShopping(
-    input: unknown,
-    session: PlanningDependencies["session"],
-    resolverEnabled = true,
-  ) {
+  async planShopping(input: unknown, session: PlanningDependencies["session"]) {
     if (this.commitUncertain) throw new Error("commitUnknown");
     if (this.busy || this.transferPending) throw new Error("busy");
     const request = planningRequestSchema.parse(input);
@@ -189,7 +185,7 @@ export class Service {
             return inference.session;
           },
           provider: this.registry.get(run.sourceState().context.providerId),
-          resolverEnabled,
+          resolverEnabled: run.sourceState().resolverEnabled,
           onResolverStart: (calls) => {
             resolverBase = calls;
           },

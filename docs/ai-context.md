@@ -30,3 +30,5 @@ The shared shopping evaluator now accepts `ShoppingCase.contextSetup` with optio
 - F18 supplies validated summaries through this explicit input if assigned later. It must not pass arbitrary receipt labels through semantic fields.
 
 Shopping and draft consent text now lists relevant recipes and household preferences, and states that raw receipts and unrelated history stay local. Development mode uses local fixtures with zero live provider or retailer requests.
+
+F15.11 adds disclosure for the optional candidate resolver: bounded requirement/constraint and catalogue facts go to the same selected provider/model. Credentials stay local. The default-enabled saved switch, batch bounds and focused evidence are in [resolution-contract.md](resolution-contract.md).

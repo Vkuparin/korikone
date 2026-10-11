@@ -14,6 +14,10 @@ export const en = {
   settingsAI: "ChatGPT and AI",
   settingsData: "Data",
   settingsAdvanced: "Advanced",
+  aiBehavior: "AI behavior",
+  resolverEnabled: "Ask AI about ambiguous product alternatives",
+  resolverInfo:
+    "Uses at most one extra request with the selected model to suggest alternatives for ambiguous rows. Suggestions need your approval. When off, local matching and review still work.",
   settingsAbout: "About",
   settingsCategory: "Settings category",
   householdUnapplied: "Household changes have not been saved.",
@@ -73,7 +77,7 @@ export const en = {
   draftReview: "Review the meal draft",
   approveDraft: "Approve recipes and replace this week",
   aiConsent:
-    "Draft a week sends this request, relevant saved recipes and household preferences to ChatGPT using the account shown above. Raw receipts and unrelated history stay local.",
+    "Planning sends this request, relevant saved recipes and household preferences to the selected AI provider (ChatGPT by default). If alternative suggestions are enabled in Advanced, ambiguous rows also send bounded requirement, constraint and candidate facts, including names, pack sizes, stock and prices. At most three requests cover interpretation, one correction and one alternative suggestion batch, using the same selected model. Raw receipts, account credentials and unrelated history stay local.",
   contextTooLarge:
     "The relevant recipes exceed the planning limit. Request fewer dishes or simplify the saved recipes, then update again.",
   aiConnectionInfo:
@@ -295,6 +299,10 @@ export const fi: Record<Key, string> = {
   settingsAI: "ChatGPT ja tekoäly",
   settingsData: "Tiedot",
   settingsAdvanced: "Lisäasetukset",
+  aiBehavior: "Tekoälyn toiminta",
+  resolverEnabled: "Kysy tekoälyltä epäselvistä tuotevaihtoehdoista",
+  resolverInfo:
+    "Käyttää enintään yhden lisäpyynnön valitulla mallilla epäselvien rivien vaihtoehtojen ehdottamiseen. Ehdotukset vaativat hyväksyntäsi. Pois käytöstä paikallinen tuotevalinta ja tarkistus toimivat edelleen.",
   settingsAbout: "Tietoja",
   settingsCategory: "Asetusryhmä",
   householdUnapplied: "Kotitalouden muutoksia ei ole tallennettu.",
@@ -353,7 +361,7 @@ export const fi: Record<Key, string> = {
   draftReview: "Tarkista aterialuonnos",
   approveDraft: "Hyväksy reseptit ja korvaa tämä viikko",
   aiConsent:
-    "Luonnostele viikko lähettää pyynnön, siihen liittyvät tallennetut reseptit ja kotitalouden toiveet yllä näkyvälle ChatGPT-tilille. Raakakuitit ja muu historia pysyvät paikallisina.",
+    "Suunnittelu lähettää pyynnön, siihen liittyvät tallennetut reseptit ja kotitalouden toiveet valitulle tekoälypalvelulle (oletuksena ChatGPT). Jos vaihtoehtojen ehdottaminen on käytössä lisäasetuksissa, epäselvistä riveistä lähetetään myös rajatut tarpeet, rajoitteet ja tuotetiedot: nimet, pakkauskoot, saatavuus ja hinnat. Tulkinta, yksi korjaus ja yksi vaihtoehtoerä käyttävät yhteensä enintään kolme pyyntöä samalla valitulla mallilla. Raakakuitit, tilin tunnukset ja muu historia pysyvät paikallisina.",
   contextTooLarge:
     "Pyyntöön liittyvät reseptit ylittävät suunnittelurajan. Pyydä vähemmän ruokia tai yksinkertaista tallennettuja reseptejä ja päivitä uudelleen.",
   aiConnectionInfo:
