@@ -164,3 +164,37 @@ test("coordinator lifecycle adapters cancel or obsolete real late catalogue resp
     });
   }
 });
+
+test("coordinator preview capability renders the actual FI/EN component and blocks provisional transfer", async () => {
+  const preview = failureCases.find(
+    (fixture) => fixture.id === "failure-preview-coffee",
+  )!;
+  for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+    const result = await evaluateShoppingCase(preview, chain, "coordinator");
+    expect(result).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      unsupported: [],
+      safePriced: 0,
+      unresolved: 1,
+      retailerWrites: 0,
+      aiRequests: 1,
+    });
+    const failed = await evaluateShoppingCase(
+      {
+        ...preview,
+        boundaryFailure: "search-error",
+        expectedFailure: "search-error",
+      },
+      chain,
+      "coordinator",
+    );
+    expect(failed).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      unsupported: ["preview"],
+      safePriced: 0,
+      retailerWrites: 0,
+    });
+  }
+});

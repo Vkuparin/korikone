@@ -3,6 +3,9 @@ import { InferenceError, InferenceSession } from "../../../src/ai/provider";
 import { buildCompactContext } from "../../../src/ai/context";
 import { inferenceTasks } from "../../../src/ai/tasks";
 import { isDeepStrictEqual } from "node:util";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { PlanningPreview } from "../../../src/ui/planning-preview";
 import { PRICE_KEY } from "../../../src/domain/prices";
 import { requirements } from "../../../src/domain/planner";
 import { unresolvedReason as reason } from "../../../src/application/metrics";
@@ -91,12 +94,72 @@ export async function evaluateShoppingCase(
     new AbortController().signal,
   );
   let failure: UnresolvedReason | undefined;
+  let previewVerified = false;
+  let dietaryVerified = false;
   try {
     if (execution === "coordinator") {
       const planned = await service.planShopping(
         { prompt: fixture.note, consent: true },
         async (run) => run.bindInference(provider, provider.models[0]),
       );
+      if (fixture.requiredCapabilities.includes("dietary-evidence")) {
+        const lines = service.planningResult(
+          planned.planning!.operationId,
+        ).lines;
+        dietaryVerified =
+          !!fixture.contextSetup?.household?.exclusions &&
+          lines.length > 0 &&
+          lines.every(
+            (line) =>
+              line.matching?.status === "unresolved" &&
+              line.product === null &&
+              line.matching.decisions.length > 0 &&
+              line.matching.decisions.every(
+                (decision) =>
+                  decision.status === "rejected" &&
+                  decision.reason === "dietary-evidence",
+              ),
+          );
+      }
+      if (fixture.requiredCapabilities.includes("preview")) {
+        let transferBlocked = false;
+        try {
+          await service.prepare();
+        } catch (error) {
+          transferBlocked =
+            error instanceof Error && error.message === "planningPending";
+        }
+        const storedReady = await Promise.all(
+          retainedKeys.map((key) => storage.get(key)),
+        );
+        previewVerified =
+          transferBlocked &&
+          planned.planning?.transferEligible === false &&
+          planned.planning.phase === "ready" &&
+          isDeepStrictEqual(planned.state, before.state) &&
+          isDeepStrictEqual(planned.basket, before.basket) &&
+          planned.quotedAt === before.quotedAt &&
+          isDeepStrictEqual(storedReady, storedBefore) &&
+          planned.planning.provisional.rows.length > 0 &&
+          ["fi", "en"].every((language) => {
+            const html = renderToStaticMarkup(
+              createElement(PlanningPreview, {
+                planning: planned.planning,
+                language,
+              }),
+            );
+            return (
+              html.includes('aria-labelledby="planning-preview-title"') &&
+              !html.includes("<button") &&
+              !html.includes("shopping-total") &&
+              planned.planning!.provisional.rows.every((row) =>
+                html.includes(
+                  renderToStaticMarkup(createElement("strong", null, row.name)),
+                ),
+              )
+            );
+          });
+      }
       await service.commitPlanning({
         operationId: planned.planning!.operationId,
       });
@@ -189,6 +252,14 @@ export async function evaluateShoppingCase(
     ),
     editCorrectness: "unsupported",
   };
+  if (previewVerified)
+    result.unsupported = result.unsupported.filter(
+      (value) => value !== "preview",
+    );
+  if (dietaryVerified)
+    result.unsupported = result.unsupported.filter(
+      (value) => value !== "dietary-evidence",
+    );
   const count = (value: UnresolvedReason) => {
     result.reasons[value] = (result.reasons[value] ?? 0) + 1;
   };

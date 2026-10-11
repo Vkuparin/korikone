@@ -61,6 +61,25 @@ test("context corpus coordinator mode retains independent dietary and quantity m
   expect(gate.failures).not.toContain("missing-chain");
   expect(gate.failures).not.toContain("request-cap");
   expect(gate.failures).not.toContain("retailer-write");
-  expect(gate.metrics.unsupported).toEqual(["dietary-evidence"]);
+  expect(gate.metrics.unsupported).toEqual([]);
   console.log("Context coordinator gate", JSON.stringify(gate));
+});
+
+test("coordinator dietary fixtures retain unknown lactose and gluten products as unresolved", async () => {
+  for (const chain of ["k-ruoka", "s-kaupat"] as const)
+    for (const fixture of contextCases.filter((fixture) =>
+      fixture.requiredCapabilities.includes("dietary-evidence"),
+    )) {
+      const result = await evaluateShoppingCase(fixture, chain, "coordinator");
+      expect(result).toMatchObject({
+        missingRequests: [],
+        unsuitable: [],
+        wrongQuantity: [],
+        outcomeErrors: [],
+        safePriced: 0,
+        unresolved: 1,
+        unsupported: [],
+        retailerWrites: 0,
+      });
+    }
 });
