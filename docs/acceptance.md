@@ -201,3 +201,18 @@ The task register contains 18 Simple cards. Fifteen already had published comple
 The retained completed cards are F4.4, F4.5, F5.1, F5.3, F5.4, F15.6, F15.12, F15.13, F15.15, F16.2, F16.3, F16.4, F16.6, F16.12 and F16.18. Their recorded checks cover pack confirmation/backups, weighed fixtures, price retention/redaction, truthful badges/rises, explicit product choices/preferences/corrections, authored corpora, metrics and the provider-neutral coordinator UI. Their original commit/check references remain in the canonical task register.
 
 All Simple implementation cards are complete and published on main. This is source fixture acceptance, not a release-readiness claim. Packaging, full release validation and optional owner/live checks remain separate release work. This implementation used zero live AI requests and zero real retailer writes; development transfer fixtures exercised local writes only.
+
+## v0.8.0 Strong card evidence — 2026-10-12
+
+Source fixture evidence on branch `claude/project-thread-q9ucii`, not merged to main and not a release-readiness claim. Zero live AI requests, zero real retailer accounts and zero retailer writes were used. The full release flow has not been run for v0.8.0.
+
+| Cards | Evidence |
+| --- | --- |
+| F17.1, F17.2 | `tests/edits.test.ts`, 12 passed: exact targets, whole-batch rejection, shared ingredients, pack counts, ambiguity |
+| F17.3 | `tests/ai-edit.test.ts`, 13 passed against the ChatGPT adapter and the development alternative: one request per edit, one repair, no invented target or retailer fact accepted |
+| F17.4, F17.5, F17.10 | `tests/service-edits.test.ts` 10 passed, `tests/edit-delta.test.ts` 5 passed, `tests/ui/edit-api.spec.ts` 1 passed through real IPC with a restart: changed rows only are read, stale approval fails, undo makes no outside call |
+| U18.1 | `tests/chain-palette.test.ts`, 5 passed: every contract text pair at least 4.5:1 and focus/boundary pair at least 3:1. Colours are not applied yet |
+| U18.3 | `tests/appearance.test.ts` and `tests/appearance-ui.test.ts` 3 passed; `tests/ui/chain-identity.spec.ts`, `appearance-contract.spec.ts`, `palette.spec.ts`, `context-api.spec.ts` and the two appearance cases of `settings.spec.ts` passed |
+| U19.1, U19.3 | `tests/ui/store-return.spec.ts` 1 passed and `tests/compare-blocker.test.ts` 1 passed; issue-by-issue findings in [ux.md](ux.md#store-selection-comparison-and-return-audit-u191). No lifecycle bug reproduced, so U19.3 is dropped |
+
+Owner checks still outstanding: visual acceptance of chain colours after U18.4 (U18.5), comparison prominence and return-to-store in live use after U19.2 (U19.4), and the optional live edit-interpretation check prepared by F17.8 at no more than two ChatGPT requests per edit.
