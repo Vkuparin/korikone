@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { validatePlanningDraft, validateDraft } from "../src/ai/draft";
 import {
   noteQuantity,
+  noteUnspecifiedCount,
   projectIntentMappings,
   mapIntentResults,
   type RequestIntent,
@@ -275,6 +276,73 @@ test("literal quantity conversions have independent expectations and do not infe
       quote,
     ),
   ).toThrow("invalidDraft");
+});
+
+test("written quantities and explicit egg counts retain source evidence without package inference", () => {
+  for (const [quote, amount, unit] of [
+    ["Maitoa 1 litra", 1000, "ml"],
+    ["One litre of milk", 1000, "ml"],
+    ["one kilogram of potatoes", 1000, "g"],
+    ["500g rice", 500, "g"],
+    ["Milk 1 l, 0.5% fat", 1000, "ml"],
+    ["six eggs", 6, "pcs"],
+    ["Twelve eggs", 12, "pcs"],
+    ["Kananmunia 6, muuta määrä kesken päivityksen", 6, "pcs"],
+  ] as const) {
+    expect(noteQuantity(quote), quote).toEqual({ amount, unit });
+    const draft = validatePlanningDraft(
+      JSON.stringify({
+        items: [{ id: "food", name: "Food", amount, unit }],
+        intents: [
+          {
+            id: "model",
+            kind: "grocery",
+            label: quote,
+            evidence: { start: 0, end: quote.length, quote },
+            provenance: "explicit-note",
+            quantity: { amount, unit, provenance: "explicit-note" },
+            mealIndex: null,
+            itemIndex: 0,
+            unresolvedReason: null,
+          },
+        ],
+      }),
+      initialState(),
+      quote,
+    );
+    expect(draft.intents[0].quantity).toEqual({
+      amount,
+      unit,
+      provenance: "explicit-note",
+    });
+    expect(() =>
+      validatePlanningDraft(
+        JSON.stringify({
+          ...draft,
+          items: draft.items.map((item) => ({ ...item, amount: amount + 1 })),
+        }),
+        initialState(),
+        quote,
+      ),
+    ).toThrow("invalidDraft");
+  }
+  for (const quote of [
+    "twenty one litres of milk",
+    "onelitre of milk",
+    "one litre or two litres",
+    "6-12 eggs",
+    "1/2 l milk",
+    "- 1 l milk",
+    "minus one litre",
+    "six eggs in two cartons",
+    "eggs 6 packs",
+    "three pizzas",
+    "1.5 eggs",
+  ]) {
+    expect(noteQuantity(quote), quote).toBeNull();
+  }
+  expect(noteUnspecifiedCount("three pizzas")).toBe(3);
+  expect(noteUnspecifiedCount("twenty one pizzas")).toBeNull();
 });
 test("UTF-16 evidence cannot split an emoji and null grocery quantity produces a validation result", () => {
   const source = "🥣 1 l maitoa";

@@ -88,33 +88,95 @@ type DraftTargets = {
 };
 const key = (r: { id: string; unit: Unit }) => `${r.id}:${r.unit}`;
 
-/** Only literal supported numeric units prove an amount. Package weight is never inferred. */
+const writtenNumbers: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+};
+const writtenNumberToken = Object.keys(writtenNumbers).join("|");
+const unitToken =
+  "kg|g|ml|l|kpl|pcs|grammaa|grams?|kilograms?|litraa?|litres?|liters?|millilitraa|millilitres?|milliliters?";
+function literalNumbers(text: string) {
+  // Do not interpret the supported tail of a compound number, range or signed amount.
+  if (
+    /\b(?:thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|minus|negative)\b/i.test(
+      text,
+    ) ||
+    /\d\s*[-–/]\s*\d/.test(text) ||
+    /[+−–-]\s*(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b)/i.test(
+      text,
+    )
+  )
+    return [];
+  return [
+    ...text.matchAll(
+      new RegExp(
+        `(?<![\\p{L}\\p{N}.+\\-])(?:\\d+(?:[.,]\\d+)?(?=$|[^\\p{L}\\p{N}]|(?:${unitToken})(?=\\s|$|[,;.]))|(?:${writtenNumberToken})(?![\\p{L}\\p{N}]))`,
+        "giu",
+      ),
+    ),
+  ].filter(
+    (match) => !/^\s*%/.test(text.slice(match.index! + match[0].length)),
+  );
+}
+const literalAmount = (token: string) =>
+  writtenNumbers[token.toLowerCase()] ?? Number(token.replace(",", "."));
+
+/** Supported literal quantities prove an amount; explicit egg counts prove pieces. No package inference. */
 export function noteQuantity(
   text: string,
 ): { amount: number; unit: Unit } | null {
-  const matches = [
-    ...text.matchAll(
-      /(?:^|\s)(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|kpl|pcs|grammaa|grams?|litraa|litres?|millilitraa)(?=\s|$|[,;.])/gi,
-    ),
-  ];
-  if (matches.length !== 1) return null;
-  const amount = Number(matches[0][1].replace(",", "."));
-  const token = matches[0][2].toLocaleLowerCase("fi");
+  const numbers = literalNumbers(text);
+  if (numbers.length !== 1) return null;
+  const number = numbers[0];
+  const amount = literalAmount(number[0]);
+  const after = text.slice(number.index! + number[0].length);
+  const token = after
+    .match(new RegExp(`^\\s*(${unitToken})(?=\\s|$|[,;.])`, "i"))?.[1]
+    .toLowerCase();
+  if (!token) {
+    const egg = "(?:eggs?|kananmunia|kananmunat|kananmuna|munia|munat|muna)";
+    const before = text.slice(0, number.index!);
+    const explicitEggs =
+      new RegExp(`\\b${egg}\\s*$`, "i").test(before) ||
+      new RegExp(`^\\s+${egg}(?=\\s|$|[,;.])`, "i").test(after);
+    return explicitEggs &&
+      !/\b(?:packs?|packages?|cartons?|boxes?|dozen|pakkaus|pakkausta|pakettia|rasiaa)\b/i.test(
+        text,
+      ) &&
+      Number.isInteger(amount) &&
+      amount > 0 &&
+      amount <= 10_000_000
+      ? { amount, unit: "pcs" }
+      : null;
+  }
   const unit: Unit = /^(kpl|pcs)$/.test(token)
     ? "pcs"
-    : /^(ml|l|litraa|litres?|millilitraa)$/.test(token)
+    : /^(ml|l|litraa?|litres?|liters?|millilitraa|millilitres?|milliliters?)$/.test(
+          token,
+        )
       ? "ml"
       : "g";
-  const canonical = amount * (/^(kg|l|litraa|litres?)$/.test(token) ? 1000 : 1);
+  const canonical =
+    amount *
+    (/^(kg|kilograms?|l|litraa?|litres?|liters?)$/.test(token) ? 1000 : 1);
   return Number.isFinite(canonical) && canonical > 0 && canonical <= 10_000_000
     ? { amount: canonical, unit }
     : null;
 }
 export function noteUnspecifiedCount(text: string): number | null {
   if (noteQuantity(text)) return null;
-  const numbers = [...text.matchAll(/\b\d+(?:[.,]\d+)?\b(?!\s*%)/g)];
-  const amount =
-    numbers.length === 1 ? Number(numbers[0][0].replace(",", ".")) : NaN;
+  const numbers = literalNumbers(text);
+  const amount = numbers.length === 1 ? literalAmount(numbers[0][0]) : NaN;
   return Number.isFinite(amount) && amount > 0 && amount <= 10_000_000
     ? amount
     : null;

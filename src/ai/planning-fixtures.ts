@@ -47,7 +47,7 @@ export function planningFixtureReply(
   const groceries: [RegExp, string][] = [
     [/maito|milk/i, "Maito"],
     [/kahvi|coffee/i, "Kahvi"],
-    [/kananmuna|eggs?/i, "Kananmuna"],
+    [/kananmun(?:a|ia|at)|eggs?/i, "Kananmuna"],
     [/jauheliha|mince/i, "Jauheliha"],
     [/sipuli|onions?/i, "Sipuli"],
     [/riisi|rice/i, "Riisi"],

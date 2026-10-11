@@ -60,7 +60,7 @@ test("sixty independent cases produce an honest both-chain gate report", async (
   expect(gate.metrics.retailerWrites).toBe(0);
 });
 
-test("failure corpus coordinator execution reports real contract gaps without invented unknown quantities", async () => {
+test("failure corpus coordinator execution preserves real failures without invented unknown quantities", async () => {
   const results = [];
   for (const chain of ["k-ruoka", "s-kaupat"] as const)
     for (const fixture of failureCases)
@@ -80,13 +80,15 @@ test("failure corpus coordinator execution reports real contract gaps without in
       unresolved: 1,
       unsupported: [],
     });
-  expect(gate.failures).toContain("unsupported-required-capability");
+  expect(gate.passed).toBe(true);
   for (const result of results.filter((result) =>
     ["failure-stock-milk", "failure-search-error-eggs"].includes(result.id),
   )) {
-    expect(result.missingRequests).toEqual(["requested-grocery"]);
-    expect(result.searches).toBe(0);
-    expect(result.reasons).toEqual({ "invalid-output": 1 });
+    expect(result.missingRequests).toEqual([]);
+    expect(result.searches).toBe(result.id === "failure-stock-milk" ? 2 : 1);
+    expect(result.reasons).toEqual({
+      [result.id === "failure-stock-milk" ? "stock" : "search-error"]: 1,
+    });
   }
 });
 
@@ -114,7 +116,7 @@ test("sixty cases execute the current coordinator and record the unmodified acce
   expect(gate.failures).not.toContain("missing-chain");
   expect(gate.failures).not.toContain("retailer-write");
   expect(gate.failures).not.toContain("request-cap");
-  // Measurement succeeds only as a report. Release acceptance still requires gate.passed.
+  expect(report.gate.passed).toBe(true);
 });
 
 test("coordinator lifecycle adapters cancel or obsolete real late catalogue responses on both chains", async () => {

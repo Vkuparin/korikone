@@ -293,7 +293,8 @@ test("coordinator expected failure requires matching outcome and unchanged durab
       chain,
       "coordinator",
     );
-    expect(wrongFailure.outcomeErrors).toEqual(["unexpected-terminal-outcome"]);
-    expect(wrongFailure.missingRequests).toEqual(["requested-grocery"]);
+    expect(wrongFailure.outcomeErrors).toEqual([]);
+    expect(wrongFailure.missingRequests).toEqual([]);
+    expect(wrongFailure.reasons).toEqual({ "search-error": 1 });
   }
 });
