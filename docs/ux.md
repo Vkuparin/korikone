@@ -102,5 +102,6 @@ General offers System, Light and Dark. System is the default and shows its curre
 
 Advanced Settings lists remembered product types and explains Required versus Preferred. Edit and Forget apply to one category; Forget all requires explicit confirmation. A backup export action supports restoring earlier rules. Cancelling a draft or reset changes nothing. Saved changes use the existing pricing refresh; unavailable requested types remain unresolved. Opening the section never generates a list or refreshes prices.
 
-
 During planning, List in progress / Muodostuva lista selects the provisional region. Saved list / Tallennettu lista deliberately opens the retained list, previous quote timestamp and its total. Only one list view is visible at a time. Preview rows have no aggregate total, editing or transfer controls. The result region keeps a fixed height as validated events arrive. Cancelling or committing removes previews; if a disappearing preview control held focus, focus returns to the note without scrolling. Reload restores only the committed list.
+
+Grouped review and quantity correction keep unresolved requests visible. Remembering a product type is explicit and applies to later plans. A quantity-less grocery remains unpriced even after all product rows resolve; the footer still says Subtotal of known prices. Normal transfer requires a complete list. Partial preparation identifies omitted requests before approval and excludes them from its targets.
