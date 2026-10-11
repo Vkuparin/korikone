@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
 
-async function launch() {
+async function launch(testData?: string) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (e): e is [string, string] => typeof e[1] === "string",
@@ -13,7 +13,8 @@ async function launch() {
   );
   delete env.ELECTRON_RUN_AS_NODE;
   env.KORIKONE_TEST_HIDDEN = "1";
-  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-redesign-"));
+  env.KORIKONE_TEST_DATA =
+    testData ?? (await mkdtemp(join(tmpdir(), "korikone-redesign-")));
   const app = await electron.launch({
     args: process.env.KORIKONE_EXECUTABLE ? [] : ["."],
     env,
@@ -1014,3 +1015,130 @@ test("committing removes preview controls without losing their keyboard focus an
     await app.close();
   }
 });
+
+for (const language of ["fi", "en"] as const) {
+  test(`meal preview, failed run, unknown-only commit and real restart in ${language}`, async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "korikone-preview-restart-"),
+    );
+    let app = await launch(directory);
+    try {
+      let page = await app.firstWindow();
+      const state = initialState();
+      state.onboarded = state.setupComplete = true;
+      state.staples = [];
+      state.context.storeId = "demo-delayed-search";
+      await page.evaluate(
+        async ({ state, language }) => {
+          await window.korikone.save(state);
+          await window.korikone.setLanguage(language);
+          await window.korikone.signInAI();
+          await window.korikone.developmentScenario("delayedSuccess");
+        },
+        { state, language },
+      );
+      await page.reload();
+      const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+      let note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      await note.fill("pasta ja kahvia");
+      await note.press("Control+Enter");
+      const preview = page.getByRole("region", {
+        name: tr("Muodostuva lista", "List in progress"),
+      });
+      await expect(preview).toBeVisible();
+      const initialPreviewHeight = await preview
+        .locator(".planning-preview-results")
+        .evaluate((el) => el.getBoundingClientRect().height);
+      const initialScroll = await page.evaluate(() => window.scrollY);
+      await expect(preview.locator(".preview-meal")).toContainText(
+        "Tomaattipasta",
+        { timeout: 10000 },
+      );
+      await expect(preview.getByText("kahvia", { exact: true })).toBeVisible();
+      await expect(note).toBeFocused();
+      const results = preview.locator(".planning-preview-results");
+      const height = await results.evaluate(
+        (el) => el.getBoundingClientRect().height,
+      );
+      expect(height).toBe(initialPreviewHeight);
+      expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+      await expect(page.locator("#note-update-help")).toHaveAttribute(
+        "data-planning-phase",
+        "committed",
+        { timeout: 10000 },
+      );
+      await expect(note).toBeFocused();
+      const committed = (await page.evaluate(() => window.korikone.load()))
+        .value;
+      expect(committed.state.meals).toHaveLength(1);
+      expect(
+        committed.committedIntents.some(
+          (result) =>
+            result.intent.label === "kahvia" &&
+            result.reason === "unknown-quantity",
+        ),
+      ).toBe(true);
+
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("delayedFailure"),
+      );
+      await note.fill("1 l maitoa");
+      await note.press("Control+Enter");
+      await expect(preview).toBeVisible();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(preview).toHaveCount(0);
+      const failed = (await page.evaluate(() => window.korikone.load())).value;
+      expect(failed.state).toEqual(committed.state);
+      expect(failed.basket).toEqual(committed.basket);
+      expect(failed.quotedAt).toBe(committed.quotedAt);
+
+      await page.evaluate(() => window.korikone.developmentScenario("success"));
+      await note.fill("kahvia");
+      await note.press("Control+Enter");
+      await expect(page.locator("#note-update-help")).toHaveAttribute(
+        "data-planning-phase",
+        "committed",
+        { timeout: 10000 },
+      );
+      const unknown = (await page.evaluate(() => window.korikone.load())).value;
+      expect(unknown.state.note).toBe("kahvia");
+      expect(unknown.basket).toEqual([]);
+      expect(unknown.committedIntents).toHaveLength(1);
+      expect(unknown.committedIntents[0].reason).toBe("unknown-quantity");
+      await expect(
+        page.getByRole("region", {
+          name: tr("Ratkaisemattomat pyynnöt", "Unresolved requests"),
+        }),
+      ).toContainText("kahvia");
+
+      await page.evaluate(() =>
+        window.korikone.developmentScenario("pendingSuccess"),
+      );
+      await note.fill("1 l maitoa");
+      await note.press("Control+Enter");
+      await expect(preview).toBeVisible();
+      await app.close();
+      app = await launch(directory);
+      page = await app.firstWindow();
+      note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      await expect(note).toHaveValue("kahvia");
+      await expect(
+        page.getByRole("region", {
+          name: tr("Muodostuva lista", "List in progress"),
+        }),
+      ).toHaveCount(0);
+      const restored = (await page.evaluate(() => window.korikone.load()))
+        .value;
+      expect(restored.planning).toBeNull();
+      expect(restored.committedIntents).toEqual(unknown.committedIntents);
+      expect(restored.basket).toEqual([]);
+      expect(restored.developmentStoreWrites).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
+}
