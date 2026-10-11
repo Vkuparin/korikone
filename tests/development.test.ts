@@ -5,6 +5,75 @@ import { initialState } from "../src/domain/model";
 import { createService } from "../src/application/development";
 import { DemoProvider } from "../src/stores/demo";
 import { Service } from "../src/application/service";
+import { priceBreakdown } from "../src/domain/planner";
+
+test("both development chains keep kilo-only bananas and meat estimates separate from exact prices and refuse weighed writes", async () => {
+  const entries = new Map<string, unknown>();
+  const db = {
+    get: async (key: string) => structuredClone(entries.get(key)),
+    set: async (key: string, value: unknown) => {
+      entries.set(key, structuredClone(value));
+    },
+  };
+  for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+    const service = await createService(db, true, [new DemoProvider(chain)]);
+    const provider = service.registry.get(chain) as DemoProvider;
+    const [context] = await provider.searchStores();
+    expect(
+      (await provider.searchProducts(context, "Banaani", "banana")).some(
+        (product) => product.id === "weighed-banana",
+      ),
+    ).toBe(false);
+    await service.save({
+      ...service.state,
+      context,
+      meals: [],
+      staples: [],
+      extras: [
+        {
+          id: "kilo-banana",
+          name: "Banaani irtomyynti",
+          amount: 500,
+          unit: "g",
+        },
+        {
+          id: "kilo-mince",
+          name: "Naudan jauheliha irtomyynti",
+          amount: 300,
+          unit: "g",
+        },
+        { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
+      ],
+    });
+    await service.buildBasket();
+    expect(priceBreakdown(service.basket)).toEqual({
+      exact: chain === "k-ruoka" ? 119 : 129,
+      approximate: chain === "k-ruoka" ? 385 : 393,
+      unknown: 0,
+    });
+    for (const line of service.basket.filter((line) => line.approximate)) {
+      expect(line.packs).toBe(0);
+      expect(line.product?.pieceOrdering).toBeUndefined();
+      await expect(
+        provider.setQuantity(context, {
+          productId: line.product!.id,
+          name: line.product!.name,
+          quantity: 0.5,
+          unit: "kg",
+          before: 0,
+          price: 0,
+        }),
+      ).rejects.toThrow("unitMismatch");
+    }
+    await expect(service.prepare()).rejects.toThrow("unresolved");
+    await service.prepare({ allowMissing: true });
+    expect(service.review?.targets.map((target) => target.productId)).toEqual([
+      "milk",
+    ]);
+    expect(service.review?.unresolved).toHaveLength(2);
+    expect(provider.writes).toBe(0);
+  }
+});
 
 test("original multi-dish note retains cooked meals, ready food, breakfast and treats", async () => {
   const ai = new FixtureAI();

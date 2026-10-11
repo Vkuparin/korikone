@@ -17,6 +17,9 @@ const catalogue: [
   ["cream", "Ruokakerma 2 dl", 200, "ml", 109],
   ["whipping-cream", "Kuohukerma 200 ml", 200, "ml", 199],
   ["weighed-apple", "Omena", 0, "g", 249],
+  // Synthetic kilo-only examples: no verified piece/pack ordering metadata.
+  ["weighed-banana", "Banaani irtomyynti", 0, "g", 169],
+  ["weighed-mince", "Naudan jauheliha irtomyynti", 0, "g", 999],
   ["loose-banana", "Banaani", 0, "g", 40],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
@@ -123,6 +126,12 @@ export class DemoProvider implements StoreProvider {
     if (this.failSearch) throw new Error("storeBusy");
     const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
     return catalogue
+      .filter(
+        (p) =>
+          !["weighed-banana", "weighed-mince"].includes(p[0]) ||
+          p[0] === ingredientId ||
+          query.toLocaleLowerCase("fi").includes("irtomyynti"),
+      )
       .filter((p) => adjust[p[0]] !== null)
       .filter(
         (p) =>
@@ -177,7 +186,7 @@ export class DemoProvider implements StoreProvider {
       .map((p) => ({
         ...p,
         evidence: retailerEvidence(p.name),
-        ...(p.id === "weighed-apple"
+        ...(["weighed-apple", "weighed-banana", "weighed-mince"].includes(p.id)
           ? {
               price: null,
               nativeUnit: "kg",
@@ -231,6 +240,12 @@ export class DemoProvider implements StoreProvider {
     return structuredClone(this.carts.get(key)!);
   }
   async setQuantity(context: StoreContext, target: Target): Promise<void> {
+    if (
+      ["weighed-apple", "weighed-banana", "weighed-mince"].includes(
+        target.productId,
+      )
+    )
+      throw new Error("unitMismatch");
     if (target.productId === "loose-banana" && this.refusePieces)
       throw new Error("unitMismatch");
     const cart = await this.getCart(context);
