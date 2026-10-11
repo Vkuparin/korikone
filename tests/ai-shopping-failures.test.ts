@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { failureCases } from "./fixtures/ai-shopping/failures";
 import { multiDishCases } from "./fixtures/ai-shopping/multidish";
 import { contextCases } from "./fixtures/ai-shopping/context";
+import { coordinatorAcceptanceReport } from "./fixtures/ai-shopping/acceptance";
 import {
   evaluateShoppingCase,
   evaluationGate,
@@ -98,12 +99,17 @@ test("sixty cases execute the current coordinator and record the unmodified acce
       results.push(await evaluateShoppingCase(fixture, chain, "coordinator"));
   const gate = evaluationGate(results);
   const { mkdir, writeFile } = await import("node:fs/promises");
+  const report = coordinatorAcceptanceReport(cases, results);
   await mkdir("scratch/evaluation", { recursive: true });
   await writeFile(
     "scratch/evaluation/coordinator-gate.json",
-    JSON.stringify({ gate, results }, null, 2),
+    JSON.stringify({ ...report, results }, null, 2),
   );
   expect(results).toHaveLength(120);
+  expect(report.rosterErrors).toEqual([]);
+  expect(report.metricErrors).toEqual([]);
+  expect(report.operations.aiCalls).toBe(gate.metrics.aiRequests);
+  expect(report.operations.searches).toBe(gate.metrics.searches);
   expect(gate.failures).not.toContain("insufficient-cases");
   expect(gate.failures).not.toContain("missing-chain");
   expect(gate.failures).not.toContain("retailer-write");
