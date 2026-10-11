@@ -10,6 +10,7 @@ export async function createFixtureService(
   chain: FixtureChain,
   catalogue: Record<string, BaselineProduct[]>,
   failure?: "search-error" | "malformed",
+  beforeSearch?: () => Promise<void>,
 ) {
   const entries = new Map<string, unknown>();
   const tools: string[] = [];
@@ -18,6 +19,7 @@ export async function createFixtureService(
   const call: ToolCall = async (name, args) => {
     tools.push(name);
     if (name === "search_products") {
+      await beforeSearch?.();
       if (failure === "search-error") throw new Error("storeUnavailable");
       const products = catalogue[String(args.query)] ?? catalogue["*"] ?? [];
       const price = (p: BaselineProduct) =>

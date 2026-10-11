@@ -110,3 +110,57 @@ test("sixty cases execute the current coordinator and record the unmodified acce
   expect(gate.failures).not.toContain("request-cap");
   // Measurement succeeds only as a report. Release acceptance still requires gate.passed.
 });
+
+test("coordinator lifecycle adapters cancel or obsolete real late catalogue responses on both chains", async () => {
+  const cancel = failureCases.find(
+    (fixture) => fixture.id === "failure-cancel-milk",
+  )!;
+  const change = failureCases.find(
+    (fixture) => fixture.id === "failure-change-store-rice",
+  )!;
+  for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+    const cancelled = await evaluateShoppingCase(cancel, chain, "coordinator");
+    expect(cancelled).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      unsupported: [],
+      safePriced: 0,
+      unresolved: 1,
+      searches: 1,
+      reasons: { cancelled: 1 },
+      retailerWrites: 0,
+    });
+    const changed = await evaluateShoppingCase(change, chain, "coordinator");
+    expect(changed).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      unsupported: [],
+      safePriced: 0,
+      unresolved: 1,
+      searches: 1,
+      reasons: { obsolete: 1 },
+      retailerWrites: 0,
+    });
+    const stale = await evaluateShoppingCase(
+      {
+        ...cancel,
+        id: "lifecycle-stale-control",
+        lifecycle: "invalidate-search",
+        expectedFailure: "obsolete",
+        requiredCapabilities: ["stale-run"],
+      },
+      chain,
+      "coordinator",
+    );
+    expect(stale).toMatchObject({
+      missingRequests: [],
+      outcomeErrors: [],
+      unsupported: [],
+      safePriced: 0,
+      unresolved: 1,
+      searches: 1,
+      reasons: { obsolete: 1 },
+      retailerWrites: 0,
+    });
+  }
+});

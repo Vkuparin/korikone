@@ -290,7 +290,19 @@ export const failureCases: ShoppingCase[] = inputs.map((c) =>
             ? "incomplete"
             : c.id === "invalid-eggs"
               ? "invalid-output"
-              : undefined,
+              : c.id === "cancel-milk"
+                ? "cancelled"
+                : ["stale-eggs", "change-store-rice"].includes(c.id)
+                  ? "obsolete"
+                  : undefined,
+    lifecycle:
+      c.id === "cancel-milk"
+        ? "cancel-search"
+        : c.id === "stale-eggs"
+          ? "invalidate-search"
+          : c.id === "change-store-rice"
+            ? "change-store-search"
+            : undefined,
     requiredCapabilities: c.requiredCapabilities,
   }),
 );

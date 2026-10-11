@@ -26,18 +26,46 @@ export async function evaluateShoppingCase(
   const fixture = shoppingCaseSchema.parse(input);
   if (execution === "coordinator" && !fixture.planningReplies)
     throw new Error(`Missing explicit planning replies: ${fixture.id}`);
+  let interruptSearch: (() => Promise<void>) | undefined;
   const { service, tools, normalized, storage } = await createFixtureService(
     chain,
     fixture.catalogue,
     fixture.boundaryFailure,
+    async () => interruptSearch?.(),
   );
   if (fixture.contextSetup)
     await service.save({ ...service.state, ...fixture.contextSetup });
-  const before = service.snapshot();
+  let before = service.snapshot();
   const retainedKeys = ["state", "last-quote", PRICE_KEY];
-  const storedBefore = await Promise.all(
+  let storedBefore = await Promise.all(
     retainedKeys.map((key) => storage.get(key)),
   );
+  let interrupted = false;
+  if (execution === "coordinator" && fixture.lifecycle) {
+    interruptSearch = async () => {
+      if (interrupted) return;
+      interrupted = true;
+      const operationId = service.planning.snapshot()!.operationId;
+      if (fixture.lifecycle === "change-store-search") {
+        await service.save({
+          ...service.state,
+          context: {
+            ...service.state.context,
+            storeId: "synthetic-other-store",
+          },
+        });
+        before = service.snapshot();
+        storedBefore = await Promise.all(
+          retainedKeys.map((key) => storage.get(key)),
+        );
+      } else
+        service.planning.control(
+          { operationId },
+          fixture.lifecycle === "invalidate-search",
+        );
+      await Promise.resolve();
+    };
+  }
   const contextCharacters = JSON.stringify({
     request: fixture.note,
     context: buildCompactContext(fixture.note, service.state),
@@ -99,24 +127,34 @@ export async function evaluateShoppingCase(
       !(error instanceof InferenceError && error.code === "incomplete") &&
       !(
         error instanceof Error &&
-        ["invalidDraft", "invalidOutput", "invalidIntentLedger"].includes(
-          error.message,
-        )
+        [
+          "invalidDraft",
+          "invalidOutput",
+          "invalidIntentLedger",
+          "aiCancelled",
+          "draftStale",
+        ].includes(error.message)
       ) &&
       !fixture.boundaryFailure
     )
       throw error;
     failure =
       execution === "coordinator" &&
-      service.snapshot().planning?.failure === "invalid-output"
-        ? "invalid-output"
-        : error instanceof Error && error.message === "incomplete"
-          ? "incomplete"
-          : fixture.boundaryFailure === "search-error"
-            ? "search-error"
-            : fixture.boundaryFailure === "malformed"
-              ? "normalization"
-              : "invalid-output";
+      service.snapshot().planning?.phase === "cancelled"
+        ? "cancelled"
+        : execution === "coordinator" &&
+            service.snapshot().planning?.phase === "obsolete"
+          ? "obsolete"
+          : execution === "coordinator" &&
+              service.snapshot().planning?.failure === "invalid-output"
+            ? "invalid-output"
+            : error instanceof Error && error.message === "incomplete"
+              ? "incomplete"
+              : fixture.boundaryFailure === "search-error"
+                ? "search-error"
+                : fixture.boundaryFailure === "malformed"
+                  ? "normalization"
+                  : "invalid-output";
   }
   const result: EvaluationResult = {
     operationMetrics: await service.operationMetrics(),
@@ -158,7 +196,10 @@ export async function evaluateShoppingCase(
     const after = service.snapshot();
     if (
       failure !== fixture.expectedFailure ||
-      after.planning?.phase !== "failed"
+      after.planning?.phase !==
+        (["cancelled", "obsolete"].includes(fixture.expectedFailure)
+          ? fixture.expectedFailure
+          : "failed")
     )
       result.outcomeErrors.push("unexpected-terminal-outcome");
     const storedAfter = await Promise.all(
@@ -175,6 +216,18 @@ export async function evaluateShoppingCase(
     )
       result.outcomeErrors.push("failed-run-changed-saved-data");
     if (!result.outcomeErrors.length) {
+      if (interrupted) {
+        const capability = (
+          {
+            "cancel-search": "cancellation",
+            "invalidate-search": "stale-run",
+            "change-store-search": "store-change",
+          } as const
+        )[fixture.lifecycle!];
+        result.unsupported = result.unsupported.filter(
+          (value) => value !== capability,
+        );
+      }
       result.unresolved = fixture.expected.length;
       result.reasons[fixture.expectedFailure] = fixture.expected.length;
       return result;

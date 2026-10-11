@@ -48,7 +48,17 @@ export const shoppingCaseSchema = z
     catalogue: z.record(z.string(), z.array(productSchema)),
     boundaryFailure: z.enum(["search-error", "malformed"]).optional(),
     expectedFailure: z
-      .enum(["search-error", "normalization", "invalid-output", "incomplete"])
+      .enum([
+        "search-error",
+        "normalization",
+        "invalid-output",
+        "incomplete",
+        "cancelled",
+        "obsolete",
+      ])
+      .optional(),
+    lifecycle: z
+      .enum(["cancel-search", "invalidate-search", "change-store-search"])
       .optional(),
     contextSetup: z
       .object({
@@ -124,7 +134,9 @@ export type UnresolvedReason =
   | "ranking"
   | "missing-request"
   | "invalid-output"
-  | "incomplete";
+  | "incomplete"
+  | "cancelled"
+  | "obsolete";
 export type EvaluationResult = {
   operationMetrics: OperationMetric[];
   id: string;
