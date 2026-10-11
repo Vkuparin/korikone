@@ -48,6 +48,8 @@ The [shopping experience plan](shopping-experience.md) integrates the pitch with
 
 ## Decisions still needed
 
+Offer capability review, 11 October 2026: F5.2 confirms campaign fields in S-kaupat 1.3.0 and no offer marker in the current K-Ruoka path. v0.7.0 badges use supported evidence. F11.4 in [0.10.0](tasks/0.10.0.md) must establish an offer-discovery source and personal-offer conditions before meal ideas; no dependency upgrade is implied and v0.7.0 remains independently shippable.
+
 These block only the named dependent work.
 
 | Decision | Card | Current boundary |

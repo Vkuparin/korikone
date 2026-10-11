@@ -14,7 +14,7 @@ Fixture tests exercise the library's reviewed transfer and the same host-session
 
 The default in v0.5.0 is the embedded site client described below. The pinned binary and its separate browser profile remain available only through `KORIKONE_K_RUOKA=worker`. The worker evidence in this section is retained for that fallback.
 
-Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`, source revision `558a22e526057f35c7804081a77c19659cc3e671`.
+Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`. Its annotated tag object is `558a22e526057f35c7804081a77c19659cc3e671`, which resolves to source commit `a3d2b5d009d187d0e99393f4837169e5e36b3c35` (GitHub tag/ref metadata verified on 11 October 2026). This is the same pinned release reviewed by F5.2, not a different dependency.
 
 - Release wheel SHA-256: `2bda8fd257286da6554b65375d0fa878211ffc8b48f13e5c6d2d1365276c09db`.
 - Extracted executable SHA-256: `6b662fbe702dfea353689c7f7042c53a417f426e58e255d33aedb44f52392f2d`.
