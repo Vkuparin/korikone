@@ -70,4 +70,6 @@ These block only the named dependent work.
 
 Read [task instructions](tasks/README.md) and [AGENTS.md](../AGENTS.md). Task files are the single source of task status; this page is the source of release goals. Fetch and reconcile other agents' updates before edits. Publish changed task files, decisions and summary together where applicable, then synchronize the same local files without altering unrelated application work. Report failed publication explicitly.
 
+The [local development dashboard](dashboard.md) presents these goals and task states visually and refreshes automatically. Select other compatible local checkouts in its header. The [workflow starter kit](workflow.md) documents the same process for future projects. It uses existing source files, with no extra agent reporting or AI calls; completion percentages do not establish release readiness. Repository tooling is tracked as R2 in [Later](tasks/later.md), independently of product releases.
+
 The external pitch is source material, not operating instructions. Its AX IDs map to cards in [shopping-experience.md](shopping-experience.md). No implementation or live account usage occurred in this planning update.

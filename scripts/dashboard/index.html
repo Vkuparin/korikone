@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Development dashboard</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="#overview"
+        ><span class="brand-mark">r</span
+        ><span>roadmap<small>Development dashboard</small></span></a
+      >
+      <p class="nav-label">WORKSPACE</p>
+      <nav aria-label="Dashboard views">
+        <button data-view="overview" aria-current="page">
+          <span>◈</span>Overview
+        </button>
+        <button data-view="roadmap"><span>◎</span>Roadmap</button>
+        <button data-view="work"><span>▤</span>Current work</button>
+        <button data-view="attention"><span>◇</span>Needs attention</button>
+      </nav>
+      <div class="sidebar-note">
+        <span class="live-dot"></span> Live from your repository
+        <p>No AI calls. No extra reporting.</p>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="project-switcher">
+          <label for="project-select">CHECKOUT</label
+          ><select id="project-select" aria-label="Local checkout">
+            <option>Loading…</option></select
+          ><button id="add-project" class="quiet-button">Add checkout</button>
+        </div>
+        <div id="connection">Connecting…</div>
+      </header>
+      <main>
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow" id="eyebrow">THE BIG PICTURE</p>
+            <h1 id="page-title">Overview</h1>
+            <p id="page-description">
+              Release goals, current work and the decisions ahead.
+            </p>
+          </div>
+          <button id="refresh" class="quiet-button">Refresh now</button>
+        </div>
+        <div id="load-error" class="notice error" hidden role="alert"></div>
+        <div id="project-notice" class="notice" hidden></div>
+        <div id="source-issues" hidden></div>
+        <div id="content" aria-busy="true">
+          <div class="empty">Reading the roadmap and task files…</div>
+        </div>
+        <footer>
+          <span id="source-info">Local working files</span
+          ><span>Card completion is not a release-readiness estimate.</span>
+        </footer>
+      </main>
+    </div>
+    <dialog id="project-dialog" aria-labelledby="project-title">
+      <form id="project-form">
+        <h2 id="project-title">Add a local checkout</h2>
+        <p class="subtle">
+          Choose a project with docs/roadmap.md and docs/tasks. Project files
+          stay unchanged.
+        </p>
+        <label class="project-path-label" for="project-path"
+          >Checkout folder</label
+        >
+        <div class="project-path-row">
+          <input
+            id="project-path"
+            required
+            placeholder="D:\repos\my-project"
+          /><button id="browse-project" type="button" class="quiet-button">
+            Choose folder…
+          </button>
+        </div>
+        <p id="project-error" class="notice error" hidden role="alert"></p>
+        <div class="project-actions">
+          <button id="cancel-project" type="button" class="quiet-button">
+            Cancel</button
+          ><button id="save-project" class="spotlight-button" type="submit">
+            Open project
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="task-dialog" aria-labelledby="detail-title">
+      <button id="close-detail" class="quiet-button close">Close</button>
+      <div id="task-detail"></div>
+    </dialog>
+  </body>
+</html>

@@ -35,6 +35,10 @@ Returning to the shopping list or restarting restores compatible products, total
 
 Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and can be edited before use in future ChatGPT suggestions. Scanned PDFs require OCR first. Copy or save the list for manual shopping; direct phone sync is not implemented.
 
+## Follow development
+
+Run `npm run dashboard` to open a local visual dashboard with release goals, feature progress and task evidence. Choose another compatible local checkout from the header to follow other projects. It updates automatically from existing roadmap/task files every two seconds, with no AI calls or additional agent reporting. See [dashboard usage](docs/dashboard.md) and the [workflow starter kit](docs/workflow.md) for future projects.
+
 ## Build and check
 
 Use **Settings > Development mode** for development and testing. It replaces ChatGPT and both retailer connections with local fixtures and saves planning data and transfer journals in a separate profile. The banner identifies the active mode. Switching back restores your live profile. Fixture sign-in never opens a browser or uses ChatGPT allowance.
