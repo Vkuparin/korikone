@@ -1688,3 +1688,28 @@ summary:focus-visible,
   outline: 3px solid var(--kk-focus);
   outline-offset: 3px;
 }
+
+.planning-preview {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--kk-border);
+  border-radius: 12px;
+  background: var(--kk-surface);
+}
+.planning-preview-results {
+  height: 16rem;
+  overflow: auto;
+  overflow-anchor: none;
+}
+.planning-preview-results ul {
+  list-style: none;
+  padding: 0;
+}
+.planning-preview-results li {
+  margin-block: 0.6rem;
+  overflow-wrap: anywhere;
+}
+.planning-preview-results li span,
+.planning-preview-results li small {
+  display: block;
+}

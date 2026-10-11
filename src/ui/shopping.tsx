@@ -5,6 +5,7 @@ import { GroupedReview } from "./grouped-review";
 import { RowCorrection } from "./row-correction";
 import type { PlanningSnapshot } from "../application/planning";
 import { planningPhaseLabel } from "./planning-status";
+import { PlanningPreview } from "./planning-preview";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
@@ -605,6 +606,15 @@ export function ShoppingWorkspace({
             </>
           )}
         </p>
+        {working &&
+          !["failed", "cancelled", "obsolete", "committed"].includes(
+            livePlanning?.phase ?? "discovering",
+          ) && (
+            <PlanningPreview
+              planning={livePlanning}
+              language={state.language}
+            />
+          )}
         {!groups.length && (
           <section className="starter-ideas">
             <h2>{tr("Ideoita alkuun", "Ideas to start with")}</h2>

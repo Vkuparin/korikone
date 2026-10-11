@@ -820,3 +820,57 @@ for (const language of ["fi", "en"] as const) {
     }
   });
 }
+
+test("validated preview shows gradual rows and quantity-less requests without transfer actions", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    const state = initialState();
+    state.onboarded = state.setupComplete = true;
+    state.staples = [];
+    state.context.storeId = "demo-delayed-search";
+    await page.evaluate(async (state) => {
+      await window.korikone.save(state);
+      await window.korikone.signInAI();
+      await window.korikone.developmentScenario("delayedSuccess");
+    }, state);
+    await page.reload();
+    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    await note.fill("200 ml kermaa ja kahvia");
+    await note.press("Control+Enter");
+    const preview = page.getByRole("region", { name: "Muodostuva lista" });
+    // A named section is exposed as a region; it contains only server-validated results.
+    await expect(preview).toBeVisible();
+    await expect(preview.getByText("Odotetaan tulkintaa.")).toBeVisible();
+    await expect(
+      preview.locator('[data-preview-status="pending"]'),
+    ).toHaveCount(1, { timeout: 10000 });
+    await expect(
+      preview.getByRole("heading", { name: "Ratkaisemattomat pyynnöt" }),
+    ).toBeVisible();
+    await expect(preview.getByText("kahvia", { exact: true })).toBeVisible();
+    await expect(
+      preview.locator('[data-preview-status="approval-required"]'),
+    ).toHaveCount(1, { timeout: 10000 });
+    await expect(
+      preview.getByText("Vaatii hyväksynnän", { exact: true }),
+    ).toBeVisible();
+    await expect(preview.getByRole("button")).toHaveCount(0);
+    await expect(preview.locator(".shopping-total")).toHaveCount(0);
+    await expect(note).toBeFocused();
+    const cancelPreview = page
+      .locator(".note-actions")
+      .getByRole("button", { name: "Peruuta listan päivitys", exact: true });
+    await cancelPreview.focus();
+    await cancelPreview.press("Enter");
+    await expect(preview).toHaveCount(0);
+    const saved = (await page.evaluate(() => window.korikone.load())).value;
+    expect(saved.state.note).toBe("");
+    expect(saved.basket).toEqual([]);
+    expect(saved.developmentStoreWrites).toBe(0);
+    await expect(note).toHaveValue("200 ml kermaa ja kahvia");
+    await expect(note).toBeFocused();
+  } finally {
+    await app.close();
+  }
+});
