@@ -41,15 +41,22 @@ test("manual query miss retrieves an unknown onion type for approval and retains
     expect(pending.basket[0].matching?.reason).toBe("default-review");
     await row.getByRole("button", { name: "Sipulia", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: /Valitse tuote:.*valkosipuli/i }),
+      page.getByRole("button", { name: /Käytä kerran:.*valkosipuli/i }),
     ).toHaveCount(0);
     await page
       .getByRole("button", {
-        name: "Valitse tuote: Kotimaista sipuli 500 g",
+        name: "Käytä kerran: Kotimaista sipuli 500 g",
         exact: true,
       })
       .click();
     await expect(row).toContainText("Kotimaista sipuli 500 g");
+    await expect
+      .poll(
+        async () =>
+          (await page.evaluate(() => window.korikone.load())).value?.basket[0]
+            ?.product?.id,
+      )
+      .toBe("onion");
     const saved = (await page.evaluate(() => window.korikone.load())).value!;
     expect(saved.developmentRequests).toBe(0);
     expect(saved.basket[0].product?.evidence).toMatchObject({

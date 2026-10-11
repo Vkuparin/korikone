@@ -7,7 +7,7 @@ export async function approveFixtureOnion(page: Page) {
   await row.getByRole("button", { name: "Sipuli", exact: true }).click();
   await row
     .getByRole("button", {
-      name: "Valitse tuote: Kotimaista sipuli 500 g",
+      name: "Käytä kerran: Kotimaista sipuli 500 g",
       exact: true,
     })
     .click();

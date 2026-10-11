@@ -69,7 +69,7 @@ test("a list row opens its product details and can change the product", async ()
     await expect(details).toContainText("Ostetaan: 1 pakkaus, 400 g");
     await expect(details).toContainText("/ kg");
     const replacement = details.getByRole("button", {
-      name: "Valitse tuote: Kotimaista kanan jauheliha 4% 400 g",
+      name: "Käytä kerran: Kotimaista kanan jauheliha 4% 400 g",
     });
     await replacement.focus();
     await page.keyboard.press("Enter");
@@ -78,7 +78,9 @@ test("a list row opens its product details and can change the product", async ()
       exact: true,
     });
     await expect(chosen).toHaveAttribute("aria-expanded", "true");
-    await expect(details).toContainText("Tälle ainekselle hyväksymäsi tuote.");
+    await expect(details).toContainText(
+      "Hyväksyit tämän tuotteen nykyiseen listaan.",
+    );
     await chosen.click();
     await expect(details).toHaveCount(0);
   } finally {
@@ -107,6 +109,10 @@ for (const language of ["fi", "en"] as const) {
       state.staples = [];
       const mealName =
         "Pitkä aterian nimi, jonka kaikki sanat pysyvät luettavina myös kapeassa näkymässä";
+      const longName =
+        "Pitkän tuotenimen paikallinen testituote, jonka koko nimi ja pakkaustiedot pitää voida lukea myös kapeassa ostoslistassa 500 g";
+      const packName = "Testituote ilman ilmoitettua pakkauskokoa";
+      const priceName = "Testituote ilman ilmoitettua hintaa 500 g";
       state.recipes = [
         {
           id: "layout-meal",
@@ -115,7 +121,7 @@ for (const language of ["fi", "en"] as const) {
           instructions: "",
           kind: "meal",
           ingredients: [
-            { id: "layout-long", name: "layout-long", amount: 500, unit: "g" },
+            { id: "layout-long", name: longName, amount: 500, unit: "g" },
           ],
         },
       ];
@@ -129,10 +135,10 @@ for (const language of ["fi", "en"] as const) {
         },
       ];
       state.extras = [
-        "layout-unknown-pack",
-        "layout-unknown-price",
-        "carrot",
-      ].map((id) => ({ id, name: id, amount: 500, unit: "g" as const }));
+        { id: "layout-unknown-pack", name: packName, amount: 500, unit: "g" },
+        { id: "layout-unknown-price", name: priceName, amount: 500, unit: "g" },
+        { id: "carrot", name: "Porkkana", amount: 500, unit: "g" },
+      ];
       expect(
         await page.evaluate(
           async (state) => (await window.korikone.save(state)).ok,
@@ -150,11 +156,17 @@ for (const language of ["fi", "en"] as const) {
       await page.keyboard.press("Enter");
       await expect(meal).toHaveAttribute("aria-pressed", "true");
       const long = page.locator(".grocery-row").filter({
-        has: page.locator('.home-button[aria-label$=": layout-long"]'),
+        has: page.getByRole("button", {
+          name: `${tr("Löytyy kotoa", "Already at home")}: ${longName}`,
+          exact: true,
+        }),
       });
       await expect(long).toHaveClass(/highlighted/);
       const pack = page.locator(".grocery-row").filter({
-        has: page.locator('.home-button[aria-label$=": layout-unknown-pack"]'),
+        has: page.getByRole("button", {
+          name: `${tr("Löytyy kotoa", "Already at home")}: ${packName}`,
+          exact: true,
+        }),
       });
       await expect(pack).toHaveClass(/unresolved/);
       await expect(pack.locator(".row-price")).toHaveText(
@@ -164,7 +176,7 @@ for (const language of ["fi", "en"] as const) {
       const packDetails = pack.getByRole("region");
       await expect(
         packDetails.getByRole("button", {
-          name: /^(Valitse tuote|Choose this product)/,
+          name: /^(Käytä kerran|Use once)/,
         }),
       ).toBeDisabled();
       await packDetails.locator('input[type="number"]').fill("500");
@@ -176,24 +188,22 @@ for (const language of ["fi", "en"] as const) {
       await expect(pack).not.toHaveClass(/unresolved/);
       await pack
         .getByRole("button", {
-          name: `${tr("Lisää", "Increase")}: layout-unknown-pack`,
+          name: `${tr("Lisää", "Increase")}: ${packName}`,
           exact: true,
         })
         .click();
       await expect(pack.locator(".quantity-control span")).toHaveText("2");
       await expect(packDetails).toContainText("500 g");
-      const price = page
-        .locator(".grocery-row")
-        .filter({ hasText: "layout-unknown-price" });
+      const price = page.locator(".grocery-row").filter({ hasText: priceName });
       await price.locator(".row-name").click();
       await expect(
         price.getByRole("region").getByRole("button", {
-          name: /^(Valitse tuote|Choose this product)/,
+          name: /^(Käytä kerran|Use once)/,
         }),
       ).toBeDisabled();
-      const carrot = page
-        .locator(".grocery-row")
-        .filter({ has: page.locator('.home-button[aria-label$=": carrot"]') });
+      const carrot = page.locator(".grocery-row").filter({
+        has: page.locator('.home-button[aria-label$=": Porkkana"]'),
+      });
       await carrot.locator(".row-name").click();
       await expect(
         carrot
@@ -202,7 +212,7 @@ for (const language of ["fi", "en"] as const) {
           .getByRole("button"),
       ).toBeDisabled();
       const home = long.getByRole("button", {
-        name: `${tr("Löytyy kotoa", "Already at home")}: layout-long`,
+        name: `${tr("Löytyy kotoa", "Already at home")}: ${longName}`,
       });
       await home.focus();
       await page.keyboard.press("Enter");

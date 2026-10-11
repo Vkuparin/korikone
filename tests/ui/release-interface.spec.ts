@@ -249,7 +249,7 @@ for (const language of ["fi", "en"] as const) {
             row("layout-unknown-price")
               .getByRole("region")
               .getByRole("button", {
-                name: /^(Valitse tuote|Choose this product)/,
+                name: /^(Käytä kerran|Use once)/,
               }),
           ).toBeDisabled();
           await capture("shopping-unresolved", row("layout-unknown-price"));

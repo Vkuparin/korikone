@@ -2,7 +2,14 @@ import React from "react";
 import type { Snapshot } from "../application/service";
 import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
-import { purchasable } from "../domain/matching";
+import { selectableCandidate, matchingPolicy } from "../domain/matching";
+import {
+  categoryPreferenceSchema,
+  type CategoryPreference,
+} from "../domain/preferences";
+import { exclusionTerms } from "../domain/planner";
+import { matchingReasonLabel } from "./matching-reasons";
+import { preferenceAttributeLabel } from "./category-preferences";
 import { approximateCost, pieceQuote } from "../domain/planner";
 
 /**
@@ -15,6 +22,7 @@ export function RowDetails({
   busy,
   money,
   choose,
+  remember,
   confirmPack,
   cheaper,
 }: {
@@ -23,6 +31,12 @@ export function RowDetails({
   busy: boolean;
   money: (cents: number) => string;
   choose: (product: Product) => void;
+  remember: (input: {
+    revision: number;
+    requirementKey: string;
+    productId: string;
+    preference: CategoryPreference;
+  }) => Promise<boolean>;
   confirmPack: (product: Product, amount: number, unit: Unit) => void;
   /** A cheaper product for the same ingredient, with its cost for the needed amount. */
   cheaper: { product: Product; total: number } | null;
@@ -40,6 +54,37 @@ export function RowDetails({
           ? `${money(p.price / p.packAmount)} / ${t("perPiece")}`
           : `${money(Math.round((p.price * 1000) / p.packAmount))} / ${p.unit === "g" ? "kg" : "l"}`;
   const { requirement, product } = line;
+  const [memoryDraft, setMemoryDraft] = React.useState<{
+    product: Product;
+    preference: CategoryPreference;
+    revision: number;
+  } | null>(null);
+  const rememberButton = React.useRef<HTMLButtonElement | null>(null);
+  const strengthInput = React.useRef<HTMLSelectElement | null>(null);
+  React.useEffect(() => {
+    if (memoryDraft) strengthInput.current?.focus();
+  }, [memoryDraft?.product.id]);
+  const closeMemory = () => {
+    setMemoryDraft(null);
+    rememberButton.current?.focus();
+  };
+  const options = {
+    preferences: state.categoryPreferences,
+    context: state.context,
+    exclusions: exclusionTerms(state.household.exclusions),
+  };
+  const policy = matchingPolicy(requirement, options);
+  const savedRule = state.categoryPreferences.find(
+    (rule) => rule.category === policy.category,
+  );
+  const overridesMemory = policy.required.some(
+    (qualifier) =>
+      qualifier.source === "explicit-note" &&
+      savedRule?.qualifiers.some(
+        (saved) =>
+          saved.kind === qualifier.kind && saved.value !== qualifier.value,
+      ),
+  );
   const piece = product ? pieceQuote(requirement, product) : null;
   const context = state.context;
   const accepted =
@@ -65,6 +110,20 @@ export function RowDetails({
           </>
         )}
       </p>
+      {line.matching && (
+        <p
+          className={line.matching.status === "resolved" ? "muted" : "warning"}
+        >
+          {matchingReasonLabel(line.matching.reason, language)}
+        </p>
+      )}
+      {overridesMemory && (
+        <p className="muted">
+          {language === "fi"
+            ? "Nykyisen listan tarkka pyyntö ohittaa muistetun tyypin tällä kertaa. Muistettu sääntö säilyy."
+            : "The specific request in this list overrides the remembered type this time. The saved rule stays unchanged."}
+        </p>
+      )}
       {piece && (
         <p>
           {language === "fi" ? "Tilataan" : "Order"}: {piece.pieces} {u("pcs")}{" "}
@@ -81,9 +140,12 @@ export function RowDetails({
       )}
       {product ? (
         <p className="muted">
-          {t(
-            accepted.includes(product.id) ? "reasonAccepted" : "reasonCheapest",
-          )}
+          {!line.matching &&
+            t(
+              accepted.includes(product.id)
+                ? "reasonAccepted"
+                : "reasonCheapest",
+            )}
           {unitPrice(product) && ` ${unitPrice(product)}`}
           {product.deposit > 0 &&
             ` · ${t("deposit")} ${money(product.deposit)}`}
@@ -132,20 +194,73 @@ export function RowDetails({
               </strong>
               <button
                 className="secondary"
-                aria-label={`${t("choose")}: ${p.name}`}
+                aria-label={`${language === "fi" ? "Käytä kerran" : "Use once"}: ${p.name}`}
                 disabled={
-                  busy || !purchasable(requirement, p) || p.id === product?.id
+                  busy ||
+                  !selectableCandidate(requirement, p, {
+                    ...options,
+                    accepted: [p.id],
+                  }) ||
+                  p.id === product?.id
                 }
                 onClick={() => choose(p)}
               >
                 {p.id === product?.id
                   ? t("chosen")
                   : p.available
-                    ? t("choose")
+                    ? language === "fi"
+                      ? "Käytä kerran"
+                      : "Use once"
                     : p.available === false
                       ? t("unavailable")
                       : t("stockUnknown")}
               </button>
+              {line.matching?.decisions.find(
+                (decision) => decision.id === p.id,
+              ) && (
+                <small className="candidate-reason">
+                  {matchingReasonLabel(
+                    line.matching.decisions.find(
+                      (decision) => decision.id === p.id,
+                    )!.reason,
+                    language,
+                  )}
+                </small>
+              )}
+              {(() => {
+                const rule = categoryPreferenceSchema.safeParse({
+                  category: matchingPolicy(requirement).category,
+                  qualifiers: p.evidence?.qualifiers ?? [],
+                  strength: "preferred",
+                });
+                if (
+                  !rule.success ||
+                  !selectableCandidate(requirement, p, {
+                    ...options,
+                    preferences: [],
+                    preference: rule.data,
+                    accepted: [p.id],
+                  })
+                )
+                  return null;
+                return (
+                  <button
+                    className="text"
+                    disabled={busy}
+                    aria-label={`${language === "fi" ? "Muista tyyppi" : "Remember type"}: ${p.name}`}
+                    onClick={(event) => {
+                      rememberButton.current = event.currentTarget;
+                      setMemoryDraft({
+                        product: p,
+                        preference: rule.data,
+                        revision: state.revision,
+                      });
+                    }}
+                  >
+                    {language === "fi" ? "Muista tyyppi…" : "Remember type…"}
+                  </button>
+                );
+              })()}
               {approximateCost(requirement, p) === null &&
                 (!p.packAmount || p.id in state.packSizes) && (
                   <PackSizeForm
@@ -159,6 +274,85 @@ export function RowDetails({
             </li>
           ))}
         </ul>
+      )}
+      {memoryDraft && (
+        <form
+          className="form row-memory"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const applied = await remember({
+              revision: memoryDraft.revision,
+              requirementKey: `${requirement.id}:${requirement.unit}`,
+              productId: memoryDraft.product.id,
+              preference: memoryDraft.preference,
+            });
+            if (applied) closeMemory();
+          }}
+        >
+          <strong>
+            {language === "fi"
+              ? "Muistetaanko tuotetyyppi?"
+              : "Remember this product type?"}
+          </strong>
+          <p>
+            {memoryDraft.preference.qualifiers
+              .map(
+                (qualifier) =>
+                  `${preferenceAttributeLabel(qualifier.kind, language)}: ${preferenceAttributeLabel(qualifier.value, language)}`,
+              )
+              .join(" · ")}
+          </p>
+          <label>
+            {language === "fi" ? "Valinnan merkitys" : "Meaning of the choice"}
+            <select
+              ref={strengthInput}
+              disabled={busy}
+              value={memoryDraft.preference.strength}
+              onChange={(event) =>
+                setMemoryDraft({
+                  ...memoryDraft,
+                  preference: {
+                    ...memoryDraft.preference,
+                    strength: event.target.value as "required" | "preferred",
+                  },
+                })
+              }
+            >
+              <option value="preferred">
+                {language === "fi" ? "Suosittu" : "Preferred"}
+              </option>
+              <option value="required">
+                {language === "fi" ? "Vaadittu" : "Required"}
+              </option>
+            </select>
+          </label>
+          <p>
+            {language === "fi"
+              ? "Vaadittu tyyppi pitää löytyä. Suosittu tyyppi on ensisijainen; muun tyypin käyttö vaatii hyväksyntäsi. Sääntö koskee myös tulevia listoja molemmissa kauppaketjuissa."
+              : "Required types must be available. Preferred types are tried first; another type needs your approval. This rule also applies to future lists on both chains."}
+          </p>
+          <button
+            disabled={busy || memoryDraft.revision !== state.revision}
+            type="submit"
+          >
+            {language === "fi" ? "Muista tyyppi" : "Remember type"}
+          </button>
+          <button
+            disabled={busy}
+            className="secondary"
+            type="button"
+            onClick={closeMemory}
+          >
+            {language === "fi" ? "Peruuta" : "Cancel"}
+          </button>
+          {memoryDraft.revision !== state.revision && (
+            <p className="warning">
+              {language === "fi"
+                ? "Lista muuttui. Peruuta ja avaa valinta uudelleen."
+                : "The list changed. Cancel and reopen this choice."}
+            </p>
+          )}
+        </form>
       )}
     </div>
   );

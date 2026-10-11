@@ -105,6 +105,12 @@ const labels: Record<string, [string, string]> = {
   beans: ["Pavut", "Beans"],
   instant: ["Pikakahvi", "Instant coffee"],
 };
+export function preferenceAttributeLabel(
+  value: string,
+  language: string,
+): string {
+  return labels[value]?.[language === "fi" ? 0 : 1] ?? value;
+}
 type Props = Pick<SettingsSectionProps, "snapshot" | "busy" | "call">;
 function PreferenceRow({
   rule,

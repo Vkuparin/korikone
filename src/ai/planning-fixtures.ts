@@ -111,6 +111,21 @@ export function planningFixtureReply(
       else {
         intent.itemIndex = draft.items.length;
         draft.items.push({ id: `fixture-item-${start}`, name, ...quantity });
+        if (/^500 g suodatinjauhettua kahvia$/i.test(quote)) {
+          draft.items.at(-1)!.classification = {
+            category: "coffee",
+            provenance: "explicit-note",
+            evidence: { start, end, quote },
+            qualifiers: [
+              {
+                kind: "coffee",
+                value: "ground",
+                provenance: "explicit-note",
+                evidence: { start, end, quote },
+              },
+            ],
+          };
+        }
       }
     }
     draft.intents.push(intent);

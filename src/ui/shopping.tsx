@@ -1,5 +1,6 @@
 import { candidateSuitability, purchasable } from "../domain/matching";
 import { currentOffer } from "../domain/prices";
+import { matchingReasonLabel } from "./matching-reasons";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
@@ -40,7 +41,11 @@ export function ShoppingWorkspace({
 }: {
   snapshot: Snapshot;
   busy: boolean;
-  call: (method: string, input?: unknown) => Promise<boolean>;
+  call: (
+    method: string,
+    input?: unknown,
+    options?: { preserveError?: boolean },
+  ) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   settings: (section?: SettingsSection) => void;
   staples: () => void;
@@ -991,6 +996,15 @@ export function ShoppingWorkspace({
                         ⌂
                       </button>
                       <div className="grocery-description">
+                        {line?.matching &&
+                          line.matching.status !== "resolved" && (
+                            <p className="warning">
+                              {matchingReasonLabel(
+                                line.matching.reason,
+                                state.language,
+                              )}
+                            </p>
+                          )}
                         {line ? (
                           <button
                             className="row-name"
@@ -1172,6 +1186,17 @@ export function ShoppingWorkspace({
                           line={line}
                           busy={busy}
                           money={money}
+                          remember={async (input) => {
+                            const applied = await call(
+                              "rememberCategoryPreference",
+                              input,
+                            );
+                            if (!applied)
+                              await call("load", undefined, {
+                                preserveError: true,
+                              });
+                            return applied;
+                          }}
                           cheaper={
                             !home && cheaper
                               ? { product: cheaper, total: cost(cheaper) }

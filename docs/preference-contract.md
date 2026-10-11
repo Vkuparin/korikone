@@ -2,7 +2,7 @@
 
 F15.14's typed `correctRow` action can explicitly opt into the same evidence-supported memory change. One-time correction choices are cleared for a new list; quantity and unresolved corrections create no rule. See [correction-contract.md](correction-contract.md) for revision binding, persistence and row-control handoff.
 
-F15.3 implements explicit portable memory using the accepted [category policy](category-policy.md) and [shared matcher](matching-contract.md). Stored rules apply on both chains; product IDs remain separate store-specific choices. Review and Advanced controls remain F15.12/F15.13.
+F15.3 implements explicit portable memory using the accepted [category policy](category-policy.md) and [shared matcher](matching-contract.md). Stored rules apply on both chains; product IDs remain separate store-specific choices. F15.12 supplies row controls, F15.13 Advanced management; optional grouped review remains F15.6.
 
 ## Schema and migration
 
@@ -46,6 +46,12 @@ Changes remove one-time SKU choices for currently represented requirements in th
 F15.12 should map `BasketLine.matching` reasons to row copy and keep `accept` for Use once. Remember must explicitly ask Required or Preferred, then call `rememberCategoryPreference` with the current row key, candidate ID, displayed revision and an evidence-supported rule. F15.6 should invoke the same methods from the optional grouped review; dismissal invokes none. F15.13 should render `state.categoryPreferences` in Advanced and use Edit/Forget/Reset with the displayed revision; an unavailable edited type remains visible as unresolved. Handle `draftStale` by reloading current rows instead of resubmitting stale intent. No rule should be written through ordinary `save`.
 
 F16.9 should snapshot portable rules with the rest of operation context and bind them in source revision/quote ownership. F15.9 should consume matcher decisions and required/preferred constraints without sending SKU memory as portable preferences. F15.14 corrections must explicitly opt into these memory methods; local reason counts cannot create rules. These contracts do not imply a passing release gate or live owner acceptance.
+
+## Row decisions (F15.12)
+
+`RowDetails` renders fixed matching reasons in Finnish and English, including unavailable preferred types and current-note overrides. Use once invokes the existing `accept` action and retains portable rules. Rejected candidates cannot be accepted; unavailable products and missing prices/packs remain visible without a usable choice. Remember appears only for an evidence-supported, valid category rule and opens a separate inline form showing the exact attributes and Required/Preferred meaning. Only its explicit submit invokes `rememberCategoryPreference` with the displayed revision, row key and product ID. Cancellation or closing row details invokes no preference action. Stale submissions reload current rows while preserving the error and require reopening rather than retrying automatically.
+
+Focused development UI fixtures cover one-time approval, cancelled and explicit memory, keyboard focus, unavailable Preferred/Required types, rejected and empty results, SQLite restart, stale actions and a current-note override through real planning validation/atomic commit. The override uses the finite synthetic note “500 g suodatinjauhettua kahvia” and its exact source span; saved bean preference stays unchanged.
 
 ## Advanced management (F15.13)
 
