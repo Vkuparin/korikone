@@ -15,7 +15,25 @@
   },
   "detail": {
     "url": "https://www.s-kaupat.fi/tuote/coop-banaani/2005603200008",
-    "explicitAveragePieceWeightGrams": null,
+    "explicitAveragePieceWeightGrams": 163,
+    "weightSource": "public DOM __NEXT_DATA__ product.measurement.pceApproxWeight (kg)",
+    "publicProductFields": {
+      "price": 0.28,
+      "priceUnit": "KPL",
+      "approxPrice": true,
+      "comparisonPrice": 1.69,
+      "comparisonUnit": "KGM",
+      "measurement": { "pceApproxWeight": 0.163 },
+      "pricing": {
+        "currentPrice": 0.28,
+        "regularPrice": 0.28,
+        "isApproximatePrice": true,
+        "salesUnit": "PCE",
+        "quantityMultiplier": 1,
+        "comparisonPrice": 1.69,
+        "comparisonUnit": "KG"
+      }
+    },
     "availabilityAndExactPriceRequireDeliverySelection": true
   },
   "wireResponseCaptured": false,

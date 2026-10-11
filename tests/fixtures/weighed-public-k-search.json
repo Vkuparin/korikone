@@ -14,6 +14,15 @@
   "detail": {
     "url": "https://www.k-ruoka.fi/kauppa/tuote/pirkka-banaani-luomu-reilu-kauppa-kg-2000686300003-n106",
     "explicitAveragePieceWeightGrams": 175,
+    "weightSource": "public DOM product-json-ld Product.weight (kg)",
+    "publicProductFields": {
+      "weight": { "value": 0.175, "unitText": "kg" },
+      "priceSpecification": {
+        "price": 0.42,
+        "priceCurrency": "EUR",
+        "referenceQuantity": { "value": 1, "unitCode": "ct" }
+      }
+    },
     "finalWeightAndPriceCanVary": true
   },
   "wireResponseCaptured": false,
