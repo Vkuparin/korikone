@@ -220,3 +220,104 @@ Persist System/Light/Dark as today. Derive the accent without a second saved set
 U17 remains unassigned. Its predefined base palettes use this same contract: palette choice and System/Light/Dark stay independent of chain identity. Retain the default palette identity for old profiles with the revised neutral dark values. Every later palette must support both chain accents, status and focus; avoid a competing accent selector in U18.
 
 U18.2–U18.4 add focused unit/IPC/UI evidence for the changed paths. U18.5 reuses those checks, covers remaining contrast/state gaps and prepares desktop/narrow Shopping and Settings captures for owner review. Use development mode and deterministic local fixtures, including failed provisional changes and restart/restore. Record acceptance honestly; this planning document does not close it. Follow the one-flow release policy and do not repeat full suites for colour changes.
+
+### U18.1 contract
+
+Settled 12 October 2026. The values below replace the v0.6.0 dark palette and add chain roles. They are a contract for U18.2 and U18.4; `src/ui/style.css` still holds the v0.6.0 values until those cards apply them. The identity part of the lifecycle (U18.3) is implemented. No visual acceptance is claimed.
+
+**Base palette.** Light base values are unchanged. Dark becomes neutral charcoal with a slight cool cast; no channel leads by more than 16 of 255 and green never exceeds blue.
+
+| Variable | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `--kk-bg` | `#f3f6f3` | `#131416` | App background and native window background |
+| `--kk-surface` | `#ffffff` | `#1d1f22` | Cards, menus, dialogs, controls |
+| `--kk-subtle` | `#e8efe9` | `#2a2d31` | Neutral raised or informational surface only; never chain selection |
+| `--kk-text` | `#203b2e` | `#eceef0` | Main text and native title-bar symbols |
+| `--kk-muted` | `#52665a` | `#b4b9c0` | Secondary text |
+| `--kk-border` | `#b6c6bb` | `#5d636b` | Card borders |
+| `--kk-control-border` | `#76877c` | `#8a919a` | Input and menu boundaries |
+| `--kk-focus` | `#126eab` | `#81c7fa` | Keyboard outline, the same for every chain |
+| `--kk-success` | `#256343` | `#8fd6a8` | Confirmed success, the same for every chain |
+| `--kk-warning` / `--kk-warning-bg` | `#805000` / `#fff1d3` | `#f3c778` / `#3a301c` | Unresolved and approval-required |
+| `--kk-error` / `--kk-error-bg` | `#ae303b` / `#fff0f1` | `#ffb3ba` / `#3d2327` | Failure |
+| `--kk-control-shadow`, `--kk-menu-shadow`, `--kk-footer-shadow` | unchanged | `#00000020`, `#00000066`, `#00000080` | Neutral shadows |
+
+Native mapping in `src/main/main.ts` `nativePalette`: dark becomes `{ color: "#131416", symbolColor: "#eceef0" }`; light is unchanged. The native frame never takes a chain colour.
+
+**Chain roles.** Four variables change with the chain. Everything else above is fixed per theme.
+
+| Variable | Role | Light S | Light K | Light neutral | Dark S | Dark K | Dark neutral |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `--kk-action` | Accent fill | `#256343` | `#b34700` | `#3f4a54` | `#8fd6a8` | `#ffa44f` | `#c5ccd4` |
+| `--kk-on-action` | Text on the fill | `#ffffff` | `#ffffff` | `#ffffff` | `#10261a` | `#2b1600` | `#16181b` |
+| `--kk-action-text` (new) | Accent as text or border on a base surface | `#256343` | `#a84300` | `#3f4a54` | `#8fd6a8` | `#ffa44f` | `#c5ccd4` |
+| `--kk-action-soft` (new) | Soft selection surface | `#dfeee4` | `#ffe8d6` | `#e3e7ea` | `#1f3528` | `#3d2a17` | `#30343a` |
+| `--kk-pulse` | Decorative pulse only | `#91d7ad80` | `#f7b98880` | `#9aa5b080` | `#8fd6a840` | `#ffa44f40` | `#c5ccd440` |
+
+Selectors. The neutral values are the defaults of the two theme blocks, so a missing or unknown `data-chain` is neutral:
+
+```css
+:root { /* light base and neutral chain values */ }
+:root[data-chain="s"], [data-chain-cue="s"] { /* light S */ }
+:root[data-chain="k"], [data-chain-cue="k"] { /* light K */ }
+:root[data-theme="dark"] { /* dark base and neutral chain values */ }
+:root[data-theme="dark"][data-chain="s"], :root[data-theme="dark"] [data-chain-cue="s"] { /* dark S */ }
+:root[data-theme="dark"][data-chain="k"], :root[data-theme="dark"] [data-chain-cue="k"] { /* dark K */ }
+```
+
+`data-chain` on the root is the global accent and is written only by the appearance boundary below. `data-chain-cue="s|k"` on an element re-scopes the four chain variables for that element's subtree: chain cards in `src/ui/chains.tsx` and each side of the comparison in `src/ui/compare.tsx` use it with `chainIdentity(providerId)`, beside their existing text labels. It never changes the root.
+
+**Measured contrast** (WCAG 2 ratio; `tests/chain-palette.test.ts` recomputes every pair from `tests/fixtures/chain-palette.ts`). All text pairs are at least 4.5:1 and all focus/boundary pairs at least 3:1. The lowest results:
+
+| Pair | Lowest ratio | Where |
+| --- | --- | --- |
+| Control border on a surface | 3.25 | Light, on `--kk-subtle` |
+| Focus ring on a surface | 4.39 | Light, on neutral `--kk-action-soft` |
+| Accent fill against the surface behind it | 4.70 | Light K, on `--kk-subtle` |
+| Muted text on a soft selection | 4.96 | Light, neutral |
+| `--kk-action-text` on `--kk-action-soft` | 5.12 | Light K |
+| `--kk-on-action` on `--kk-action` | 5.50 | Light K |
+
+The focus colour against the accent fill itself is 1.0–1.7:1 in every combination, so a ring must never touch a fill. Keep the existing 3 px offset: the ring is then drawn on the parent surface, where it measures 4.39:1 or more. Rules that draw an outline in the action colour must use `--kk-focus` instead (see the map).
+
+K orange and the warning role stay distinct by more than hue: warnings keep their own background, text and wording and sit in status regions; the accent is on buttons, selected navigation and the confirmed-store cue. Neither role's variable may alias the other's.
+
+**Component map for U18.4.** Line numbers are those of `src/ui/style.css` at commit 51eedef.
+
+| Role | Selectors |
+| --- | --- |
+| Fill, keeps `--kk-action` / `--kk-on-action` | `button` (213), `nav button.store-open` and its `small` (1658–1662), checkbox `accent-color` (273), `.context-selector input[type="radio"]` (326), `.progress::before` (773), legacy `nav button[aria-current]` (182) |
+| Accent text, change `--kk-action` to `--kk-action-text` | `.brand` (149), `.secondary` (230), `nav button[aria-current]` colour (626), `.note-box` border (662), `.interpretation.selected` border (809), `.quantity-control button` (841), `.at-home .home-button` border (1034), `.choice-menu button[aria-selected="true"]` (1607), `a` (1674) |
+| Soft selection, change `--kk-subtle` to `--kk-action-soft` | `nav button[aria-current]` background (625), `.note-box` rings (665, 669), `.interpretation.selected` ring (810), `.grocery-row.highlighted` (950–951), `.chain.active .badge` (1345, active-store cue inside a `data-chain-cue` card) |
+| Confirmed-store cue | The store and fulfilment triggers in `src/ui/context.tsx` (`.context .text`): `--kk-action-text` text and a 2 px `--kk-action` underline or leading marker, with the store name kept as text |
+| Neutral, stays `--kk-subtle` | `.demo` (164, 630), `.context-selector` (301), `.progress` (471), `.summary` (505), `.saved-list-status` (741), `.row-price-badges small` (992), `.at-home .home-button` background (1033), `.choice-trigger` (1562), `.choice-menu button:focus-visible` background (1612) |
+| Focus, change to `--kk-focus` | `.grocery-description .row-name:focus-visible` (1435), `.choice-menu button:focus-visible` outline (1577) |
+| Status, stays `--kk-success` | `.status` border (477), `.transfer-result.verified h3` (1404). Warning and error rules are unchanged. |
+
+**Identity and event contract (implemented by U18.3).**
+
+- `src/domain/appearance.ts` exports `chainIdentitySchema`, `ChainIdentity` (`"s" | "k" | "neutral"`), `chainIdentity(providerId)` and `appearanceBootstrap(preference, systemDark, providerId?, sequence = 0)`. `s-kaupat` and `demo-s` map to `s`, `k-ruoka` and `demo-k` to `k`, anything else to `neutral`. Nothing but the provider ID is read.
+- `AppearanceBootstrap` is `{ preference, resolved, chain, sequence }`. The synchronous `app:appearanceBootstrap` read and the `app:appearanceChanged` event both carry it. No new channel, preload method, saved field or migration exists.
+- Main derives `chain` from `service.state.context.providerId` only, so only a committed context counts. It runs `publishAppearance()` in a `finally` after every IPC handler, successful or not, and on the system-theme listener. A value equal to the last published one in `preference`, `resolved` and `chain` sends nothing; a changed one increments `sequence` and is sent once. The native background and title bar change only when `resolved` changes.
+- `public/appearance-bootstrap.js` sets root `data-chain` before styles and React, with `data-appearance` and `data-theme`.
+- `src/ui/appearance.ts` `applyAppearance(value)` ignores a value whose `sequence` is lower than the last one applied and returns whether it applied; `subscribeAppearance` calls its callback only for applied values. The renderer never sets `data-chain` from an IPC snapshot, so a late older snapshot cannot change the accent.
+
+Committed-context paths audited, all covered by the single `finally`:
+
+| Path | Entry | Notes |
+| --- | --- | --- |
+| Startup | `Service.init` before the window exists | The bootstrap read has `sequence` 0 |
+| Confirmed selector change | `Service.changeContext` via `changeContext` | Was not followed by a publication before U18.3. A failed or cancelled choice commits nothing and publishes nothing |
+| Ordinary save | `Service.save` via `save`: setup (`setup.tsx`), chain cards (`chains.tsx`), Settings store switches (`settings-sections.tsx`) | Publishes even when the save committed and the following pricing failed |
+| Comparison selection | `compare.tsx` adopts the other store through `save` | Viewing a comparison never changes the root |
+| Backup restore | `Service.importBackup` via `importData` | Publishes even if a later price-history write fails |
+| Development profile switch or reset | `setDevelopmentMode` replaces the service | The next value is derived from the new profile's context |
+
+Same-chain store and fulfilment changes leave `chain` equal and send no event. Deriving and applying the identity reads no catalogue, model or retailer data; the existing repricing of a confirmed store change is unchanged.
+
+**Fixtures.**
+
+- U18.3 (done): `tests/appearance.test.ts` (mapping, fallback, mode independence), `tests/appearance-ui.test.ts` (subscription order, root attributes, stale event rejected), `tests/ui/chain-identity.spec.ts` (real IPC: initial paint, provisional open, same-chain store and fulfilment, failed switch, confirmed switch with one event, zero added requests, first frame after restart, ordinary save, backup restore), and `tests/ui/appearance-contract.spec.ts` for the unchanged mode behaviour.
+- U18.2: change the dark base block and `nativePalette`; update the expected first-frame colour `rgb(20, 28, 24)` and native `#141c18` in `tests/ui/appearance-contract.spec.ts` to `rgb(19, 20, 22)` and `#131416`; extend `tests/chain-palette.test.ts` to parse the base blocks of `src/ui/style.css` and require equality with `basePalette`; rerun `tests/ui/palette.spec.ts` and `tests/contrast.test.ts`.
+- U18.4: add the chain blocks and apply the map; extend `tests/chain-palette.test.ts` to require the CSS chain blocks to equal `chainPalette`; add both chains in both modes, keyboard focus, disabled controls, an open selector and retained drafts to `tests/ui/palette.spec.ts` or a focused new spec, switching chain through `changeContext` as `tests/ui/chain-identity.spec.ts` does.
+- U18.5: reuse those results and capture Shopping and Settings at desktop and narrow sizes for both chains.
