@@ -106,6 +106,8 @@ function App() {
     draft: null,
     recipeDraft: null,
     planning: null,
+    edit: null,
+    editUndoAvailable: false,
     committedIntents: [],
     planningIncomplete: false,
     cheaperProductIds: [],
@@ -192,7 +194,11 @@ function App() {
     }
     try {
       const result = await window.korikone[method](input);
-      if (["generate", "planShopping", "importRecipe"].includes(method))
+      if (
+        ["generate", "planShopping", "editList", "importRecipe"].includes(
+          method,
+        )
+      )
         setAIRequestLimit(!result.ok && result.error === "usageLimit");
       if (method === "signOutAI") setAIRequestLimit(false);
       if (!result.ok && result.error === "aiCancelled") return false;
@@ -231,9 +237,13 @@ function App() {
       );
       const target: SettingsSection | null =
         /AI$/.test(method) ||
-        ["generate", "planShopping", "importRecipe", "openAIUsage"].includes(
-          method,
-        )
+        [
+          "generate",
+          "planShopping",
+          "editList",
+          "importRecipe",
+          "openAIUsage",
+        ].includes(method)
           ? "ai"
           : [
                 "buildBasket",

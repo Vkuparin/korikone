@@ -29,6 +29,7 @@ export const operationMetricSchema = z
       "pricing",
       "planning",
       "correction",
+      "edit",
     ]),
     outcome: z.enum(["success", "failed", "cancelled", "obsolete"]),
     latencyMs: z.number().int().min(0).max(600_000),

@@ -110,6 +110,20 @@ function quantity(clause: string) {
     },
   };
 }
+/** Base forms of the groceries the fixture catalogue knows, so "kahvia" adds "Kahvi". */
+const groceries: [RegExp, string][] = [
+  [/maito|milk/i, "Maito"],
+  [/kahvi|coffee/i, "Kahvi"],
+  [/kananmun|eggs?/i, "Kananmuna"],
+  [/jauheliha|mince/i, "Jauheliha"],
+  [/sipuli|onions?/i, "Sipuli"],
+  [/riisi|rice/i, "Riisi"],
+  [/kerma|cream/i, "Ruokakerma"],
+  [/banaan|bananas?/i, "Banaani"],
+  [/pakastepizza|frozen pizza/i, "Pakastepizza"],
+  [/jogurt|yoghurt/i, "Jogurtti"],
+  [/suklaa|chocolate/i, "Suklaa"],
+];
 const defaults = initialState().recipes;
 const catalogue: { pattern: RegExp; recipe: Recipe }[] = [
   ...mealFixtures,
@@ -252,8 +266,11 @@ export function editFixtureReply(data: EditContext) {
       const found = rows(text).filter(
         (row) => q?.quantity.kind !== "amount" || row.unit === q.quantity.unit,
       );
-      const name = words(text).join(" ");
-      if (!q || !name) unsupported.push({ phrase });
+      const typed = words(text).join(" ");
+      const name =
+        groceries.find(([pattern]) => pattern.test(typed))?.[1] ??
+        typed.charAt(0).toLocaleUpperCase("fi") + typed.slice(1);
+      if (!q || !typed) unsupported.push({ phrase });
       else if (found.length)
         one(phrase, found, (row) =>
           operations.push({
@@ -265,7 +282,7 @@ export function editFixtureReply(data: EditContext) {
       else
         operations.push({
           op: "addItem",
-          name: name.charAt(0).toLocaleUpperCase("fi") + name.slice(1),
+          name,
           quantity: q.quantity,
         });
     } else if (q) {

@@ -57,6 +57,8 @@ const methods = [
   "generate",
   "planShopping",
   "commitPlanning",
+  "editList",
+  "undoEdit",
   "importRecipe",
   "approveDraft",
   "confirmPurchase",

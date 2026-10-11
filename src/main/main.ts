@@ -581,6 +581,13 @@ else
         );
       },
       commitPlanning: async (input) => service.commitPlanning(input),
+      editList: async (input) => {
+        const run = ++generationRun;
+        return runAITask(run, () =>
+          service.editList(input, () => requestSession(run)),
+        );
+      },
+      undoEdit: (input) => service.undoEdit(input),
       importRecipe: async (input) => {
         service.planning.invalidate();
         const request = z
@@ -993,6 +1000,7 @@ else
             if (
               (name === "generate" ||
                 name === "planShopping" ||
+                name === "editList" ||
                 name === "importRecipe") &&
               submittedRun !== generationRun
             )

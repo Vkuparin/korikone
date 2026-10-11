@@ -20,6 +20,7 @@ import {
   type Review,
   type StoreContext,
   type Recipe,
+  type Requirement,
 } from "../domain/model";
 import {
   requirements,
@@ -32,6 +33,7 @@ import {
   isLive,
   liveProviders,
   type FeeRange,
+  type StoreProvider,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
 import { storeKey } from "../domain/changes";
@@ -76,6 +78,20 @@ import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote, persistedQuoteSchema } from "./quotes";
 import { PlanningLifecycle } from "./planning";
 import { mapIntentResults } from "../domain/intents";
+import { applyEditIntent, editTargets } from "../domain/edits";
+import { editDelta } from "../domain/edit-delta";
+import { interpretEdit } from "../ai/edit";
+import type { InferenceSession } from "../ai/provider";
+import {
+  EDIT_UNDO_KEY,
+  describeAmbiguities,
+  editListRequestSchema,
+  editUndoSchema,
+  editedPlan,
+  undoEditRequestSchema,
+  type EditStatus,
+  type EditUndo,
+} from "./edits";
 import {
   coordinatePlanning,
   planningRequestSchema,
@@ -536,6 +552,17 @@ export class Service {
       this.pickupFee = quote.pickupFee;
       this.quotedAt = quote.quotedAt;
     }
+    // An undo snapshot belongs to one revision; any later list change leaves it unusable.
+    const undo = editUndoSchema.safeParse(await this.db.get(EDIT_UNDO_KEY));
+    if (undo.success && undo.data.revision === this.state.revision) {
+      this.undo = undo.data;
+      this.edit = {
+        status: "applied",
+        revision: undo.data.revision,
+        applied: undo.data.applied,
+        delta: undo.data.delta,
+      };
+    }
   }
   snapshot() {
     const committedIntents = this.state.requestIntents.length
@@ -604,6 +631,9 @@ export class Service {
       draft: this.draft,
       recipeDraft: this.recipeDraft,
       planning: this.planning.snapshot(),
+      // Both describe one revision only, so neither survives another list change.
+      edit: this.edit?.revision === this.state.revision ? this.edit : null,
+      editUndoAvailable: this.undo?.revision === this.state.revision,
       committedIntents,
       planningIncomplete: committedIntents.some(
         (intent) => intent.status !== "resolved",
@@ -1083,43 +1113,60 @@ export class Service {
     return this.measureOperation("pricing", async (metrics) => {
       const provider = this.registry.get(context.providerId);
       const result = [];
-      for (const requirement of requirements(state)) {
-        const accepted =
-          state.accepted[
-            `${context.providerId}:${context.storeId}:${requirement.id}`
-          ] ?? [];
-        const options = {
-          accepted,
-          preferences: state.categoryPreferences,
-          holds: state.correctionHolds,
-          exclusions: exclusionTerms(state.household.exclusions),
-          productPreference: state.productPreference,
-          context,
-        };
-        const products = applyPackSizes(
-          await searchCandidates(provider, context, requirement, {
-            queryHints: requirementQueryHints(requirement, options),
-            onSearch: () => {
-              metrics.searches++;
-            },
-            isHit: (product) =>
-              selectableCandidate(
-                requirement,
-                applyPackSizes([product], state.packSizes)[0],
-                options,
-              ),
-          }),
-          state.packSizes,
+      for (const requirement of requirements(state))
+        result.push(
+          await this.quoteRequirement(
+            provider,
+            context,
+            state,
+            requirement,
+            metrics,
+          ),
         );
-        result.push(matchRequirement(requirement, products, options));
-        const line = result[result.length - 1];
-        if (!line.product || line.total === null) {
-          const reason = unresolvedReason(line, products);
-          metrics.unresolved[reason] = (metrics.unresolved[reason] ?? 0) + 1;
-        }
-      }
       return result;
     });
+  }
+  /** One requirement's bounded catalogue read and local match. */
+  private async quoteRequirement(
+    provider: StoreProvider,
+    context: StoreContext,
+    state: AppState,
+    requirement: Requirement,
+    metrics: OperationCounters,
+  ): Promise<BasketLine> {
+    const accepted =
+      state.accepted[
+        `${context.providerId}:${context.storeId}:${requirement.id}`
+      ] ?? [];
+    const options = {
+      accepted,
+      preferences: state.categoryPreferences,
+      holds: state.correctionHolds,
+      exclusions: exclusionTerms(state.household.exclusions),
+      productPreference: state.productPreference,
+      context,
+    };
+    const products = applyPackSizes(
+      await searchCandidates(provider, context, requirement, {
+        queryHints: requirementQueryHints(requirement, options),
+        onSearch: () => {
+          metrics.searches++;
+        },
+        isHit: (product) =>
+          selectableCandidate(
+            requirement,
+            applyPackSizes([product], state.packSizes)[0],
+            options,
+          ),
+      }),
+      state.packSizes,
+    );
+    const line = matchRequirement(requirement, products, options);
+    if (!line.product || line.total === null) {
+      const reason = unresolvedReason(line, products);
+      metrics.unresolved[reason] = (metrics.unresolved[reason] ?? 0) + 1;
+    }
+    return line;
   }
   /**
    * Prices the list at the other chain's remembered store too, without changing either account,
@@ -1373,6 +1420,317 @@ export class Service {
         this.pricingError = null;
         return this.snapshot();
       });
+    });
+  }
+  /** The last edit outcome; shown only for the revision it belongs to. */
+  edit: EditStatus | null = null;
+  private undo: EditUndo | null = null;
+  /** All entries are durable together, or none is; an unreadable outcome blocks further writes. */
+  private async writeAtomically(entries: { key: string; value: unknown }[]) {
+    if (!this.db.setMany) throw new Error("storageFailed");
+    const same = (a: unknown, b: unknown) =>
+      JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    const prior: unknown[] = [];
+    for (const entry of entries) prior.push(await this.db.get(entry.key));
+    try {
+      await this.db.setMany(entries);
+    } catch (error) {
+      const stored: unknown[] = [];
+      try {
+        for (const entry of entries) stored.push(await this.db.get(entry.key));
+      } catch {
+        this.commitUncertain = true;
+        throw new Error("commitUnknown");
+      }
+      // Durable despite a lost acknowledgement; no write is retried.
+      if (entries.every((entry, i) => same(stored[i], entry.value))) return;
+      if (entries.every((_, i) => same(stored[i], prior[i]))) throw error;
+      this.commitUncertain = true;
+      throw new Error("commitUnknown");
+    }
+  }
+  /**
+   * Interprets one instruction against the current list and applies it atomically. Clarification,
+   * failure, cancellation and a stale revision leave the saved list, quote and undo untouched.
+   */
+  async editList(input: unknown, session: () => Promise<InferenceSession>) {
+    if (this.commitUncertain) throw new Error("commitUnknown");
+    const { revision, instruction, focusTargetId } =
+      editListRequestSchema.parse(input);
+    this.assertNoProvisionalTransfer();
+    if (this.busy || this.transferPending) throw new Error("busy");
+    if (revision !== this.state.revision) throw new Error("draftStale");
+    const source = structuredClone(this.state);
+    const now = new Date();
+    const targets = editTargets(source, now);
+    if (!targets.rows.length && !targets.meals.length)
+      throw new Error("nothingToEdit");
+    return this.measureOperation("edit", async (metrics) => {
+      let inference: InferenceSession | null = null;
+      try {
+        inference = await session();
+        const intent = await interpretEdit(
+          inference,
+          { instruction, ...(focusTargetId ? { focusTargetId } : {}) },
+          source,
+          now,
+        );
+        return await this.writeState(async () => {
+          this.assertNoProvisionalTransfer();
+          if (this.busy || this.transferPending) throw new Error("busy");
+          if (source.revision !== this.state.revision)
+            throw new Error("draftStale");
+          const base = this.state;
+          const quoted = this.quotedAt !== null;
+          const key = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
+          const outcome = applyEditIntent(base, intent, {
+            now,
+            // A pack count means packs of the product the shopper currently sees on that row.
+            packSizes: Object.fromEntries(
+              (quoted ? this.basket : []).flatMap((line) =>
+                line.product &&
+                !line.approximate &&
+                !line.product.pieceOrdering &&
+                Number.isSafeInteger(line.product.packAmount) &&
+                line.product.packAmount > 0 &&
+                line.product.unit === line.requirement.unit
+                  ? [
+                      [
+                        key(line.requirement),
+                        {
+                          amount: line.product.packAmount,
+                          unit: line.product.unit,
+                        },
+                      ],
+                    ]
+                  : [],
+              ),
+            ),
+          });
+          if (outcome.status === "clarification") {
+            this.edit = {
+              status: "clarification",
+              revision: base.revision,
+              ambiguities: describeAmbiguities(base, outcome.ambiguities, now),
+              unsupported: outcome.unsupported,
+            };
+            return this.snapshot();
+          }
+          const next = stateSchema.parse({
+            ...outcome.result.state,
+            revision: base.revision + 1,
+          });
+          const context = next.context;
+          const provider = this.registry.get(context.providerId);
+          this.busy = true;
+          try {
+            const previous = new Map(
+              (quoted ? this.basket : []).map((line) => [
+                key(line.requirement),
+                line,
+              ]),
+            );
+            const changed = new Set(outcome.result.changedKeys);
+            const searched: Product[] = [];
+            let reused = 0;
+            const lines: BasketLine[] = [];
+            for (const requirement of requirements(next)) {
+              const old = previous.get(key(requirement));
+              if (old && !changed.has(key(requirement))) {
+                reused++;
+                lines.push({ ...structuredClone(old), requirement });
+                continue;
+              }
+              const line = await this.quoteRequirement(
+                provider,
+                context,
+                next,
+                requirement,
+                metrics,
+              );
+              searched.push(...line.candidates);
+              lines.push(line);
+            }
+            const quotedAt = new Date().toISOString();
+            // Retained rows keep their own reading time, so the quote stays as old as its oldest row.
+            let quote = restoredQuote(
+              persistedQuoteSchema.parse({
+                key: pricingKey(next),
+                context,
+                basket: lines,
+                quotedAt: reused && this.quotedAt ? this.quotedAt : quotedAt,
+                pickupFee: reused
+                  ? this.pickupFee
+                  : lines.length
+                    ? await this.readFee(context)
+                    : null,
+              }),
+              next,
+            );
+            if (!quote && reused) {
+              // A retained row no longer verifies against the edited plan: read everything again.
+              const fresh: BasketLine[] = [];
+              for (const requirement of requirements(next)) {
+                fresh.push(
+                  await this.quoteRequirement(
+                    provider,
+                    context,
+                    next,
+                    requirement,
+                    metrics,
+                  ),
+                );
+                searched.push(...fresh.at(-1)!.candidates);
+              }
+              quote = restoredQuote(
+                persistedQuoteSchema.parse({
+                  key: pricingKey(next),
+                  context,
+                  basket: fresh,
+                  quotedAt,
+                  pickupFee: fresh.length ? await this.readFee(context) : null,
+                }),
+                next,
+              );
+            }
+            if (!quote) throw new Error("draftStale");
+            const delta = editDelta(
+              { state: base, basket: this.basket, quoted },
+              { state: next, basket: quote.basket, quoted: true },
+              now,
+            );
+            const undo = editUndoSchema.parse({
+              version: 1,
+              revision: next.revision,
+              plan: editedPlan(base),
+              quote: quoted
+                ? {
+                    key: pricingKey(base),
+                    context: base.context,
+                    basket: this.basket,
+                    quotedAt: this.quotedAt,
+                    pickupFee: this.pickupFee,
+                  }
+                : null,
+              applied: outcome.result.applied,
+              delta,
+            });
+            const saved = priceObservationsSchema.safeParse(
+              (await this.db.get(PRICE_KEY)) ?? [],
+            );
+            const observedPrices = recordPrices(
+              saved.success ? saved.data : [],
+              searched,
+            );
+            await this.writeAtomically([
+              { key: "state", value: next },
+              {
+                key: "last-quote",
+                value: {
+                  key: quote.key,
+                  context: quote.context,
+                  basket: quote.basket,
+                  pickupFee: quote.pickupFee,
+                  quotedAt: quote.quotedAt,
+                },
+              },
+              { key: EDIT_UNDO_KEY, value: undo },
+              { key: PRICE_KEY, value: observedPrices },
+            ]);
+            this.planning.invalidateFor(next);
+            this.state = next;
+            this.observedPrices = observedPrices;
+            this.basket = quote.basket;
+            this.quotedAt = quote.quotedAt;
+            this.pickupFee = quote.pickupFee;
+            this.pricingError = null;
+            this.review = null;
+            this.comparison = null;
+            this.transferException = null;
+            this.undo = undo;
+            this.edit = {
+              status: "applied",
+              revision: next.revision,
+              applied: undo.applied,
+              delta,
+            };
+            return this.snapshot();
+          } finally {
+            this.busy = false;
+          }
+        });
+      } finally {
+        metrics.aiCalls = inference?.callCount ?? 0;
+        metrics.repairCalls = Math.max(0, metrics.aiCalls - 1);
+        metrics.payloadCharacters = inference?.payloadCharacters ?? 0;
+      }
+    });
+  }
+  /**
+   * Restores the plan from before the last edit as a new revision. Local only: no AI, catalogue
+   * or retailer call, and nothing already transferred to a retailer is reversed.
+   */
+  async undoEdit(input: unknown) {
+    const { revision } = undoEditRequestSchema.parse(input);
+    return this.writeState(async () => {
+      this.assertNoProvisionalTransfer();
+      if (this.busy || this.transferPending) throw new Error("busy");
+      if (revision !== this.state.revision) throw new Error("draftStale");
+      const undo = this.undo;
+      if (!undo || undo.revision !== this.state.revision)
+        throw new Error("undoUnavailable");
+      const next = stateSchema.parse({
+        ...this.state,
+        ...structuredClone(undo.plan),
+        revision: this.state.revision + 1,
+      });
+      // The earlier quote returns only if it still verifies; otherwise prices need a refresh.
+      const quote = undo.quote
+        ? restoredQuote(structuredClone(undo.quote), next)
+        : null;
+      const delta = editDelta(
+        {
+          state: this.state,
+          basket: this.basket,
+          quoted: this.quotedAt !== null,
+        },
+        { state: next, basket: quote?.basket ?? [], quoted: quote !== null },
+      );
+      await this.writeAtomically([
+        { key: "state", value: next },
+        ...(quote
+          ? [
+              {
+                key: "last-quote",
+                value: {
+                  key: quote.key,
+                  context: quote.context,
+                  basket: quote.basket,
+                  pickupFee: quote.pickupFee,
+                  quotedAt: quote.quotedAt,
+                },
+              },
+            ]
+          : []),
+        { key: EDIT_UNDO_KEY, value: null },
+      ]);
+      this.planning.invalidateFor(next);
+      this.state = next;
+      this.basket = quote?.basket ?? [];
+      this.quotedAt = quote?.quotedAt ?? null;
+      this.pickupFee = quote?.pickupFee ?? null;
+      this.pricingError = null;
+      this.review = null;
+      this.comparison = null;
+      this.transferException = null;
+      this.undo = null;
+      this.edit = {
+        status: "undone",
+        revision: next.revision,
+        applied: [],
+        delta,
+      };
+      return this.snapshot();
     });
   }
   /** "Already have this" from the basket: skip the requirement and rematch. */
