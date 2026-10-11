@@ -5,7 +5,7 @@ import { GroupedReview } from "./grouped-review";
 import { RowCorrection } from "./row-correction";
 import type { PlanningSnapshot } from "../application/planning";
 import { planningPhaseLabel } from "./planning-status";
-import { PlanningPreview } from "./planning-preview";
+import { PlanningPreview, PlanningPreviewFocus } from "./planning-preview";
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
@@ -93,6 +93,7 @@ export function ShoppingWorkspace({
   const currentNote = useRef(note);
   const planningOperation = useRef<string | null>(null);
   const cancelSent = useRef<string | null>(null);
+  const [showSavedDuringPlanning, setShowSavedDuringPlanning] = useState(false);
   useEffect(
     () =>
       window.korikone.onPlanningChange((value) => {
@@ -224,6 +225,7 @@ export function ShoppingWorkspace({
     setCancelled(false);
     setUpdateFailed(false);
     setLivePlanning(null);
+    setShowSavedDuringPlanning(false);
     planningOperation.current = null;
     cancelSent.current = null;
     setWorking(true);
@@ -610,253 +612,293 @@ export function ShoppingWorkspace({
           !["failed", "cancelled", "obsolete", "committed"].includes(
             livePlanning?.phase ?? "discovering",
           ) && (
-            <PlanningPreview
-              planning={livePlanning}
-              language={state.language}
-            />
-          )}
-        {!groups.length && (
-          <section className="starter-ideas">
-            <h2>{tr("Ideoita alkuun", "Ideas to start with")}</h2>
-            {[
-              tr("Arkiviikon helpot ruoat", "Easy weekday meals"),
-              tr("Kasvisviikko", "Vegetarian week"),
-              tr("Lapsiperheen viikko", "Family meals"),
-              tr("Aamupalat ja iltapalat", "Breakfast and evening food"),
-            ].map((idea) => (
-              <button
-                className="chip"
-                key={idea}
-                onClick={() => changeNote(idea)}
+            <PlanningPreviewFocus
+              onReleaseFocus={() =>
+                noteElement.current?.focus({ preventScroll: true })
+              }
+            >
+              <div
+                className="planning-view-controls"
+                role="group"
+                aria-label={tr("Päivityksen näkymä", "Update view")}
               >
-                {idea}
-              </button>
-            ))}
-          </section>
-        )}
-        {!!groups.length && (
-          <>
-            <div className="section-heading compact">
-              <h2>
-                {tr("Näin ymmärsin", "What I understood")}{" "}
-                <span className="muted">· {groups.length}</span>
-              </h2>
-              <small>
-                {tr(
-                  "Valitse ateria nähdäksesi sen ainekset",
-                  "Select a meal to highlight its ingredients",
-                )}
-              </small>
-            </div>
-            <div className="interpretations">
-              {groups.map(({ meal, recipe }) => {
-                const cost = snapshot.basket.reduce((sum, l) => {
-                  const ingredient = recipe.ingredients.find(
-                    (i) =>
-                      i.id === l.requirement.id &&
-                      i.unit === l.requirement.unit,
-                  );
-                  const sharedAmount = groups.reduce(
-                    (amount, group) =>
-                      amount +
-                      group.recipe.ingredients
-                        .filter(
-                          (i) =>
-                            i.id === l.requirement.id &&
-                            i.unit === l.requirement.unit,
-                        )
-                        .reduce(
-                          (sum, i) =>
-                            sum +
-                            (i.amount * group.meal.servings) /
-                              group.recipe.servings,
-                          0,
-                        ),
-                    0,
-                  );
-                  return (
-                    sum +
-                    (ingredient && l.total !== null
-                      ? (l.total *
-                          ((ingredient.amount * meal.servings) /
-                            recipe.servings)) /
-                        Math.max(l.requirement.amount, sharedAmount)
-                      : 0)
-                  );
-                }, 0);
-                return (
-                  <article
-                    className={`interpretation ${selected === recipe.name ? "selected" : ""}`}
-                    key={meal.id}
-                  >
-                    <button
-                      className="meal-select"
-                      aria-pressed={selected === recipe.name}
-                      onClick={() =>
-                        setSelected(
-                          selected === recipe.name ? null : recipe.name,
-                        )
-                      }
-                    >
-                      <small>{groupName(recipe.kind)}</small>
-                      <h2>{recipe.name}</h2>
-                      <small>
-                        {recipe.ingredients.length}{" "}
-                        {tr("ainesta", "ingredients")}
-                        {cost > 0 ? ` · ≈ ${money(cost)}` : ""}
-                      </small>
-                      {selected === recipe.name && (
-                        <small className="meal-selection">
-                          {tr("Ainekset korostettu", "Ingredients highlighted")}
-                        </small>
-                      )}
-                    </button>
-                    <div className="portion-control">
-                      <button
-                        aria-label={tr("Vähennä annoksia", "Fewer portions")}
-                        disabled={busy || meal.servings <= 1}
-                        onClick={() =>
-                          void save({
-                            ...state,
-                            meals: state.meals.map((m) =>
-                              m.id === meal.id
-                                ? { ...m, servings: m.servings - 1 }
-                                : m,
-                            ),
-                          })
-                        }
-                      >
-                        −
-                      </button>
-                      <span>
-                        {meal.servings} {tr("annosta", "portions")}
-                      </span>
-                      <button
-                        aria-label={tr("Lisää annoksia", "More portions")}
-                        disabled={busy || meal.servings >= 100}
-                        onClick={() =>
-                          void save({
-                            ...state,
-                            meals: state.meals.map((m) =>
-                              m.id === meal.id
-                                ? { ...m, servings: m.servings + 1 }
-                                : m,
-                            ),
-                          })
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      className="text remove-meal"
-                      disabled={busy}
-                      onClick={() =>
-                        void save({
-                          ...state,
-                          meals: state.meals.filter((m) => m.id !== meal.id),
-                        })
-                      }
-                    >
-                      {tr("Poista", "Remove")}
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {state.assumptions && (
-          <p className="input-notice">{state.assumptions}</p>
-        )}
-        <details className="recipe-adder">
-          <summary>
-            {tr("Lisää valmiita reseptejä", "Add saved recipes")}
-          </summary>
-          <form
-            className="inline"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const data = new FormData(e.currentTarget);
-              void saveRecipe(
-                String(data.get("recipe")),
-                Number(data.get("servings")),
-              );
-            }}
-          >
-            <label>
-              {tr("Resepti", "Recipe")}
-              <select name="recipe" aria-label={tr("Resepti", "Recipe")}>
-                {state.recipes.map((r) => (
-                  <option value={r.id} key={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {tr("Annoksia", "Portions")}
-              <input
-                name="servings"
-                type="number"
-                min="1"
-                max="100"
-                defaultValue={state.household.servings}
-                required
-              />
-            </label>
-            <button disabled={busy || !state.recipes.length}>
-              {tr("Lisää resepti ostoslistaan", "Add recipe to shopping list")}
-            </button>
-          </form>
-        </details>
-        {!!state.staples.length && (
-          <section className="forgotten card">
-            <div className="section-heading compact">
-              <h2>{tr("Unohtuiko jotain?", "Forgot anything?")}</h2>
-              <button className="text" onClick={staples}>
-                {tr("Muokkaa vakiotuotteita", "Edit regular items")}
-              </button>
-            </div>
-            {state.staples
-              .filter((s) => !rows.some((r) => r.id === s.id))
-              .map((s) => (
                 <button
-                  key={s.id}
-                  className="chip"
-                  disabled={busy}
-                  onClick={() =>
-                    void save({
-                      ...state,
-                      staples: state.staples.map((item) =>
-                        item.id === s.id
-                          ? { ...item, enabled: true, lastPurchased: null }
-                          : item,
-                      ),
-                      skipped: state.skipped.filter(
-                        (k) => k !== `${s.id}:${s.unit}`,
-                      ),
-                      removed: state.removed.filter(
-                        (k) => k !== `${s.id}:${s.unit}`,
-                      ),
-                    })
-                  }
+                  type="button"
+                  aria-pressed={!showSavedDuringPlanning}
+                  onClick={() => setShowSavedDuringPlanning(false)}
                 >
-                  + {s.name} {s.amount} {unitLabel(s.unit, state.language)}
+                  {tr("Muodostuva lista", "List in progress")}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={showSavedDuringPlanning}
+                  onClick={() => setShowSavedDuringPlanning(true)}
+                >
+                  {tr("Tallennettu lista", "Saved list")}
+                </button>
+              </div>
+              <div hidden={showSavedDuringPlanning}>
+                <PlanningPreview
+                  planning={livePlanning}
+                  language={state.language}
+                />
+              </div>
+            </PlanningPreviewFocus>
+          )}
+        <div hidden={working && !showSavedDuringPlanning}>
+          {!groups.length && (
+            <section className="starter-ideas">
+              <h2>{tr("Ideoita alkuun", "Ideas to start with")}</h2>
+              {[
+                tr("Arkiviikon helpot ruoat", "Easy weekday meals"),
+                tr("Kasvisviikko", "Vegetarian week"),
+                tr("Lapsiperheen viikko", "Family meals"),
+                tr("Aamupalat ja iltapalat", "Breakfast and evening food"),
+              ].map((idea) => (
+                <button
+                  className="chip"
+                  key={idea}
+                  onClick={() => changeNote(idea)}
+                >
+                  {idea}
                 </button>
               ))}
-            {state.staples.every((s) => rows.some((r) => r.id === s.id)) && (
-              <small>
+            </section>
+          )}
+          {!!groups.length && (
+            <>
+              <div className="section-heading compact">
+                <h2>
+                  {tr("Näin ymmärsin", "What I understood")}{" "}
+                  <span className="muted">· {groups.length}</span>
+                </h2>
+                <small>
+                  {tr(
+                    "Valitse ateria nähdäksesi sen ainekset",
+                    "Select a meal to highlight its ingredients",
+                  )}
+                </small>
+              </div>
+              <div className="interpretations">
+                {groups.map(({ meal, recipe }) => {
+                  const cost = snapshot.basket.reduce((sum, l) => {
+                    const ingredient = recipe.ingredients.find(
+                      (i) =>
+                        i.id === l.requirement.id &&
+                        i.unit === l.requirement.unit,
+                    );
+                    const sharedAmount = groups.reduce(
+                      (amount, group) =>
+                        amount +
+                        group.recipe.ingredients
+                          .filter(
+                            (i) =>
+                              i.id === l.requirement.id &&
+                              i.unit === l.requirement.unit,
+                          )
+                          .reduce(
+                            (sum, i) =>
+                              sum +
+                              (i.amount * group.meal.servings) /
+                                group.recipe.servings,
+                            0,
+                          ),
+                      0,
+                    );
+                    return (
+                      sum +
+                      (ingredient && l.total !== null
+                        ? (l.total *
+                            ((ingredient.amount * meal.servings) /
+                              recipe.servings)) /
+                          Math.max(l.requirement.amount, sharedAmount)
+                        : 0)
+                    );
+                  }, 0);
+                  return (
+                    <article
+                      className={`interpretation ${selected === recipe.name ? "selected" : ""}`}
+                      key={meal.id}
+                    >
+                      <button
+                        className="meal-select"
+                        aria-pressed={selected === recipe.name}
+                        onClick={() =>
+                          setSelected(
+                            selected === recipe.name ? null : recipe.name,
+                          )
+                        }
+                      >
+                        <small>{groupName(recipe.kind)}</small>
+                        <h2>{recipe.name}</h2>
+                        <small>
+                          {recipe.ingredients.length}{" "}
+                          {tr("ainesta", "ingredients")}
+                          {cost > 0 ? ` · ≈ ${money(cost)}` : ""}
+                        </small>
+                        {selected === recipe.name && (
+                          <small className="meal-selection">
+                            {tr(
+                              "Ainekset korostettu",
+                              "Ingredients highlighted",
+                            )}
+                          </small>
+                        )}
+                      </button>
+                      <div className="portion-control">
+                        <button
+                          aria-label={tr("Vähennä annoksia", "Fewer portions")}
+                          disabled={busy || meal.servings <= 1}
+                          onClick={() =>
+                            void save({
+                              ...state,
+                              meals: state.meals.map((m) =>
+                                m.id === meal.id
+                                  ? { ...m, servings: m.servings - 1 }
+                                  : m,
+                              ),
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                        <span>
+                          {meal.servings} {tr("annosta", "portions")}
+                        </span>
+                        <button
+                          aria-label={tr("Lisää annoksia", "More portions")}
+                          disabled={busy || meal.servings >= 100}
+                          onClick={() =>
+                            void save({
+                              ...state,
+                              meals: state.meals.map((m) =>
+                                m.id === meal.id
+                                  ? { ...m, servings: m.servings + 1 }
+                                  : m,
+                              ),
+                            })
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        className="text remove-meal"
+                        disabled={busy}
+                        onClick={() =>
+                          void save({
+                            ...state,
+                            meals: state.meals.filter((m) => m.id !== meal.id),
+                          })
+                        }
+                      >
+                        {tr("Poista", "Remove")}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {state.assumptions && (
+            <p className="input-notice">{state.assumptions}</p>
+          )}
+          <details className="recipe-adder">
+            <summary>
+              {tr("Lisää valmiita reseptejä", "Add saved recipes")}
+            </summary>
+            <form
+              className="inline"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const data = new FormData(e.currentTarget);
+                void saveRecipe(
+                  String(data.get("recipe")),
+                  Number(data.get("servings")),
+                );
+              }}
+            >
+              <label>
+                {tr("Resepti", "Recipe")}
+                <select name="recipe" aria-label={tr("Resepti", "Recipe")}>
+                  {state.recipes.map((r) => (
+                    <option value={r.id} key={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {tr("Annoksia", "Portions")}
+                <input
+                  name="servings"
+                  type="number"
+                  min="1"
+                  max="100"
+                  defaultValue={state.household.servings}
+                  required
+                />
+              </label>
+              <button disabled={busy || !state.recipes.length}>
                 {tr(
-                  "Vakio-ostokset ovat jo listalla.",
-                  "Your regular items are already on the list.",
+                  "Lisää resepti ostoslistaan",
+                  "Add recipe to shopping list",
                 )}
-              </small>
-            )}
-          </section>
-        )}
+              </button>
+            </form>
+          </details>
+          {!!state.staples.length && (
+            <section className="forgotten card">
+              <div className="section-heading compact">
+                <h2>{tr("Unohtuiko jotain?", "Forgot anything?")}</h2>
+                <button className="text" onClick={staples}>
+                  {tr("Muokkaa vakiotuotteita", "Edit regular items")}
+                </button>
+              </div>
+              {state.staples
+                .filter((s) => !rows.some((r) => r.id === s.id))
+                .map((s) => (
+                  <button
+                    key={s.id}
+                    className="chip"
+                    disabled={busy}
+                    onClick={() =>
+                      void save({
+                        ...state,
+                        staples: state.staples.map((item) =>
+                          item.id === s.id
+                            ? { ...item, enabled: true, lastPurchased: null }
+                            : item,
+                        ),
+                        skipped: state.skipped.filter(
+                          (k) => k !== `${s.id}:${s.unit}`,
+                        ),
+                        removed: state.removed.filter(
+                          (k) => k !== `${s.id}:${s.unit}`,
+                        ),
+                      })
+                    }
+                  >
+                    + {s.name} {s.amount} {unitLabel(s.unit, state.language)}
+                  </button>
+                ))}
+              {state.staples.every((s) => rows.some((r) => r.id === s.id)) && (
+                <small>
+                  {tr(
+                    "Vakio-ostokset ovat jo listalla.",
+                    "Your regular items are already on the list.",
+                  )}
+                </small>
+              )}
+            </section>
+          )}
+        </div>
       </section>
-      <aside className="shopping-panel" ref={panel}>
+      <aside
+        className="shopping-panel"
+        ref={panel}
+        hidden={working && !showSavedDuringPlanning}
+      >
         <div className="shopping-rows">
           {working && (
             <p className="saved-list-status">

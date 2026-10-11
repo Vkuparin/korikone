@@ -614,7 +614,14 @@ for (const language of ["fi", "en"] as const) {
         tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
       );
+      await page
+        .getByRole("button", {
+          name: tr("Tallennettu lista", "Saved list"),
+          exact: true,
+        })
+        .click();
       await expect(page.locator(".saved-list-status")).toBeVisible();
+      await note.focus();
       await expect(page.locator(".grocery-row")).toHaveCount(1);
       await expect(note).toBeFocused();
       expect(
@@ -756,6 +763,12 @@ for (const language of ["fi", "en"] as const) {
         tr("Haetaan tuotteita ja hintoja…", "Getting products and prices…"),
       );
       expect((await load()).quotedAt).toBe(before.quotedAt);
+      await page
+        .getByRole("button", {
+          name: tr("Tallennettu lista", "Saved list"),
+          exact: true,
+        })
+        .click();
       await expect(
         page.getByText(tr("Viimeksi haetut hinnat", "Last quoted prices"), {
           exact: false,
@@ -870,6 +883,133 @@ test("validated preview shows gradual rows and quantity-less requests without tr
     expect(saved.developmentStoreWrites).toBe(0);
     await expect(note).toHaveValue("200 ml kermaa ja kahvia");
     await expect(note).toBeFocused();
+  } finally {
+    await app.close();
+  }
+});
+
+for (const language of ["fi", "en"] as const) {
+  test(`preview selection preserves saved quote and keyboard focus in ${language}`, async () => {
+    const app = await launch();
+    try {
+      const page = await app.firstWindow();
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.setViewportSize({ width: 800, height: 600 });
+      const state = initialState();
+      state.onboarded = state.setupComplete = true;
+      state.staples = [];
+      state.extras = [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }];
+      state.context.storeId = "demo-delayed-search";
+      await page.evaluate(
+        async ({ state, language }) => {
+          await window.korikone.save(state);
+          await window.korikone.buildBasket();
+          await window.korikone.setLanguage(language);
+          await window.korikone.signInAI();
+          await window.korikone.developmentScenario("pendingSuccess");
+        },
+        { state, language },
+      );
+      await page.reload();
+      const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+      const note = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+      );
+      const before = (await page.evaluate(() => window.korikone.load())).value;
+      await note.fill("200 ml kermaa ja kahvia");
+      await note.press("Control+Enter");
+      const preview = page.getByRole("region", {
+        name: tr("Muodostuva lista", "List in progress"),
+      });
+      await expect(preview).toBeVisible();
+      await expect(page.locator(".shopping-panel")).toBeHidden();
+      await expect(note).toBeFocused();
+      const saved = page.getByRole("button", {
+        name: tr("Tallennettu lista", "Saved list"),
+        exact: true,
+      });
+      await saved.focus();
+      await saved.press("Enter");
+      await expect(saved).toBeFocused();
+      await expect(saved).toHaveAttribute("aria-pressed", "true");
+      await expect(preview).toBeHidden();
+      await expect(page.locator(".shopping-panel")).toBeVisible();
+      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      const forming = page.getByRole("button", {
+        name: tr("Muodostuva lista", "List in progress"),
+        exact: true,
+      });
+      await forming.focus();
+      await forming.press("Enter");
+      await expect(forming).toBeFocused();
+      await expect(preview).toBeVisible();
+      await expect(page.locator(".shopping-panel")).toBeHidden();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      const cancel = page.locator(".note-actions").getByRole("button", {
+        name: tr("Peruuta listan päivitys", "Cancel list update"),
+        exact: true,
+      });
+      await cancel.focus();
+      await cancel.press("Enter");
+      await expect(preview).toHaveCount(0);
+      await expect(page.locator(".shopping-panel")).toBeVisible();
+      await expect(note).toBeFocused();
+      const after = (await page.evaluate(() => window.korikone.load())).value;
+      expect(after.state).toEqual(before.state);
+      expect(after.basket).toEqual(before.basket);
+      expect(after.quotedAt).toBe(before.quotedAt);
+      expect(after.developmentStoreWrites).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
+}
+
+test("committing removes preview controls without losing their keyboard focus and restart has no preview", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    const state = initialState();
+    state.onboarded = state.setupComplete = true;
+    state.staples = [];
+    await page.evaluate(async (state) => {
+      await window.korikone.save(state);
+      await window.korikone.setLanguage("en");
+      await window.korikone.signInAI();
+      await window.korikone.developmentScenario("delayedSuccess");
+    }, state);
+    await page.reload();
+    const note = page.getByLabel("What would you like to cook?");
+    await note.fill("1 l maitoa");
+    await note.press("Control+Enter");
+    const forming = page.getByRole("button", {
+      name: "List in progress",
+      exact: true,
+    });
+    await expect(forming).toBeVisible();
+    await forming.focus();
+    await expect(forming).toBeFocused();
+    await expect(page.locator("#note-update-help")).toHaveAttribute(
+      "data-planning-phase",
+      "committed",
+      { timeout: 10000 },
+    );
+    await expect(note).toBeFocused();
+    await expect(
+      page.getByRole("region", { name: "List in progress" }),
+    ).toHaveCount(0);
+    await page.reload();
+    await expect(
+      page.getByRole("region", { name: "List in progress" }),
+    ).toHaveCount(0);
+    await expect(page.locator(".grocery-row")).toHaveCount(1);
+    expect(
+      (await page.evaluate(() => window.korikone.load())).value.state.note,
+    ).toBe("1 l maitoa");
   } finally {
     await app.close();
   }

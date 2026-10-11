@@ -1,5 +1,26 @@
 import type { PlanningSnapshot } from "../application/planning";
 import { matchingReasonLabel } from "./matching-reasons";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+
+export function PlanningPreviewFocus({
+  children,
+  onReleaseFocus,
+}: {
+  children: ReactNode;
+  onReleaseFocus: () => void;
+}) {
+  const element = useRef<HTMLDivElement>(null);
+  const release = useRef(onReleaseFocus);
+  release.current = onReleaseFocus;
+  useLayoutEffect(
+    () => () => {
+      if (element.current?.contains(document.activeElement))
+        requestAnimationFrame(() => release.current());
+    },
+    [],
+  );
+  return <div ref={element}>{children}</div>;
+}
 
 export function PlanningPreview({
   planning,
