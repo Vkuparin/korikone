@@ -12,6 +12,8 @@ Fixture tests exercise the library's reviewed transfer and the same host-session
 
 ## K-Ruoka
 
+Owner direction, 11 October 2026: add required K-Ruoka functionality to the existing local embedded client. Upstream MCP source is a reference for request behavior; Korikone keeps its current session transport and normalized retailer boundary. F11.4 audits offer requests and F11.5 implements supported local reads. Keep the fallback worker pinned; no maintained MCP fork or separate Rust/browser release flow is planned. Keep client code separable from shopping policy/UI, and consider extracting a shared package only when a second consumer needs it. Both local API maintenance and upstream protocol changes remain part of the retailer boundary's ownership.
+
 The default in v0.5.0 is the embedded site client described below. The pinned binary and its separate browser profile remain available only through `KORIKONE_K_RUOKA=worker`. The worker evidence in this section is retained for that fallback.
 
 Use the Apache-2.0 `nikosavola/k-ruoka-mcp` Windows binary from release `v0.1.3`. Its annotated tag object is `558a22e526057f35c7804081a77c19659cc3e671`, which resolves to source commit `a3d2b5d009d187d0e99393f4837169e5e36b3c35` (GitHub tag/ref metadata verified on 11 October 2026). This is the same pinned release reviewed by F5.2, not a different dependency.

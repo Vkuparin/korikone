@@ -31,6 +31,8 @@ Owner release policy, 10 October 2026: trust recorded coder-agent focused checks
 
 ## Accepted direction
 
+K-Ruoka direction, agreed 11 October 2026: expand the local client using the existing Kauppa session. For offer features in [0.10.0](tasks/0.10.0.md), F11.4 fixes the audited contract and F11.5 implements supported local reads before offer aggregation/ideas. Keep retailer access reusable and separate from shopping policy/UI; retain the pinned worker fallback. A maintained MCP fork or extracted standalone package is future scope only if another consumer justifies it. This adds no v0.7.0 release dependency.
+
 The [shopping experience plan](shopping-experience.md) integrates the pitch with existing [product decisions](product-decisions.md). Agreed on 10 October 2026:
 
 - One composer and resulting list; explicit button/Ctrl+Enter updates and compact model control. Typing or changing appearance starts no generation.

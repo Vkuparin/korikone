@@ -6,6 +6,10 @@ The owner chose a small first-import opt-in for sanitized ambiguous-label enrich
 
 Current release sequencing is in [roadmap.md](roadmap.md); implementation status lives in [version task lists](tasks/README.md). Dated decisions below retain their original context; completed implementation supersedes old investigation wording. The [shopping experience plan](shopping-experience.md) specifies the accepted 10 October additions.
 
+## Agreed 11 October 2026
+
+Expand K-Ruoka functionality locally through Korikone's embedded-session client. Use upstream MCP implementation as request-behavior reference; keep fallback worker pinned and avoid a maintained fork. F11.4 audits offer capabilities, F11.5 implements supported reads and F11.1 aggregates them. Keep transport/normalization independent of shopping rules/UI. Extract a shared client only when a second consumer needs it; standalone K-Ruoka MCP support remains unassigned scope.
+
 ## Agreed 10 October 2026
 
 - Ship the visual overhaul, System/Light/Dark appearance and organized Settings in v0.6.0 before new matching/editing behavior. Default appearance to System; the preference controls Korikone, not retailer styling.
