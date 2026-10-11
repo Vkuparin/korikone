@@ -46,6 +46,8 @@ The optional grouped uncertain-row review is F15's existing design. A count/link
 
 ## Edits, repetition and budgets
 
+The [11 October retail review](retail-expansion.md) adds exact-row entry into this same composer (F17.9), deterministic edit deltas and optional details (F17.10/F17.11). The delta compares the immediately preceding local edit, separately from F7's last verified transfer. Incomplete/stale quotes cannot produce a precise overall price change. No additional AI/catalogue request is needed to explain an edit. U19 audits remaining store/comparison/return gaps before bounded fixes. Recipe text import and local QR text export move to v0.8; QR is a snapshot with a manual phone-save step, not synchronization.
+
 Once a list exists, the composer modifies it by default. Clear instructions can add/remove items, replace a meal, change servings/quantity or mark at home against known internal identities. Ambiguity preserves saved state and asks for clarification. One invalid operation rejects an entire multi-part batch. Preserve unrelated manual choices and combine shared requirements; reprice changed requirements only. A concise summary and local one-step Undo explain the result.
 
 Always show “Muokkaa nykyistä listaa” / “Edit current list” in existing-list mode, not merely a disappearing placeholder. Make “Uusi lista” / “New list” easy to find and distinctly label replacement drafting. Navigation/restart restores the correct composer context.
