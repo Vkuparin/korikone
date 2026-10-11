@@ -82,7 +82,7 @@ export async function createReview(
   if (
     !provider.capabilities.cart ||
     !lines.length ||
-    lines.some((l) => !l.product || l.total === null)
+    lines.some((l) => !l.product || l.total === null || l.approximate)
   )
     throw new Error("unresolved");
   const baseline = await provider.getCart(context);

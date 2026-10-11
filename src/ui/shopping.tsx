@@ -3,7 +3,11 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product } from "../domain/model";
 import { ModelSelector } from "./model";
-import { exclusionTerms, requirements } from "../domain/planner";
+import {
+  exclusionTerms,
+  requirements,
+  priceBreakdown,
+} from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
@@ -219,6 +223,13 @@ export function ShoppingWorkspace({
     (sum, line) => sum + (line.total ?? 0),
     0,
   );
+  const prices = priceBreakdown(snapshot.basket);
+  const estimated = snapshot.basket.filter(
+    (line) => line.approximate && line.total !== null,
+  );
+  const transferable = snapshot.basket.filter(
+    (line) => line.product && line.total !== null && !line.approximate,
+  ).length;
   const missing = rows.filter(
     (r) =>
       !snapshot.basket.some(
@@ -928,12 +939,14 @@ export function ShoppingWorkspace({
                       l.requirement.unit === r.unit,
                   );
                   const home = state.skipped.includes(key);
-                  const step = line?.product
-                    ? line.product.packAmount * line.product.increment
-                    : r.unit === "pcs"
-                      ? 1
-                      : 100;
-                  const count = line?.product ? line.packs : r.amount;
+                  const step =
+                    line?.product && !line.approximate
+                      ? line.product.packAmount * line.product.increment
+                      : r.unit === "pcs"
+                        ? 1
+                        : 100;
+                  const count =
+                    line?.product && !line.approximate ? line.packs : r.amount;
                   const cost = (p: Product) =>
                     Math.ceil(r.amount / p.packAmount / p.increment) *
                     p.increment *
@@ -1048,7 +1061,7 @@ export function ShoppingWorkspace({
                         </button>
                         <span>{count}</span>
                         <small>
-                          {line?.product
+                          {line?.product && !line.approximate
                             ? tr(
                                 count === 1 ? "pakkaus" : "pakkausta",
                                 count === 1 ? "pack" : "packs",
@@ -1075,7 +1088,7 @@ export function ShoppingWorkspace({
                         {home
                           ? tr("kotona", "at home")
                           : line?.total != null
-                            ? money(line.total)
+                            ? `${line.approximate ? tr("noin ", "about ") : ""}${money(line.total)}`
                             : tr("Hinta puuttuu", "Price unknown")}
                       </strong>
                       <button
@@ -1314,10 +1327,20 @@ export function ShoppingWorkspace({
               </span>
               <strong>
                 {snapshot.quotedAt || !rows.length
-                  ? money(total)
+                  ? estimated.length
+                    ? `${money(prices.exact)} + ${tr("noin ", "about ")}${money(prices.approximate)}`
+                    : money(total)
                   : tr("Ei hinnoiteltu", "Not priced")}
               </strong>
             </div>
+            {estimated.length > 0 && (
+              <p className="muted">
+                {tr(
+                  "Punnittavien tuotteiden hinnat ovat arvioita. Lisää ne itse kaupassa; niiden siirto ei ole vielä käytössä.",
+                  "Weighed prices are estimates. Add those products in the store yourself; their transfer is not available yet.",
+                )}
+              </p>
+            )}
             {snapshot.pricingError && (
               <p className="warning" role="alert">
                 {tr(
@@ -1374,9 +1397,7 @@ export function ShoppingWorkspace({
             {!confirming && (
               <button
                 className="transfer-button"
-                disabled={
-                  busy || !rows.length || missing.length === rows.length
-                }
+                disabled={busy || !rows.length || !transferable}
                 onClick={async () => {
                   // An interrupted transfer is shown for recovery instead of a new review.
                   setTransferring(true);
@@ -1419,10 +1440,13 @@ export function ShoppingWorkspace({
                 )}
                 <span>
                   {" "}
-                  · {rows.length - missing.length} {tr("tuotetta", "products")}
+                  · {transferable} {tr("tuotetta", "products")}
                 </span>
-                {total > 0 && (
-                  <span className="transfer-total"> · {money(total)}</span>
+                {prices.exact > 0 && (
+                  <span className="transfer-total">
+                    {" "}
+                    · {money(prices.exact)}
+                  </span>
                 )}
               </button>
             )}

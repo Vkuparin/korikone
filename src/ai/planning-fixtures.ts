@@ -52,6 +52,7 @@ export function planningFixtureReply(
     [/sipuli|onions?/i, "Sipuli"],
     [/riisi|rice/i, "Riisi"],
     [/kerma|cream/i, "Kerma"],
+    [/omena|apples?/i, "Omena"],
     [/leip|bread/i, "Leipä"],
     [/pakastepizza|frozen pizza/i, "Pakastepizza"],
   ];

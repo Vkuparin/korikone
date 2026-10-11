@@ -104,6 +104,51 @@ export function relevant(productName: string, ingredientName: string) {
     )
   );
 }
+/** Estimate from an explicit source kg/l basis, never from a pack label or comparison price. */
+export function approximateCost(
+  requirement: Requirement,
+  product: Product,
+): number | null {
+  const source = product.cataloguePricing;
+  const unit = source?.unit?.toLowerCase();
+  if (
+    !source ||
+    product.available !== true ||
+    product.deposit !== 0 ||
+    (source.deposit !== null && source.deposit !== 0) ||
+    !Number.isSafeInteger(source.amount) ||
+    source.amount === null ||
+    source.amount < 0 ||
+    !Number.isSafeInteger(requirement.amount) ||
+    requirement.amount <= 0 ||
+    !(
+      (unit === "kg" &&
+        requirement.unit === "g" &&
+        (source.basis === null || source.basis === "per_weight")) ||
+      (unit === "l" &&
+        requirement.unit === "ml" &&
+        (source.basis === null || source.basis === "per_volume"))
+    ) ||
+    (product.packAmount > 0 && product.unit !== requirement.unit)
+  )
+    return null;
+  const numerator = source.amount * requirement.amount;
+  if (!Number.isSafeInteger(numerator)) return null;
+  return Math.round(numerator / 1000);
+}
+
+export function priceBreakdown(lines: BasketLine[]) {
+  return lines.reduce(
+    (sum, line) => {
+      if (!line.product || line.total === null) sum.unknown++;
+      else if (line.approximate) sum.approximate += line.total;
+      else sum.exact += line.total;
+      return sum;
+    },
+    { exact: 0, approximate: 0, unknown: 0 },
+  );
+}
+
 export function match(
   requirement: Requirement,
   products: Product[],
@@ -114,7 +159,9 @@ export function match(
     (p) =>
       p.ingredientId === requirement.id &&
       // A product without a readable pack size stays listed so the shopper can confirm it.
-      (p.unit === requirement.unit || p.packAmount === 0),
+      (p.unit === requirement.unit ||
+        p.packAmount === 0 ||
+        approximateCost(requirement, p) !== null),
   );
   // A hard requirement: excluded products never reach ranking or acceptance.
   const candidates = matching.filter(
@@ -131,32 +178,36 @@ export function match(
     (p) =>
       accepted.includes(p.id) &&
       p.available === true &&
-      p.price !== null &&
-      p.packAmount > 0 &&
-      p.increment > 0,
+      (approximateCost(requirement, p) !== null ||
+        (p.price !== null && p.packAmount > 0 && p.increment > 0)),
   );
   const cost = (p: Product) =>
+    approximateCost(requirement, p) ??
     Math.ceil(requirement.amount / p.packAmount / p.increment) *
-    p.increment *
-    (p.price! + p.deposit);
+      p.increment *
+      (p.price! + p.deposit);
+  const surplus = (p: Product) =>
+    approximateCost(requirement, p) !== null
+      ? 0
+      : Math.ceil(requirement.amount / p.packAmount / p.increment) *
+          p.increment *
+          p.packAmount -
+        requirement.amount;
   eligible.sort(
     (a, b) =>
-      cost(a) - cost(b) ||
-      Math.ceil(requirement.amount / a.packAmount / a.increment) *
-        a.increment *
-        a.packAmount -
-        Math.ceil(requirement.amount / b.packAmount / b.increment) *
-          b.increment *
-          b.packAmount ||
-      a.id.localeCompare(b.id),
+      cost(a) - cost(b) || surplus(a) - surplus(b) || a.id.localeCompare(b.id),
   );
   const product = eligible[0] ?? null;
-  const packs = product
-    ? Math.ceil(requirement.amount / product.packAmount / product.increment) *
-      product.increment
-    : 0;
+  const approximate =
+    product !== null && approximateCost(requirement, product) !== null;
+  const packs =
+    product && !approximate
+      ? Math.ceil(requirement.amount / product.packAmount / product.increment) *
+        product.increment
+      : 0;
   return {
     requirement,
+    ...(approximate ? { approximate: true } : {}),
     product,
     packs,
     total: product ? cost(product) : null,

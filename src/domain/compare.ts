@@ -7,6 +7,7 @@ export type ChainTotals = {
   missing: number;
   /** Known deposits within the priced total. */
   deposits: number;
+  approximate?: number;
 };
 export type RowDifference = {
   requirement: Requirement;
@@ -14,10 +15,11 @@ export type RowDifference = {
   b: number;
   /** b minus a, in cents. */
   difference: number;
+  approximate?: boolean;
 };
 export type Comparison = {
   /** Rows both chains priced: the fair comparison. */
-  common: { rows: number; a: number; b: number };
+  common: { rows: number; a: number; b: number; approximate?: boolean };
   a: ChainTotals;
   b: ChainTotals;
   /** Which chain is cheaper on the common rows, or null for a tie or nothing in common. */
@@ -35,6 +37,13 @@ function totals(lines: BasketLine[]): ChainTotals {
     priced: priced.reduce((sum, l) => sum + l.total!, 0),
     missing: lines.length - priced.length,
     deposits: priced.reduce((sum, l) => sum + l.packs * l.product!.deposit, 0),
+    ...(priced.some((l) => l.approximate)
+      ? {
+          approximate: priced
+            .filter((l) => l.approximate)
+            .reduce((sum, l) => sum + l.total!, 0),
+        }
+      : {}),
   };
 }
 
@@ -60,12 +69,14 @@ export function compareBaskets(
       a: line.total,
       b: other.total,
       difference: other.total - line.total,
+      ...(line.approximate || other.approximate ? { approximate: true } : {}),
     });
   }
   const common = {
     rows: rows.length,
     a: rows.reduce((sum, r) => sum + r.a, 0),
     b: rows.reduce((sum, r) => sum + r.b, 0),
+    ...(rows.some((r) => r.approximate) ? { approximate: true } : {}),
   };
   return {
     common,

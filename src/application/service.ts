@@ -1191,7 +1191,7 @@ export class Service {
       .object({ allowMissing: z.boolean().default(false) })
       .parse(input ?? {});
     const unresolved = this.basket.filter(
-      (line) => !line.product || line.total === null,
+      (line) => !line.product || line.total === null || line.approximate,
     );
     const unresolvedIntents = this.snapshot().committedIntents.filter(
       (intent) => intent.status !== "resolved",
@@ -1203,7 +1203,9 @@ export class Service {
       this.state.context,
       this.state.revision,
       allowMissing
-        ? this.basket.filter((line) => line.product && line.total !== null)
+        ? this.basket.filter(
+            (line) => line.product && line.total !== null && !line.approximate,
+          )
         : this.basket,
       this.state.packSizes,
       {

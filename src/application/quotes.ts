@@ -78,6 +78,7 @@ export const persistedQuoteSchema = z.object({
       product: productSchema.nullable(),
       packs: z.number().nonnegative(),
       total: z.number().nonnegative().nullable(),
+      approximate: z.boolean().optional(),
       candidates: z.array(productSchema),
       excluded: z.number().int().nonnegative().optional(),
       matching: matchingSummarySchema.optional(),
@@ -139,6 +140,7 @@ export function restoredQuote(input: unknown, state: AppState) {
       matched.matching!.reason = "bounded-out";
     }
     if (
+      Boolean(line.approximate) !== Boolean(matched.approximate) ||
       line.product?.id !== matched.product?.id ||
       line.packs !== matched.packs ||
       line.total !== matched.total

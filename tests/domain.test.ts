@@ -5,6 +5,8 @@ import {
   parseAmount,
   stateSchema,
   type Journal,
+  type Product,
+  type Requirement,
 } from "../src/domain/model";
 import {
   requirements,
@@ -12,6 +14,8 @@ import {
   exclusionTerms,
   relevant,
   applyPackSizes,
+  approximateCost,
+  priceBreakdown,
 } from "../src/domain/planner";
 import { DemoProvider } from "../src/stores/demo";
 import {
@@ -20,6 +24,144 @@ import {
   resumeReview,
 } from "../src/application/transfer";
 import { en, fi } from "../src/ui/i18n";
+import { matchRequirement, purchasable } from "../src/domain/matching";
+import { compareBaskets } from "../src/domain/compare";
+
+describe("weighed estimates", () => {
+  const requirement: Requirement = {
+    id: "apple",
+    name: "Omena",
+    amount: 500,
+    unit: "g",
+    sources: [],
+  };
+  const product: Product = {
+    id: "apple",
+    ingredientId: "apple",
+    name: "Omena",
+    providerId: "demo-k",
+    storeId: "store",
+    available: true,
+    price: null,
+    deposit: 0,
+    unit: "g",
+    packAmount: 0,
+    increment: 0,
+    nativeUnit: "kg",
+    observedAt: "2026-10-11T00:00:00Z",
+    cataloguePricing: {
+      amount: 249,
+      unit: "kg",
+      basis: "per_weight",
+      approximate: true,
+      deposit: 0,
+    },
+  };
+  test("rounds kg and litre estimates to cents without invented packs or write authority", () => {
+    const line = matchRequirement(requirement, [product]);
+    expect(line).toMatchObject({
+      approximate: true,
+      packs: 0,
+      total: 125,
+      product,
+    });
+    expect(approximateCost({ ...requirement, amount: 333 }, product)).toBe(83);
+    expect(
+      approximateCost(
+        { ...requirement, amount: 333, unit: "ml" },
+        {
+          ...product,
+          unit: "ml",
+          cataloguePricing: {
+            ...product.cataloguePricing!,
+            amount: 120,
+            unit: "l",
+            basis: "per_volume",
+          },
+        },
+      ),
+    ).toBe(40);
+    expect(purchasable(requirement, product)).toBe(false);
+    expect(
+      purchasable(requirement, {
+        ...product,
+        price: 249,
+        packAmount: 1000,
+        increment: 1,
+      }),
+    ).toBe(false);
+  });
+  test.each([
+    { amount: null },
+    { unit: null },
+    { unit: "pcs" },
+    { basis: "unknown" },
+    { amount: -1 },
+    { amount: Number.MAX_SAFE_INTEGER },
+    { deposit: 15 },
+  ])("rejects unsupported/unsafe source facts %j", (override) => {
+    expect(
+      approximateCost(requirement, {
+        ...product,
+        cataloguePricing: { ...product.cataloguePricing!, ...override },
+      }),
+    ).toBeNull();
+  });
+  test("does not estimate incompatible units, stock or forbidden matches", () => {
+    expect(approximateCost({ ...requirement, unit: "ml" }, product)).toBeNull();
+    expect(
+      approximateCost(requirement, { ...product, available: null }),
+    ).toBeNull();
+    expect(
+      matchRequirement(requirement, [product], { exclusions: ["omena"] })
+        .product,
+    ).toBeNull();
+    expect(
+      matchRequirement(requirement, [product], {
+        context: { ...initialState().context, storeId: "other" },
+      }).product,
+    ).toBeNull();
+  });
+  test("splits exact/approximate/unknown totals and marks common comparison as approximate", () => {
+    const estimated = matchRequirement(requirement, [product]);
+    const exact = {
+      ...estimated,
+      approximate: false,
+      total: 300,
+      packs: 1,
+      requirement: { ...requirement, id: "pack" },
+    };
+    expect(
+      priceBreakdown([
+        estimated,
+        exact,
+        { ...exact, product: null, total: null },
+      ]),
+    ).toEqual({ exact: 300, approximate: 125, unknown: 1 });
+    const result = compareBaskets([estimated], [{ ...estimated, total: 150 }]);
+    expect(result.common).toEqual({
+      rows: 1,
+      a: 125,
+      b: 150,
+      approximate: true,
+    });
+    expect(result.a.missing).toBe(0);
+    expect(result.a.approximate).toBe(125);
+    expect(result.largest[0]).toMatchObject({
+      difference: 25,
+      approximate: true,
+    });
+  });
+  test("estimated selections cannot enter transfer review", async () => {
+    const provider = new DemoProvider("demo-k");
+    await expect(
+      createReview(provider, initialState().context, 0, [
+        matchRequirement(requirement, [product]),
+      ]),
+    ).rejects.toThrow("unresolved");
+    expect(provider.writes).toBe(0);
+  });
+});
 describe("planning", () => {
   it("scales portions, merges ingredients and excludes leftovers and pantry items", () => {
     const state = initialState();

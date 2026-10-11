@@ -16,6 +16,7 @@ const catalogue: [
   ["carrot", "Porkkana 1 kg", 1000, "g", 149],
   ["cream", "Ruokakerma 2 dl", 200, "ml", 109],
   ["whipping-cream", "Kuohukerma 200 ml", 200, "ml", 199],
+  ["weighed-apple", "Omena", 0, "g", 249],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],
@@ -169,7 +170,24 @@ export class DemoProvider implements StoreProvider {
             ]
           : []),
       ])
-      .map((p) => ({ ...p, evidence: retailerEvidence(p.name) }));
+      .map((p) => ({
+        ...p,
+        evidence: retailerEvidence(p.name),
+        ...(p.id === "weighed-apple"
+          ? {
+              price: null,
+              nativeUnit: "kg",
+              increment: 0,
+              cataloguePricing: {
+                amount: p.price,
+                unit: "kg",
+                basis: "per_weight",
+                approximate: true,
+                deposit: 0,
+              },
+            }
+          : {}),
+      }));
   }
   async pickupFee() {
     // Only the S-kaupat fixture reports fees, as only the real S-kaupat worker does.

@@ -88,8 +88,13 @@ test("comparing stores is read-only and can switch to the other chain", async ()
       "S-kaupat",
       "K-Ruoka",
     ]);
-    // The K-Ruoka fixture has no salt and dearer mince.
-    await expect(panel).toContainText("Molemmissa hinnoitellut (6)");
+    // Generic onions do not prove the required yellow-onion type; K-Ruoka also has no salt.
+    const basket = (await page.evaluate(() => window.korikone.load())).value
+      .basket;
+    expect(
+      basket.find((line) => /sipuli/i.test(line.requirement.name))?.product,
+    ).toBeNull();
+    await expect(panel).toContainText("Molemmissa hinnoitellut (5)");
     await expect(panel).toContainText("1 ilman hintaa");
     await expect(panel.getByRole("status")).toContainText(
       "S-kaupat on edullisempi",
@@ -128,6 +133,35 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     await expect(panel).toHaveCount(0);
     await expect(list).toContainText("Suola");
     await expect(compare).toBeVisible();
+
+    await page.evaluate(async () => {
+      const reply = await window.korikone.planShopping({
+        prompt: "500 g omenaa ja 1 l maitoa",
+        consent: true,
+      });
+      if (!reply.ok) throw new Error(reply.error);
+      const saved = await window.korikone.commitPlanning({
+        operationId: reply.value.planning!.operationId,
+      });
+      if (!saved.ok) throw new Error(saved.error);
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Vertaa kauppoja" }).click();
+    const estimatePanel = page.getByRole("region", {
+      name: "Kauppojen vertailu",
+    });
+    await expect(estimatePanel.getByRole("status")).toContainText(
+      "Vertailu on arvio.",
+    );
+    await expect(
+      estimatePanel.getByRole("row", { name: /Molemmissa hinnoitellut/ }),
+    ).toContainText("noin");
+    await expect(estimatePanel).toContainText("Omena");
+    await expect(page.locator(".compare-summary")).toContainText("noin");
+    expect(
+      (await page.evaluate(() => window.korikone.load())).value
+        .developmentStoreWrites,
+    ).toBe(0);
   } finally {
     await app.close();
   }

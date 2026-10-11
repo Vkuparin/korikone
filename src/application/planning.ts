@@ -86,6 +86,7 @@ const previewRowSchema = z
       .nullable(),
     packs: z.number().nonnegative(),
     total: z.number().nonnegative().nullable(),
+    approximate: z.boolean().optional(),
   })
   .strict();
 export const planningSnapshotSchema = z
@@ -198,8 +199,13 @@ export const planningSnapshotSchema = z
         issue();
       if (
         row.status === "resolved"
-          ? !row.product || row.total === null || row.packs <= 0
-          : row.product !== null || row.total !== null || row.packs !== 0
+          ? !row.product ||
+            row.total === null ||
+            (row.approximate ? row.packs !== 0 : row.packs <= 0)
+          : row.product !== null ||
+            row.total !== null ||
+            row.packs !== 0 ||
+            row.approximate === true
       )
         issue();
     }
@@ -637,6 +643,7 @@ export class PlanningRun {
               : null,
             packs: local.packs,
             total: local.total,
+            ...(local.approximate ? { approximate: true } : {}),
           },
     );
     this.resultLines = [

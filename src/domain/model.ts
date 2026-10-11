@@ -182,6 +182,8 @@ export type Product = {
   cataloguePricing?: import("./product-evidence").CataloguePricing;
 };
 export type BasketLine = {
+  /** Price estimate for the requested mass/volume; does not authorize a retailer quantity. */
+  approximate?: boolean;
   requirement: Requirement;
   product: Product | null;
   packs: number;

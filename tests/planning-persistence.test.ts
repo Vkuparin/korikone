@@ -18,6 +18,44 @@ import type { PlanningRun } from "../src/application/planning";
 
 const worker = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
 const note = "1 l maitoa ja kahvia";
+test("weighed estimates commit and restart honestly but cannot become transfer targets", async () => {
+  const env = await fixture();
+  let restarted: Database | undefined;
+  try {
+    const id = await ready(env.service, "500 g omenaa ja 1 l maitoa");
+    expect(
+      env.service.planning
+        .snapshot()!
+        .provisional.rows.some((row) => row.approximate),
+    ).toBe(true);
+    const committed = await env.service.commitPlanning({ operationId: id });
+    const estimated = committed.basket.find((line) => line.approximate)!;
+    expect(estimated).toMatchObject({
+      total: 125,
+      packs: 0,
+      product: { price: null, increment: 0 },
+    });
+    await expect(env.service.prepare()).rejects.toThrow("unresolved");
+    const partial = await env.service.prepare({ allowMissing: true });
+    expect(partial.review!.targets).toHaveLength(1);
+    expect(partial.review!.unresolved).toContainEqual(estimated.requirement);
+    expect(writes(env.service)).toBe(0);
+    const quote = await env.db.get("last-quote");
+    quote.basket.find(
+      (line: { approximate?: boolean }) => line.approximate,
+    ).approximate = false;
+    expect(restoredQuote(quote, env.service.state)).toBeNull();
+    await env.db.close();
+    restarted = new Database(env.path, worker);
+    const restored = new Service(restarted);
+    await restored.init();
+    expect(restored.basket).toEqual(committed.basket);
+    await expect(restored.prepare()).rejects.toThrow("unresolved");
+    expect(writes(restored)).toBe(0);
+  } finally {
+    await (restarted ?? env.db).close();
+  }
+});
 function session(request = note, output?: unknown) {
   const provider = new ScriptedInferenceProvider(
     "atomic-fixture",

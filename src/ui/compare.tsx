@@ -80,6 +80,7 @@ export function CompareSummary({
     );
   const { result, other } = comparison;
   const difference = Math.abs(result.common.a - result.common.b);
+  const estimateLabel = result.common.approximate ? tr("noin ", "about ") : "";
   const cheaper =
     result.cheaper === "a"
       ? chainName(state.context.providerId)
@@ -88,9 +89,14 @@ export function CompareSummary({
     <button className="secondary compare-summary" onClick={onOpen}>
       {result.cheaper === null
         ? result.common.rows
-          ? tr("Sama hinta molemmissa", "Same price at both")
+          ? result.common.approximate
+            ? tr(
+                "Arviolta sama hinta molemmissa",
+                "Approximately the same price at both",
+              )
+            : tr("Sama hinta molemmissa", "Same price at both")
           : tr("Ei yhteisiä tuotteita", "No items in common")
-        : `${cheaper} ${money(difference)} ${tr("halvempi", "cheaper")}`}
+        : `${cheaper} ${estimateLabel}${money(difference)} ${tr("halvempi", "cheaper")}`}
       {" · "}
       {tr("Vertaa", "Compare")}
     </button>
@@ -140,16 +146,24 @@ export function ComparePanel({
               {tr("Molemmissa hinnoitellut", "Priced at both")} (
               {result.common.rows})
             </th>
-            <td>{money(result.common.a)}</td>
-            <td>{money(result.common.b)}</td>
+            <td>
+              {result.common.approximate && tr("noin ", "about ")}
+              {money(result.common.a)}
+            </td>
+            <td>
+              {result.common.approximate && tr("noin ", "about ")}
+              {money(result.common.b)}
+            </td>
           </tr>
           <tr>
             <th scope="row">{tr("Kaikki hinnoitellut", "All priced")}</th>
             <td>
+              {result.a.approximate !== undefined && tr("noin ", "about ")}
               {money(result.a.priced)}
               {missing(result.a.missing)}
             </td>
             <td>
+              {result.b.approximate !== undefined && tr("noin ", "about ")}
               {money(result.b.priced)}
               {missing(result.b.missing)}
             </td>
@@ -169,6 +183,8 @@ export function ComparePanel({
         </tbody>
       </table>
       <p role="status">
+        {result.common.approximate &&
+          tr("Vertailu on arvio. ", "Comparison is approximate. ")}
         {result.cheaper === null
           ? result.common.rows
             ? tr(
@@ -187,6 +203,7 @@ export function ComparePanel({
           <ul>
             {result.largest.map((row) => (
               <li key={`${row.requirement.id}:${row.requirement.unit}`}>
+                {row.approximate && tr("noin ", "about ")}
                 {row.requirement.name}: {a} {money(row.a)} · {b} {money(row.b)}
               </li>
             ))}

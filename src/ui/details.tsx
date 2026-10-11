@@ -3,6 +3,7 @@ import type { Snapshot } from "../application/service";
 import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 import { purchasable } from "../domain/matching";
+import { approximateCost } from "../domain/planner";
 
 /**
  * The decision details of one list row: what is needed and bought, why this product,
@@ -31,11 +32,13 @@ export function RowDetails({
   const t = (key: Key) => (language === "fi" ? fi : en)[key];
   const u = (unit: string) => unitLabel(unit, language);
   const unitPrice = (p: Product) =>
-    p.price === null || !p.packAmount
-      ? ""
-      : p.unit === "pcs"
-        ? `${money(p.price / p.packAmount)} / ${t("perPiece")}`
-        : `${money(Math.round((p.price * 1000) / p.packAmount))} / ${p.unit === "g" ? "kg" : "l"}`;
+    approximateCost(line.requirement, p) !== null
+      ? `${money(p.cataloguePricing!.amount!)} / ${p.cataloguePricing!.unit!.toLowerCase()}`
+      : p.price === null || !p.packAmount
+        ? ""
+        : p.unit === "pcs"
+          ? `${money(p.price / p.packAmount)} / ${t("perPiece")}`
+          : `${money(Math.round((p.price * 1000) / p.packAmount))} / ${p.unit === "g" ? "kg" : "l"}`;
   const { requirement, product } = line;
   const context = state.context;
   const accepted =
@@ -51,7 +54,7 @@ export function RowDetails({
     >
       <p>
         {t("required")}: {requirement.amount} {u(requirement.unit)}
-        {product && (
+        {product && !line.approximate && (
           <>
             {" · "}
             {t("bought")}: {packCount(line.packs, language)}, {bought}{" "}
@@ -61,6 +64,13 @@ export function RowDetails({
           </>
         )}
       </p>
+      {line.approximate && (
+        <p className="muted">
+          {language === "fi"
+            ? "Hinta on arvio tarvittavalle määrälle. Lopullinen paino ja hinta voivat muuttua."
+            : "Price is estimated for the required amount. Final weight and price may change."}
+        </p>
+      )}
       {product ? (
         <p className="muted">
           {t(
@@ -124,15 +134,16 @@ export function RowDetails({
                       ? t("unavailable")
                       : t("stockUnknown")}
               </button>
-              {(!p.packAmount || p.id in state.packSizes) && (
-                <PackSizeForm
-                  key={`${p.id}:${p.packAmount}`}
-                  product={p}
-                  language={language}
-                  busy={busy}
-                  confirm={confirmPack}
-                />
-              )}
+              {approximateCost(requirement, p) === null &&
+                (!p.packAmount || p.id in state.packSizes) && (
+                  <PackSizeForm
+                    key={`${p.id}:${p.packAmount}`}
+                    product={p}
+                    language={language}
+                    busy={busy}
+                    confirm={confirmPack}
+                  />
+                )}
             </li>
           ))}
         </ul>

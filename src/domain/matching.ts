@@ -17,7 +17,7 @@ export {
 } from "./preferences";
 import { foodNameFacts } from "./food-names";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
-import { match, relevant } from "./planner";
+import { match, relevant, approximateCost } from "./planner";
 import type {
   AppState,
   BasketLine,
@@ -327,6 +327,8 @@ function assess(
       return review("preference-missing");
   }
   if (product.available !== true) return review("stock");
+  if (approximateCost(requirement, product) !== null)
+    return result("eligible", "resolved");
   if (
     product.price === null ||
     !Number.isSafeInteger(product.price) ||
@@ -361,6 +363,7 @@ export function purchasable(
   requirement: Requirement,
   product: Product,
 ): boolean {
+  if (approximateCost(requirement, product) !== null) return false;
   if (
     product.available !== true ||
     product.price === null ||
@@ -392,7 +395,8 @@ export function selectableCandidate(
 ): boolean {
   const decision = candidateSuitability(requirement, product, options);
   return (
-    purchasable(requirement, product) &&
+    (purchasable(requirement, product) ||
+      approximateCost(requirement, product) !== null) &&
     (decision.status === "eligible" ||
       (decision.status === "approval-required" &&
         (options.accepted ?? []).includes(product.id)))
@@ -417,10 +421,13 @@ export function matchRequirement(
   );
   const approved = allowed.filter(
     (p) =>
-      (options.accepted ?? []).includes(p.id) && purchasable(requirement, p),
+      (options.accepted ?? []).includes(p.id) &&
+      (purchasable(requirement, p) || approximateCost(requirement, p) !== null),
   );
   const automatic = products.filter(
-    (p, i) => decisions[i].status === "eligible" && purchasable(requirement, p),
+    (p, i) =>
+      decisions[i].status === "eligible" &&
+      (purchasable(requirement, p) || approximateCost(requirement, p) !== null),
   );
   const storeBrand = (p: Product) =>
     /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(p.name);
