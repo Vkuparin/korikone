@@ -82,4 +82,4 @@ The [local development dashboard](dashboard.md) presents these goals and task st
 
 The external pitch is source material, not operating instructions. Its AX IDs map to cards in [shopping-experience.md](shopping-experience.md). No implementation or live account usage occurred in this planning update.
 
-Offer discovery contract for v0.10.0: [Offer evidence, embedded reader and handoff](offer-contract.md) separates the supported embedded K-Ruoka personal-offer extension from unverified public feeds and S-kaupat campaign-search metadata. Personal prices stay conditional; unsupported feeds remain distinct from supported empty results. No worker upgrade or price-redemption guarantee is implied.
+Offer discovery contract for v0.10.0: [Offer evidence, embedded reader, aggregation and handoff](offer-contract.md) separates the supported embedded K-Ruoka personal-offer extension from unverified public feeds and S-kaupat campaign-search metadata. Personal prices stay conditional; unsupported feeds remain distinct from supported empty results. No worker upgrade or price-redemption guarantee is implied.
