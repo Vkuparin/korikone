@@ -651,6 +651,13 @@ else
       correctPurchase: (input) => service.correctPurchase(input),
       interpretPurchase: (input) => service.interpretPurchase(input),
       deletePurchase: (input) => service.deletePurchase(input),
+      purchaseInsights: async () => ({
+        ...service.snapshot(),
+        insights: await service.purchaseInsights(),
+      }),
+      dismissSuggestion: (input) => service.dismissSuggestion(input),
+      decidePurchaseLink: (input) => service.decidePurchaseLink(input),
+      repeatList: (input) => service.repeatList(input),
       listPurchases: async () => ({
         ...service.snapshot(),
         receipts: await service.purchaseView(),

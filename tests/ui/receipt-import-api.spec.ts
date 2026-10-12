@@ -242,3 +242,57 @@ test("receipt import API reads real files locally, dedupes across formats and ke
     await app.close();
   }
 });
+
+test("insights and repeat APIs answer through real IPC without AI or retailer calls", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-insights-"));
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({ args: ["."], env });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
+      .click();
+    const result = await page.evaluate(async () => {
+      const api = window.korikone;
+      const insights = (await api.purchaseInsights()).value as unknown as {
+        insights: { actualPurchases: unknown[]; suggestions: unknown[] };
+      };
+      const state = (await api.load()).value.state;
+      const missing = await api.repeatList({
+        historyId: "none",
+        revision: state.revision,
+      });
+      const dismissed = await api.dismissSuggestion({ key: "category:coffee" });
+      const after = (await api.load()).value;
+      return {
+        insights: insights.insights,
+        missing: { ok: missing.ok, error: missing.error },
+        dismissed: dismissed.ok,
+        requests: after.developmentRequests,
+        writes: after.developmentStoreWrites,
+        repeat: after.repeat,
+        signals: after.purchaseSignals,
+      };
+    });
+    expect(result).toEqual({
+      insights: expect.objectContaining({
+        actualPurchases: [],
+        suggestions: [],
+      }),
+      missing: { ok: false, error: "historyMissing" },
+      dismissed: true,
+      requests: 0,
+      writes: 0,
+      repeat: null,
+      signals: [],
+    });
+  } finally {
+    await app.close();
+  }
+});

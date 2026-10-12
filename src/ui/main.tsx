@@ -109,6 +109,8 @@ function App() {
     edit: null,
     purchaseImport: null,
     receiptEnrichment: null,
+    purchaseSignals: [],
+    repeat: null,
     editUndoAvailable: false,
     committedIntents: [],
     planningIncomplete: false,

@@ -94,6 +94,23 @@ import {
 } from "./edits";
 import { PurchaseStore, type ReceiptImport } from "./purchases";
 import {
+  observedSummaries,
+  purchaseAliases,
+  purchaseStatistics,
+  readMemory,
+  recurrenceSuggestions,
+  type Memory,
+} from "../domain/memory";
+import {
+  actualPurchases,
+  confirmedTransfers,
+  decideLink,
+  linkCandidates,
+  linkStrong,
+  sameGrocery,
+} from "../domain/purchase-links";
+import { repeatPlan, repeatResult, type RepeatResult } from "../domain/repeat";
+import {
   ReceiptImportCoordinator,
   enrichPurchaseRequestSchema,
   type ReceiptAI,
@@ -510,6 +527,7 @@ export class Service {
     });
     this.purchaseImport = { source: "receipt", ...result.receipt };
     this.receiptEnrichment = result.enrichment;
+    await this.confirmFromEvidence();
     return this.snapshot();
   }
   /** Outcome of the last enrichment step, as counts and a code. */
@@ -535,6 +553,238 @@ export class Service {
   async deletePurchase(input: unknown) {
     await this.purchases.delete(input);
     return this.snapshot();
+  }
+  /** The one read over preferences, purchases and transfers; recomputed on every call. */
+  async memory(): Promise<Memory> {
+    return readMemory(this.state, await this.purchases.ledger());
+  }
+  /** Derived, read-only views for History, suggestions and spending. Nothing here is saved. */
+  async purchaseInsights(now = new Date()) {
+    const ledger = await this.purchases.ledger();
+    const memory = readMemory(this.state, ledger);
+    return {
+      ...purchaseAliases(memory),
+      statistics: purchaseStatistics(memory, now),
+      suggestions: recurrenceSuggestions(memory, now, {
+        dismissed: ledger.dismissedSuggestions,
+        existing: this.state.staples.map((s) => s.name),
+      }),
+      observedSummaries: observedSummaries(memory),
+      actualPurchases: actualPurchases(ledger),
+      transfers: memory.transfers,
+      linkReview: linkCandidates(ledger, memory.transfers).filter(
+        (c) => c.strength === "review",
+      ),
+      confirmedTransfers: confirmedTransfers(ledger).map(
+        ({ transferId, eventId, by, purchasedAt }) => ({
+          transferId,
+          eventId,
+          by,
+          purchasedAt,
+        }),
+      ),
+    };
+  }
+  async dismissSuggestion(input: unknown) {
+    const { key } = z
+      .object({ key: z.string().min(1).max(300) })
+      .strict()
+      .parse(input);
+    await this.purchases.serialize(async () => {
+      const ledger = await this.purchases.ledger();
+      await this.purchases.write({
+        ...ledger,
+        dismissedSuggestions: [
+          ...ledger.dismissedSuggestions.filter((d) => d.key !== key),
+          { key, at: new Date().toISOString() },
+        ].slice(-500),
+      });
+    });
+    return this.snapshot();
+  }
+  /** The shopper's answer to a review candidate; a confirmed transfer then counts as purchased. */
+  async decidePurchaseLink(input: unknown) {
+    const { candidate, same } = z
+      .object({
+        candidate: z.discriminatedUnion("kind", [
+          z
+            .object({
+              kind: z.literal("purchase"),
+              eventIds: z.tuple([z.string().min(1), z.string().min(1)]),
+            })
+            .strict(),
+          z
+            .object({
+              kind: z.literal("transfer"),
+              transferId: z.string().min(1),
+              eventId: z.string().min(1),
+            })
+            .strict(),
+        ]),
+        same: z.boolean(),
+      })
+      .strict()
+      .parse(input);
+    await this.purchases.serialize(async () =>
+      this.purchases.write(
+        decideLink(await this.purchases.ledger(), candidate, same),
+      ),
+    );
+    await this.confirmFromEvidence();
+    return this.snapshot();
+  }
+  /** What purchase evidence says about verified transfers after the last import or decision. */
+  purchaseSignals: {
+    transferId: string;
+    eventId: string;
+    /** `confirmed`: strong evidence or the shopper linked it. `review`: weaker, nothing changed. */
+    strength: "confirmed" | "review";
+  }[] = [];
+  /**
+   * Links new evidence by the strong rules and lets a linked completed purchase confirm its
+   * transfer exactly once, advancing recurring items the purchase actually contains. A weak
+   * match, a pending or cancelled order and an unlinked transfer confirm nothing.
+   */
+  private async confirmFromEvidence() {
+    const linked = await this.purchases.serialize(async () => {
+      const ledger = await this.purchases.ledger();
+      const transfers = readMemory(this.state, ledger).transfers;
+      const result = linkStrong(ledger, transfers);
+      if (result.linked) await this.purchases.write(result.ledger);
+      return result;
+    });
+    const confirmed = confirmedTransfers(linked.ledger);
+    for (const transfer of confirmed) {
+      if (await this.db.get(`ordered-${transfer.transferId}`)) continue;
+      const confirmedAt = transfer.purchasedAt ?? new Date().toISOString();
+      await this.db.set(`ordered-${transfer.transferId}`, {
+        confirmedAt,
+        by: "evidence",
+        eventId: transfer.eventId,
+      });
+      const bought = (name: string) =>
+        transfer.labels.some((label) => sameGrocery(name, label));
+      if (
+        this.state.staples.some(
+          (s) =>
+            bought(s.name) &&
+            (!s.lastPurchased || s.lastPurchased < confirmedAt),
+        ) &&
+        !this.busy &&
+        !this.transferPending
+      )
+        await this.save({
+          ...this.state,
+          staples: this.state.staples.map((s) =>
+            bought(s.name) &&
+            (!s.lastPurchased || s.lastPurchased < confirmedAt)
+              ? { ...s, lastPurchased: confirmedAt }
+              : s,
+          ),
+        });
+    }
+    this.purchaseSignals = [
+      ...confirmed.map(({ transferId, eventId }) => ({
+        transferId,
+        eventId,
+        strength: "confirmed" as const,
+      })),
+      ...linked.review.flatMap((c) =>
+        c.kind === "transfer"
+          ? [
+              {
+                transferId: c.transferId,
+                eventId: c.eventId,
+                strength: "review" as const,
+              },
+            ]
+          : [],
+      ),
+    ];
+  }
+  /** Result of the last Repeat: what was reused and what could not be. Shown for its revision only. */
+  repeat: RepeatResult | null = null;
+  /**
+   * Starts a new list from a verified transfer in history: its meals, recipes, groceries and row
+   * choices, priced fresh at the selected store. No AI request and no retailer write; the transfer
+   * of the repeated list needs its own approval as any list does.
+   */
+  async repeatList(input: unknown) {
+    const { historyId, revision } = z
+      .object({
+        historyId: z.string().min(1),
+        revision: z.number().int().nonnegative(),
+      })
+      .strict()
+      .parse(input);
+    return this.writeState(async () => {
+      this.assertNoProvisionalTransfer();
+      if (this.busy || this.transferPending) throw new Error("busy");
+      if (revision !== this.state.revision) throw new Error("draftStale");
+      const entry = this.state.listHistory.find((h) => h.id === historyId);
+      if (!entry) throw new Error("historyMissing");
+      const plan = repeatPlan(this.state, entry);
+      const next = stateSchema.parse({
+        ...this.state,
+        ...plan.state,
+        ...clearRowCorrections(this.state),
+        requestIntents: [],
+        history: this.archived(this.state),
+        revision: this.state.revision + 1,
+      });
+      this.busy = true;
+      try {
+        const context = next.context;
+        const basket = await this.price(context, next);
+        const pickupFee = basket.length ? await this.readFee(context) : null;
+        const quote = restoredQuote(
+          persistedQuoteSchema.parse({
+            key: pricingKey(next),
+            context,
+            basket,
+            quotedAt: new Date().toISOString(),
+            pickupFee,
+          }),
+          next,
+        );
+        if (!quote) throw new Error("draftStale");
+        const saved = priceObservationsSchema.safeParse(
+          (await this.db.get(PRICE_KEY)) ?? [],
+        );
+        const observedPrices = recordPrices(
+          saved.success ? saved.data : [],
+          basket.flatMap((line) => line.candidates),
+        );
+        await this.writeAtomically([
+          { key: "state", value: next },
+          {
+            key: "last-quote",
+            value: {
+              key: quote.key,
+              context: quote.context,
+              basket: quote.basket,
+              pickupFee: quote.pickupFee,
+              quotedAt: quote.quotedAt,
+            },
+          },
+          { key: PRICE_KEY, value: observedPrices },
+        ]);
+        this.planning.invalidateFor(next);
+        this.state = next;
+        this.observedPrices = observedPrices;
+        this.basket = quote.basket;
+        this.quotedAt = quote.quotedAt;
+        this.pickupFee = quote.pickupFee;
+        this.pricingError = null;
+        this.review = null;
+        this.comparison = null;
+        this.transferException = null;
+        this.repeat = repeatResult(next, entry, plan, quote.basket);
+        return this.snapshot();
+      } finally {
+        this.busy = false;
+      }
+    });
   }
   /** The receipt screens' data; read on request, never part of the ordinary snapshot. */
   purchaseView() {
@@ -571,6 +821,7 @@ export class Service {
     if (receiptText !== this.state.receiptText)
       await this.save({ ...this.state, receiptText });
     this.purchaseImport = { source: "legacy", ...summary };
+    await this.confirmFromEvidence();
     return this.snapshot();
   }
   /**
@@ -595,6 +846,7 @@ export class Service {
       source: "orders",
       ...(await this.purchases.importOrders(orders, "s-group")),
     };
+    await this.confirmFromEvidence();
     return this.snapshot();
   }
   constructor(private db: Storage) {
@@ -779,6 +1031,10 @@ export class Service {
       planning: this.planning.snapshot(),
       purchaseImport: this.purchaseImport,
       receiptEnrichment: this.receiptEnrichment,
+      purchaseSignals: this.purchaseSignals,
+      // A Repeat describes the revision it created only.
+      repeat:
+        this.repeat?.revision === this.state.revision ? this.repeat : null,
       // Both describe one revision only, so neither survives another list change.
       edit: this.edit?.revision === this.state.revision ? this.edit : null,
       editUndoAvailable: this.undo?.revision === this.state.revision,
@@ -1163,8 +1419,10 @@ export class Service {
     if (this.busy || this.journal?.status !== "verified")
       throw new Error("reviewRequired");
     const run = this.journal.review.id;
+    // An earlier confirmation, by the shopper or by purchase evidence, is kept as it is.
     const order = (await this.db.get(`ordered-${run}`)) ?? {
       confirmedAt: new Date().toISOString(),
+      by: "manual",
     };
     const purchased = new Set(
       this.journal.review.quotes.map((line) => line.requirement.id),

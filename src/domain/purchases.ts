@@ -317,6 +317,40 @@ export const purchaseLedgerSchema = z
       .array(semanticAnnotationSchema)
       .max(purchaseLimits.events * 20),
     consent: receiptConsentSchema,
+    /** Records that are one purchase (F6.19): a receipt and an order, by rule or by the shopper. */
+    links: z
+      .array(
+        z
+          .object({
+            eventIds: z.tuple([id, id]),
+            by: z.enum(["rule", "user"]),
+          })
+          .strict()
+          .refine((l) => l.eventIds[0] < l.eventIds[1]),
+      )
+      .max(purchaseLimits.events)
+      .default([]),
+    /** A verified transfer (`listHistory` ID) and the purchase that followed it. */
+    transferLinks: z
+      .array(
+        z
+          .object({ transferId: id, eventId: id, by: z.enum(["rule", "user"]) })
+          .strict(),
+      )
+      .max(purchaseLimits.events)
+      .default([]),
+    /** Pairs the shopper said are not the same, so they are not offered again. */
+    rejectedLinks: z
+      .array(z.object({ ids: z.tuple([id, id]) }).strict())
+      .max(purchaseLimits.events)
+      .default([]),
+    /** Recurrence suggestions the shopper dismissed, by identity key and time. */
+    dismissedSuggestions: z
+      .array(
+        z.object({ key: z.string().min(1).max(300), at: timestamp }).strict(),
+      )
+      .max(500)
+      .default([]),
   })
   .strict()
   .superRefine((ledger, ctx) => {
@@ -335,6 +369,15 @@ export const purchaseLedgerSchema = z
           issue("Event names an unusable source");
         used.add(sourceId);
       }
+    if (
+      ledger.links.some((l) => l.eventIds.some((e) => !events.has(e))) ||
+      ledger.transferLinks.some((l) => !events.has(l.eventId)) ||
+      new Set(ledger.transferLinks.map((l) => l.transferId)).size !==
+        ledger.transferLinks.length ||
+      new Set(ledger.transferLinks.map((l) => l.eventId)).size !==
+        ledger.transferLinks.length
+    )
+      issue("Link names an unknown event or repeats a transfer or purchase");
     const seen = new Set<string>();
     for (const a of ledger.annotations) {
       const key = `${a.eventId}\n${a.lineId}\n${a.origin}`;
@@ -354,6 +397,10 @@ export const emptyLedger = (): PurchaseLedger => ({
   events: [],
   annotations: [],
   consent: { automatic: null, asked: false },
+  links: [],
+  transferLinks: [],
+  rejectedLinks: [],
+  dismissedSuggestions: [],
 });
 /** A missing or unreadable document is an empty ledger; nothing is guessed from a damaged one. */
 export function readLedger(input: unknown): PurchaseLedger {
@@ -487,6 +534,12 @@ export function deletePurchase(
       sources: ledger.sources.filter((s) => !event.sourceIds.includes(s.id)),
       events: ledger.events.filter((e) => e.id !== eventId),
       annotations: ledger.annotations.filter((a) => a.eventId !== eventId),
+      // Links and rejections that name the deleted event go with it.
+      links: ledger.links.filter((l) => !l.eventIds.includes(eventId)),
+      transferLinks: ledger.transferLinks.filter((l) => l.eventId !== eventId),
+      rejectedLinks: ledger.rejectedLinks.filter(
+        (l) => !l.ids.includes(eventId),
+      ),
     },
     originals: retained,
   };
