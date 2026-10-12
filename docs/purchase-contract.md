@@ -1,6 +1,6 @@
 # Purchase evidence contract (F6, v0.9.0)
 
-Implemented schemas and APIs for receipt and order evidence. The plan and privacy rules are in [receipt-learning.md](receipt-learning.md); this file names what exists. Sections are added as cards land, and each heading names its card. Receipt parsing, accounting and the import UI are not implemented yet.
+Implemented schemas and APIs for receipt and order evidence. The plan and privacy rules are in [receipt-learning.md](receipt-learning.md); this file names what exists. Sections are added as cards land, and each heading names its card. The receipt screens that use these APIs are the Simple cards F6.16, F6.21, F6.3, F18.2, F18.4, F8.1, F8.2 and U5.2.
 
 ## Schemas and storage (F6.5)
 
@@ -99,3 +99,105 @@ Fixtures: `tests/receipt-enrichment.test.ts` (13) runs the task against both ada
 - `relation`: the PDF of `trip-original` is a duplicate of the text import (same pages, same event); `trip-distinct` has the same rows and total on another day and is its own purchase.
 
 Fixtures: `tests/receipt-fixtures.test.ts` (10) checks schema validity, that every span contains its label, price and unit price, that counts and weights multiply to the printed amount, that each balanced receipt adds up from rows and adjustments written independently of any parser, that unknown facts stay null, the hostile, duplicate and distinct cases, that no six-digit run, link, card mask or address (other than the invented one on the injection row) is present, and that the local reader returns every row of every fixture from a generated PDF.
+
+## Receipt parsers (F6.7, F6.8)
+
+`src/receipts/parsers/` reads receipt text locally and deterministically. `parseReceipt(text)` in `index.ts` returns `{ outcome: "event", receipt, facts }` or `{ outcome: "unsupported", pages, lines }`. `facts` is a whole event without IDs, already reconciled; `receipt` (`ParsedReceipt`) adds chain, parser `{ id, version }`, pages, row count and `unreadableLines`.
+
+- **Rows.** `receiptRows` splits pages on a form feed and rows on line breaks, drops empty rows and collapses spacing, so text and PDF input read the same. Indentation and columns are never relied on. Limits: 50,000 characters, 100 pages, 2,000 rows, 300 characters a row (`receiptLimits`); more is `receiptTooLarge`. The PDF worker now writes a form feed between pages.
+- **Layout choice.** The shop name on the first row selects the parser: `sGroupStore` (S-market, Prisma, Sale, Alepa, Sokos Herkku, Food Market Herkku, ABC) or `kGroupStore` (K-Market, K-Supermarket, K-Citymarket, K-Ruoka, Citymarket). Any other file, or a shop name with no readable row, is `unsupported`: no event and nothing spent.
+- **Dates.** The first `d.m.yyyy hh:mm` in the opening rows is converted from Finnish time to UTC by `helsinkiTime`, including the summer-time change on the last Sundays of March and October. A date without a time has `day` precision; no date is unknown.
+- **S-group** (`s-group.ts`, parser `s-group` v1): name and line price on one row; a row after it with `N KPL x price` or `w,www KG x price EUR/KG` sets count or grams and the unit price; `NORM.` is a reference price that only extends the row's span; `KAMPANJA`, `TARJOUS` and `ALENNUS` reduce the row above (allocation `line`); `RYHMÄTARJOUS` is a group offer; `PANTTI` is a deposit row; a deposit return is receipt-level; `RUOKA` and `MUUT TUOTTEET` headers set product or non-food; `YHTEENSÄ`, `VÄLISUMMA`, `RUOKA YHT`, `MUUT YHT` and `PANTIT YHT` are printed amounts.
+- **K-group** (`k-group.ts`, parser `k-group` v1): a one-piece product has name and price on one row; otherwise a name row is followed by `N KPL X price total` or `w,www KG X price /KG total`, also across a page break; `PANTTI` is a deposit row; `RYHMÄETU` is a group offer; `K-Plussa-etu` is receipt-level when it is the last row before the total and `unknown` between rows; `Yhteensä` closes the list.
+- **Group offers.** An offer is allocated to rows only when it states a piece count and the product rows directly above it add up to exactly that count (`3 x 5 KPL`: three rows of five; `15 KPL`: rows summing to fifteen), with at least two rows. Otherwise its allocation is `unknown` and it has no lines. Rows under a group offer have `net` null.
+- **Never read.** Everything after the total row: tax, payment, card, loyalty and reference rows. They reach no evidence, fingerprint or count.
+- **Unknowns.** A name row with no price is a product with null amounts and unknown quantity. A row that is neither a name nor a known row is kept as an `unreadable` line with a sanitized label and counted. A second count row for one product is unreadable, not a correction.
+
+Fixtures: `tests/receipt-parsers.test.ts` (32) parses all 25 F6.6 fixtures, each also with PDF-style collapsed spacing, and compares every fact; for receipts that do not balance it compares status and reasons, as the fixture convention says. It adds cases written for this card: four units with a reference price, row campaigns, non-food, rows after the total, unexplained and mismatched group offers, two cartons each of two milk variants, fifteen pouches across three variants, weights, a name and its weight on different pages, a truncated name, an unplaced Plussa benefit, unsupported and oversized files, date handling and the time conversion. One F6.6 expectation was corrected: `injection-in-label` is on 25 October 2026 at 11:11, after Finland returned to UTC+2, so its time is 09:11Z.
+
+## Receipt accounting (F6.9)
+
+`src/domain/receipt-accounting.ts`, integer cents throughout.
+
+- `withNetPrices({ lines, adjustments })` sets `net` to the printed price plus the adjustments tied to that line alone. A line under a group adjustment, or under an adjustment shared with another line, or with a missing amount, has `net` null. A `net` the shopper corrected is kept.
+- `receiptLedger(facts)` returns `{ goods, deposits, lineAdjustments, groupAdjustments, receiptAdjustments, paid }`. Every adjustment is in exactly one of the three and each part is null when any of its amounts is unknown.
+- `reconcile(facts)` compares that sum with the printed total. Reasons `unreadable-lines`, `missing-line-amount` and `missing-adjustment-amount` leave no computed total; `no-printed-total` (also for two different printed totals) and `unallocated-adjustment` make the result `incomplete` while the sum is still shown; a known non-zero difference adds `difference` and, alone, means `unbalanced`. Nothing is filled in or corrected.
+- `sectionDifferences(facts)` compares printed food, non-food and deposit subtotals with their rows, or null.
+
+No AI output reaches any of these functions. Fixtures are in the parser test file: the ledger for group offers, deposits, sections and reference prices, a missing amount, conflicting totals, and corrected or shared amounts.
+
+## Receipt import (F6.10, F6.2)
+
+- **Fingerprint.** `receiptFingerprint(parsed)` in `src/application/purchases.ts` is a SHA-256 of the evidence that was read: chain, store, purchase time, and each line's role, label, quantity and printed price, each adjustment and each printed amount. The same trip as text or as PDF is one source; another day, time, row or amount is another. Rows after the total are never read, so no payment or loyalty identifier can be in it. A receipt with no date dedupes only against identical evidence.
+- **Atomic import.** `PurchaseStore.importReceipt(text, format, { keepOriginal? })` parses, builds source and event (`receiptPurchase`, IDs `receipt-<digest>`), merges through `mergePurchase`, replaces that event's rule interpretations, and writes ledger and optional original in one `setMany`. It returns `ReceiptImport`: `{ outcome: "added" | "updated" | "duplicate" | "unsupported", eventId, lines, unreadableLines, reconciliation }`. A duplicate writes nothing, unless the shopper now chose to keep the original. An unsupported file writes nothing.
+- **Interrupted writes.** `PurchaseStore.write` reads back after a failed write: durable means success, unchanged means the error, anything else is `commitUnknown`. No write is retried.
+- **IPC.** `importPurchaseReceipt({ keepOriginal? })` opens the file dialog, reads with the existing reader (20 MB, 100 pages, 50,000 characters, 30 seconds; errors `receiptTooLarge`, `receiptNoText`, `receiptUnreadable` unchanged) and calls `Service.importReceiptText({ text, format, keepOriginal })`. `importLegacyReceipts()` is the explicit import of `receiptText`: the text is cut where a supported shop name starts a row, each part that parses becomes a purchase and leaves the saved text, and every other part stays there. `snapshot.purchaseImport` is `{ source: "receipt", …ReceiptImport }` or `{ source: "legacy", added, updated, duplicate, unsupported }`.
+- The older `importReceipt` IPC, which appends text to `receiptText`, is unchanged until F6.16 moves the Data screen to `importPurchaseReceipt`.
+- A parser change gives the same file another fingerprint only if the evidence itself changes; reprocessing an existing source from its retained original is not implemented.
+
+Every import is local: no AI request (unless F6.14's consented step follows), no catalogue search, no retailer call, and no change to the list, quote or revision. Fixtures: `tests/receipt-import.test.ts` (7: whole commit, exact and cross-format duplicates, a distinct trip, identifiers absent from fingerprint, ledger, backup and diagnostics, unreadable/unbalanced/unsupported files, rollback and lost acknowledgement, restart, re-import after deletion, legacy import, and the real reader with both layouts and a two-page PDF) and `tests/ui/receipt-import-api.spec.ts`.
+
+## Import coordinator (F6.14)
+
+`ReceiptImportCoordinator` in `src/application/receipt-import.ts`, as `service.receipts`.
+
+- `import(text, format, { keepOriginal?, ai? })` commits local facts first. Only for an added or updated purchase, with an AI provider available and saved automatic consent for exactly that provider and scope, it then runs one enrichment. A duplicate, an unsupported file or missing consent asks nothing.
+- `enrich(eventId, ai, consent?)` is one action: `runReceiptEnrichment`, then a commit of the accepted proposals inside the ledger queue only if the event still exists at the revision they were made for. A correction, reprocessing or deletion made meanwhile wins, and the result is `stale`.
+- Status in `snapshot.receiptEnrichment`: `{ eventId, status, reason, accepted, rejected, unresolved, omitted }` with status `enriched`, `skipped`, `unavailable`, `failed`, `cancelled` or `stale`. No status removes or changes a committed purchase.
+- IPC: `enrichPurchase({ eventId, consent: { providerId, scope } })` for one receipt, and `setReceiptConsent({ automatic, providerId, scope })` for the durable choice. Main gives receipts a session capped at one request (`receiptTaskLimits.aiCalls`); `cancelAI` cancels it. A retry is a new explicit action.
+
+Fixtures: `tests/receipt-coordinator.test.ts` (6): consent off, automatic consent, another provider's consent, duplicate, one-receipt action and retry, no provider, quota, failure, malformed output, cancellation, a correction and a deletion during the request, with facts, shopping state and preferences unchanged.
+
+## Corrections and review (F6.15)
+
+`src/domain/purchase-review.ts`.
+
+- `correctPurchase(ledger, input)`: `purchaseCorrectionSchema` is `{ eventId, lineId, revision, field, … }` with `field` `quantity` (`amount`, `unit`), `gross` (`amount`), `net` (`amount`) or `role` (`product`, `deposit`, `non-food`, `other`). The corrected line gets provenance `user`, paid amounts and the reconciliation are recomputed, the source revision advances, and interpretations of that line made for the old facts are dropped. The printed label, span and printed totals cannot be edited.
+- `interpretPurchase(ledger, input, at)`: `purchaseInterpretationSchema` `{ eventId, lineId, revision, name, category, qualifiers, scope }` saves the shopper's interpretation for this purchase as a `user` annotation; accepting a model proposal is the same call with its values. Qualifiers must belong to the category.
+- A wrong `revision` is `purchaseStale`; an unknown event or line is `purchaseMissing`.
+- `purchaseView(ledger)` is the screen projection, newest first: per purchase `eventId`, `revision`, `origin`, `status`, `chain`, `store`, `purchasedAt`, `datePrecision`, `importedAt`, `retention`, `unreadableLines`, `adjustments`, `printed`, `reconciliation`, `reviewCount`, and `lines` with their facts plus `interpretation` (the shopper's, else a rule's, else a model's), `proposal` (an unaccepted model proposal beside it) and `review` reasons: `unreadable`, `missing-amount`, `unknown-quantity`, `uninterpreted`, `model-proposal`.
+- IPC: `listPurchases()` returns the snapshot plus `receipts: { purchases, legacy, consent, dataScope }`; `correctPurchase`, `interpretPurchase` and `deletePurchase({ eventId, scope })` return the snapshot. None saves a household preference; memory follows on its next read. The optional enrichment states for the UI are the `receiptEnrichment` statuses above.
+
+Fixtures are in `tests/receipt-coordinator.test.ts`: an unbalanced receipt balanced by a correction with the source total untouched, stale and invalid requests, a missing price and quantity completed, a shopper interpretation, restart, scoped deletion, and a model proposal shown as a proposal until accepted.
+
+## Memory, aliases and statistics (F18.1, F6.17, F6.18)
+
+`src/domain/memory.ts`. Nothing here is stored: every call recomputes from `AppState` and the ledger, so a deleted event, interpretation or preference is gone from the next read, and an old profile or backup without a ledger simply has no purchases.
+
+- `readMemory(state, ledger)` returns `{ remembered, purchases, transfers }`. `remembered` is `categoryPreferences` (F15). `purchases` holds one `PurchaseObservation` per product or non-food line of **completed** events: `eventId`, `lineId`, `origin`, `chain`, `purchasedAt`, `datePrecision`, `label`, `quantity`, `amount`, `promotion`, `scope`, and `identity` (`key`, `name`, `category`, `qualifiers`, `origin`) from the interpretation that counts, or null. `transfers` are `listHistory` entries as `TransferRecord`. Pending, cancelled and unknown-state orders, deposits, the legacy text and transfers never become observations.
+- `purchaseAliases(memory)` (F6.17) returns `{ aliases, unresolved }`. An alias key is `category:<category>|<kind>=<value>…` or `name:<name>`, so milk types are separate aliases. Each alias has `origins` counts, `confirmed` (false when only a model interpreted it), its `labels` per chain with counts, `observations` and `conflictsWithRemembered`. Labels nobody interpreted are `unresolved`. An alias means the same kind of grocery; it never states that two chains sell the same product, and nothing is written back as a preference.
+- `purchaseStatistics(memory, now)` (F6.18) gives per alias, from dated completed food purchases only: `visits`, `from`, `to`, `weeksOfLastEight`, `medianGapDays`, `chains`, `confirmed` and `typical`.
+  - **Comparability.** Piece counts are comparable only for the same label at the same chain, because the pack size is part of the label. Weights and volumes compare across labels. A visit with any unknown quantity in a class is left out of that class.
+  - **Typical quantity.** Stated only with at least three comparable visits (`statisticsRules.quantityVisits`): the median per visit, with `visits`, `min` and `max`. Visits under a campaign or group offer are left out while three ordinary ones exist, and a visit above three times the median is an outlier. Otherwise `typical` is null, which means unknown.
+- `recurrenceSuggestions(memory, now, { dismissed?, existing? })` keeps F6.3's rules: at least four of the last eight Monday-based weeks, at most five, ninety days after a dismissal, never for something that is already a recurring item (matched by name against the label). Each suggestion is a statistic plus its most common `label`. It adds nothing to a list.
+- `observedSummaries(memory, limit)` returns at most 20 values in the shape of `ObservedSummary` in `src/ai/context.ts`: confirmed category aliases with two or more purchases, leaving out every category that has a saved preference.
+- Service and IPC: `Service.memory()`; `purchaseInsights()` returns the snapshot plus `insights: { aliases, unresolved, statistics, suggestions, observedSummaries, actualPurchases, transfers, linkReview, confirmedTransfers }`; `dismissSuggestion({ key })` saves the dismissal in the ledger's `dismissedSuggestions`.
+
+Fixtures: `tests/memory.test.ts` (5): completed versus pending, cancelled and transferred; an explicit preference overriding an observation; an old profile; distinct milk types and chains; a model-only alias; context summaries; forgetting; two visits giving no cadence; four of eight weeks; an outlier, an undated and a future purchase; dismissal and existing items; unknown quantities, mixed pack sizes and three five-pouch variants under one offer; and the service reading fresh after deletion.
+
+## Source linking and purchase confirmation (F6.19, U5.1)
+
+`src/domain/purchase-links.ts`; the ledger gained `links`, `transferLinks` and `rejectedLinks`.
+
+| Pair | Strong, linked automatically | Review candidate only |
+| --- | --- | --- |
+| Receipt and order | Same known chain, both completed, at most 36 hours apart, equal printed totals, at least three matching rows and at least 80 % of the smaller record's rows matching | Within three days and either equal totals or at least 50 % of rows matching |
+| Verified transfer and purchase | Same chain, purchase from one day before to seven days after the transfer, at least three matching products and at least 80 % of the transferred products matching | At least 50 % matching in that window |
+
+Rows match when a word of four or more letters in one label begins, or is begun by, such a word in the other. When one record has several strong counterparts, none is linked and all go to review, so similar trips are never merged by a guess. Half the products within three days is therefore at most a review candidate.
+
+- `linkCandidates(ledger, transfers)` lists candidates not yet decided; `linkStrong` adds the strong ones as links `by: "rule"`; `decideLink(ledger, candidate, same)` records the shopper's answer either way (`by: "user"`, or a rejection that is not offered again). A purchase and a transfer each link once. Deleting an event removes its links.
+- `actualPurchases(ledger)` is the only source of actual spending: completed events with linked records counted once, each with `eventIds`, `chain`, `purchasedAt`, `datePrecision`, `total`, `totalSource`, every record's own `totals`, `conflictingTotals`, and the printed `foodSubtotal` and `nonFoodSubtotal` or null. The receipt's printed total is authoritative over the order's. A transfer is never in it.
+- `confirmedTransfers(ledger)` lists transfers with a linked completed purchase.
+
+**U5.1 audit.** The store view (`src/main/store-view.ts`) only allows or asks about navigation; it captures no order-confirmation URL or session signal and never reads payment-domain pages. No URL pattern is established, so none is detected; if one is added it is a review signal at most. What is connected: after every order, receipt or legacy import and every link decision, `Service` runs the strong linking and lets a confirmed transfer count as purchased exactly once. It writes the same `ordered-<transferId>` record the manual button uses, now with provenance (`by: "evidence"` and the event ID, or `by: "manual"`), and advances `lastPurchased` only for recurring items the purchase actually contains. `snapshot.purchaseSignals` lists `{ transferId, eventId, strength: "confirmed" | "review" }`. A pending or cancelled order, a weak match and a transfer alone confirm nothing. IPC `decidePurchaseLink({ candidate, same })` records the shopper's answer.
+
+Fixtures: `tests/purchase-links.test.ts` (5): the strong link counted once, reprocessing and deletion, nine weaker or unrelated cases, conflicting totals, rejection, ambiguous similar visits, transfer cases including the old heuristic, pending, cancelled and undated evidence, two transfers before one purchase, evidence confirming once across repeated imports, and a weak match waiting for the shopper.
+
+## Repeat (F18.3)
+
+IPC `repeatList({ historyId, revision })` (`Service.repeatList`, `src/domain/repeat.ts`) starts a new list from a verified transfer in `listHistory`: its meals with new IDs, recipes, extras, at-home and removed rows, quantities and note. Recipes saved since then win over the entry's copies; a meal whose recipe exists in neither is left out and named. Category preferences and product choices stay; request intents and row corrections are cleared, and the list in progress is archived as with any new list. Every row is then priced fresh at the selected store and state, quote and observed prices are written atomically. It makes no AI request and no retailer write.
+
+`snapshot.repeat` (`RepeatResult`, for the revision it created only): `historyId`, `revision`, `transferredAt`, `rows`, `unresolvedRows`, `storeChanged`, `partialHistory`, `missingRecipes`, and, at the same store only, `changedPrices` (`name`, `before`, `now`) and `notSelected` (transferred products the fresh quote did not choose). A wrong revision is `draftStale`, an unknown entry `historyMissing`, and a failed catalogue read leaves the current list untouched. An unchanged repeat has the same batch key as the verified transfer, so the existing duplicate guard still applies; a changed one needs its own approval.
+
+Fixtures: `tests/repeat.test.ts` (4) and the IPC check in `tests/ui/receipt-import-api.spec.ts`.
