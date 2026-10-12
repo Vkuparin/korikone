@@ -1,5 +1,6 @@
 import type { PlanningSnapshot } from "../application/planning";
 import { matchingReasonLabel } from "./matching-reasons";
+import { planningActivityPending } from "./planning-status";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 export function PlanningPreviewFocus({
@@ -44,6 +45,8 @@ export function PlanningPreview({
     <section
       className="planning-preview"
       aria-labelledby="planning-preview-title"
+      aria-busy={planningActivityPending(planning?.phase ?? "starting")}
+      data-planning-phase={planning?.phase ?? "starting"}
     >
       <h2 id="planning-preview-title">
         {tr("Muodostuva lista", "List in progress")}

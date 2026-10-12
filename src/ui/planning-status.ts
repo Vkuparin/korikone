@@ -1,5 +1,18 @@
 import type { PlanningPhase } from "../application/planning";
 
+/** Activity reflects a pending external step, never an estimated completion. */
+export function planningActivityPending(phase: string): boolean {
+  return [
+    "starting",
+    "discovering",
+    "interpreting",
+    "interpreted",
+    "searching",
+    "resolving",
+    "editing",
+  ].includes(phase);
+}
+
 const labels: Record<PlanningPhase, [string, string]> = {
   discovering: [
     "Etsitään käytettävää AI-mallia…",

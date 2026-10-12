@@ -16,6 +16,7 @@ import {
   type Unit,
 } from "../domain/model";
 import { ShoppingWorkspace, type ComposerProgress } from "./shopping";
+import { planningActivityPending } from "./planning-status";
 import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
@@ -523,6 +524,15 @@ function App() {
         ? !composerProgress.visible && (
             <div
               className={`progress operation-fallback ${composerProgress.active ? "" : "operation-finished"}`}
+              data-planning-activity={
+                composerProgress.active &&
+                !composerProgress.cancelling &&
+                planningActivityPending(composerProgress.phase)
+                  ? "pending"
+                  : composerProgress.active
+                    ? "settling"
+                    : "idle"
+              }
             >
               <span
                 role="status"
@@ -532,7 +542,7 @@ function App() {
               >
                 {composerProgress.label}
               </span>
-              {composerProgress.active && composerProgress.elapsed >= 1 && (
+              {composerProgress.active && (
                 <small aria-hidden="true">{composerProgress.elapsed} s</small>
               )}
               {composerProgress.cancellable && (

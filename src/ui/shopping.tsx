@@ -4,7 +4,7 @@ import { matchingReasonLabel } from "./matching-reasons";
 import { GroupedReview } from "./grouped-review";
 import { RowCorrection } from "./row-correction";
 import type { PlanningSnapshot } from "../application/planning";
-import { planningPhaseLabel } from "./planning-status";
+import { planningActivityPending, planningPhaseLabel } from "./planning-status";
 import { PlanningPreview, PlanningPreviewFocus } from "./planning-preview";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
@@ -1179,7 +1179,9 @@ export function ShoppingWorkspace({
             </button>
           </p>
         )}
-        <div className={`note-box ${working ? "is-working" : ""}`}>
+        <div
+          className={`note-box ${progressActive && progressVisible ? "is-working" : ""}`}
+        >
           {!hasList && (
             <label className="sr-only" htmlFor="shopping-note">
               {tr("Mitä haluaisit valmistaa?", "What would you like to cook?")}
@@ -1270,10 +1272,20 @@ export function ShoppingWorkspace({
                   progressActive || progressFinished ? "composer" : undefined
                 }
                 data-planning-phase={progressPhase}
+                data-planning-activity={
+                  progressActive &&
+                  !progressCancelling &&
+                  planningActivityPending(progressPhase)
+                    ? "pending"
+                    : progressActive
+                      ? "settling"
+                      : "idle"
+                }
               >
-                {progressLabel}
+                <span className="planning-activity" aria-hidden="true" />
+                <span>{progressLabel}</span>
               </span>
-              {progressActive && elapsed >= 1 && (
+              {progressActive && (
                 <small
                   className={`muted note-elapsed ${!progressVisible ? "offscreen-progress" : ""}`}
                   aria-hidden="true"

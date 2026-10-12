@@ -782,8 +782,37 @@ body:has(.app-main) .demo {
   text-overflow: ellipsis;
 }
 .note-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   color: var(--kk-muted);
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 2.8em;
+}
+.note-status > span:last-child {
+  min-width: 0;
+}
+.note-elapsed,
+.operation-fallback small {
+  min-width: 3ch;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.planning-activity {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--kk-border);
+  border-top-color: var(--kk-action);
+  border-radius: 50%;
+}
+[data-planning-activity="pending"] .planning-activity {
+  animation: spin 1.2s linear infinite;
+}
+[data-planning-activity="idle"] .planning-activity {
+  visibility: hidden;
 }
 .is-working .note-status {
   color: var(--kk-text);
@@ -839,12 +868,7 @@ body:has(.app-main) .demo {
   margin: 13px 0 24px;
 }
 .is-working {
-  animation: note-pulse 1.6s ease-in-out infinite;
-}
-@keyframes note-pulse {
-  50% {
-    box-shadow: 0 0 0 5px var(--kk-pulse);
-  }
+  box-shadow: 0 0 0 4px var(--kk-action-soft);
 }
 .progress {
   display: flex;
@@ -879,12 +903,23 @@ body:has(.app-main) .demo {
 .operation-fallback::before {
   flex-shrink: 0;
 }
+.operation-fallback[data-planning-activity] {
+  width: min(540px, calc(100vw - 210px));
+  min-height: 64px;
+}
+.operation-fallback [data-operation-status] {
+  flex: 1;
+  min-width: 0;
+}
 .operation-fallback small,
 .operation-fallback button {
   flex-shrink: 0;
 }
 .operation-finished::before {
   display: none;
+}
+.operation-fallback[data-planning-activity="settling"]::before {
+  animation: none;
 }
 @keyframes spin {
   to {
@@ -1332,7 +1367,8 @@ body:has(.app-main) .demo {
 }
 @media (prefers-reduced-motion: reduce) {
   .is-working,
-  .progress::before {
+  .progress::before,
+  [data-planning-activity="pending"] .planning-activity {
     animation: none;
   }
 }
