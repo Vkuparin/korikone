@@ -197,7 +197,8 @@ export const injectionInLabel = (() => {
     chain: "s-group",
     receipt: r,
     store: "S-market Esimerkki",
-    purchasedAt: "2026-10-25T08:11:00.000Z",
+    // 25 October 2026 is the last Sunday of October: by 11:11 Finland is back on UTC+2.
+    purchasedAt: "2026-10-25T09:11:00.000Z",
     reconciliation: balanced(119),
     hostile: injected,
   });
