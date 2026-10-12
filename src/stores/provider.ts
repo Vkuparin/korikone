@@ -1,4 +1,5 @@
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
+import type { RetailerOrder } from "../domain/order-evidence";
 export interface StoreProvider {
   id: string;
   capabilities: { catalogue: boolean; cart: boolean; orderHistory: boolean };
@@ -12,6 +13,8 @@ export interface StoreProvider {
   setQuantity(context: StoreContext, target: Target): Promise<void>;
   /** Lowest and highest pickup fee at the store, in cents, without choosing a time. */
   pickupFee?(context: StoreContext): Promise<FeeRange | null>;
+  /** The account's own orders, newest first. Read-only; present only where `orderHistory` is true. */
+  orderHistory?(limit: number): Promise<RetailerOrder[]>;
   /** Supported local planning choices; never chooses a retailer slot or changes a cart. */
   fulfillments?(context: StoreContext): Promise<StoreContext["fulfillment"][]>;
 }

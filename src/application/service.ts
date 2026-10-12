@@ -468,6 +468,37 @@ export class Service {
   }
   /** Purchase evidence lives beside the state, never inside it. */
   readonly purchases: PurchaseStore;
+  /** Counts of the last purchase import; no receipt or order content. */
+  purchaseImport: {
+    source: "orders";
+    added: number;
+    updated: number;
+    duplicate: number;
+  } | null = null;
+  /**
+   * Reads the signed-in S-kaupat account's orders and keeps them as purchase evidence. Read-only
+   * at the retailer: no cart, list, order or payment call, and no AI request.
+   */
+  async importOrders() {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const provider = this.registry
+      .all()
+      .find(
+        (p) =>
+          ["s-kaupat", "demo-s"].includes(p.id) &&
+          p.capabilities.orderHistory &&
+          (p.id === this.state.context.providerId || p.id === "s-kaupat"),
+      );
+    if (!provider?.orderHistory) throw new Error("ordersUnavailable");
+    if (isLive(provider.id) && this.storeLogins[provider.id] !== "signedIn")
+      throw new Error("ordersUnavailable");
+    const orders = await provider.orderHistory(50);
+    this.purchaseImport = {
+      source: "orders",
+      ...(await this.purchases.importOrders(orders, "s-group")),
+    };
+    return this.snapshot();
+  }
   constructor(private db: Storage) {
     this.purchases = new PurchaseStore(db);
     this.registry.register(new DemoProvider("demo-k"));
@@ -647,6 +678,7 @@ export class Service {
       draft: this.draft,
       recipeDraft: this.recipeDraft,
       planning: this.planning.snapshot(),
+      purchaseImport: this.purchaseImport,
       // Both describe one revision only, so neither survives another list change.
       edit: this.edit?.revision === this.state.revision ? this.edit : null,
       editUndoAvailable: this.undo?.revision === this.state.revision,

@@ -1,5 +1,6 @@
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
+import type { RetailerOrder } from "../domain/order-evidence";
 import { retailerEvidence } from "./candidates";
 import { SKaupatProvider } from "./s-kaupat";
 import { setTimeout as delay } from "node:timers/promises";
@@ -79,8 +80,55 @@ const catalogue: [
 // The K-Ruoka fixture differs from the S-kaupat one so a comparison has something to show:
 // its mince costs more and it does not stock the salt.
 const kRuokaFixture: Record<string, number | null> = { mince: 90, salt: null };
+/** Synthetic orders: one finished, one being picked, one cancelled and one with unreadable rows. */
+export const demoOrders: RetailerOrder[] = [
+  {
+    orderId: "fixture-order-1",
+    state: "completed",
+    storeName: "S-kaupat · Helsinki (fixture)",
+    date: "2026-10-02",
+    total: 1267,
+    items: [
+      { name: "Kevytmaito 1 l", quantity: 2, unit: "pcs", unitPrice: 119 },
+      { name: "Banaani", quantity: 0.85, unit: "kg", unitPrice: 169 },
+      {
+        name: "Kahvi suodatinjauhatus 500 g",
+        quantity: 1,
+        unit: "pcs",
+        unitPrice: 599,
+      },
+    ],
+  },
+  {
+    orderId: "fixture-order-2",
+    state: "pending",
+    storeName: "S-kaupat · Helsinki (fixture)",
+    date: "2026-10-14",
+    total: 2310,
+    items: null,
+  },
+  {
+    orderId: "fixture-order-3",
+    state: "cancelled",
+    storeName: "S-kaupat · Helsinki (fixture)",
+    date: "2026-09-20",
+    total: 1890,
+    items: null,
+  },
+  {
+    orderId: "fixture-order-4",
+    state: "completed",
+    storeName: null,
+    date: null,
+    total: null,
+    items: [{ name: null, quantity: 1.5, unit: "pcs", unitPrice: null }],
+  },
+];
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };
+  orderReads = 0;
+  /** Synthetic order history for the S-kaupat stand-ins; K-Ruoka has no established order read. */
+  orderHistory?: (limit: number) => Promise<RetailerOrder[]>;
   carts = new Map<string, Cart>();
   failAfter: number | null = null;
   priceChange = false;
@@ -94,7 +142,16 @@ export class DemoProvider implements StoreProvider {
   constructor(
     public id: string,
     private save?: () => void,
-  ) {}
+  ) {
+    if (["s-kaupat", "demo-s"].includes(id)) {
+      this.capabilities = { ...this.capabilities, orderHistory: true };
+      this.orderHistory = async (limit) => {
+        this.orderReads++;
+        if (this.failSearch) throw new Error("storeBusy");
+        return structuredClone(demoOrders).slice(0, limit);
+      };
+    }
+  }
   async searchStores(query = ""): Promise<StoreContext[]> {
     if (/search-error/i.test(query)) throw new Error("storeBusy");
     if (/no-results/i.test(query)) return [];

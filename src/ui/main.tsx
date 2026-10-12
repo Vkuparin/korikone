@@ -107,6 +107,7 @@ function App() {
     recipeDraft: null,
     planning: null,
     edit: null,
+    purchaseImport: null,
     editUndoAvailable: false,
     committedIntents: [],
     planningIncomplete: false,

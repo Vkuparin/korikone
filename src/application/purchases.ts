@@ -5,14 +5,17 @@ import {
   backupLedger,
   deletePurchase,
   legacySource,
+  mergePurchase,
   purchaseLedgerSchema,
   purchaseLimits,
   purchaseOriginalKey,
   readLedger,
   restoreLedger,
+  type PurchaseChain,
   type PurchaseLedger,
   type PurchaseSource,
 } from "../domain/purchases";
+import { orderPurchase, type RetailerOrder } from "../domain/order-evidence";
 import type { Storage } from "./service";
 
 export const fingerprintText = (text: string) =>
@@ -69,6 +72,27 @@ export class PurchaseStore {
       })),
     ]);
     return validated;
+  }
+  /** Imports order records through the shared dedupe rule, in one atomic write. */
+  importOrders(orders: RetailerOrder[], chain: PurchaseChain) {
+    return this.serialize(async () => {
+      let ledger = await this.ledger();
+      const summary = { added: 0, updated: 0, duplicate: 0 };
+      const importedAt = new Date().toISOString();
+      for (const order of orders) {
+        const { source, event } = orderPurchase(
+          order,
+          chain,
+          fingerprintText(`${chain}\norder\n${order.orderId}`),
+          importedAt,
+        );
+        const merged = mergePurchase(ledger, source, event);
+        ledger = merged.ledger;
+        summary[merged.outcome]++;
+      }
+      if (summary.added || summary.updated) await this.write(ledger);
+      return summary;
+    });
   }
   delete(input: unknown) {
     return this.serialize(async () => {

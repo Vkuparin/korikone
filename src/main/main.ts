@@ -598,6 +598,7 @@ else
         );
       },
       undoEdit: (input) => service.undoEdit(input),
+      importOrders: () => service.importOrders(),
       importRecipe: async (input) => {
         service.planning.invalidate();
         const request = z

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  retailerOrderSchema,
+  type RetailerOrder,
+} from "../domain/order-evidence";
 import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import { packFromName, type ToolCall } from "./k-ruoka";
@@ -35,6 +39,9 @@ export const S_KAUPAT_TOOLS = [
   "add_to_shopping_list",
   "open_site",
   "get_delivery_options",
+  // Read-only order history. No ordering, payment or cancellation tool is ever listed here.
+  "get_orders",
+  "get_order_items",
 ];
 const errorCodes: Record<string, string> = {
   login_required: "loginRequired",
@@ -178,7 +185,96 @@ const writeSchema = z.object({
 });
 export class SKaupatProvider implements StoreProvider {
   id = "s-kaupat";
-  capabilities = { catalogue: true, cart: true, orderHistory: false };
+  capabilities = { catalogue: true, cart: true, orderHistory: true };
+  /**
+   * The account's orders through the library's two read-only tools. Rows that cannot be read
+   * leave that order without lines; an order is never dropped or filled in.
+   */
+  async orderHistory(limit: number): Promise<RetailerOrder[]> {
+    const entry = z.object({
+      orderId: z.string().min(1).max(200),
+      state: z.string(),
+      storeName: z.string().nullish(),
+      deliveryDate: z.string().nullish(),
+      total: z.number().nonnegative().max(100_000).nullish(),
+    });
+    const data = z
+      .object({
+        needsPayment: z.array(entry),
+        active: z.array(entry),
+        past: z.array(entry),
+      })
+      .parse(
+        await this.call("get_orders", {
+          limit: Math.min(Math.max(Math.trunc(limit), 1), 50),
+        }),
+      );
+    const orders: RetailerOrder[] = [];
+    for (const order of [...data.past, ...data.active, ...data.needsPayment]) {
+      const date = order.deliveryDate?.slice(0, 10) ?? "";
+      let items: RetailerOrder["items"] = null;
+      // Only a finished order is a purchase; its rows are the only ones worth a second read.
+      if (order.state === "done")
+        try {
+          items = z
+            .object({
+              items: z
+                .array(
+                  z.object({
+                    name: z.string().nullish(),
+                    quantity: z.number().positive().nullish(),
+                    unit: z.string().nullish(),
+                    price: z.number().nonnegative().max(100_000).nullish(),
+                  }),
+                )
+                .max(500),
+            })
+            .parse(
+              await this.call("get_order_items", { orderId: order.orderId }),
+            )
+            .items.map((item) => {
+              const unit = item.unit?.toUpperCase();
+              return {
+                name: item.name ?? null,
+                quantity: item.quantity ?? null,
+                unit:
+                  unit === "KPL"
+                    ? ("pcs" as const)
+                    : unit === "KG"
+                      ? ("kg" as const)
+                      : null,
+                unitPrice:
+                  item.price === null || item.price === undefined
+                    ? null
+                    : Math.round(item.price * 100),
+              };
+            });
+        } catch {
+          items = null;
+        }
+      orders.push(
+        retailerOrderSchema.parse({
+          orderId: order.orderId,
+          state:
+            order.state === "done"
+              ? "completed"
+              : order.state === "cancelled"
+                ? "cancelled"
+                : order.state === "received" || order.state === "being_picked"
+                  ? "pending"
+                  : "unknown",
+          storeName: order.storeName ?? null,
+          date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+          total:
+            order.total === null || order.total === undefined
+              ? null
+              : Math.round(order.total * 100),
+          items,
+        }),
+      );
+    }
+    return orders;
+  }
   constructor(
     private call: ToolCall,
     private readPieces?: PieceCatalogueReader,

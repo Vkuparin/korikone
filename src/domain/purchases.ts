@@ -502,8 +502,13 @@ export function putPurchase(
   const previous = ledger.events.find((e) => e.id === event.id);
   const next = purchaseLedgerSchema.safeParse({
     ...ledger,
-    sources: [...ledger.sources.filter((s) => s.id !== source.id), source],
-    events: [...ledger.events.filter((e) => e.id !== event.id), event],
+    // A replaced source or event keeps its place, so reprocessing does not reorder history.
+    sources: ledger.sources.some((s) => s.id === source.id)
+      ? ledger.sources.map((s) => (s.id === source.id ? source : s))
+      : [...ledger.sources, source],
+    events: previous
+      ? ledger.events.map((e) => (e.id === event.id ? event : e))
+      : [...ledger.events, event],
     // Interpretations of lines that no longer exist, or of an older revision, do not carry over.
     annotations: previous
       ? ledger.annotations.filter(
@@ -516,4 +521,53 @@ export function putPurchase(
   });
   if (!next.success) throw new Error("purchaseInvalid");
   return next.data;
+}
+
+export type PurchaseMergeOutcome = "added" | "updated" | "duplicate";
+/**
+ * The shared dedupe rule for every importer. A source with a known fingerprint is the same
+ * source: identical facts change nothing, different facts update that source and event in place
+ * with the next revision. No second event is ever created for one fingerprint.
+ */
+export function mergePurchase(
+  ledger: PurchaseLedger,
+  source: PurchaseSource,
+  event: PurchaseEvent,
+): { ledger: PurchaseLedger; outcome: PurchaseMergeOutcome; eventId: string } {
+  const known = ledger.sources.find(
+    (s) => s.fingerprint === source.fingerprint && s.kind === source.kind,
+  );
+  if (!known) {
+    if (ledger.events.length >= purchaseLimits.events)
+      throw new Error("purchaseLimit");
+    return {
+      ledger: putPurchase(ledger, source, event),
+      outcome: "added",
+      eventId: event.id,
+    };
+  }
+  const previous = ledger.events.find((e) => e.sourceIds.includes(known.id));
+  if (!previous) throw new Error("purchaseInvalid");
+  const facts = (e: PurchaseEvent) =>
+    JSON.stringify({ ...e, id: "", sourceIds: [] });
+  if (
+    facts(previous) === facts(event) &&
+    JSON.stringify(known.parser) === JSON.stringify(source.parser)
+  )
+    return { ledger, outcome: "duplicate", eventId: previous.id };
+  return {
+    ledger: putPurchase(
+      ledger,
+      {
+        ...source,
+        id: known.id,
+        importedAt: known.importedAt,
+        retention: known.retention,
+        revision: known.revision + 1,
+      },
+      { ...event, id: previous.id, sourceIds: previous.sourceIds },
+    ),
+    outcome: "updated",
+    eventId: previous.id,
+  };
 }
