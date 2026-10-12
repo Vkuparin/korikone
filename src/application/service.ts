@@ -92,6 +92,8 @@ import {
   type EditStatus,
   type EditUndo,
 } from "./edits";
+import { PurchaseStore } from "./purchases";
+import { purchaseLedgerSchema } from "../domain/purchases";
 import {
   coordinatePlanning,
   planningRequestSchema,
@@ -464,7 +466,10 @@ export class Service {
       return this.snapshot();
     });
   }
+  /** Purchase evidence lives beside the state, never inside it. */
+  readonly purchases: PurchaseStore;
   constructor(private db: Storage) {
+    this.purchases = new PurchaseStore(db);
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
   }
@@ -509,13 +514,23 @@ export class Service {
     );
     return saved.success ? saved.data : [];
   }
-  /** The backup file: the saved state plus the price history, which earlier releases ignore. */
-  async exportBackup() {
-    return { ...this.state, priceHistory: await this.priceHistory() };
+  /**
+   * The backup file: the saved state plus the price history and sanitized purchase records, which
+   * earlier releases ignore. Retained receipt originals are included only on request.
+   */
+  async exportBackup(options: { includeOriginals?: boolean } = {}) {
+    return {
+      ...this.state,
+      priceHistory: await this.priceHistory(),
+      ...(await this.purchases.backup(options.includeOriginals === true)),
+    };
   }
   /** Replaces the state and, when the file carries one, the price history. */
   async importBackup(raw: unknown) {
     const next = stateSchema.parse(raw);
+    // Validate purchase records before anything is replaced; an old backup has none.
+    if (raw && typeof raw === "object" && "purchases" in raw)
+      purchaseLedgerSchema.parse(raw.purchases);
     const prices =
       raw && typeof raw === "object" && "priceHistory" in raw
         ? priceObservationsSchema.parse(raw.priceHistory)
@@ -526,6 +541,7 @@ export class Service {
     if (prices)
       await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
     this.observedPrices = await this.priceHistory();
+    await this.purchases.restore(raw);
     return this.snapshot();
   }
   async init() {
