@@ -51,9 +51,16 @@ for (const language of ["fi", "en"] as const) {
       await note.fill("Retained contextual note");
       const heading = (section: string) =>
         page.locator(`#settings-section-${section}`);
+      // The people chip opens the compact control; its link goes on to the Household settings.
       await page
         .getByRole("button", {
           name: `4 ${tr("henkeä", "people")}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: tr("Kotitalousasetukset", "Household settings"),
           exact: true,
         })
         .click();
@@ -108,9 +115,16 @@ for (const language of ["fi", "en"] as const) {
       await expect(page.locator(".progress")).toHaveCount(0);
       await expect(error).toHaveText(originalError);
       await nav(tr("Ostoslista", "Shopping list")).click();
+      // The people chip opens the compact control; its link goes on to the Household settings.
       await page
         .getByRole("button", {
           name: `4 ${tr("henkeä", "people")}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: tr("Kotitalousasetukset", "Household settings"),
           exact: true,
         })
         .click();

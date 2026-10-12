@@ -65,9 +65,10 @@ test("a product without a stated pack size can be confirmed from the row details
     await expect(candidate).toContainText("500 g");
     await expect(candidate).not.toContainText("Pakkauskokoa ei ilmoiteta");
     await candidate.getByRole("button", { name: /^Käytä kerran:/ }).click();
+    // The choice is applied, so the alternatives close and the row shows the new product.
     await expect(
       list.getByRole("button", { name: "Luomujauheliha", exact: true }),
-    ).toHaveAttribute("aria-expanded", "true");
+    ).toHaveAttribute("aria-expanded", "false");
   } finally {
     await app.close();
   }

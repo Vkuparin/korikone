@@ -1150,11 +1150,6 @@ export function ShoppingWorkspace({
                                   "Ctrl + Enter to update the list",
                                 )}
               </span>
-              {working && !composingEdit && elapsed >= 1 && (
-                <span className="muted note-elapsed" aria-hidden="true">
-                  {elapsed} s
-                </span>
-              )}
               {composingEdit && editWorking && (
                 <button
                   className="secondary"
@@ -1204,6 +1199,11 @@ export function ShoppingWorkspace({
                   : tr("Luo uusi lista", "Create new list")}
               </button>
             </div>
+            {working && !composingEdit && elapsed >= 1 && (
+              <small className="muted note-elapsed" aria-hidden="true">
+                {elapsed} s
+              </small>
+            )}
           </div>
         </div>
         <EditOutcome

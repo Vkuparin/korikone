@@ -1345,14 +1345,15 @@ body:has(.app-main) > #root > .progress {
   }
   body:has(.app-main) nav button {
     white-space: normal;
-    overflow-wrap: anywhere;
+    /* The rail is sized for the longest label, so a word is never broken inside. */
+    overflow-wrap: normal;
     line-height: 1.35;
     padding: 10px 8px;
   }
   body:has(.app-main) > #root > .error,
   body:has(.app-main) > #root > .update-banner,
   body:has(.app-main) > #root > .progress {
-    margin-left: 140px;
+    margin-left: 164px;
   }
 }
 .chains {

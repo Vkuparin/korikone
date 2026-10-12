@@ -193,6 +193,8 @@ for (const language of ["fi", "en"] as const) {
         )
         .toBe("cream");
       expect((await load()).state.categoryPreferences).toEqual([]);
+      // Choosing once closed the alternatives; open them again to remember the type.
+      await cream.locator(".row-name").click();
       const opener = cream.getByRole("button", {
         name: /^(Muista tyyppi|Remember type): Ruokakerma 2 dl$/,
       });
