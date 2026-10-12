@@ -120,8 +120,12 @@ else
       service.state.context.providerId === "k-ruoka"
         ? service.state.context.storeId
         : service.state.stores["k-ruoka"]?.storeId;
-    const kRuoka = new KRuokaProvider((name, args) =>
-      kRuokaViaSite ? kRuokaSite.call(name, args) : worker.call(name, args),
+    const kRuoka = new KRuokaProvider(
+      (name, args) =>
+        kRuokaViaSite ? kRuokaSite.call(name, args) : worker.call(name, args),
+      kRuokaViaSite
+        ? (context, options) => kRuokaSite.readOffers(context, options)
+        : undefined,
     );
     // S-kaupat's server calls from the Kauppa tab's session (U3.5), so one sign-in there serves
     // both. KORIKONE_S_KAUPAT=browser goes back to the server's own Edge or Chrome window.

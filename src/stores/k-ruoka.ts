@@ -7,6 +7,11 @@ import type {
   Unit,
 } from "../domain/model";
 import type { StoreProvider } from "./provider";
+import {
+  offerSourceResultSchema,
+  type OfferReadOptions,
+  type OfferSourceResult,
+} from "../domain/offers";
 import { MAX_SEARCH_RESULTS, retailerEvidence } from "./candidates";
 import {
   cataloguePricingSchema,
@@ -70,8 +75,50 @@ export function packFromName(
 }
 export class KRuokaProvider implements StoreProvider {
   id = "k-ruoka";
-  capabilities = { catalogue: true, cart: true, orderHistory: false };
-  constructor(private call: ToolCall) {}
+  capabilities: StoreProvider["capabilities"];
+  constructor(
+    private call: ToolCall,
+    private offerReader?: (
+      context: StoreContext,
+      options?: OfferReadOptions,
+    ) => Promise<OfferSourceResult>,
+  ) {
+    this.capabilities = {
+      catalogue: true,
+      cart: true,
+      orderHistory: false,
+      offers: { public: false, personal: !!offerReader },
+    };
+  }
+  async readOffers(
+    context: StoreContext,
+    options?: OfferReadOptions,
+  ): Promise<OfferSourceResult> {
+    context = { ...context };
+    const bound = { providerId: this.id, storeId: context.storeId };
+    if (context.providerId !== this.id)
+      return { ...bound, status: "error", code: "contextChanged" };
+    if (options?.signal?.aborted)
+      return { ...bound, status: "error", code: "cancelled" };
+    if (!this.offerReader)
+      return { ...bound, status: "unsupported", reason: "external-worker" };
+    try {
+      const result = offerSourceResultSchema.parse(
+        await this.offerReader(context, options),
+      );
+      if (options?.signal?.aborted)
+        return { ...bound, status: "error", code: "cancelled" };
+      if (result.providerId !== this.id || result.storeId !== context.storeId)
+        return { ...bound, status: "error", code: "contextChanged" };
+      return result;
+    } catch {
+      return {
+        ...bound,
+        status: "error",
+        code: options?.signal?.aborted ? "cancelled" : "storeUnavailable",
+      };
+    }
+  }
   async searchStores(query: string): Promise<StoreContext[]> {
     const data = z
       .object({

@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { ToolCall } from "./k-ruoka";
+import type { StoreContext } from "../domain/model";
+import {
+  offerLimits,
+  type OfferReadOptions,
+  type OfferSourceResult,
+} from "../domain/offers";
+import { normalizeKPersonalOffers } from "./k-ruoka-offers";
 
 /** One request run by the k-ruoka.fi page itself, so the store tab's session cookie goes with it. */
 export type PageRequest = (request: {
@@ -131,6 +138,60 @@ export class KRuokaSite {
     return run;
   };
 
+  readOffers(
+    context: StoreContext,
+    options: OfferReadOptions = {},
+  ): Promise<OfferSourceResult> {
+    context = { ...context };
+    const bound = { providerId: "k-ruoka", storeId: context.storeId };
+    const run = this.queue.then(async (): Promise<OfferSourceResult> => {
+      try {
+        if (context.providerId !== "k-ruoka") throw new Error("contextChanged");
+        const before = this.cart(await this.basket(context.storeId, options));
+        if (before.store.id !== context.storeId)
+          throw new Error("contextChanged");
+        if (!before.account) return { ...bound, status: "signed-out" };
+        const raw = await this.api(
+          "POST",
+          "/kr-api/tos-offers",
+          { storeId: context.storeId },
+          options,
+        );
+        const normalized = normalizeKPersonalOffers(raw);
+        const after = this.cart(await this.basket(context.storeId, options));
+        if (after.store.id !== context.storeId)
+          throw new Error("contextChanged");
+        if (after.account !== before.account) throw new Error("accountChanged");
+        return {
+          ...bound,
+          status: "ready",
+          accountKey: before.account,
+          ...normalized,
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "storeUnavailable";
+        if (message === "loginRequired")
+          return { ...bound, status: "signed-out" };
+        const code = [
+          "storeBlocked",
+          "contextChanged",
+          "accountChanged",
+          "cancelled",
+        ].includes(message)
+          ? (message as
+              | "storeBlocked"
+              | "contextChanged"
+              | "accountChanged"
+              | "cancelled")
+          : "storeUnavailable";
+        return { ...bound, status: "error", code };
+      }
+    });
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
   /** The site's own query parameters select the reviewed store and open its basket. */
   cartUrl(storeId: string): Promise<string> {
     const run = this.queue.then(async () => {
@@ -153,10 +214,13 @@ export class KRuokaSite {
     method: "GET" | "POST" | "PATCH",
     path: string,
     body?: unknown,
+    options?: OfferReadOptions,
   ) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (options?.signal?.aborted) throw new Error("cancelled");
       const pause = this.last + this.spacing - Date.now();
       if (pause > 0) await wait(pause);
+      if (options?.signal?.aborted) throw new Error("cancelled");
       this.last = Date.now();
       const response = await this.request({
         method,
@@ -164,6 +228,7 @@ export class KRuokaSite {
         body,
         build: this.build,
       });
+      if (options?.signal?.aborted) throw new Error("cancelled");
       if (response.build) this.build = response.build;
       if (response.cfMitigated) throw new Error("storeBlocked");
       // A stale or missing build number is refused with 409 and the current one in the header.
@@ -171,6 +236,11 @@ export class KRuokaSite {
       if (response.status === 401 || response.status === 403)
         throw new Error("loginRequired");
       if (response.status < 200 || response.status >= 300)
+        throw new Error("storeUnavailable");
+      if (
+        options &&
+        Buffer.byteLength(response.body, "utf8") > offerLimits.responseBytes
+      )
         throw new Error("storeUnavailable");
       try {
         return JSON.parse(response.body) as unknown;
@@ -181,13 +251,18 @@ export class KRuokaSite {
     throw new Error("storeUnavailable");
   }
 
-  private async basket(storeId: string) {
+  private async basket(storeId: string, options?: OfferReadOptions) {
     return basketSchema.parse(
-      await this.api("POST", "/kr-api/basket/active", {
-        storeId,
-        substitutionDefault: false,
-        skipClearClosedDeliverySlot: true,
-      }),
+      await this.api(
+        "POST",
+        "/kr-api/basket/active",
+        {
+          storeId,
+          substitutionDefault: false,
+          skipClearClosedDeliverySlot: true,
+        },
+        options,
+      ),
     );
   }
 

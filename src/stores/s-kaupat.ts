@@ -185,7 +185,22 @@ const writeSchema = z.object({
 });
 export class SKaupatProvider implements StoreProvider {
   id = "s-kaupat";
-  capabilities = { catalogue: true, cart: true, orderHistory: true };
+  capabilities = {
+    catalogue: true,
+    cart: true,
+    orderHistory: true,
+    offers: { public: false, personal: false },
+  };
+  async readOffers(
+    context: StoreContext,
+  ): Promise<import("../domain/offers").OfferSourceResult> {
+    return {
+      providerId: this.id,
+      storeId: context.storeId,
+      status: "unsupported",
+      reason: "no-discovery-source",
+    };
+  }
   /**
    * The account's orders through the library's two read-only tools. Rows that cannot be read
    * leave that order without lines; an order is never dropped or filled in.
