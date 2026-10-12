@@ -1,56 +1,15 @@
 import { canonicalFoodWords, sameFoodState } from "./food-synonyms";
 import type { AppState, BasketLine, Product, Requirement } from "./model";
 import { classificationKey } from "./categories";
-import { pieceOrderingSchema } from "./product-evidence";
+import { pieceQuote, approximateCost } from "./product-price";
+export { pieceQuote, approximateCost } from "./product-price";
+import {
+  compareProductPrices,
+  priceMetrics,
+  type PriceBasis,
+} from "./price-ranking";
 
-/** Order whole pieces from an explicit average weight; final weight remains estimated. */
-export function pieceQuote(
-  requirement: Requirement,
-  product: Product,
-): { pieces: number; total: number; weightGrams: number } | null {
-  const ordering = pieceOrderingSchema.safeParse(product.pieceOrdering);
-  const source = product.cataloguePricing;
-  if (
-    !ordering.success ||
-    !source ||
-    product.available !== true ||
-    product.nativeUnit !== "kpl" ||
-    product.increment !== 1 ||
-    source.unit?.toLowerCase() !== "kpl" ||
-    ![null, "per_item"].includes(source.basis) ||
-    source.approximate !== true ||
-    source.amount === null ||
-    !Number.isSafeInteger(source.amount) ||
-    source.amount < 0 ||
-    product.deposit !== 0 ||
-    (source.deposit !== null && source.deposit !== 0) ||
-    !Number.isSafeInteger(requirement.amount) ||
-    requirement.amount <= 0 ||
-    !["g", "pcs"].includes(requirement.unit)
-  )
-    return null;
-  const pieces =
-    requirement.unit === "pcs"
-      ? requirement.amount
-      : Math.ceil(requirement.amount / ordering.data.estimatedWeightGrams);
-  const total = pieces * source.amount;
-  const maximum = ["s-kaupat", "demo-s"].includes(product.providerId)
-    ? 99
-    : 100;
-  if (
-    !Number.isSafeInteger(pieces) ||
-    pieces <= 0 ||
-    pieces > maximum ||
-    !Number.isSafeInteger(total)
-  )
-    return null;
-  return {
-    pieces,
-    total,
-    weightGrams: pieces * ordering.data.estimatedWeightGrams,
-  };
-}
-
+/** A reviewed row must still agree with its verified product quantity and payable price. */
 export function transferableLine(line: BasketLine): boolean {
   if (!line.product || line.total === null) return false;
   if (!line.approximate) {
@@ -201,40 +160,6 @@ function relevantWords(split: string[], wanted: string[]) {
   );
 }
 /** Estimate from an explicit source kg/l basis, never from a pack label or comparison price. */
-export function approximateCost(
-  requirement: Requirement,
-  product: Product,
-): number | null {
-  const piece = pieceQuote(requirement, product);
-  if (piece) return piece.total;
-  const source = product.cataloguePricing;
-  const unit = source?.unit?.toLowerCase();
-  if (
-    !source ||
-    product.available !== true ||
-    product.deposit !== 0 ||
-    (source.deposit !== null && source.deposit !== 0) ||
-    !Number.isSafeInteger(source.amount) ||
-    source.amount === null ||
-    source.amount < 0 ||
-    !Number.isSafeInteger(requirement.amount) ||
-    requirement.amount <= 0 ||
-    !(
-      (unit === "kg" &&
-        requirement.unit === "g" &&
-        (source.basis === null || source.basis === "per_weight")) ||
-      (unit === "l" &&
-        requirement.unit === "ml" &&
-        (source.basis === null || source.basis === "per_volume"))
-    ) ||
-    (product.packAmount > 0 && product.unit !== requirement.unit)
-  )
-    return null;
-  const numerator = source.amount * requirement.amount;
-  if (!Number.isSafeInteger(numerator)) return null;
-  return Math.round(numerator / 1000);
-}
-
 export function priceBreakdown(lines: BasketLine[]) {
   return lines.reduce(
     (sum, line) => {
@@ -252,6 +177,7 @@ export function match(
   products: Product[],
   accepted: string[],
   exclusions: string[] = [],
+  priceBasis: PriceBasis = "unit",
 ): BasketLine {
   const matching = products.filter(
     (p) =>
@@ -266,35 +192,21 @@ export function match(
     (p) =>
       !exclusions.some((term) => p.name.toLocaleLowerCase("fi").includes(term)),
   );
-  // Products that are the ingredient itself come first among the alternatives.
+  // Eligibility is established separately; display alternatives use the same price policy.
   candidates.sort(
     (a, b) =>
+      compareProductPrices(requirement, a, b, priceBasis) ||
       Number(relevant(b.name, requirement.name)) -
-      Number(relevant(a.name, requirement.name)),
+        Number(relevant(a.name, requirement.name)),
   );
   const eligible = candidates.filter(
     (p) =>
       accepted.includes(p.id) &&
       p.available === true &&
-      (approximateCost(requirement, p) !== null ||
-        (p.price !== null && p.packAmount > 0 && p.increment > 0)),
+      priceMetrics(requirement, p) !== null,
   );
-  const cost = (p: Product) =>
-    approximateCost(requirement, p) ??
-    Math.ceil(requirement.amount / p.packAmount / p.increment) *
-      p.increment *
-      (p.price! + p.deposit);
-  const surplus = (p: Product) =>
-    approximateCost(requirement, p) !== null
-      ? 0
-      : Math.ceil(requirement.amount / p.packAmount / p.increment) *
-          p.increment *
-          p.packAmount -
-        requirement.amount;
-  eligible.sort(
-    (a, b) =>
-      cost(a) - cost(b) || surplus(a) - surplus(b) || a.id.localeCompare(b.id),
-  );
+  const cost = (p: Product) => priceMetrics(requirement, p)!.payable;
+  eligible.sort((a, b) => compareProductPrices(requirement, a, b, priceBasis));
   const product = eligible[0] ?? null;
   const approximate =
     product !== null && approximateCost(requirement, product) !== null;
@@ -307,6 +219,7 @@ export function match(
           ) * product.increment
         : 0;
   return {
+    priceBasis,
     requirement,
     ...(approximate ? { approximate: true } : {}),
     product,

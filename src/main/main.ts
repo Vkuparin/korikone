@@ -512,6 +512,7 @@ else
       setLanguage: (input) => service.setLanguage(input),
       setAppearance: (input) => service.setAppearance(input),
       setAIModel: (input) => service.setAIModel(input),
+      setPriceBasis: (input) => service.setPriceBasis(input),
       setReceiptText: (input) => service.setReceiptText(input),
       cancelTransfer: async () => {
         service.controller?.abort();

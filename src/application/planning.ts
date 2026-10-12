@@ -655,6 +655,7 @@ export class PlanningRun {
       preferences: this.state.categoryPreferences,
       exclusions: exclusionTerms(this.state.household.exclusions),
       productPreference: this.state.productPreference,
+      priceBasis: this.state.priceBasis,
       accepted:
         clearRowCorrections(this.state).accepted[
           `${this.state.context.providerId}:${this.state.context.storeId}:${requirement.id}`

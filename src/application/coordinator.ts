@@ -117,6 +117,7 @@ export async function coordinatePlanning(
       preferences: source.categoryPreferences,
       exclusions: exclusionTerms(source.household.exclusions),
       productPreference: source.productPreference,
+      priceBasis: source.priceBasis,
     };
     const deadline = AbortSignal.timeout(coordinatorLimits.searchTimeoutMs);
     const signal = AbortSignal.any([run.signal, deadline]);

@@ -309,7 +309,7 @@ describe("planning", () => {
     expect(parseAmount("1.001", "l")).toBe(1001);
     expect(() => parseAmount("1,5", "pcs")).toThrow();
   });
-  it("minimizes purchase cost rather than unit price", async () => {
+  it("supports explicit enough-pack total ranking alongside the default unit ranking", async () => {
     const state = initialState();
     const provider = new DemoProvider("demo-k");
     const [small] = await provider.searchProducts(
@@ -327,7 +327,8 @@ describe("planning", () => {
       sources: [],
     };
     expect(
-      match(requirement, [large, small], ["pasta", "large"]).product?.id,
+      match(requirement, [large, small], ["pasta", "large"], [], "total")
+        .product?.id,
     ).toBe("pasta");
     expect(
       match(

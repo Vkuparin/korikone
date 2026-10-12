@@ -8,6 +8,7 @@ import {
   type OperationCounters,
 } from "./metrics";
 import { z } from "zod";
+import { priceBasisSchema, rankProductPrices } from "../domain/price-ranking";
 import {
   initialState,
   contextSchema,
@@ -1113,7 +1114,14 @@ export class Service {
     }
     const quote = restoredQuote(await this.db.get("last-quote"), this.state);
     if (quote) {
-      this.basket = quote.basket;
+      this.basket = quote.basket.map((line) => ({
+        ...line,
+        candidates: rankProductPrices(
+          line.requirement,
+          line.candidates,
+          this.state.priceBasis,
+        ),
+      }));
       this.pickupFee = quote.pickupFee;
       this.quotedAt = quote.quotedAt;
     }
@@ -1240,13 +1248,27 @@ export class Service {
       calendar: next.calendar,
       aiModel: next.aiModel,
       appearance: next.appearance,
+      priceBasis: next.priceBasis,
     };
     const changed =
       JSON.stringify(previousShoppingState) !== JSON.stringify(next);
     if (changed) next.revision = this.state.revision + 1;
     const pricingChanged = pricingKey(next) !== pricingKey(this.state);
+    const priceBasisChanged = next.priceBasis !== this.state.priceBasis;
     await this.db.set("state", next);
     this.state = next;
+    this.basket = this.basket.map((line) => ({
+      ...line,
+      candidates: rankProductPrices(
+        line.requirement,
+        line.candidates,
+        next.priceBasis,
+      ),
+    }));
+    if (priceBasisChanged) {
+      this.planning.invalidate();
+      this.readyPlanning = null;
+    }
     if (changed) {
       this.review = null;
       this.comparison = null;
@@ -1301,6 +1323,14 @@ export class Service {
   }
   async save(input: unknown) {
     return this.writeState(() => this.saveState(input));
+  }
+  /** Local setting only: current selections and approval stay fixed until explicit repricing. */
+  async setPriceBasis(input: unknown) {
+    const { priceBasis } = z
+      .object({ priceBasis: priceBasisSchema })
+      .strict()
+      .parse(input);
+    return this.writeState(() => this.saveState({ ...this.state, priceBasis }));
   }
   private saveNewList(state: AppState) {
     return this.writeState(() =>
@@ -1778,6 +1808,7 @@ export class Service {
       holds: state.correctionHolds,
       exclusions: exclusionTerms(state.household.exclusions),
       productPreference: state.productPreference,
+      priceBasis: state.priceBasis,
       context,
     };
     const products = applyPackSizes(
@@ -2005,6 +2036,7 @@ export class Service {
                 ] ?? [],
               exclusions: exclusionTerms(validated.household.exclusions),
               productPreference: validated.productPreference,
+              priceBasis: validated.priceBasis,
             },
           );
         });
@@ -2468,6 +2500,7 @@ export class Service {
           ] ?? [],
         exclusions: exclusionTerms(next.household.exclusions),
         productPreference: next.productPreference,
+        priceBasis: next.priceBasis,
       });
       const lines = wanted.map((requirement) => {
         const old = previous.get(key(requirement));

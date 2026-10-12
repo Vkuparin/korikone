@@ -19,6 +19,7 @@ import { foodNameFacts } from "./food-names";
 import { correctionKey } from "./corrections";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
 import { match, relevant, approximateCost, pieceQuote } from "./planner";
+import { comparePriceAlternative, rankProductPrices } from "./price-ranking";
 import type {
   AppState,
   BasketLine,
@@ -54,6 +55,7 @@ export type MatchingOptions = {
   preference?: CategoryPreference;
   preferences?: CategoryPreference[];
   productPreference?: AppState["productPreference"];
+  priceBasis?: AppState["priceBasis"];
   exclusions?: string[];
   accepted?: string[];
   context?: StoreContext;
@@ -451,6 +453,8 @@ export function matchRequirement(
     requirement,
     allowed,
     eligible.map((p) => p.id),
+    [],
+    options.priceBasis ?? "unit",
   );
   const chosen = line.product;
   const pending = decisions.find((d) => d.status === "approval-required");
@@ -480,4 +484,34 @@ export function matchRequirement(
     line.matching.reason = "owner-correction";
   }
   return line;
+}
+/** Already-safe automatic alternatives, with the same soft brand tier and selected price basis. */
+export function priceAlternatives(
+  requirement: Requirement,
+  selected: Product,
+  products: Product[],
+  options: MatchingOptions = {},
+): Product[] {
+  const basis = options.priceBasis ?? "unit";
+  const eligible = products.filter(
+    (p) => candidateSuitability(requirement, p, options).status === "eligible",
+  );
+  const storeBrand = (p: Product) =>
+    /\b(pirkka|k-menu|k menu|rainbow|xtra|coop|kotimaista)\b/i.test(p.name);
+  const preferred = eligible.filter((p) =>
+    options.productPreference === "storeBrand"
+      ? storeBrand(p)
+      : options.productPreference === "avoidStoreBrand"
+        ? !storeBrand(p)
+        : true,
+  );
+  return rankProductPrices(
+    requirement,
+    (preferred.length ? preferred : eligible).filter(
+      (p) =>
+        p.id !== selected.id &&
+        comparePriceAlternative(requirement, selected, p, basis)?.improves,
+    ),
+    basis,
+  );
 }

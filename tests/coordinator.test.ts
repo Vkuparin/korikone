@@ -17,6 +17,41 @@ const creams: BaselineProduct[] = [
   { id: "cooking", name: "Ruokakerma 200 ml", price: 100 },
   { id: "whipping", name: "Kuohukerma 200 ml", price: 200 },
 ];
+test.each(["k-ruoka", "s-kaupat"] as const)(
+  "%s neutral planning uses the chosen price basis without extra inference",
+  async (chain) => {
+    const env = await createFixtureService(chain, {
+      "*": [
+        { id: "small", name: "Basmati riisi 500 g", price: 2 },
+        { id: "large", name: "Basmati riisi 1 kg", price: 3 },
+      ],
+    });
+    for (const basis of ["unit", "total"] as const) {
+      await env.service.setPriceBasis({ priceBasis: basis });
+      const provider = ai("500 g riisiä");
+      const reply = await env.service.planShopping(
+        { prompt: "500 g riisiä", consent: true },
+        bind(provider),
+      );
+      expect(reply.planning!.phase).toBe("ready");
+      expect(reply.planning!.provisional.rows[0]).toMatchObject({
+        product: { id: basis === "unit" ? "large" : "small" },
+        packs: 1,
+        total: basis === "unit" ? 300 : 200,
+      });
+      expect(reply.planning!.counters).toEqual({ aiCalls: 1, searches: 1 });
+      await env.service.commitPlanning({
+        operationId: reply.planning!.operationId,
+      });
+      expect(env.service.basket[0].priceBasis).toBe(basis);
+    }
+    expect(
+      env.tools.every((tool) =>
+        ["search_products", "check_basket"].includes(tool),
+      ),
+    ).toBe(true);
+  },
+);
 function ai(
   note: string,
   resolution: "valid" | "error" | "invalid" | "pending" = "valid",

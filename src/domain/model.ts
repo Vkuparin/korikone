@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { appearanceSchema } from "./appearance";
+import { priceBasisSchema, type PriceBasis } from "./price-ranking";
 import { classificationSchema } from "./categories";
 import { categoryPreferencesSchema } from "./preferences";
 import { correctionHoldsSchema } from "./corrections";
@@ -101,6 +102,7 @@ export const stateSchema = z
     productPreference: z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
+    priceBasis: priceBasisSchema.default("unit"),
     aiModel: z.string().min(1).max(200).default("auto"),
     resolverEnabled: z.boolean().default(true),
     categoryPreferences: categoryPreferencesSchema.default([]),
@@ -189,6 +191,8 @@ export type Product = {
   pieceOrdering?: import("./product-evidence").PieceOrdering;
 };
 export type BasketLine = {
+  /** Basis used to select this saved row; changing Settings never reranks its selected product. */
+  priceBasis?: PriceBasis;
   /** Price estimate for the requested mass/volume; does not authorize a retailer quantity. */
   approximate?: boolean;
   requirement: Requirement;

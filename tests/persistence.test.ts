@@ -16,6 +16,39 @@ import {
 import { stateSchema, initialState, type Product } from "../src/domain/model";
 
 const workerURL = pathToFileURL(join(process.cwd(), "dist/main/worker.js"));
+test("price basis defaults for older profiles and survives SQLite restart and backup restore without list changes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "korikone-price-basis-"));
+  const path = join(directory, "profile.sqlite");
+  let database = new Database(path, workerURL);
+  try {
+    const { priceBasis: _basis, ...legacy } = initialState();
+    await database.set("state", legacy);
+    let service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    expect(service.state.priceBasis).toBe("unit");
+    const state = structuredClone(service.state);
+    await service.setPriceBasis({ priceBasis: "total" });
+    expect({ ...service.state, priceBasis: "unit" }).toEqual(state);
+    const backup = JSON.parse(JSON.stringify(await service.exportBackup()));
+    await database.close();
+    database = new Database(path, workerURL);
+    service = new Service(database);
+    service.developmentMode = true;
+    await service.init();
+    expect(service.state.priceBasis).toBe("total");
+    await service.setPriceBasis({ priceBasis: "unit" });
+    await service.importBackup(backup);
+    expect(service.state.priceBasis).toBe("total");
+    expect((await database.get("state")).priceBasis).toBe("total");
+    await expect(
+      service.setPriceBasis({ priceBasis: "cheapest" }),
+    ).rejects.toThrow();
+    expect(service.state.priceBasis).toBe("total");
+  } finally {
+    await database.close();
+  }
+});
 test("appearance defaults old profiles to System and survives save, restart and backup in every mode", async () => {
   const directory = await mkdtemp(join(tmpdir(), "korikone-appearance-"));
   const path = join(directory, "saved.sqlite");

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { priceBasisSchema } from "../domain/price-ranking";
 import {
   contextSchema,
   ingredientSchema,
@@ -17,7 +18,7 @@ import {
   pieceOrderingSchema,
 } from "../domain/product-evidence";
 
-/** Only inputs that affect catalogue matching belong in a quote's binding. */
+/** The price setting is intentionally absent: saved rows retain their own selection basis. */
 export function pricingKey(state: AppState): string {
   return JSON.stringify({
     matchingVersion: 2,
@@ -82,6 +83,7 @@ export const persistedQuoteSchema = z.object({
     .nullable(),
   basket: z.array(
     z.object({
+      priceBasis: priceBasisSchema.optional(),
       requirement: ingredientSchema.extend({ sources: z.array(z.string()) }),
       product: productSchema.nullable(),
       packs: z.number().nonnegative(),
@@ -132,6 +134,7 @@ export function restoredQuote(input: unknown, state: AppState) {
         holds: state.correctionHolds,
         exclusions: exclusionTerms(state.household.exclusions),
         productPreference: state.productPreference,
+        priceBasis: line.priceBasis ?? "total",
         accepted:
           state.accepted[
             `${state.context.providerId}:${state.context.storeId}:${requirement.id}`
