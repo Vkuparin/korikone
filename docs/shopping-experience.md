@@ -4,6 +4,8 @@ Accepted planning direction, 10 October 2026. Source: `scratch/korikone_ai_shopp
 
 ## Baseline and reuse
 
+Owner price/presentation update, 12 October 2026: B2.22/B2.23 add a shared Settings > Stores price basis, default lowest unit price, alternatively lowest total for enough packs, for both first proposals and alternatives. Keep suitability/explicit/preference/brand constraints and explicit choices; display unit value and actual whole-pack cost together. A cheaper unit may mean a larger upfront purchase, so use truthful recommendation labels. Totals and comparisons remain actual purchase costs. B2.24 removes redundant connection headings/active-store text and makes the existing chain cards the main Stores display; keep technical demo controls in Development/Advanced and normal store/account/fulfillment actions accessible. These are planned follow-ups, not current implementation claims.
+
 v0.5.0 is released and integrated. U8 explicit updates/retained quotes, U10 batch approval/automatic destination opening, U11 model choice and U12/U13 Settings version/language/usage controls already exist. U3.9 shared S-kaupat runtime and U3.10 session fixtures are complete in the integrated release. Do not rebuild these.
 
 At this review, F15 category matching/preferences and F6 order/cadence work remain planned. `src/ai/draft.ts` currently sends all saved recipes and receipt text and permits one interpretation repair; product matching remains deterministic. The original review found Settings crowded. Published v0.6.0 now has seven sections, appearance modes and the reviewed workspace. The pitch's branch-split warnings are historical rather than current baseline blockers.

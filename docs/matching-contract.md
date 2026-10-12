@@ -1,5 +1,7 @@
 # Shared category matching
 
+Planned v0.10.0 owner update, 12 October 2026: B2.22/B2.23 replace the fixed lowest-whole-pack-total ranking with a shared Stores price-basis option for both initial selection and alternatives. Lowest comparable unit price is the new default; lowest payable total for enough packs is optional. B2.22 must publish exact schema/options/functions/fixtures before UI handoff. The contracts below describe current implementation and its retained suitability and boundary guarantees, not completion of this new ranking mode. Deposits remain in payable totals; unit-value comparison uses verified comparable content. See [product decisions](product-decisions.md#agreed-12-october-2026).
+
 F15.2 implements the owner-accepted [category policy](category-policy.md) with finite retailer facts. The shared matcher runs for both chains and development providers. It makes no AI requests and writes no retailer data. Portable memory is implemented by F15.3 using [preference-contract.md](preference-contract.md); resolver requests remain F15.9/F15.10.
 
 ## Public API

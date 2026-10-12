@@ -4,6 +4,8 @@ F15.5 owner accepted the published proposal on 10 October 2026. This is the impl
 
 ## Generic requests
 
+Owner update, 12 October 2026: B2.22/B2.23 in [v0.10.0](tasks/0.10.0.md#b2-fixes-from-the-12-october-owner-playtest) will replace the fixed total-cost ranking with a shared Settings > Stores option, default lowest unit price, alternatively lowest total for enough packs. It applies to both automatic selection and alternatives after the same suitability/explicit/preference/brand filters. Display actual whole-pack cost as well as comparable unit value. The historical total-cost default below describes the shipped matcher; this preference is planned, not implemented. Unknown quantities and conditional prices still require supported evidence, and setting changes do not silently replace explicit choices or make network calls.
+
 These boundaries apply only when the current request and an applicable remembered rule do not specify a type. Product evidence must establish the category; unknown attributes cannot satisfy a specified qualifier. Household exclusions always filter candidates.
 
 | Request | Accepted default boundary                           | Needs a specific request/rule or review                                                                       |
