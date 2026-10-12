@@ -225,6 +225,7 @@ export class Service {
   developmentRequests = 0;
   developmentModel: string | null = null;
   developmentModelCatalogueRequests = 0;
+  developmentSignInCalls = 0;
   developmentAIProvider: string | null = null;
   state = initialState();
   planning = new PlanningLifecycle(() => this.state);
@@ -1147,6 +1148,7 @@ export class Service {
       developmentRequests: this.developmentRequests,
       developmentModel: this.developmentModel,
       developmentModelCatalogueRequests: this.developmentModelCatalogueRequests,
+      developmentSignInCalls: this.developmentSignInCalls,
       developmentAIProvider: this.developmentAIProvider,
       developmentCatalogueRequests: this.developmentMode
         ? this.registry

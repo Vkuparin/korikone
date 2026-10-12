@@ -218,10 +218,19 @@ export function AISettings({
       )}
       <div className="actions">
         <button
-          disabled={busy || snapshot.ai.state === "waiting"}
+          className={
+            snapshot.ai.state === "connected" ? "chatgpt-connected" : undefined
+          }
+          disabled={
+            busy ||
+            snapshot.ai.state === "waiting" ||
+            snapshot.ai.state === "connected"
+          }
           onClick={() => void call("signInAI")}
         >
-          Continue with ChatGPT
+          {snapshot.ai.state === "connected"
+            ? t("signedInChatGPT")
+            : "Continue with ChatGPT"}
         </button>
         <button
           className="secondary"

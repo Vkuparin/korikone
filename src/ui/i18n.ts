@@ -144,6 +144,7 @@ export const en = {
   loginStore: "Sign in to the store",
   checkLogin: "Check sign-in",
   signedIn: "Signed in",
+  signedInChatGPT: "Signed in with ChatGPT",
   waitingLogin:
     "Complete sign-in in the store window, then check sign-in here.",
   loginFailed: "Sign-in failed. Try again.",
@@ -448,6 +449,7 @@ export const fi: Record<Key, string> = {
   loginStore: "Kirjaudu kauppaan",
   checkLogin: "Tarkista kirjautuminen",
   signedIn: "Kirjautunut",
+  signedInChatGPT: "Kirjautunut ChatGPT:llä",
   waitingLogin: "Kirjaudu kaupan ikkunassa ja tarkista kirjautuminen tästä.",
   loginFailed: "Kirjautuminen epäonnistui. Yritä uudelleen.",
   notConnected: "Ei yhdistetty",

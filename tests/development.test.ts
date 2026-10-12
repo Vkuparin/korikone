@@ -7,6 +7,27 @@ import { DemoProvider } from "../src/stores/demo";
 import { Service } from "../src/application/service";
 import { priceBreakdown } from "../src/domain/planner";
 
+test("authentication fixtures retain expired email and restore connection without sign-in or generation", async () => {
+  const ai = new FixtureAI();
+  expect(ai.status().state).toBe("disconnected");
+  await ai.signIn();
+  expect(ai.signInCalls).toBe(1);
+  expect(ai.status().state).toBe("connected");
+  await ai.signOut();
+  expect(ai.status().state).toBe("disconnected");
+  ai.setScenario("authWaiting");
+  expect(ai.status().state).toBe("waiting");
+  ai.setScenario("authExpired");
+  expect(ai.status()).toMatchObject({
+    state: "permissionMissing",
+    email: "fixture@korikone.local",
+  });
+  ai.setScenario("authRestored");
+  expect(ai.status().state).toBe("connected");
+  expect(ai.signInCalls).toBe(1);
+  expect(ai.requestCount).toBe(0);
+});
+
 test("both development chains keep kilo-only bananas and meat estimates separate from exact prices and refuse weighed writes", async () => {
   const entries = new Map<string, unknown>();
   const db = {

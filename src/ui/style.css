@@ -263,6 +263,13 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+button.chatgpt-connected:disabled {
+  background: var(--kk-surface);
+  color: var(--kk-muted);
+  border-color: var(--kk-border);
+  opacity: 1;
+  filter: none;
+}
 .secondary {
   background: var(--kk-surface);
   color: var(--kk-action-text);
