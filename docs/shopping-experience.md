@@ -22,6 +22,10 @@ Keep one-time product/type/quantity corrections beside shopping rows. Advanced m
 
 ## Working and preview contract
 
+Owner follow-up, 12 October 2026: [B2.13/B2.14](tasks/0.10.0.md#b2-fixes-from-the-12-october-owner-playtest) prioritize a concrete first proposal for vague meal requests. A dish-only note implies a simple meal with a side unless otherwise specified; existing named sides override defaults. Map ordinary inferred ingredients to suitable real selected-store products, making the default choices inspectable and easy to change directly or through the composer. Inferences remain assumptions, not saved preferences or catalogue facts; genuine conflicts and unknown evidence stay visible. Use the existing provider-neutral interpretation, bounded resolver, matching and transfer paths.
+
+B2.15 consolidates duplicate progress: one visible status/cancel surface for one list operation. Prefer detailed composer progress while visible; use the global surface when it is off-screen or another page is open. Keep cancellation state, focus, error handling and real stage information consistent without duplicate screen-reader announcements.
+
 The owner selected provisional previews and emphasized that a long request must show visible progress. On explicit submit, acknowledge work immediately with textual status and Cancel. Announce actual stages: interpretation, catalogue search, optional resolution. Do not invent percentages, prices, counts or elapsed-time promises, and do not show internal pass numbers/raw prompts.
 
 As validated interpretation and verified retailer candidates arrive, publish provisional meal/row events. Clearly label their region as a preview and keep the previous committed list accessible. Stable row identities preserve focus/scroll; U14.1 reserves the layout, F16.9 defines events, F16.12/F16.13 implement stages/previews. A preview is not a quoted transferable list. The previous quote is historical, never presented as freshly verified by a still-running request.
@@ -62,25 +66,25 @@ Price-constrained meals are deferred (F19). F8 historical spending and F11 offer
 
 ## Pitch mapping and delivery
 
-| Pitch | Canonical work | Treatment |
-| --- | --- | --- |
-| AX-01 baseline/evaluation | F15.1, F16.1–F16.4 | One audit plus 60 synthetic/anonymized FI/EN shopping cases; edit cases added later |
-| AX-02 compact context | F16.5 | Relevant recipes/constraints/preferences, no blanket raw history |
-| AX-03 structured output | F16.7–F16.8 | Compatibility spike and supported fallback, no paid-key migration |
-| AX-04 telemetry/routing | F16.6, F20.1–F20.2 | Metrics early; shortcuts/routing deferred pending evidence |
-| AX-05 coordinator | F16.9–F16.11 | Typed operation, read-only stages and atomic commit |
-| AX-06 progressive UI | U14.6, F16.12–F16.13 | Immediate feedback first; real staged previews with coordinator |
-| AX-07 candidate contract | F15.7–F15.9 | Extend F15 schema/rules/adapters |
-| AX-08 SKU resolver | F15.10–F15.11 | Verified IDs, bounded request, off switch |
-| AX-09 grouped review | F15.6, F15.12 | Existing review extended, no second dialog |
-| AX-10 edit intent | F17.1, F17.3 | Typed known targets and explicit ambiguity |
-| AX-11 edit application | F17.2, F17.4–F17.5 | Atomic application, affected-only quotes, local undo |
-| AX-12 composer/edit UX | F17.6–F17.8 | Default modify, explicit New list, concise summary |
-| AX-13 local memory | F15.3/F15.13, F18.1–F18.2 | Existing preference/purchase APIs with provenance |
-| AX-14 repeat list | F18.3–F18.5 | Local reuse and current quotes |
-| AX-15 budget contract | F19.1–F19.2 | Deferred, policy required |
-| AX-16 bounded replan | F19.3–F19.5 | Deferred, verified prices and call cap |
-| Owner: dark mode/Settings | U15/U16 | v0.6.0, independent of AI enhancements |
+| Pitch                     | Canonical work            | Treatment                                                                           |
+| ------------------------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| AX-01 baseline/evaluation | F15.1, F16.1–F16.4        | One audit plus 60 synthetic/anonymized FI/EN shopping cases; edit cases added later |
+| AX-02 compact context     | F16.5                     | Relevant recipes/constraints/preferences, no blanket raw history                    |
+| AX-03 structured output   | F16.7–F16.8               | Compatibility spike and supported fallback, no paid-key migration                   |
+| AX-04 telemetry/routing   | F16.6, F20.1–F20.2        | Metrics early; shortcuts/routing deferred pending evidence                          |
+| AX-05 coordinator         | F16.9–F16.11              | Typed operation, read-only stages and atomic commit                                 |
+| AX-06 progressive UI      | U14.6, F16.12–F16.13      | Immediate feedback first; real staged previews with coordinator                     |
+| AX-07 candidate contract  | F15.7–F15.9               | Extend F15 schema/rules/adapters                                                    |
+| AX-08 SKU resolver        | F15.10–F15.11             | Verified IDs, bounded request, off switch                                           |
+| AX-09 grouped review      | F15.6, F15.12             | Existing review extended, no second dialog                                          |
+| AX-10 edit intent         | F17.1, F17.3              | Typed known targets and explicit ambiguity                                          |
+| AX-11 edit application    | F17.2, F17.4–F17.5        | Atomic application, affected-only quotes, local undo                                |
+| AX-12 composer/edit UX    | F17.6–F17.8               | Default modify, explicit New list, concise summary                                  |
+| AX-13 local memory        | F15.3/F15.13, F18.1–F18.2 | Existing preference/purchase APIs with provenance                                   |
+| AX-14 repeat list         | F18.3–F18.5               | Local reuse and current quotes                                                      |
+| AX-15 budget contract     | F19.1–F19.2               | Deferred, policy required                                                           |
+| AX-16 bounded replan      | F19.3–F19.5               | Deferred, verified prices and call cap                                              |
+| Owner: dark mode/Settings | U15/U16                   | v0.6.0, independent of AI enhancements                                              |
 
 v0.6.0's entry cards U14.1/U15.1/U16.1 establish reviewable contracts. After layouts, styling can proceed while theme and Settings contracts are fixed. Avoid simultaneous edits to `main.tsx`, `shopping.tsx`, `model.ts` or `style.css`; publish card claims and coordinate boundaries before parallel assignment. F15.1's audit can proceed independently of visual work. Strong agents narrow follow-ups before Simple handoff.
 
