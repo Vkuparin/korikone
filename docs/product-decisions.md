@@ -6,6 +6,18 @@ The owner chose a small first-import opt-in for sanitized ambiguous-label enrich
 
 Current release sequencing is in [roadmap.md](roadmap.md); implementation status lives in [version task lists](tasks/README.md). Dated decisions below retain their original context; completed implementation supersedes old investigation wording. The [shopping experience plan](shopping-experience.md) specifies the accepted 10 October additions.
 
+## Agreed 12 October 2026
+
+Include the v0.8.0 owner-testing fixes in v0.9.0 with receipt learning. [B1.1–B1.18](tasks/0.9.0.md#b1-fixes-from-v080-owner-testing) are unassigned implementation cards; existing coder claims and evidence stay intact. The receipt report is specifically successful PDF text extraction followed by Tallenna flashing without a clear result. Test durability and feedback through the current v0.9 import/review path before declaring it resolved. The owner used Development mode off with real stores and ChatGPT connected; investigate the reported initial fixture/starter searches rather than assuming a development-mode test.
+
+Plain meal-and-grocery enumeration automatically adds or updates the current list. Explicit New list retains replacement semantics. Quantities follow context: initial/new-list "2 litraa maitoa" means a requested amount of two litres; "Lisää 2 litraa maitoa" during an edit adds two litres. Do not impose one universal replace/add interpretation on all prompts. When the request/list context cannot resolve the amount or target, preserve the list and ask a concise clarification. Keep existing provider-neutral validation and request caps.
+
+Item removal is local and preserves unrelated products/quotes. Clear list empties the current plan, keeps recipes/history/preferences/settings and recurring definitions, offers local Undo and makes no AI or retailer call. Recurring contributions remain suppressed until explicit Update/New list; they are not permanently disabled. These actions never clear a retailer basket or reverse a transfer. First catalogue search requires explicit Päivitä lista, including after store connection; navigation may restore valid retained quotes without searching.
+
+The household-count chip edits inline and also scales current meals locally, with no AI call. Keep the same household setting in Asetukset. The Strong contract settles custom servings, overrides and bounds before UI handoff.
+
+Remove the two unnecessary raw-receipt/history and typing sentences below the note while retaining concise action-related send information and existing consent disclosures. Remove the extra visible Kieli label in General Settings while retaining its accessible name. The reported unexplained action is the house icon ⌂: provide concise accessible help explaining Löytyy kotoa and exclusion from transfer. Successful alternative selection collapses its panel; failed selection stays open. Audit and fix button/text overlaps with long FI/EN content and supported window sizes.
+
 ## Agreed 11 October 2026
 
 Adopt [edit usability and retail expansion](retail-expansion.md). Add exact-row entry to the existing edit composer, deterministic optional edit details and audit-led store/comparison/return fixes in v0.8. The owner moves F10.2 recipe-import UI and F12.1 QR text export there, preserving IDs and F10.1 completion evidence. QR yields a local text snapshot; phone copy/share/save is a manual step and needs owner usability acceptance. Price-history charts remain Later.

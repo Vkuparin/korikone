@@ -11,8 +11,7 @@
 5. A Strong card establishing an API updates dependent cards with actual symbols, files, schemas and fixtures before Simple handoff. Proposed paths are suggestions, not existing-code claims.
 6. Update behavior documentation when implementation changes it. Update roadmap summaries when release scope or decisions change; do not duplicate card statuses there.
 
-AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live local/other adapters remain F21. Receipt cards consume the relevant sections of [receipt-learning.md](../receipt-learning.md). Original owner receipts in ignored scratch/receipts are private local references; only sanitized independently authored fixtures may enter source control. Preserve recorded coder checks and the one-flow release policy.
-7. Fetch/reconcile, publish changed docs to GitHub and synchronize local copies, preserving unrelated changes. Record unmerged branches explicitly. Report failed pushes.
+AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live local/other adapters remain F21. Receipt cards consume the relevant sections of [receipt-learning.md](../receipt-learning.md). Original owner receipts in ignored scratch/receipts are private local references; only sanitized independently authored fixtures may enter source control. Preserve recorded coder checks and the one-flow release policy. 7. Fetch/reconcile, publish changed docs to GitHub and synchronize local copies, preserving unrelated changes. Record unmerged branches explicitly. Report failed pushes.
 
 ## Conventions
 
@@ -26,19 +25,19 @@ AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live loca
 
 ## Index
 
-| File | Scope |
-| --- | --- |
-| [0.2.x](0.2.x.md) | Alpha checks |
-| [0.3.0](0.3.0.md) | Both chains |
-| [0.4.0](0.4.0.md) | Smooth flow |
-| [0.5.0](0.5.0.md) | Embedded stores |
-| [0.6.0](0.6.0.md) | Design, appearance, Settings |
-| [0.7.0](0.7.0.md) | Matching, prices, evaluation, pipeline |
-| [0.8.0](0.8.0.md) | Edits, chain appearance, store usability, recipe import UI and QR export |
-| [0.9.0](0.9.0.md) | Purchases, memory, repetition |
-| [0.10.0](0.10.0.md) | Calendar, offers and conditional receipt OCR |
-| [0.11.0](0.11.0.md) | Gated K-Ruoka non-food capability |
-| [0.12.0](0.12.0.md) | Beta gates; F14 IDs/evidence retained |
-| [Later](later.md) | Unassigned work |
+| File                | Scope                                                                    |
+| ------------------- | ------------------------------------------------------------------------ |
+| [0.2.x](0.2.x.md)   | Alpha checks                                                             |
+| [0.3.0](0.3.0.md)   | Both chains                                                              |
+| [0.4.0](0.4.0.md)   | Smooth flow                                                              |
+| [0.5.0](0.5.0.md)   | Embedded stores                                                          |
+| [0.6.0](0.6.0.md)   | Design, appearance, Settings                                             |
+| [0.7.0](0.7.0.md)   | Matching, prices, evaluation, pipeline                                   |
+| [0.8.0](0.8.0.md)   | Edits, chain appearance, store usability, recipe import UI and QR export |
+| [0.9.0](0.9.0.md)   | Purchases, memory, repetition and v0.8 owner-testing fixes (B1)          |
+| [0.10.0](0.10.0.md) | Calendar, offers and conditional receipt OCR                             |
+| [0.11.0](0.11.0.md) | Gated K-Ruoka non-food capability                                        |
+| [0.12.0](0.12.0.md) | Beta gates; F14 IDs/evidence retained                                    |
+| [Later](later.md)   | Unassigned work                                                          |
 
 Retail expansion follows [the accepted plan](../retail-expansion.md): v0.8 stays grocery-focused, F22 investigations gate the v0.11 deliverable, and Prisma/mixed baskets remain unassigned. F22.1 is non-blocking research; source paths for new contracts are provisional until Strong handoff. Do not claim later cards merely because their dependencies are complete.
