@@ -1030,6 +1030,7 @@ else
       },
     };
     let queue: Promise<unknown> = Promise.resolve();
+    let closing = false;
     for (const [name, handler] of Object.entries(handlers))
       ipcMain.handle(`app:${name}`, async (event, input) => {
         if (
@@ -1038,6 +1039,7 @@ else
         )
           throw new Error("forbidden");
         try {
+          if (closing) throw new Error("busy");
           if (["prepare", "transferDisplayed", "execute"].includes(name))
             service.assertNoProvisionalTransfer();
           if (name === "save") {
@@ -1111,18 +1113,20 @@ else
         }
       });
     await window.loadFile(ui);
-    let closing = false;
     app.on("before-quit", (event) => {
       if (closing) return;
       event.preventDefault();
       closing = true;
       inferenceController?.abort();
-      service.planning.cancel();
+      service.planning.cancelForShutdown();
       nativeTheme.removeListener("updated", systemAppearanceChanged);
       ai.cancel();
       ai.cancelRequest();
       sHost.close();
-      void Promise.allSettled([worker.close(), sWorker.close(), stores.flush()])
+      void queue
+        .then(() =>
+          Promise.allSettled([worker.close(), sWorker.close(), stores.flush()]),
+        )
         .finally(() => stores.close())
         .finally(() => db.close())
         .finally(() => app.quit());
