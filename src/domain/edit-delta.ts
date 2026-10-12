@@ -43,7 +43,7 @@ export const editDeltaSchema = z
         z
           .object({
             mealId: z.string(),
-            change: z.enum(["replaced", "servings"]),
+            change: z.enum(["replaced", "servings", "added"]),
             name: z.string(),
             to: z.string().nullable(),
             servingsBefore: z.number().int(),
@@ -159,7 +159,17 @@ export function editDelta(
     state.recipes.find((r) => r.id === id)?.name ?? id;
   for (const meal of after.state.meals) {
     const old = before.state.meals.find((m) => m.id === meal.id);
-    if (!old) continue;
+    if (!old) {
+      meals.push({
+        mealId: meal.id,
+        change: "added",
+        name: recipe(after.state, meal.recipeId),
+        to: null,
+        servingsBefore: 0,
+        servingsAfter: meal.servings,
+      });
+      continue;
+    }
     const replaced = old.recipeId !== meal.recipeId;
     if (!replaced && old.servings === meal.servings) continue;
     meals.push({

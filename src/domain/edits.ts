@@ -82,6 +82,30 @@ export const editOperationSchema = z.discriminatedUnion("op", [
       servings: z.number().int().min(1).max(100).optional(),
     })
     .strict(),
+  // Adds a dish to the list. A dish already on the list is not added twice.
+  z
+    .object({
+      op: z.literal("addMeal"),
+      recipe: z.discriminatedUnion("kind", [
+        z
+          .object({
+            kind: z.literal("saved"),
+            recipeId: z.string().min(1).max(200),
+          })
+          .strict(),
+        z.object({ kind: z.literal("new"), recipe: recipeSchema }).strict(),
+      ]),
+      servings: z.number().int().min(1).max(100).optional(),
+    })
+    .strict(),
+  // States the amount wanted of a named grocery: sets its row, or adds it when it has none.
+  z
+    .object({
+      op: z.literal("setItem"),
+      name: z.string().trim().min(1).max(200),
+      quantity: editQuantitySchema,
+    })
+    .strict(),
   z
     .object({
       op: z.literal("changeServings"),
@@ -295,7 +319,14 @@ export function applyEdits(
     from.recipes.find((r) => r.id === id)?.name ?? id;
 
   // Validate every target before any mutation; one target may carry one operation.
-  type Planned = { index: number; operation: EditOperation; key?: string };
+  type Planned = {
+    index: number;
+    operation: EditOperation;
+    key?: string;
+    /** For `addMeal`: the recipe the dish resolves to, and its definition when it is new. */
+    recipeId?: string;
+    newRecipe?: AppState["recipes"][number];
+  };
   const planned: Planned[] = [];
   const seen = new Set<string>();
   const claim = (id: EditTargetId, index: number) => {
@@ -323,8 +354,40 @@ export function applyEdits(
       planned.push({ index, operation });
       return;
     }
+    if (operation.op === "addMeal") {
+      const source = operation.recipe;
+      let recipeId: string;
+      let newRecipe: Planned["newRecipe"];
+      if (source.kind === "saved") {
+        if (!state.recipes.some((recipe) => recipe.id === source.recipeId))
+          throw new EditError("unknownTarget", index);
+        recipeId = source.recipeId;
+      } else {
+        // A new dish with the name of a saved recipe is that recipe, not a second copy.
+        const sameName = state.recipes.find(
+          (recipe) => identity(recipe.name) === identity(source.recipe.name),
+        );
+        if (sameName) recipeId = sameName.id;
+        else if (
+          state.recipes.some((recipe) => recipe.id === source.recipe.id) ||
+          newRecipes.has(source.recipe.id)
+        )
+          throw new EditError("invalidEdit", index);
+        else {
+          newRecipes.add(source.recipe.id);
+          recipeId = source.recipe.id;
+          newRecipe = source.recipe;
+        }
+      }
+      claim(`meal:recipe:${recipeId}`, index);
+      planned.push({ index, operation, recipeId, newRecipe });
+      return;
+    }
     let key: string;
-    if (operation.op === "addItem" && operation.name !== undefined) {
+    if (
+      (operation.op === "addItem" || operation.op === "setItem") &&
+      operation.name !== undefined
+    ) {
       const quantity = operation.quantity;
       const wanted = identity(operation.name);
       const matches = (unit: Unit | null) => [
@@ -363,7 +426,44 @@ export function applyEdits(
   // Meal operations first: they decide which rows exist for the row operations.
   const baseBefore = baseRows(state, now);
   const applied: AppliedEdit[] = [];
-  for (const { operation } of planned) {
+  for (const { operation, recipeId, newRecipe } of planned) {
+    if (operation.op === "addMeal") {
+      const onList = next.meals.find((m) => m.recipeId === recipeId);
+      if (onList) {
+        // Naming a dish that is already planned changes it only if servings were stated.
+        if (
+          operation.servings !== undefined &&
+          onList.servings !== operation.servings
+        ) {
+          applied.push({
+            op: operation.op,
+            targetId: mealTargetId(onList.id),
+            name: recipeName(onList.recipeId, next),
+            before: onList.servings,
+            after: operation.servings,
+          });
+          onList.servings = operation.servings;
+        }
+        continue;
+      }
+      if (newRecipe) next.recipes.push(structuredClone(newRecipe));
+      const meal = {
+        id: crypto.randomUUID(),
+        day: Math.min(next.meals.length, 6),
+        recipeId: recipeId!,
+        servings: operation.servings ?? state.household.servings,
+        leftovers: false,
+      };
+      next.meals.push(meal);
+      applied.push({
+        op: operation.op,
+        targetId: mealTargetId(meal.id),
+        name: recipeName(meal.recipeId, next),
+        before: 0,
+        after: meal.servings,
+      });
+      continue;
+    }
     if (operation.op !== "replaceMeal" && operation.op !== "changeServings")
       continue;
     const meal = next.meals.find((m) => m.id === operation.mealId)!;
@@ -490,6 +590,62 @@ export function applyEdits(
       });
       continue;
     }
+    if (operation.op === "setItem") {
+      const amount = resolveAmount(
+        operation.quantity,
+        key,
+        unit,
+        packSizes,
+        index,
+      );
+      if (row) {
+        // The grocery has a row: the stated amount is what the row should hold.
+        if (row.amount === amount) continue;
+        next.quantities[key] = amount;
+        applied.push({
+          op: operation.op,
+          targetId: rowTargetId(key),
+          name: row.name,
+          unit,
+          before: existing?.amount ?? row.amount,
+          after: amount,
+        });
+        continue;
+      }
+      const known = [
+        ...next.recipes.flatMap((r) => r.ingredients),
+        ...next.extras,
+        ...next.staples,
+      ].find((i) => requirementKey(i) === key);
+      const name = known?.name ?? operation.name.trim();
+      const classification = known
+        ? known.classification
+        : inferredClassification(name, "model-assumed");
+      const extra = ingredientSchema.safeParse({
+        id,
+        name,
+        unit,
+        amount,
+        ...(classification ? { classification } : {}),
+      });
+      if (!extra.success) throw new EditError("invalidEdit", index);
+      // Not on the list (new, or removed earlier): it returns with exactly this amount.
+      next.extras = [
+        ...next.extras.filter((i) => requirementKey(i) !== key),
+        extra.data,
+      ];
+      next.removed = next.removed.filter((k) => k !== key);
+      delete next.quantities[key];
+      applied.push({
+        op: operation.op,
+        targetId: rowTargetId(key),
+        name,
+        unit,
+        before: 0,
+        after: amount,
+      });
+      continue;
+    }
     // A meal operation in the same batch may have removed the row this operation names.
     if (!row || !existing) throw new EditError("unknownTarget", index);
     if (operation.op === "changeQuantity") {
@@ -500,6 +656,8 @@ export function applyEdits(
         packSizes,
         index,
       );
+      // Stating the amount the row already has is not a change and is not reported as one.
+      if (row.amount === amount) continue;
       next.quantities[key] = amount;
       applied.push({
         op: operation.op,

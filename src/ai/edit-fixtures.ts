@@ -1,3 +1,4 @@
+import { noteQuantity } from "../domain/intents";
 import { initialState, type Recipe, type Unit } from "../domain/model";
 import { mealFixtures } from "./meal-fixtures";
 import type { EditContext } from "./edit";
@@ -92,7 +93,18 @@ function quantity(clause: string) {
   const amount = clause.match(
     /(?<![\p{L}\p{N}])(\d+(?:[.,]\d+)?)\s*(kg|g|ml|dl|l|kpl|pcs)(?![\p{L}\p{N}])/iu,
   );
-  if (!amount) return null;
+  if (!amount) {
+    const spoken = noteQuantity(clause);
+    const words = clause.match(
+      /(?:\p{L}+\s+)?(?:litra\p{L}*|kilo\p{L}*|gramma\p{L}*|desilitra\p{L}*|kappale\p{L}*)/iu,
+    );
+    return spoken && words
+      ? {
+          text: words[0],
+          quantity: { kind: "amount" as const, ...spoken },
+        }
+      : null;
+  }
   const token = amount[2].toLowerCase();
   const unit: Unit = /kpl|pcs/.test(token)
     ? "pcs"
@@ -112,6 +124,9 @@ function quantity(clause: string) {
 }
 /** Base forms of the groceries the fixture catalogue knows, so "kahvia" adds "Kahvi". */
 const groceries: [RegExp, string][] = [
+  // An explicit variety keeps its own name.
+  [/kevytmaito/i, "Kevytmaito"],
+  [/vaniljajäätelö|vanilla ice cream/i, "Vaniljajäätelö"],
   [/maito|milk/i, "Maito"],
   [/kahvi|coffee/i, "Kahvi"],
   [/kananmun|eggs?/i, "Kananmuna"],
@@ -124,6 +139,21 @@ const groceries: [RegExp, string][] = [
   [/jogurt|yoghurt/i, "Jogurtti"],
   [/suklaa|chocolate/i, "Suklaa"],
 ];
+/** A named variety such as kevytmaito is its own grocery, not the plain row it resembles. */
+const sameVariety = (typed: string, rowName: string) => {
+  const variety = groceries.find(([pattern]) => pattern.test(typed))?.[1];
+  return (
+    !variety ||
+    variety.toLocaleLowerCase("fi") === rowName.toLocaleLowerCase("fi") ||
+    !groceries.some(
+      ([, name]) =>
+        name === variety && /^(Kevytmaito|Vaniljajäätelö)$/.test(name),
+    )
+  );
+};
+const groceryName = (typed: string) =>
+  groceries.find(([pattern]) => pattern.test(typed))?.[1] ??
+  typed.charAt(0).toLocaleUpperCase("fi") + typed.slice(1);
 const defaults = initialState().recipes;
 const catalogue: { pattern: RegExp; recipe: Recipe }[] = [
   ...mealFixtures,
@@ -263,13 +293,13 @@ export function editFixtureReply(data: EditContext) {
     } else if (/^(?:lisää|add)(?![\p{L}])/iu.test(clause)) {
       const text = q ? clause.replace(q.text.toLowerCase(), " ") : clause;
       // A grocery already on the list in another unit is a separate row, not an ambiguity.
-      const found = rows(text).filter(
-        (row) => q?.quantity.kind !== "amount" || row.unit === q.quantity.unit,
-      );
       const typed = words(text).join(" ");
-      const name =
-        groceries.find(([pattern]) => pattern.test(typed))?.[1] ??
-        typed.charAt(0).toLocaleUpperCase("fi") + typed.slice(1);
+      const found = rows(text).filter(
+        (row) =>
+          (q?.quantity.kind !== "amount" || row.unit === q.quantity.unit) &&
+          sameVariety(typed, row.name),
+      );
+      const name = groceryName(typed);
       if (!q || !typed) unsupported.push({ phrase });
       else if (found.length)
         one(phrase, found, (row) =>
@@ -294,14 +324,43 @@ export function editFixtureReply(data: EditContext) {
               " ",
             )
           : clause.replace(q.text.toLowerCase(), " ");
-      one(phrase, rows(rest), (row) =>
-        operations.push({
-          op: "changeQuantity",
-          target: row.target,
-          quantity: q.quantity,
-        }),
+      // A bare amount states what is wanted: the row's amount, or a new grocery of that amount.
+      const typed = words(rest).join(" ");
+      const named = rows(rest).filter(
+        (row) =>
+          (q.quantity.kind !== "amount" || row.unit === q.quantity.unit) &&
+          sameVariety(typed, row.name),
       );
-    } else unsupported.push({ phrase });
+      if (named.length || q.quantity.kind === "packs" || !typed)
+        one(phrase, named, (row) =>
+          operations.push({
+            op: "changeQuantity",
+            target: row.target,
+            quantity: q.quantity,
+          }),
+        );
+      else
+        operations.push({
+          op: "setItem",
+          name: groceryName(typed),
+          quantity: q.quantity,
+        });
+    } else {
+      // A dish named with no verb is added, unless it is on the list already.
+      const entry = catalogue.find((e) => e.pattern.test(clause));
+      const saved = entry
+        ? data.recipes.find((r) => r.id === entry.recipe.id)
+        : data.recipes.find((r) => mentions(clause, r.name));
+      const recipeId = saved?.id ?? entry?.recipe.id;
+      if (data.meals.some((meal) => meal.recipeId === recipeId)) continue;
+      if (saved) operations.push({ op: "addMeal", recipeId: saved.id });
+      else if (entry)
+        operations.push({
+          op: "addMeal",
+          recipe: structuredClone(entry.recipe),
+        });
+      else unsupported.push({ phrase });
+    }
   }
   return { version: 1, operations, ambiguities, unsupported };
 }

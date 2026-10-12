@@ -62,6 +62,20 @@ function editSummary(
           return fi
             ? `Lisätty ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`
             : `Added ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`;
+        case "addMeal":
+          return a.before
+            ? fi
+              ? `${a.name}: ${a.before} → ${a.after} annosta`
+              : `${a.name}: ${a.before} → ${a.after} servings`
+            : fi
+              ? `Lisätty ${a.name}`
+              : `Added ${a.name}`;
+        case "setItem":
+          return a.before
+            ? `${a.name}: ${a.before} → ${a.after} ${unit}`
+            : fi
+              ? `Lisätty ${a.name} (${a.after} ${unit})`
+              : `Added ${a.name} (${a.after} ${unit})`;
         case "removeItem":
           return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;
         case "replaceMeal":
@@ -146,9 +160,11 @@ function EditDetails({ delta, fi }: { delta: Delta; fi: boolean }) {
         <ul>
           {delta.meals.map((m) => (
             <li key={m.mealId}>
-              {m.change === "replaced"
-                ? `${tr("Vaihdettu", "Replaced")} ${m.name} → ${m.to}`
-                : `${m.name}: ${m.servingsBefore} → ${m.servingsAfter} ${tr("annosta", "servings")}`}
+              {m.change === "added"
+                ? `${tr("Lisätty", "Added")} ${m.name} (${m.servingsAfter} ${tr("annosta", "servings")})`
+                : m.change === "replaced"
+                  ? `${tr("Vaihdettu", "Replaced")} ${m.name} → ${m.to}`
+                  : `${m.name}: ${m.servingsBefore} → ${m.servingsAfter} ${tr("annosta", "servings")}`}
             </li>
           ))}
           {delta.rows.map((r) => (

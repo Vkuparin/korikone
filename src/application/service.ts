@@ -78,7 +78,7 @@ import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote, persistedQuoteSchema } from "./quotes";
 import { PlanningLifecycle } from "./planning";
 import { mapIntentResults } from "../domain/intents";
-import { applyEditIntent, editTargets } from "../domain/edits";
+import { applyEditIntent } from "../domain/edits";
 import { editDelta } from "../domain/edit-delta";
 import { interpretEdit } from "../ai/edit";
 import type { InferenceSession } from "../ai/provider";
@@ -1874,9 +1874,6 @@ export class Service {
     if (revision !== this.state.revision) throw new Error("draftStale");
     const source = structuredClone(this.state);
     const now = new Date();
-    const targets = editTargets(source, now);
-    if (!targets.rows.length && !targets.meals.length)
-      throw new Error("nothingToEdit");
     return this.measureOperation("edit", async (metrics) => {
       let inference: InferenceSession | null = null;
       try {

@@ -148,3 +148,100 @@ test("edit and undo APIs change the saved list atomically and survive a restart"
     await app.close();
   }
 });
+
+test("a plain list of dishes and groceries adds to the current list through real IPC, in both languages", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-edit-list-"));
+  env.KORIKONE_TEST_HIDDEN = "1";
+  let app = await electron.launch({ args: ["."], env });
+  try {
+    let page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    const run = (instruction: string) =>
+      page.evaluate(async (instruction) => {
+        const api = window.korikone;
+        const state = (await api.load()).value.state;
+        return api.editList({
+          revision: state.revision,
+          instruction,
+          consent: true,
+        });
+      }, instruction);
+    const empty = await page.evaluate(async () => {
+      const api = window.korikone;
+      await api.signInAI();
+      const state = (await api.load()).value.state;
+      const saved = await api.save({ ...state, staples: [] });
+      return saved.value;
+    });
+    expect(empty.state.meals).toEqual([]);
+    // The owner's prompt on an empty list.
+    const first = await run(
+      "Lihamakaronilaatikko, siskonmakkarakeitto, kaksi litraa kevytmaitoa, litra vaniljajäätelöä",
+    );
+    expect(first.ok).toBe(true);
+    expect(first.value.edit).toMatchObject({
+      status: "applied",
+      applied: [
+        { op: "addMeal", name: "Makaronilaatikko" },
+        { op: "addMeal", name: "Siskonmakkarakeitto" },
+        { op: "setItem", name: "Kevytmaito", after: 2000 },
+        { op: "setItem", name: "Vaniljajäätelö", after: 1000 },
+      ],
+    });
+    expect(first.value.state.meals).toHaveLength(2);
+    // In English on the now non-empty list: one more dish, a stated amount and an explicit addition.
+    const second = await run("chicken pasta, 500 g coffee, add 1 l kevytmaito");
+    expect(second.ok).toBe(true);
+    expect(second.value.edit).toMatchObject({
+      applied: [
+        { op: "addMeal", name: "Kanapasta" },
+        { op: "setItem", name: "Kahvi", after: 500 },
+        { op: "addItem", name: "Kevytmaito", before: 2000, after: 3000 },
+      ],
+    });
+    expect(second.value.state.meals).toHaveLength(3);
+    // The earlier dishes and the ice cream are all still there.
+    expect(
+      second.value.state.extras.map((i) => [i.name, i.amount]).sort(),
+    ).toEqual(
+      [
+        ["Kahvi", 500],
+        ["Kevytmaito", 3000],
+        ["Vaniljajäätelö", 1000],
+      ].sort(),
+    );
+    // Repeating the first prompt now changes the milk back to the stated two litres only.
+    const again = await run(
+      "Lihamakaronilaatikko, siskonmakkarakeitto, kaksi litraa kevytmaitoa, litra vaniljajäätelöä",
+    );
+    expect(again.value.edit).toMatchObject({
+      applied: [{ op: "changeQuantity", name: "Kevytmaito", after: 2000 }],
+    });
+    expect(again.value.state.meals).toHaveLength(3);
+    const counts = (await page.evaluate(() => window.korikone.load())).value;
+    expect(counts.developmentRequests).toBe(3);
+    expect(counts.developmentStoreWrites).toBe(0);
+    await app.close();
+    app = await electron.launch({ args: ["."], env });
+    page = await app.firstWindow();
+    const restarted = (await page.evaluate(() => window.korikone.load())).value;
+    expect(restarted.state.meals).toHaveLength(3);
+    const undone = await page.evaluate(
+      (revision) => window.korikone.undoEdit({ revision }),
+      restarted.state.revision,
+    );
+    expect(
+      undone.value.state.extras.find((i) => i.name === "Kevytmaito"),
+    ).toBeDefined();
+  } finally {
+    await app.close();
+  }
+});

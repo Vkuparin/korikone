@@ -46,6 +46,8 @@ const operationWireSchema = z
       "changeServings",
       "changeQuantity",
       "markAtHome",
+      "addMeal",
+      "setItem",
     ]),
     target: z.string().nullable(),
     name: z.string().nullable(),
@@ -158,13 +160,16 @@ export function editPrompt(context: EditContext): string {
     '{"op":"replaceMeal","target":"meal:…","recipeId":"saved recipe id" or null,"recipe":new recipe or null,"servings":number or null} with exactly one of recipeId and recipe; ' +
     '{"op":"changeServings","target":"meal:…","servings":8} with the resulting whole number of servings; ' +
     '{"op":"changeQuantity","target":"row:…","quantity":Q} sets the whole row quantity; ' +
-    '{"op":"markAtHome","target":"row:…","atHome":true or false}. ' +
+    '{"op":"markAtHome","target":"row:…","atHome":true or false}; ' +
+    '{"op":"addMeal","recipeId":"saved recipe id" or null,"recipe":new recipe or null,"servings":number or null} adds a dish that is not on the list, with exactly one of recipeId and recipe and no target; ' +
+    '{"op":"setItem","name":"Kevytmaito","quantity":Q} states the amount wanted of a named grocery that has no row yet, with no target. ' +
+    "A plain list of dishes and groceries with no verb means: add each dish that is not on the list (addMeal), and for each grocery with an amount state that amount (changeQuantity when the grocery has a row, otherwise setItem). Use addItem only when the shopper says add or more, such as lisää: it increases what is there. Never replace a dish unless the shopper says to replace or swap it. Keep the shopper's own words for a grocery variety, such as kevytmaito or vaniljajäätelö, in name. A number word and a written unit count as an amount: kaksi litraa is 2000 ml and litra jäätelöä is 1000 ml. " +
     'Q is {"kind":"amount","amount":positive integer,"unit":"g"|"ml"|"pcs"} in the row\'s own unit (convert kg and l; never decimals), ' +
     'or {"kind":"packs","count":positive integer} when the shopper counts cartons, packs, bags or jars. Never convert a pack count to an amount and never guess a pack size. ' +
     'A new recipe is {"id":"unique","name":"Nakkikeitto","kind":"meal","servings":4,"ingredients":[{"id":"nakki","name":"Nakki","amount":400,"unit":"g"}],"instructions":"…"} with plain singular Finnish ingredient names reused from the list where they match. ' +
     "Use a target at most once. Never invent or alter a target, product, price, store or brand. " +
     'If part of the instruction fits several targets, do not choose: add {"phrase":"the shopper\'s words","candidates":["row:…","row:…"]} to ambiguities. ' +
-    'If part of it is not one of the six operations, names nothing on the list where a target is required, or lacks a needed quantity, add {"phrase":"the shopper\'s words"} to unsupported. ' +
+    'If part of it is not one of these operations, names nothing on the list where a target is required, or lacks a needed quantity, add {"phrase":"the shopper\'s words"} to unsupported. ' +
     "When focus is set, words such as this, it, tämä or se mean that target. " +
     "Do not add edits the shopper did not ask for." +
     EDIT_DATA_MARKER +
@@ -216,6 +221,8 @@ const fields: Record<EditOperation["op"], string[]> = {
   changeServings: ["target", "servings"],
   changeQuantity: ["target", "quantity"],
   markAtHome: ["target", "atHome"],
+  addMeal: ["recipeId", "recipe", "servings"],
+  setItem: ["name", "quantity"],
 };
 
 /**
@@ -263,7 +270,10 @@ export function validateEditIntent(
         throw invalid();
       seen.add(wire.target);
       target = wire.target.slice(meal ? 5 : 4);
-    } else if (wire.op !== "addItem") throw invalid();
+    } else if (
+      !(["addItem", "addMeal", "setItem"] as string[]).includes(wire.op)
+    )
+      throw invalid();
     const q = wire.quantity;
     const quantity =
       q &&
@@ -281,6 +291,40 @@ export function validateEditIntent(
         if ((target === undefined) === (wire.name === undefined))
           throw invalid();
         return { op: wire.op, rowKey: target, name: wire.name, quantity };
+      case "setItem":
+        if (wire.name === undefined) throw invalid();
+        return { op: wire.op, name: wire.name, quantity };
+      case "addMeal": {
+        if ((wire.recipeId === undefined) === (wire.recipe === undefined))
+          throw invalid();
+        if (wire.recipeId !== undefined) {
+          // A dish may be added once per reply.
+          if (
+            !state.recipes.some((r) => r.id === wire.recipeId) ||
+            seen.has(`recipe:${wire.recipeId}`)
+          )
+            throw invalid();
+          seen.add(`recipe:${wire.recipeId}`);
+          return {
+            op: wire.op,
+            recipe: { kind: "saved", recipeId: wire.recipeId },
+            servings: wire.servings,
+          };
+        }
+        const recipe = validateRecipe(JSON.stringify(wire.recipe), {
+          recipes,
+          note: state.note,
+        });
+        const name = recipe.name.trim().toLocaleLowerCase("fi");
+        if (seen.has(`recipe-name:${name}`)) throw invalid();
+        seen.add(`recipe-name:${name}`);
+        recipes.push(recipe);
+        return {
+          op: wire.op,
+          recipe: { kind: "new", recipe },
+          servings: wire.servings,
+        };
+      }
       case "removeItem":
         return { op: wire.op, rowKey: target };
       case "changeQuantity":

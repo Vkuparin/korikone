@@ -39,6 +39,8 @@ const appliedEditSchema = z
       "changeServings",
       "changeQuantity",
       "markAtHome",
+      "addMeal",
+      "setItem",
     ]),
     targetId: editTargetIdSchema,
     name: z.string(),
