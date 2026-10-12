@@ -652,6 +652,7 @@ else
       undoEdit: (input) => service.undoEdit(input),
       editLocally: (input) => service.editLocally(input),
       clearList: (input) => service.clearList(input),
+      resetList: (input) => service.resetList(input),
       previewHouseholdSize: async (input) =>
         service.previewHouseholdSize(input),
       setHouseholdSize: (input) => service.setHouseholdSize(input),

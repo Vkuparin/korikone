@@ -1234,6 +1234,9 @@ export class Service {
       edit: this.edit?.revision === this.state.revision ? this.edit : null,
       editUndoAvailable: this.undo?.revision === this.state.revision,
       committedIntents,
+      // Set by New list until the list changes again. `at` identifies the reset, so the screen
+      // can drop everything it still shows of the earlier list exactly once.
+      reset: this.reset?.revision === this.state.revision ? this.reset : null,
       // What the planner assumed for the current list, so it can be shown and changed: sides
       // added to dishes named alone, and amounts chosen for groceries named without one.
       proposal: {
@@ -2457,6 +2460,82 @@ export class Service {
       );
     });
   }
+  /**
+   * New list: a complete, confirmed reset of the current shopping workspace. Unlike Clear list
+   * it has no Undo and leaves no edit summary: meals, direct items, the request text and its
+   * interpretation, row choices, the week plan's links to these meals, prices, comparison, any
+   * unfinished planning run and any shown review all go. Recipes, earlier weeks, list history,
+   * purchases, settings, the store, the household and the store's own basket stay, and so does
+   * the transfer record. Recurring items add nothing until a new list is generated or prices
+   * are updated. Local only: no AI, catalogue or retailer call.
+   */
+  async resetList(input: unknown) {
+    const { revision } = clearListRequestSchema.parse(input);
+    return this.writeState(async () => {
+      if (this.commitUncertain) throw new Error("commitUnknown");
+      // A write to the store in flight owns its evidence; the reset waits for it.
+      if (
+        this.transferPending ||
+        (this.busy &&
+          !!this.journal &&
+          ["ready", "transferring"].includes(this.journal.status))
+      )
+        throw new Error("transferInProgress");
+      if (this.busy) throw new Error("busy");
+      if (revision !== this.state.revision) throw new Error("draftStale");
+      const base = this.state;
+      const calendar = Object.fromEntries(
+        Object.entries(base.calendar).flatMap(([date, day]) =>
+          day.leftovers ? [[date, { mealIds: [], leftovers: true }]] : [],
+        ),
+      );
+      const cleared = stateSchema.parse({
+        ...base,
+        history: this.archived(base),
+        meals: [],
+        extras: [],
+        skipped: [],
+        removed: [],
+        quantities: {},
+        requestIntents: [],
+        calendar,
+        note: "",
+        assumptions: "",
+        recurringPaused: true,
+        ...clearRowCorrections(base),
+      });
+      const changed = JSON.stringify(cleared) !== JSON.stringify(base);
+      const next = changed
+        ? stateSchema.parse({ ...cleared, revision: base.revision + 1 })
+        : base;
+      await this.writeAtomically([
+        ...(changed ? [{ key: "state", value: next }] : []),
+        { key: "last-quote", value: null },
+        { key: EDIT_UNDO_KEY, value: null },
+      ]);
+      // An unfinished planning run is forgotten: its preview goes and a late reply finds no run.
+      // Commits run in this same write queue, so none can be in progress here.
+      this.planning.discard();
+      this.state = next;
+      this.basket = [];
+      this.quotedAt = null;
+      this.pickupFee = null;
+      this.pricingError = null;
+      this.review = null;
+      this.comparison = null;
+      this.transferException = null;
+      this.undo = null;
+      this.edit = null;
+      this.repeat = null;
+      this.draft = null;
+      this.draftRevision = null;
+      this.readyPlanning = null;
+      this.reset = { revision: next.revision, at: new Date().toISOString() };
+      return this.snapshot();
+    });
+  }
+  /** The latest New list reset, while the list is still at the revision it produced. */
+  private reset: { revision: number; at: string } | null = null;
   /** What `setHouseholdSize` would do to the current meals. Reads only; changes nothing. */
   previewHouseholdSize(input: unknown) {
     const { servings } = householdSizeRequestSchema

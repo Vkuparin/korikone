@@ -117,6 +117,7 @@ function App() {
     repeat: null,
     editUndoAvailable: false,
     committedIntents: [],
+    reset: null,
     proposal: { sides: [], quantities: [] },
     planningIncomplete: false,
     cheaperProductIds: [],

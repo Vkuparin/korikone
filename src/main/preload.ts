@@ -64,6 +64,7 @@ const methods = [
   "undoEdit",
   "editLocally",
   "clearList",
+  "resetList",
   "previewHouseholdSize",
   "setHouseholdSize",
   "importOrders",

@@ -356,6 +356,16 @@ export class PlanningLifecycle {
   cancelForShutdown() {
     this.run?.cancelForShutdown();
   }
+  /**
+   * Ends and forgets the current run for a list reset: its preview disappears and a reply that
+   * arrives later belongs to no run. Refused while the run is committing.
+   */
+  discard() {
+    if (!this.run) return;
+    this.run.assertCommitMutable();
+    this.run.stop("obsolete", "source-changed");
+    this.run = null;
+  }
   control(input: unknown, obsolete = false) {
     const control = planningControlSchema.parse(input);
     if (!this.run || this.run.operationId !== control.operationId)

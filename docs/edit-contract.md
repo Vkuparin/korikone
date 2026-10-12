@@ -179,3 +179,27 @@ Errors: `draftStale`, `busy`, `storageFailed`, `unknownTarget`, `undoUnavailable
 - Result: `snapshot.edit.applied` holds `{ op: "specifyItem", targetId, name: <previous row name>, to: <wording>, unit }`.
 
 Fixtures: `tests/row-specification.test.ts` (both real adapters on synthetic catalogues: the three playtest inputs, brand only, excluded brand, invalid output, cancellation, stale revision, restart, undo) and the real-IPC case in `tests/ui/edit-api.spec.ts`.
+
+## New list reset (B2.20)
+
+`window.korikone.resetList({ revision })` (`Service.resetList`) is the confirmed New list: a complete reset of the current shopping workspace. It is separate from Clear list: it has no Undo and leaves no edit summary. Local only, with no AI, catalogue or retailer call.
+
+Cleared: meals, direct items, the request text and assumptions, request intents, row quantities, at-home and removed marks, row specifications, one-time product choices and holds, the week plan's links to these meals, the quote and totals, the comparison, the edit summary and its Undo, an older draft, and any planning run or review still shown. The cleared meals are added to `state.history` as the latest earlier week.
+
+Kept: recipes, `history`, `listHistory`, purchases and memory, settings, the store, the household, the model choice, recurring item definitions, remembered category preferences, leftovers days in the week plan, the transfer journal (including a partial one waiting for recovery) and whatever is in the store's own basket.
+
+Recurring items: `state.recurringPaused` is set, as for Clear list. They add nothing to the empty list until a new list is generated or prices are explicitly updated.
+
+Result: the usual snapshot with `basket: []`, `quotedAt: null`, `pricingState: "empty"`, `edit: null`, `editUndoAvailable: false`, `planning: null`, `review: null`, `comparison: null`, `transferException: null`, and
+
+- `snapshot.reset: { revision, at } | null`. It is set by the reset and stays until the list changes again; it is null after a restart. `at` identifies one reset: when it changes, the screen drops everything it still holds of the earlier list (selection, expanded rows, previews, unsent text, messages) exactly once.
+
+Rules:
+
+- `revision` must be the current list revision, otherwise `draftStale`.
+- Refused with `transferInProgress` while a store write is in flight, and with `busy` during any other running operation. Nothing changes; the screen keeps the button disabled with the pending state it already shows.
+- An unfinished planning run is discarded after the reset is saved. Its preview disappears, a reply that arrives later is rejected, and `commitPlanning` for its operation fails with `planningStale`. A generation that fails after the reset leaves the empty list as it is.
+- Resetting an already empty list changes no revision and still returns `reset`, so the screen can clear itself.
+- A storage failure leaves the list, quote and Undo as they were.
+
+Fixtures: `tests/reset-list.test.ts` (populated, empty and preview-only reset, restart, stale revision, storage failure, late and failed planning replies, verified and partial transfer records, a write in flight, and Clear list kept separate) and `tests/ui/reset-api.spec.ts` (real IPC and restart).
