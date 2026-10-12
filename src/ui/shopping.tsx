@@ -39,6 +39,7 @@ import { useInsights } from "./insights";
 import { RecurringSuggestions } from "./suggestions";
 import { SpendingChart } from "./spending-chart";
 import { LinkReview, transferSignal } from "./purchase-links";
+import { RepeatButton, RepeatSummary } from "./repeat";
 import type { SettingsSection } from "./settings-contract";
 
 const editUnit = (unit: string | undefined, fi: boolean) =>
@@ -771,6 +772,13 @@ export function ShoppingWorkspace({
                     )
                     .join(", ")}
               </p>
+              <RepeatButton
+                snapshot={snapshot}
+                historyId={h.id}
+                hasList={all.length > 0}
+                busy={busy}
+                call={call}
+              />{" "}
               <button
                 disabled={busy}
                 onClick={() => {
@@ -849,6 +857,22 @@ export function ShoppingWorkspace({
         <h1>
           {tr("Mitä tällä viikolla syödään?", "What shall we eat this week?")}
         </h1>
+        <RepeatSummary snapshot={snapshot} />
+        {!all.length && !!state.listHistory.length && (
+          <p className="repeat-last">
+            <RepeatButton
+              snapshot={snapshot}
+              historyId={state.listHistory[0].id}
+              hasList={false}
+              busy={busy}
+              call={call}
+              label={tr(
+                "Toista viimeksi kauppaan siirretty lista",
+                "Repeat the list last transferred to the store",
+              )}
+            />
+          </p>
+        )}
         {!groups.length && !state.extras.length && (
           <p className="muted">
             {tr(
