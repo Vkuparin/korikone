@@ -89,10 +89,15 @@ export function requirements(
     if (staple.enabled && due) add({ ...staple, sources: ["staple"] });
   }
   for (const item of state.extras) add({ ...item, sources: ["extra"] });
-  return [...result.values()].map((item) => ({
-    ...item,
-    amount: state.quantities[`${item.id}:${item.unit}`] ?? item.amount,
-  }));
+  return [...result.values()].map((item) => {
+    const key = `${item.id}:${item.unit}`;
+    const amount = state.quantities[key] ?? item.amount;
+    const specified = state.specifications?.[key];
+    if (!specified) return { ...item, amount };
+    // The shopper's own wording replaces the name and whatever was inferred about the old one.
+    const { classification: _inferred, ...row } = item;
+    return { ...row, amount, name: specified, specifiedFrom: item.name };
+  });
 }
 /** Comma- or line-separated words such as "sianliha, pähkinä". */
 export function exclusionTerms(text: string): string[] {
@@ -104,6 +109,8 @@ export function exclusionTerms(text: string): string[] {
 const words = (text: string) =>
   text
     .toLocaleLowerCase("fi")
+    // "Lover's" and "Lovers" are one word.
+    .replace(/['’]/g, "")
     .split(/[^\p{L}]+/u)
     .filter(Boolean);
 /**
@@ -140,6 +147,23 @@ export function relevant(productName: string, ingredientName: string) {
     sameFoodState(split, wanted) &&
     relevantWords(product.words, ingredient.words)
   );
+}
+/**
+ * For a row the shopper specified: the words they added beyond the row's own name, such as a
+ * brand or variety. A product carrying all of them but not the generic noun ("Grandiosa Meat
+ * Lovers" for "Pakastepizza Grandiosa Meat Lover's") is offered for approval, never auto-chosen.
+ */
+export function matchesSpecifiedQualifiers(
+  productName: string,
+  requirement: Pick<Requirement, "name" | "specifiedFrom">,
+) {
+  if (requirement.specifiedFrom === undefined) return false;
+  const own = words(requirement.specifiedFrom);
+  const added = words(requirement.name).filter(
+    (w) =>
+      w.length >= 2 && !own.some((o) => w.startsWith(o) || o.startsWith(w)),
+  );
+  return added.length > 0 && relevantWords(words(productName), added);
 }
 function relevantWords(split: string[], wanted: string[]) {
   // Stores also write compounds apart: "kanan munat" for "kananmunat".

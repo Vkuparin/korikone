@@ -86,7 +86,10 @@ export const persistedQuoteSchema = z.object({
   basket: z.array(
     z.object({
       priceBasis: priceBasisSchema.optional(),
-      requirement: ingredientSchema.extend({ sources: z.array(z.string()) }),
+      requirement: ingredientSchema.extend({
+        sources: z.array(z.string()),
+        specifiedFrom: z.string().optional(),
+      }),
       product: productSchema.nullable(),
       packs: z.number().nonnegative(),
       total: z.number().nonnegative().nullable(),

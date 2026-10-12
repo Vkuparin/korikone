@@ -100,6 +100,7 @@ const appliedEditSchema = z
       "addMeal",
       "setItem",
       "removeMeal",
+      "specifyItem",
     ]),
     targetId: editTargetIdSchema,
     name: z.string(),
@@ -119,6 +120,8 @@ const editedPlanSchema = z
     removed: z.array(z.string()),
     quantities: z.record(z.string(), z.number().int().positive()),
     requestIntents: z.array(intentMappingSchema),
+    // Absent in undo snapshots saved before row specifications existed.
+    specifications: z.record(z.string(), z.string()).default({}),
   })
   .strict();
 export const editUndoSchema = z
@@ -161,6 +164,7 @@ export const editedPlan = (state: AppState): EditUndo["plan"] =>
     removed: state.removed,
     quantities: state.quantities,
     requestIntents: state.requestIntents,
+    specifications: state.specifications,
   });
 
 /** The fields outside `plan` that a change touched, as they were before it. */

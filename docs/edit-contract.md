@@ -165,3 +165,17 @@ Service operations (`src/application/service.ts`), all revision-bound, written a
 Related: `snapshot.pricingState` is `empty`, `unpriced`, `quoted` or `failed`. Choosing or connecting a store on a list that was never priced does not search; a priced list follows its store. `setReceiptText({ text, base })` saves the receipt text only when `base` is still the saved text, otherwise it throws `receiptTextStale`.
 
 Errors: `draftStale`, `busy`, `storageFailed`, `unknownTarget`, `undoUnavailable`. Fixtures: `tests/local-edits.test.ts`, `tests/clear-list.test.ts`, `tests/household-size.test.ts`, `tests/edit-enumeration.test.ts`, `tests/first-search.test.ts`, `tests/receipt-text.test.ts`, `tests/ui/clear-resize-api.spec.ts`, `tests/ui/local-removal.spec.ts`.
+
+## Row specification (B2.3)
+
+`specifyItem { rowKey, name }` says what an existing row should be: a product, brand or type name. It is the edit a bare name means when a row is selected (`focusTargetId` is a `row:` target and the instruction has no verb and no amount). It never creates a recipe, a meal or a new grocery.
+
+- State: `AppState.specifications` maps a requirement key to the shopper's wording (1 to 200 characters, default `{}`). It is part of the edit undo snapshot and of the pricing key, and is cleared by every new list and by Clear list. Recipes, extras and recurring definitions keep their own names.
+- `requirements(state)` returns the row with `name` set to the wording and `specifiedFrom` set to the row's own name. Amount, unit, ID and sources are unchanged. The classification inferred for the old name is dropped; the category is read again from the new wording.
+- Naming the row's own name removes the wording. Naming what the row already is changes nothing and is not reported.
+- The edited row is always searched again, inside the existing three-query limit (`changedKeys` includes it even though its amount did not change). Other rows keep their quoted lines. `editLocally` refuses the operation because it needs a catalogue read.
+- Matching (`src/domain/matching.ts`, `src/domain/planner.ts`): a product carrying every word of the wording is preferred over other eligible products. A product carrying every word the shopper added but not the generic noun (`matchesSpecifiedQualifiers`) is `approval-required` with reason `name`: it is offered as an alternative and never chosen silently. Household exclusions, unit, stock and pack checks apply unchanged, so an excluded brand leaves the row unresolved instead of falling back to another brand.
+- Interpreter (`src/ai/edit.ts`): wire shape `{"op":"specifyItem","target":"row:…","name":"…"}`. A missing, blank or non-row target is invalid output and follows the existing one-repair rule. One AI request per instruction, as for any edit. The development fixture puts the row's grocery after a single unknown word, so "Knorr" on a Lihaliemikuutio row becomes "Knorr Lihaliemikuutio".
+- Result: `snapshot.edit.applied` holds `{ op: "specifyItem", targetId, name: <previous row name>, to: <wording>, unit }`.
+
+Fixtures: `tests/row-specification.test.ts` (both real adapters on synthetic catalogues: the three playtest inputs, brand only, excluded brand, invalid output, cancellation, stale revision, restart, undo) and the real-IPC case in `tests/ui/edit-api.spec.ts`.

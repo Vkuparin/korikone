@@ -49,6 +49,7 @@ const operationWireSchema = z
       "addMeal",
       "setItem",
       "removeMeal",
+      "specifyItem",
     ]),
     target: z.string().nullable(),
     name: z.string().nullable(),
@@ -165,11 +166,13 @@ export function editPrompt(context: EditContext): string {
     '{"op":"markAtHome","target":"row:…","atHome":true or false}; ' +
     '{"op":"addMeal","recipeId":"saved recipe id" or null,"recipe":new recipe or null,"servings":number or null} adds a dish that is not on the list, with exactly one of recipeId and recipe and no target; ' +
     '{"op":"setItem","name":"Kevytmaito","quantity":Q} states the amount wanted of a named grocery that has no row yet, with no target. ' +
+    '{"op":"specifyItem","target":"row:…","name":"Knorr Lihaliemikuutio"} says what an existing row should be: the product, brand or type the shopper names for it, keeping its amount. ' +
+    "When focus is a row and the instruction is only a product, brand or grocery name, with no verb and no amount, it is specifyItem for the focus row: never a new dish, a new grocery or unsupported. Write name as the shopper wrote it; when they give only a brand, put the row's grocery after the brand. " +
     "A plain list of dishes and groceries with no verb means: add each dish that is not on the list (addMeal), and for each grocery with an amount state that amount (changeQuantity when the grocery has a row, otherwise setItem). Use addItem only when the shopper says add or more, such as lisää: it increases what is there. Never replace a dish unless the shopper says to replace or swap it. Keep the shopper's own words for a grocery variety, such as kevytmaito or vaniljajäätelö, in name. A number word and a written unit count as an amount: kaksi litraa is 2000 ml and litra jäätelöä is 1000 ml. " +
     'Q is {"kind":"amount","amount":positive integer,"unit":"g"|"ml"|"pcs"} in the row\'s own unit (convert kg and l; never decimals), ' +
     'or {"kind":"packs","count":positive integer} when the shopper counts cartons, packs, bags or jars. Never convert a pack count to an amount and never guess a pack size. ' +
     'A new recipe is {"id":"unique","name":"Nakkikeitto","kind":"meal","servings":4,"ingredients":[{"id":"nakki","name":"Nakki","amount":400,"unit":"g"}],"instructions":"…"} with plain singular Finnish ingredient names reused from the list where they match. ' +
-    "Use a target at most once. Never invent or alter a target, product, price, store or brand. " +
+    "Use a target at most once. Never invent or alter a target, price or store, and never add a product or brand the shopper did not write. " +
     'If part of the instruction fits several targets, do not choose: add {"phrase":"the shopper\'s words","candidates":["row:…","row:…"]} to ambiguities. ' +
     'If part of it is not one of these operations, names nothing on the list where a target is required, or lacks a needed quantity, add {"phrase":"the shopper\'s words"} to unsupported. ' +
     "When focus is set, words such as this, it, tämä or se mean that target. " +
@@ -226,6 +229,7 @@ const fields: Record<EditOperation["op"], string[]> = {
   addMeal: ["recipeId", "recipe", "servings"],
   setItem: ["name", "quantity"],
   removeMeal: ["target"],
+  specifyItem: ["target", "name"],
 };
 
 /**
@@ -331,6 +335,9 @@ export function validateEditIntent(
           servings: wire.servings,
         };
       }
+      case "specifyItem":
+        if (wire.name === undefined || !wire.name.trim()) throw invalid();
+        return { op: wire.op, rowKey: target, name: wire.name };
       case "removeMeal":
         return { op: wire.op, mealId: target };
       case "removeItem":

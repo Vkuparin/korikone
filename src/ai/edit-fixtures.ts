@@ -351,6 +351,17 @@ export function editFixtureReply(data: EditContext) {
           name: groceryName(typed),
           quantity: q.quantity,
         });
+    } else if (data.focus?.startsWith("row:")) {
+      // A bare name with a row selected says what that row should be.
+      const row = data.rows.find((r) => r.target === data.focus)!;
+      const brandOnly = !/\s/.test(phrase) && !mentions(clause, row.name);
+      one(phrase, [row], () =>
+        operations.push({
+          op: "specifyItem",
+          target: row.target,
+          name: brandOnly ? `${phrase} ${row.name}` : phrase,
+        }),
+      );
     } else {
       // A dish named with no verb is added, unless it is on the list already.
       const entry = catalogue.find((e) => e.pattern.test(clause));

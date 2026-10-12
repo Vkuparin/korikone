@@ -75,6 +75,11 @@ export const stateSchema = z
     requestIntents: z.array(intentMappingSchema).max(100).default([]),
     extras: z.array(ingredientSchema).max(500).default([]),
     removed: z.array(z.string()).max(1000).default([]),
+    // What the shopper said a row should be, by requirement key: a product, brand or type name
+    // that replaces the row's own name for search and matching. Amount, unit and sources stay.
+    specifications: z
+      .record(z.string(), z.string().min(1).max(200))
+      .default({}),
     quantities: z
       .record(z.string(), z.number().int().positive().max(10_000_000))
       .default({}),
@@ -170,7 +175,11 @@ export type AppState = z.infer<typeof stateSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type Ingredient = z.infer<typeof ingredientSchema>;
 export type StoreContext = z.infer<typeof contextSchema>;
-export type Requirement = Ingredient & { sources: string[] };
+export type Requirement = Ingredient & {
+  sources: string[];
+  /** The row's own name when the shopper specified another one for it. */
+  specifiedFrom?: string;
+};
 export type Product = {
   id: string;
   providerId: string;

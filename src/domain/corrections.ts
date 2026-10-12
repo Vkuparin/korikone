@@ -52,6 +52,7 @@ export function correctionKey(
 /** A new list drops correction choices; explicit category memory remains. */
 export function clearRowCorrections(state: AppState) {
   return {
+    specifications: {},
     correctionHolds: [],
     correctionChoices: [],
     accepted: Object.fromEntries(

@@ -98,6 +98,15 @@ export const editOperationSchema = z.discriminatedUnion("op", [
       servings: z.number().int().min(1).max(100).optional(),
     })
     .strict(),
+  // Says what an existing row should be: a product, brand or type name. The row keeps its
+  // amount, unit and sources; an empty difference from the row's own name removes the wording.
+  z
+    .object({
+      op: z.literal("specifyItem"),
+      rowKey: editRowKeySchema,
+      name: z.string().trim().min(1).max(200),
+    })
+    .strict(),
   // Takes a dish off the list. Its recipe stays saved; rows it shared keep the other shares.
   z.object({ op: z.literal("removeMeal"), mealId: editMealIdSchema }).strict(),
   // States the amount wanted of a named grocery: sets its row, or adds it when it has none.
@@ -432,6 +441,8 @@ export function applyEdits(
   // Meal operations first: they decide which rows exist for the row operations.
   const baseBefore = baseRows(state, now);
   const applied: AppliedEdit[] = [];
+  // Rows whose wording changed need a new search even when their amount did not.
+  const respecified = new Set<string>();
   for (const { operation, recipeId, newRecipe } of planned) {
     if (operation.op === "addMeal") {
       const onList = next.meals.find((m) => m.recipeId === recipeId);
@@ -673,6 +684,25 @@ export function applyEdits(
     }
     // A meal operation in the same batch may have removed the row this operation names.
     if (!row || !existing) throw new EditError("unknownTarget", index);
+    if (operation.op === "specifyItem") {
+      const own = row.specifiedFrom ?? row.name;
+      const name = operation.name.trim();
+      const same = (a: string, b: string) =>
+        a.toLocaleLowerCase("fi") === b.toLocaleLowerCase("fi");
+      // Naming what the row already is changes nothing and is not reported.
+      if (same(name, row.name)) continue;
+      if (same(name, own)) delete next.specifications[key];
+      else next.specifications[key] = name;
+      respecified.add(key);
+      applied.push({
+        op: operation.op,
+        targetId: rowTargetId(key),
+        name: row.name,
+        to: name,
+        unit,
+      });
+      continue;
+    }
     if (operation.op === "changeQuantity") {
       const amount = resolveAmount(
         operation.quantity,
@@ -733,7 +763,10 @@ export function applyEdits(
   const visibleAfter = new Map(after.map((r) => [requirementKey(r), r.amount]));
   const changedKeys = [
     ...new Set([...visibleBefore.keys(), ...visibleAfter.keys()]),
-  ].filter((key) => visibleBefore.get(key) !== visibleAfter.get(key));
+  ].filter(
+    (key) =>
+      visibleBefore.get(key) !== visibleAfter.get(key) || respecified.has(key),
+  );
   if (
     JSON.stringify(validated.data) === JSON.stringify(stateSchema.parse(state))
   )

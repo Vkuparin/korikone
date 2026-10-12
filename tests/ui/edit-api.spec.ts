@@ -245,3 +245,91 @@ test("a plain list of dishes and groceries adds to the current list through real
     await app.close();
   }
 });
+
+test("a bare product name with a row selected corrects that row through real IPC", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-specify-"));
+  env.KORIKONE_TEST_HIDDEN = "1";
+  let app = await electron.launch({ args: ["."], env });
+  try {
+    let page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    const result = await page.evaluate(async () => {
+      const api = window.korikone;
+      const signedIn = await api.signInAI();
+      if (!signedIn.ok) throw new Error(signedIn.error);
+      let saved = await api.save({
+        ...signedIn.value.state,
+        staples: [],
+        extras: [
+          { id: "mince", name: "Jauheliha", amount: 400, unit: "g" },
+          { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
+        ],
+      });
+      for (let i = 0; i < 20 && !saved.ok; i++)
+        saved = await api.save({
+          ...(await api.load()).value.state,
+          staples: [],
+          extras: [
+            { id: "mince", name: "Jauheliha", amount: 400, unit: "g" },
+            { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
+          ],
+        });
+      if (!saved.ok) throw new Error(saved.error);
+      const before = saved.value;
+      const edited = await api.editList({
+        revision: before.state.revision,
+        instruction: "Naudan jauheliha",
+        consent: true,
+        focusTargetId: "row:mince:g",
+      });
+      return { before, edited };
+    });
+    expect(result.edited.ok).toBe(true);
+    if (!result.edited.ok) return;
+    const after = result.edited.value;
+    expect(after.state.specifications).toEqual({
+      "mince:g": "Naudan jauheliha",
+    });
+    expect(after.edit).toMatchObject({
+      status: "applied",
+      applied: [
+        { op: "specifyItem", name: "Jauheliha", to: "Naudan jauheliha" },
+      ],
+    });
+    const row = after.basket.find((l) => l.requirement.id === "mince")!;
+    expect(row.requirement).toMatchObject({
+      name: "Naudan jauheliha",
+      specifiedFrom: "Jauheliha",
+      amount: 400,
+    });
+    // Nothing became a dish or a new grocery, and the other row was not read again.
+    expect(after.state.meals).toEqual([]);
+    expect(after.state.extras).toEqual(result.before.state.extras);
+    expect(after.basket.find((l) => l.requirement.id === "milk")).toEqual(
+      result.before.basket.find((l) => l.requirement.id === "milk"),
+    );
+    expect(after.developmentStoreWrites).toBe(0);
+    expect(
+      after.developmentCatalogueRequests -
+        result.before.developmentCatalogueRequests,
+    ).toBeLessThanOrEqual(3);
+    await app.close();
+    app = await electron.launch({ args: ["."], env });
+    page = await app.firstWindow();
+    const restarted = (await page.evaluate(() => window.korikone.load())).value;
+    expect(restarted.state.specifications).toEqual({
+      "mince:g": "Naudan jauheliha",
+    });
+    expect(restarted.editUndoAvailable).toBe(true);
+  } finally {
+    await app.close();
+  }
+});

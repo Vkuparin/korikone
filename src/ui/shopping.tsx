@@ -80,6 +80,8 @@ function editSummary(
             : fi
               ? `Lisätty ${a.name} (${a.after} ${unit})`
               : `Added ${a.name} (${a.after} ${unit})`;
+        case "specifyItem":
+          return `${a.name} → ${a.to}`;
         case "removeItem":
         case "removeMeal":
           return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;

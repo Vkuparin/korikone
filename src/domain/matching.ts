@@ -19,7 +19,13 @@ export {
 import { foodNameFacts, ordinaryOnionName } from "./food-names";
 import { correctionKey } from "./corrections";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
-import { match, relevant, approximateCost, pieceQuote } from "./planner";
+import {
+  match,
+  relevant,
+  approximateCost,
+  pieceQuote,
+  matchesSpecifiedQualifiers,
+} from "./planner";
 import { comparePriceAlternative, rankProductPrices } from "./price-ranking";
 import type {
   AppState,
@@ -311,7 +317,10 @@ function assess(
   )
     return reject("unit");
   if (!policy.category) {
-    if (!relevant(product.name, requirement.name)) return reject("name");
+    if (!relevant(product.name, requirement.name))
+      return matchesSpecifiedQualifiers(product.name, requirement)
+        ? review("name")
+        : reject("name");
   } else {
     if (!evidence?.category) return reject("unknown-category");
     if (evidence.category !== policy.category) return reject("category");
@@ -465,11 +474,18 @@ export function matchRequirement(
         ? !storeBrand(p)
         : true,
   );
+  // A row the shopper specified prefers products carrying every word they wrote.
+  const worded =
+    requirement.specifiedFrom === undefined
+      ? []
+      : automatic.filter((p) => relevant(p.name, requirement.name));
   const eligible = approved.length
     ? approved
-    : branded.length
-      ? branded
-      : automatic;
+    : worded.length
+      ? worded
+      : branded.length
+        ? branded
+        : automatic;
   const line = match(
     requirement,
     allowed,

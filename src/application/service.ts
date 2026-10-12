@@ -1264,15 +1264,16 @@ export class Service {
     const priceBasisChanged = next.priceBasis !== this.state.priceBasis;
     await this.db.set("state", next);
     this.state = next;
-    this.basket = this.basket.map((line) => ({
-      ...line,
-      candidates: rankProductPrices(
-        line.requirement,
-        line.candidates,
-        next.priceBasis,
-      ),
-    }));
     if (priceBasisChanged) {
+      // Alternatives are ranked by the chosen basis; any other save leaves the quote untouched.
+      this.basket = this.basket.map((line) => ({
+        ...line,
+        candidates: rankProductPrices(
+          line.requirement,
+          line.candidates,
+          next.priceBasis,
+        ),
+      }));
       this.planning.invalidate();
       this.readyPlanning = null;
     }
@@ -2402,6 +2403,7 @@ export class Service {
           skipped: [],
           removed: [],
           quantities: {},
+          specifications: {},
           requestIntents: [],
           calendar: {},
           note: "",
