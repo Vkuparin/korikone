@@ -2980,12 +2980,13 @@ export class Service {
         this.transferException = "acknowledgeReview";
         return this.snapshot();
       }
-      return await this.execute({ id: review.id, acknowledged: true });
+      return await this.execute({ id: review.id, acknowledged: true }, true);
     } finally {
       this.transferPending = false;
     }
   }
-  async execute(input: unknown) {
+  /** `sameClick` is set only by the one-click path, straight after its own review. */
+  async execute(input: unknown, sameClick = false) {
     this.assertNoProvisionalTransfer();
     const { id, acknowledged } = z
       .object({ id: z.string(), acknowledged: z.boolean() })
@@ -3036,6 +3037,7 @@ export class Service {
           exclusions: exclusionTerms(this.state.household.exclusions),
           preferences: this.state.categoryPreferences,
         },
+        sameClick,
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)

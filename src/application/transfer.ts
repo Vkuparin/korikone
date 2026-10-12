@@ -219,6 +219,8 @@ export async function createReview(
     ...(priceChanges.length ? { priceChanges } : {}),
   };
 }
+/** How long a review's own product readings stand in for a second reading before the writes. */
+export const FRESH_REVIEW_MS = 30_000;
 const locks = new Set<string>();
 export async function transfer(
   provider: StoreProvider,
@@ -227,6 +229,11 @@ export async function transfer(
   signal?: AbortSignal,
   packSizes: AppState["packSizes"] = {},
   matchingOptions: MatchingOptions = {},
+  /**
+   * Set only when this call continues the same click that created the review. A review the
+   * shopper looked at first is always checked again, whatever its age.
+   */
+  reviewJustRead = false,
 ): Promise<Journal> {
   const review = journal.review;
   const key = JSON.stringify([
@@ -242,30 +249,36 @@ export async function transfer(
   const expected = structuredClone(review.baseline);
   const record = () => persist(structuredClone(journal));
   try {
-    for (const line of review.quotes) {
-      const p = line.product!;
-      if (!review.targets.some((t) => t.productId === p.id)) continue;
-      const fresh = await freshProduct(
-        provider,
-        review.context,
-        line,
-        packSizes,
-        signal,
-        matchingOptions,
-      );
-      if (
-        !fresh ||
-        !sameSuitability(line, fresh, review.context, matchingOptions) ||
-        fresh.price !== p.price ||
-        fresh.deposit !== p.deposit ||
-        fresh.packAmount !== p.packAmount ||
-        fresh.unit !== p.unit ||
-        fresh.nativeUnit !== p.nativeUnit ||
-        fresh.increment !== p.increment ||
-        fresh.available !== true
-      )
-        throw new Error("priceChanged");
-    }
+    // The one-click path wrote nothing and waited for nobody since its review read every
+    // product. Reading them all again adds one store round trip per row and tells nothing new.
+    if (
+      !reviewJustRead ||
+      Date.now() - Date.parse(review.createdAt) > FRESH_REVIEW_MS
+    )
+      for (const line of review.quotes) {
+        const p = line.product!;
+        if (!review.targets.some((t) => t.productId === p.id)) continue;
+        const fresh = await freshProduct(
+          provider,
+          review.context,
+          line,
+          packSizes,
+          signal,
+          matchingOptions,
+        );
+        if (
+          !fresh ||
+          !sameSuitability(line, fresh, review.context, matchingOptions) ||
+          fresh.price !== p.price ||
+          fresh.deposit !== p.deposit ||
+          fresh.packAmount !== p.packAmount ||
+          fresh.unit !== p.unit ||
+          fresh.nativeUnit !== p.nativeUnit ||
+          fresh.increment !== p.increment ||
+          fresh.available !== true
+        )
+          throw new Error("priceChanged");
+      }
     if (
       fingerprint(await provider.getCart(review.context)) !==
       fingerprint(expected)
@@ -273,13 +286,10 @@ export async function transfer(
       throw new Error("cartChanged");
     journal.status = "transferring";
     await record();
+    // The basket was read just above and is read back after every write, so each write follows
+    // a verified reading of the whole basket without a second read in between.
     for (const target of review.targets) {
       if (signal?.aborted) throw new Error("cancelled");
-      if (
-        fingerprint(await provider.getCart(review.context)) !==
-        fingerprint(expected)
-      )
-        throw new Error("cartChanged");
       journal.uncertain = target.productId;
       await record();
       await provider.setQuantity(review.context, target);
@@ -295,11 +305,6 @@ export async function transfer(
       journal.uncertain = null;
       await record();
     }
-    if (
-      fingerprint(await provider.getCart(review.context)) !==
-      fingerprint(expected)
-    )
-      throw new Error("verificationFailed");
     journal.status = "verified";
     journal.error = null;
     await record();

@@ -56,6 +56,28 @@ After a verified transfer of the same batch, another click reads the basket, che
 - During the click the renderer's own pending state applies; `transferDisplayed` resolves once the journal is `verified` or `partial`, or with a `transferException`.
 - After the click: `snapshot.journal.status`, `journal.review.targets` (`before` shows what the basket already held), `journal.review.unresolved`, `journal.review.priceChanges` and `journal.review.total`.
 
+## Store calls and latency (B2.10)
+
+Measured with `tests/transfer-latency.test.ts`: a five-row list, a development stand-in for each chain whose every store call is counted and, in one case, delayed by 20 ms.
+
+| One-click transfer of 5 rows | Product reads | Basket reads | Writes | Calls | Time at 20 ms per call |
+| --- | --- | --- | --- | --- | --- |
+| Before | 10 | 18 | 5 | 33 | 1035 ms |
+| After | 5 | 12 | 5 | 22 | 694 ms |
+
+The time column is one run on the development PC on 13 October 2026 with timer granularity included; it shows that elapsed time follows the number of sequential calls and is not a claim about a real store.
+
+What was removed, and why it is safe:
+
+- **The second product read.** `transfer` read every product again immediately after `createReview` had read it in the same click. `transfer(..., reviewJustRead)` now skips that only when `transferDisplayed` continues straight from its own review, and only while the review is younger than `FRESH_REVIEW_MS` (30 s). A review the shopper looked at first (`execute` from the confirmation, or a recovery) is always read again, so a price, pack or piece-weight change during the pause still stops before any write. The IPC `execute` cannot set the flag.
+- **The basket read before each write and after the last one.** The basket is read once before the first write and read back after every write; each read-back is the verified whole-basket reading that precedes the next write. An external change is still caught by the next read-back, the write after it does not run, and the journal stays `partial` with `uncertain` set.
+
+Unchanged: one write at a time in list order, absolute quantities, the account and store checks, the journal written before and after each write, read-back verification, `recoverFirst`, the same-list repeat guard and cancellation between writes.
+
+Per write, each real adapter also reads the basket itself before writing (`setQuantity` in `src/stores/s-kaupat.ts` and `src/stores/k-ruoka.ts`). For S-kaupat a basket read is two tool calls (`login_status`, `get_shopping_lists`), so an N-row transfer makes about 7N + 6 basket-side tool calls before this change and 5N + 4 after it, besides the product reads (2N before, N after).
+
+Not done, because it needs a verified store contract first: sending all rows in one `add_to_shopping_list` call, and letting the adapter reuse the caller's basket reading instead of its own. Both would need live acceptance with the owner's account. Proposed bounded check when wanted: one transfer of three products to an empty S-kaupat list and one to K-Ruoka, comparing the journal with the store page; no AI request.
+
 ## Fixtures
 
 `tests/one-click-transfer.test.ts` (development stand-ins for both chains): complete one-click success and same-list repeat, existing basket items, budget overrun and rows left out, changed price, changed pack, stale revision and batch, changed account, partial failure and recovery, and the opt-in review with its persistence. `tests/ui/one-click-transfer.spec.ts` clicks the real button in development mode. `tests/service.test.ts` keeps the review behaviour under the setting.
