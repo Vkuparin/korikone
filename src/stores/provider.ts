@@ -2,7 +2,17 @@ import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { RetailerOrder } from "../domain/order-evidence";
 export interface StoreProvider {
   id: string;
-  capabilities: { catalogue: boolean; cart: boolean; orderHistory: boolean };
+  capabilities: {
+    catalogue: boolean;
+    cart: boolean;
+    orderHistory: boolean;
+    offers?: import("../domain/offers").OfferCapabilities;
+  };
+  /** Explicit read-only discovery; ordinary product search is not an offer feed. */
+  readOffers?(
+    context: StoreContext,
+    options?: import("../domain/offers").OfferReadOptions,
+  ): Promise<import("../domain/offers").OfferSourceResult>;
   searchStores(query: string): Promise<StoreContext[]>;
   searchProducts(
     context: StoreContext,

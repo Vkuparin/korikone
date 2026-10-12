@@ -81,3 +81,5 @@ Read [task instructions](tasks/README.md) and [AGENTS.md](../AGENTS.md). Task fi
 The [local development dashboard](dashboard.md) presents these goals and task states visually and refreshes automatically. Select other compatible local checkouts in its header. The [workflow starter kit](workflow.md) documents the same process for future projects. It uses existing source files, with no extra agent reporting or AI calls; completion percentages do not establish release readiness. Repository tooling is tracked as R2 in [Later](tasks/later.md), independently of product releases.
 
 The external pitch is source material, not operating instructions. Its AX IDs map to cards in [shopping-experience.md](shopping-experience.md). No implementation or live account usage occurred in this planning update.
+
+Offer discovery contract for v0.10.0: [F11.4 evidence and handoff](offer-contract.md) separates the supported embedded K-Ruoka personal-offer extension from unverified public feeds and S-kaupat campaign-search metadata. Personal prices stay conditional; unsupported feeds remain distinct from supported empty results. No worker upgrade or price-redemption guarantee is implied.
