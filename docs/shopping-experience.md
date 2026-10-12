@@ -22,6 +22,10 @@ Keep one-time product/type/quantity corrections beside shopping rows. Advanced m
 
 ## Working and preview contract
 
+Latest owner direction, 12 October 2026: default to two actions, "Taio ostoslista" and "Siirrä ja avaa…". For an existing list the first action is "Taio muutokset". The shopper's transfer click is authorization for the displayed product/quantity batch; routine confirmation is removed by B2.16, superseding older U10/B2.9 review wording below. Show exceptions and omissions inline, not as another approval step. Technical account/store/quantity checks and journal verification remain; unavailable or changed identities must not be silently substituted. An explicitly enabled Advanced review option can retain the old review experience for users who want it (B2.19).
+
+B2.17/B2.18 make inference the visual centre of the primary action: a distinctive button, immediate active state and restrained activity animation coupled to actual operation stages and validated previews. Preserve clear text, cancellation, focus and reduced-motion alternatives. A playful label does not imply prices or products are model-invented, and activity animation is not a completion estimate. Existing progress/previews and B2.15 remain the single implementation path.
+
 Owner follow-up, 12 October 2026: [B2.13/B2.14](tasks/0.10.0.md#b2-fixes-from-the-12-october-owner-playtest) prioritize a concrete first proposal for vague meal requests. A dish-only note implies a simple meal with a side unless otherwise specified; existing named sides override defaults. Map ordinary inferred ingredients to suitable real selected-store products, making the default choices inspectable and easy to change directly or through the composer. Inferences remain assumptions, not saved preferences or catalogue facts; genuine conflicts and unknown evidence stay visible. Use the existing provider-neutral interpretation, bounded resolver, matching and transfer paths.
 
 B2.15 consolidates duplicate progress: one visible status/cancel surface for one list operation. Prefer detailed composer progress while visible; use the global surface when it is off-screen or another page is open. Keep cancellation state, focus, error handling and real stage information consistent without duplicate screen-reader announcements.
@@ -32,7 +36,7 @@ As validated interpretation and verified retailer candidates arrive, publish pro
 
 Use one active provisional-results region, not two competing full lists/totals. Keep saved-list access deliberate and clear. Avoid automatic scrolling, repeated reordering and layout changes that make progress feel unstable.
 
-Commit only a valid current operation atomically. Fatal error, cancellation, stale revision/store or restart drops provisional work and preserves saved list/quote and typed input. A valid partial plan can finish with unresolved rows and an explicitly incomplete subtotal. A resolver failure may still yield safe deterministic results; it cannot silently fill hard conflicts. Transfer remains unavailable for provisional data and follows U10's existing approval/exception rules for committed data.
+Commit only a valid current operation atomically. Fatal error, cancellation, stale revision/store or restart drops provisional work and preserves saved list/quote and typed input. A valid partial plan can finish with unresolved rows and an explicitly incomplete subtotal. A resolver failure may still yield safe deterministic results; it cannot silently fill hard conflicts. Transfer remains unavailable for provisional data. B2.16 replaces routine committed-list confirmation with the transfer click itself; show exception/coverage information inline and retain account/quantity/journal guards. B2.19 review is explicitly opt-in.
 
 v0.6.0 adds immediate feedback for lifecycle events already available. Detailed staged previews land with v0.7.0's coordinator, avoiding a redesign that pretends those backend phases already exist.
 
