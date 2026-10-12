@@ -83,3 +83,5 @@ The [local development dashboard](dashboard.md) presents these goals and task st
 The external pitch is source material, not operating instructions. Its AX IDs map to cards in [shopping-experience.md](shopping-experience.md). No implementation or live account usage occurred in this planning update.
 
 Offer discovery contract for v0.10.0: [Offer evidence, reader, aggregation, meal ideas and handoff](offer-contract.md) separates the supported embedded K-Ruoka personal-offer extension from unverified public feeds and S-kaupat campaign-search metadata. Personal prices stay conditional; unsupported feeds remain distinct from supported empty results. No worker upgrade or price-redemption guarantee is implied.
+
+The v0.10.0 [Finnish OCR benchmark and adoption proposal](dependency-decisions.md#v0100-finnish-receipt-ocr-proposal-f131) has concrete synthetic accuracy, runtime, license and payload-size evidence. F13.2 remains conditional on the owner’s adoption decision; no runtime OCR dependency has been added by the investigation.
