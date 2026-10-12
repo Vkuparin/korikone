@@ -124,9 +124,84 @@ export const demoOrders: RetailerOrder[] = [
     items: [{ name: null, quantity: 1.5, unit: "pcs", unitPrice: null }],
   },
 ];
+/**
+ * A deterministic weekly history for the S-kaupat stand-ins (development scenario `history`):
+ * dates are counted back from `now`, so the last eight weeks always hold the same pattern.
+ *
+ * - Kevytmaito 1 l, two pieces, every week for six weeks: a recurring grocery with a typical
+ *   quantity of two pieces.
+ * - Banaani, weighed, in five of the six weeks with different weights: a recurring grocery whose
+ *   quantity is comparable across weights.
+ * - Kahvi suodatinjauhatus 500 g in two weeks only: two visits establish no cadence.
+ * - A week-three order that was cancelled and one with unreadable rows: never spending.
+ */
+export function demoWeeklyOrders(now: Date): RetailerOrder[] {
+  const day = (weeksAgo: number) =>
+    new Date(now.getTime() - weeksAgo * 7 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  const weights: Record<number, number> = {
+    1: 0.9,
+    2: 1.1,
+    3: 1,
+    5: 0.95,
+    6: 1.05,
+  };
+  const orders: RetailerOrder[] = [];
+  for (let week = 1; week <= 6; week++) {
+    const items: NonNullable<RetailerOrder["items"]> = [
+      { name: "Kevytmaito 1 l", quantity: 2, unit: "pcs", unitPrice: 119 },
+    ];
+    if (weights[week])
+      items.push({
+        name: "Banaani",
+        quantity: weights[week],
+        unit: "kg",
+        unitPrice: 169,
+      });
+    if (week === 2 || week === 5)
+      items.push({
+        name: "Kahvi suodatinjauhatus 500 g",
+        quantity: 1,
+        unit: "pcs",
+        unitPrice: 599,
+      });
+    orders.push({
+      orderId: `fixture-weekly-${week}`,
+      state: "completed",
+      storeName: "S-kaupat · Helsinki (fixture)",
+      date: day(week),
+      total: items.reduce(
+        (sum, item) =>
+          sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)),
+        0,
+      ),
+      items,
+    });
+  }
+  orders.push({
+    orderId: "fixture-weekly-cancelled",
+    state: "cancelled",
+    storeName: "S-kaupat · Helsinki (fixture)",
+    date: day(3),
+    total: 3100,
+    items: null,
+  });
+  orders.push({
+    orderId: "fixture-weekly-unreadable",
+    state: "completed",
+    storeName: "S-kaupat · Helsinki (fixture)",
+    date: day(4),
+    total: 1450,
+    items: null,
+  });
+  return orders;
+}
 export class DemoProvider implements StoreProvider {
   capabilities = { catalogue: true, cart: true, orderHistory: false };
   orderReads = 0;
+  /** Development scenario `history`: adds the weekly sequence to the order history. */
+  weeklyHistory = false;
   /** Synthetic order history for the S-kaupat stand-ins; K-Ruoka has no established order read. */
   orderHistory?: (limit: number) => Promise<RetailerOrder[]>;
   carts = new Map<string, Cart>();
@@ -148,7 +223,11 @@ export class DemoProvider implements StoreProvider {
       this.orderHistory = async (limit) => {
         this.orderReads++;
         if (this.failSearch) throw new Error("storeBusy");
-        return structuredClone(demoOrders).slice(0, limit);
+        return structuredClone(
+          this.weeklyHistory
+            ? [...demoOrders, ...demoWeeklyOrders(new Date())]
+            : demoOrders,
+        ).slice(0, limit);
       };
     }
   }

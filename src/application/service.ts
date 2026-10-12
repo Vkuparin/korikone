@@ -2426,8 +2426,22 @@ export class Service {
   async scenario(value: unknown) {
     if (this.busy) throw new Error("busy");
     const scenario = z
-      .enum(["interrupt", "price", "catalogue", "context"])
+      .enum(["interrupt", "price", "catalogue", "context", "history"])
       .parse(value);
+    if (scenario === "history") {
+      // The weekly order sequence belongs to the S-kaupat stand-ins, whichever store is active.
+      for (const id of ["s-kaupat", "demo-s"]) {
+        let stand: unknown = null;
+        try {
+          stand = this.registry.get(id);
+        } catch {
+          // This profile has no such stand-in.
+        }
+        if (stand instanceof DemoProvider)
+          stand.weeklyHistory = !stand.weeklyHistory;
+      }
+      return this.snapshot();
+    }
     const provider = this.registry.get(this.state.context.providerId);
     if (!(provider instanceof DemoProvider)) throw new Error("unsupported");
     if (scenario === "interrupt") provider.failAfter = provider.writes + 1;

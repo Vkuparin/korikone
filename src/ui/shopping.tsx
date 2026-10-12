@@ -35,6 +35,8 @@ import {
 } from "./compare";
 import { MealCalendarView } from "./calendar";
 import { QrExport } from "./qr";
+import { useInsights } from "./insights";
+import { RecurringSuggestions } from "./suggestions";
 import type { SettingsSection } from "./settings-contract";
 
 const editUnit = (unit: string | undefined, fi: boolean) =>
@@ -317,6 +319,7 @@ export function ShoppingWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const { insights, refresh: refreshInsights } = useInsights(snapshot);
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
@@ -1367,7 +1370,7 @@ export function ShoppingWorkspace({
               </button>
             </form>
           </details>
-          {!!state.staples.length && (
+          {(!!state.staples.length || !!insights?.suggestions.length) && (
             <section className="forgotten card">
               <div className="section-heading compact">
                 <h2>{tr("Unohtuiko jotain?", "Forgot anything?")}</h2>
@@ -1402,14 +1405,25 @@ export function ShoppingWorkspace({
                     + {s.name} {s.amount} {unitLabel(s.unit, state.language)}
                   </button>
                 ))}
-              {state.staples.every((s) => rows.some((r) => r.id === s.id)) && (
-                <small>
-                  {tr(
-                    "Vakio-ostokset ovat jo listalla.",
-                    "Your regular items are already on the list.",
-                  )}
-                </small>
+              {insights && (
+                <RecurringSuggestions
+                  snapshot={snapshot}
+                  suggestions={insights.suggestions}
+                  busy={busy}
+                  save={save}
+                  call={call}
+                  refresh={refreshInsights}
+                />
               )}
+              {!!state.staples.length &&
+                state.staples.every((s) => rows.some((r) => r.id === s.id)) && (
+                  <small>
+                    {tr(
+                      "Vakio-ostokset ovat jo listalla.",
+                      "Your regular items are already on the list.",
+                    )}
+                  </small>
+                )}
             </section>
           )}
         </div>

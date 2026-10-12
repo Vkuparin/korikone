@@ -179,6 +179,22 @@ export class PurchaseStore {
         const merged = mergePurchase(ledger, source, event);
         ledger = merged.ledger;
         summary[merged.outcome]++;
+        if (merged.outcome === "duplicate") continue;
+        // Local rules read the same category metadata from order labels as from receipt rows;
+        // a label they do not recognize keeps no interpretation and stays unresolved.
+        const current = ledger.events.find((e) => e.id === merged.eventId)!;
+        const stored = ledger.sources.find((s) =>
+          current.sourceIds.includes(s.id),
+        )!;
+        ledger = {
+          ...ledger,
+          annotations: [
+            ...ledger.annotations.filter(
+              (a) => a.eventId !== current.id || a.origin !== "rule",
+            ),
+            ...ruleAnnotations(current, stored.revision, importedAt),
+          ],
+        };
       }
       if (summary.added || summary.updated) await this.write(ledger);
       return summary;
