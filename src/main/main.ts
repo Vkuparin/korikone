@@ -24,6 +24,8 @@ import { shoppingList } from "../domain/planner";
 import { calendarText } from "../domain/calendar";
 import { stateSchema, contextSchema } from "../domain/model";
 import { appearanceBootstrap } from "../domain/appearance";
+import { receiptTaskLimits } from "../ai/receipt-enrichment";
+import type { ReceiptAI } from "../application/receipt-import";
 import { z } from "zod";
 import { SKaupatHost } from "./s-kaupat-host";
 import { sKaupatPieceCatalogue } from "../stores/s-kaupat-pieces";
@@ -310,7 +312,11 @@ else
     publishPlanning();
     let modelLookup: AbortController | null = null;
     let inferenceController: AbortController | null = null;
-    const requestSession = async (run: number, operation?: PlanningRun) => {
+    const requestSession = async (
+      run: number,
+      operation?: PlanningRun,
+      maxCalls = 2,
+    ) => {
       const preference =
         operation?.sourceState().aiModel ?? service.state.aiModel;
       const controller = new AbortController();
@@ -340,7 +346,7 @@ else
         return new InferenceSession(
           provider,
           models.find((m) => m.modelId === id)!,
-          { maxCalls: 2, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
+          { maxCalls, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
           controller.signal,
         );
       } catch (error) {
@@ -348,6 +354,18 @@ else
         throw inferenceAppError(error);
       } finally {
         if (modelLookup === controller) modelLookup = null;
+      }
+    };
+    // Receipt enrichment has its own cap of one request, apart from shopping and edits.
+    const receiptAI = (run: number): ReceiptAI | null => {
+      try {
+        return {
+          providerId: inferenceProvider().id,
+          session: () =>
+            requestSession(run, undefined, receiptTaskLimits.aiCalls),
+        };
+      } catch {
+        return null;
       }
     };
     const handoff = async () => {
@@ -614,13 +632,29 @@ else
         // The reader's size, password, no-text and unreadable errors pass through unchanged.
         const text = await readReceipt(filePaths[0]);
         const extension = extname(filePaths[0]).toLowerCase().slice(1);
-        return service.importReceiptText({
-          text,
-          format:
-            extension === "pdf" || extension === "csv" ? extension : "txt",
-          keepOriginal,
-        });
+        const run = ++generationRun;
+        return service.importReceiptText(
+          {
+            text,
+            format:
+              extension === "pdf" || extension === "csv" ? extension : "txt",
+            keepOriginal,
+          },
+          receiptAI(run),
+        );
       },
+      enrichPurchase: async (input) => {
+        const run = ++generationRun;
+        return service.enrichPurchase(input, receiptAI(run));
+      },
+      setReceiptConsent: (input) => service.setReceiptConsent(input),
+      correctPurchase: (input) => service.correctPurchase(input),
+      interpretPurchase: (input) => service.interpretPurchase(input),
+      deletePurchase: (input) => service.deletePurchase(input),
+      listPurchases: async () => ({
+        ...service.snapshot(),
+        receipts: await service.purchaseView(),
+      }),
       importLegacyReceipts: () => service.importLegacyReceipts(),
       importRecipe: async (input) => {
         service.planning.invalidate();

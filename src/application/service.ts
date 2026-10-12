@@ -93,6 +93,12 @@ import {
   type EditUndo,
 } from "./edits";
 import { PurchaseStore, type ReceiptImport } from "./purchases";
+import {
+  ReceiptImportCoordinator,
+  enrichPurchaseRequestSchema,
+  type ReceiptAI,
+  type ReceiptEnrichmentStatus,
+} from "./receipt-import";
 import { sGroupStore } from "../receipts/parsers/s-group";
 import { kGroupStore } from "../receipts/parsers/k-group";
 import { purchaseLedgerSchema } from "../domain/purchases";
@@ -470,6 +476,7 @@ export class Service {
   }
   /** Purchase evidence lives beside the state, never inside it. */
   readonly purchases: PurchaseStore;
+  readonly receipts: ReceiptImportCoordinator;
   /** Counts of the last purchase import; no receipt or order content. */
   purchaseImport:
     | { source: "orders"; added: number; updated: number; duplicate: number }
@@ -487,7 +494,7 @@ export class Service {
    * Imports one receipt text into the purchase ledger. Local only: no AI request, catalogue
    * search or retailer call, and the shopping list, quote and revision are untouched.
    */
-  async importReceiptText(input: unknown) {
+  async importReceiptText(input: unknown, ai: ReceiptAI | null = null) {
     const { text, format, keepOriginal } = z
       .object({
         text: z.string().min(1).max(50_000),
@@ -496,11 +503,42 @@ export class Service {
       })
       .strict()
       .parse(input);
-    this.purchaseImport = {
-      source: "receipt",
-      ...(await this.purchases.importReceipt(text, format, { keepOriginal })),
-    };
+    this.receiptEnrichment = null;
+    const result = await this.receipts.import(text, format, {
+      keepOriginal,
+      ai,
+    });
+    this.purchaseImport = { source: "receipt", ...result.receipt };
+    this.receiptEnrichment = result.enrichment;
     return this.snapshot();
+  }
+  /** Outcome of the last enrichment step, as counts and a code. */
+  receiptEnrichment: ReceiptEnrichmentStatus | null = null;
+  /** One explicit enrichment action for one purchase: at most one AI request, facts untouched. */
+  async enrichPurchase(input: unknown, ai: ReceiptAI | null) {
+    const { eventId, consent } = enrichPurchaseRequestSchema.parse(input);
+    this.receiptEnrichment = await this.receipts.enrich(eventId, ai, consent);
+    return this.snapshot();
+  }
+  async setReceiptConsent(input: unknown) {
+    await this.receipts.setConsent(input);
+    return this.snapshot();
+  }
+  async correctPurchase(input: unknown) {
+    await this.receipts.correct(input);
+    return this.snapshot();
+  }
+  async interpretPurchase(input: unknown) {
+    await this.receipts.interpret(input);
+    return this.snapshot();
+  }
+  async deletePurchase(input: unknown) {
+    await this.purchases.delete(input);
+    return this.snapshot();
+  }
+  /** The receipt screens' data; read on request, never part of the ordinary snapshot. */
+  purchaseView() {
+    return this.receipts.view(this.state.receiptText);
   }
   /**
    * The explicit import of the text saved by earlier releases. It is cut where a supported shop
@@ -561,6 +599,7 @@ export class Service {
   }
   constructor(private db: Storage) {
     this.purchases = new PurchaseStore(db);
+    this.receipts = new ReceiptImportCoordinator(this.purchases);
     this.registry.register(new DemoProvider("demo-k"));
     this.registry.register(new DemoProvider("demo-s"));
   }
@@ -739,6 +778,7 @@ export class Service {
       recipeDraft: this.recipeDraft,
       planning: this.planning.snapshot(),
       purchaseImport: this.purchaseImport,
+      receiptEnrichment: this.receiptEnrichment,
       // Both describe one revision only, so neither survives another list change.
       edit: this.edit?.revision === this.state.revision ? this.edit : null,
       editUndoAvailable: this.undo?.revision === this.state.revision,

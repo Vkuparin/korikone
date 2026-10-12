@@ -106,6 +106,88 @@ test("receipt import API reads real files locally, dedupes across formats and ke
       after.developmentCatalogueRequests - before.developmentCatalogueRequests,
     ]).toEqual([0, 0, 0]);
 
+    // Review, correction and one consented enrichment request through the same IPC.
+    type Listed = {
+      receipts: {
+        purchases: {
+          eventId: string;
+          chain: string;
+          revision: number;
+          lines: {
+            id: string;
+            review: string[];
+            quantity: { amount: number };
+          }[];
+        }[];
+      };
+      developmentAIProvider: string | null;
+    };
+    const list = async () =>
+      (await page.evaluate(() => window.korikone.listPurchases()))
+        .value as unknown as Listed;
+    const listed = await list();
+    expect(listed.receipts.purchases.map((p) => p.chain).sort()).toEqual([
+      "k-group",
+      "s-group",
+    ]);
+    const k = listed.receipts.purchases.find((p) => p.chain === "k-group")!;
+    expect(k.lines.map((l) => l.review)).toEqual([
+      ["uninterpreted"],
+      ["uninterpreted"],
+    ]);
+    const providerId = listed.developmentAIProvider ?? "chatgpt";
+    const enriched = await page.evaluate(
+      async ({ eventId, providerId }) => {
+        await window.korikone.signInAI();
+        return window.korikone.enrichPurchase({
+          eventId,
+          consent: { providerId, scope: 1 },
+        });
+      },
+      { eventId: k.eventId, providerId },
+    );
+    expect(enriched.value.receiptEnrichment).toMatchObject({
+      status: "enriched",
+      accepted: 1,
+      unresolved: 1,
+    });
+    expect(
+      (await page.evaluate(() => window.korikone.load())).value
+        .developmentRequests,
+    ).toBe(1);
+    const corrected = await page.evaluate(
+      (eventId) =>
+        window.korikone.correctPurchase({
+          eventId,
+          lineId: "l1",
+          revision: 1,
+          field: "quantity",
+          amount: 900,
+          unit: "g",
+        }),
+      k.eventId,
+    );
+    expect(corrected.ok).toBe(true);
+    const afterCorrection = (await list()).receipts.purchases.find(
+      (p) => p.eventId === k.eventId,
+    )!;
+    expect(afterCorrection.revision).toBe(2);
+    expect(afterCorrection.lines[0].quantity.amount).toBe(900);
+    expect(
+      await page.evaluate(
+        (eventId) =>
+          window.korikone.correctPurchase({
+            eventId,
+            lineId: "l1",
+            revision: 1,
+            field: "quantity",
+            amount: 1,
+            unit: "g",
+          }),
+        k.eventId,
+      ),
+    ).toMatchObject({ ok: false, error: "purchaseStale" });
+
     // The backup has both purchases, sanitized, and no retained original unless asked for.
     const backup = join(data, "backup.json");
     await app.evaluate(({ dialog }, filePath) => {

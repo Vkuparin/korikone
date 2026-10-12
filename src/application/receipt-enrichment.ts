@@ -44,6 +44,8 @@ export async function runReceiptEnrichment(options: {
   const before = await options.ledger();
   if (!enrichmentAllowed(before.consent, options.providerId, options.consent))
     return { status: "skipped", reason: "consent" };
+  if (!before.events.some((event) => event.id === options.eventId))
+    return { status: "failed", reason: "purchaseMissing" };
   const batch = buildEnrichmentBatch(before, options.eventId);
   if (!batch.request) return { status: "skipped", reason: "nothing-ambiguous" };
   let session: InferenceSession;

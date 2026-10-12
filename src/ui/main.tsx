@@ -108,6 +108,7 @@ function App() {
     planning: null,
     edit: null,
     purchaseImport: null,
+    receiptEnrichment: null,
     editUndoAvailable: false,
     committedIntents: [],
     planningIncomplete: false,
