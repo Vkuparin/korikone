@@ -72,3 +72,30 @@ It writes nothing; every outcome leaves the ledger as it was. Committing proposa
 **Validation (F6.13).** `validateEnrichment(batch, result, ledger, model, at)` re-reads the ledger: a reprocessed source, a changed sent label or a deleted event is `enrichmentStale`. A result that is not exactly the result shape, including any quantity, amount, label or line ID field, is `enrichmentInvalid` as a whole. Otherwise each row stands alone and is dropped when its row ID was not sent or repeats, its category is outside the taxonomy, a qualifier is one the category does not carry or the printed label does not show, the name is not a short plain label (2–60 characters, no link, markup or long digit run), it says nothing, or it calls a row non-food while giving it a category. Accepted rows become `model` annotations with provider, model and task version. `applyEnrichment(ledger, annotations)` replaces only an earlier model proposal for the same line; rule and user interpretations are never overwritten, and no annotation becomes a saved preference.
 
 Fixtures: `tests/receipt-enrichment.test.ts` (13) runs the task against both adapters: redaction and row cap, consent states, valid and malicious rows, stale results, one consented request, no contact without consent or ambiguity, limit/failure/malformed/cancel/disconnected with one request each and facts unchanged, a late result after a correction, and a provider without the task or other than the consented one.
+
+## Receipt fixtures (F6.6)
+
+`tests/fixtures/receipts/` holds 25 invented, sanitized receipts with the expected evidence beside each text. Nothing was copied, transcribed or derived from a real receipt, and no original file or personal data is in source control. The shops, addresses, products, dates and amounts are synthetic; layouts follow the S-group and K-group conventions in [receipt-learning.md](receipt-learning.md).
+
+| Export | Use |
+| --- | --- |
+| `receiptFixtures: ReceiptFixture[]` (`index.ts`) | Every fixture: S-group (`s-group.ts`, 10), K-group (`k-group.ts`, 5), unsupported/partial/unbalanced/injected (`hostile.ts`, 7) and trips (`trips.ts`, 3) |
+| `ReceiptFixture` | `id`, `covers`, `chain`, `format` (`txt` or `pdf`), `pages` (one string per printed line), `outcome` (`event` or `unsupported`), `source` (`chain`, `format`, `pages`, `lines`, `unreadableLines`), `event` (a `PurchaseEvent` validated with `purchaseEventSchema`, or null), optional `relation` and `hostile` |
+| `fixtureText(fixture)` | The file text: lines joined, pages separated by a form feed |
+| `receiptTextPDF(pages)` (`pdf.ts`) | A text-bearing PDF with one row per line, which the local reader returns line by line |
+| `expectedSource(fixture, fingerprint?)` | The expected source with import-time fields completed; `fingerprint`, `importedAt` and `parser` belong to F6.10 and the parsers |
+
+**Conventions of the expectations**
+
+- A parser may choose its own event, line and adjustment IDs. Compare labels, spans, quantities, amounts, roles, allocation and reconciliation, not IDs.
+- Spans are 1-based page and line positions in `pages`; a name row plus its count row is one span.
+- A product row with no printed count is one piece with provenance `source`. A count or weight is printed after the price (S-group) or before it (K-group). Weights are whole grams, with the per-kilogram price and basis `kg`.
+- `NORM.` rows are reference prices: the printed line price is what was paid, and the reference is neither added nor subtracted.
+- `gross` is the printed line price. `net` is the amount after adjustments the source ties to that row alone (allocation `line`). Rows under a group offer have `net` null and one adjustment with allocation `group`; a loyalty or deposit-return row not tied to a product has allocation `receipt`.
+- Roles `non-food` appear only where the receipt says so, by a section header. A household item without one stays `product`; no food/non-food breakdown is manufactured.
+- A balanced expectation states its totals. For `incomplete` and `unbalanced` receipts the expectations are `status` and `reasons`; amounts that cannot be known are null and a missing price is never inferred from a printed total.
+- An `unsupported` file yields no event, no spending and every line counted unreadable.
+- Hostile text (`hostile`) is only a sanitized label: it changes no amount, and an address in it becomes `…`.
+- `relation`: the PDF of `trip-original` is a duplicate of the text import (same pages, same event); `trip-distinct` has the same rows and total on another day and is its own purchase.
+
+Fixtures: `tests/receipt-fixtures.test.ts` (10) checks schema validity, that every span contains its label, price and unit price, that counts and weights multiply to the printed amount, that each balanced receipt adds up from rows and adjustments written independently of any parser, that unknown facts stay null, the hostile, duplicate and distinct cases, that no six-digit run, link, card mask or address (other than the invented one on the injection row) is present, and that the local reader returns every row of every fixture from a generated PDF.
