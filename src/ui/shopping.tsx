@@ -38,6 +38,7 @@ import { QrExport } from "./qr";
 import { useInsights } from "./insights";
 import { RecurringSuggestions } from "./suggestions";
 import { SpendingChart } from "./spending-chart";
+import { LinkReview, transferSignal } from "./purchase-links";
 import type { SettingsSection } from "./settings-contract";
 
 const editUnit = (unit: string | undefined, fi: boolean) =>
@@ -721,6 +722,15 @@ export function ShoppingWorkspace({
             language={state.language}
           />
         )}
+        {insights && (
+          <LinkReview
+            insights={insights}
+            snapshot={snapshot}
+            busy={busy}
+            call={call}
+            refresh={refreshInsights}
+          />
+        )}
         <p>
           {tr(
             "Kaupan ostoskoriin siirretyt listat. Ostoksen maksaminen ei tallennu automaattisesti.",
@@ -733,6 +743,25 @@ export function ShoppingWorkspace({
               <h2>
                 {new Date(h.date).toLocaleDateString(fi ? "fi-FI" : "en-FI")}
               </h2>
+              <p className="muted transfer-signal">
+                {(() => {
+                  const signal = transferSignal(snapshot, h.id);
+                  return signal === "confirmed"
+                    ? tr(
+                        "Siirto vahvistettu ostetuksi kuitilla tai tilauksella",
+                        "Transfer confirmed as bought by a receipt or order",
+                      )
+                    : signal === "review"
+                      ? tr(
+                          "Mahdollinen osto odottaa vahvistustasi",
+                          "A possible purchase is waiting for your answer",
+                        )
+                      : tr(
+                          "Siirto kauppaan, ei vielä vahvistettu ostos",
+                          "Transfer to the store, not a confirmed purchase",
+                        );
+                })()}
+              </p>
               <p>
                 {h.note ||
                   h.meals
