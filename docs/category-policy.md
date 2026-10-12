@@ -19,7 +19,7 @@ These boundaries apply only when the current request and an applicable remembere
 | Cream   | No silent choice between cooking and whipping cream | Ask through the optional review unless a valid request/rule supplies the type; plant substitutes are excluded |
 | Coffee  | Ground filter coffee                                | Beans/instant require a specified form; coffee drinks and capsules are excluded                               |
 
-Within the allowed boundary, select the lowest total cost for enough whole packs after applicable constraints and the existing brand preference. A default is visible as a default, never relabelled as something the shopper explicitly requested. A model-added meat/fat/coffee qualifier does not create a hard requirement. Unsupported categories keep their existing conservative matcher until assigned coverage lands.
+Within the allowed boundary, use the shared price-basis setting after applicable constraints and the existing brand preference: lowest normalized unit value by default, or lowest payable total for enough packs. [price-ranking.md](price-ranking.md) defines the arithmetic, deposit/estimate rules and saved-selection behavior. A default is visible as a default, never relabelled as something the shopper explicitly requested. A model-added meat/fat/coffee qualifier does not create a hard requirement. Unsupported categories keep their existing conservative matcher until assigned coverage lands.
 
 ## Remembered requirements and preferences
 
