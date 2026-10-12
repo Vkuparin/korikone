@@ -1,6 +1,17 @@
 import { inferredClassification, type Category } from "./categories";
 import type { ProductEvidence, ProductFamily } from "./product-evidence";
 
+/** Ordinary whole onion is the common/yellow-onion naming equivalent, not any onion-containing food. */
+export function ordinaryOnionName(name: string): boolean {
+  const text = name.toLocaleLowerCase("fi").normalize("NFC");
+  return (
+    /\b(?:sipuli|sipulit|sipulia|onion|onions)\b/u.test(text) &&
+    !/(?<![\p{L}])(?:puna|salotti|kevät|valko|white|silver|sweet|helmi|pearl|salad|kuiv|jauhe|rouhe|lastu|paahd|paist|maust|season|ruskeist|ruskist|frit|fried|dried|powder|pickled|etikka|marino|pikkel|säilyke|säilö|frozen|pakast|cooked|kyps)[\p{L}-]*/u.test(
+      text,
+    )
+  );
+}
+
 /** Supported name facts without assigning request or retailer provenance. */
 export function foodNameFacts(
   name: string,

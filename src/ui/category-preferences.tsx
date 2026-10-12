@@ -85,6 +85,7 @@ const labels: Record<string, [string, string]> = {
   meat: ["Liha", "Meat"],
   grain: ["Vilja", "Grain"],
   onion: ["Sipulin tyyppi", "Onion type"],
+  organic: ["Luomu", "Organic"],
   rice: ["Riisin tyyppi", "Rice type"],
   cream: ["Kerman tyyppi", "Cream type"],
   coffee: ["Kahvin muoto", "Coffee form"],
