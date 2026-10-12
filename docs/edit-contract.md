@@ -142,3 +142,26 @@ A shared ingredient is one row with its combined amounts; the delta never splits
 `price.status` is `exact` when every changed row is known or none on both sides, `estimated` when some are estimates, `incomplete` when any changed row is unknown or stale, and `incomparable` when the two sides are different stores or fulfilment. `difference` (after minus before over the changed rows, in cents) is a number only for `exact` and `estimated`. Retained rows are excluded because their quoted lines are identical on both sides. `productChanged` marks a row priced on both sides with different products, where the difference is not like for like.
 
 Fixtures in `tests/edit-delta.test.ts`: shared ingredients with an unpriced added row, at-home/removal/restore/add with an exact difference, a quantity change that needs no more packs (exact zero), estimates and a changed product, an unquoted side and another store, undo as the reversed comparison, and revision binding. `tests/service-edits.test.ts` and `tests/ui/edit-api.spec.ts` cover the delta on a real partial requote, a failed and stale edit, restart and undo.
+
+## B1 local operations
+
+Added in the v0.9.0 bugfix round. None of them makes an AI, catalogue or retailer call.
+
+Operations in `src/domain/edits.ts`:
+
+- `addMeal { recipe: { kind: "saved", recipeId } | { kind: "new", recipe }, servings? }` adds a dish. A dish already on the list is not added twice, and a new recipe with a saved recipe's name resolves to the saved one.
+- `setItem { name, quantity }` sets a stated amount: an existing row gets that quantity, otherwise the item is added. An unchanged amount is a no-op and is not reported.
+- `removeMeal { mealId }` removes the dish, its week-plan references and its request mapping. The recipe stays saved.
+
+A plain enumeration such as "lihamakaronilaatikko, kaksi litraa kevytmaitoa" on a current list becomes `addMeal` / `changeQuantity` / `setItem`; "lisää" keeps meaning `addItem`. An empty list can be edited.
+
+Service operations (`src/application/service.ts`), all revision-bound, written atomically with one undo snapshot, and all voiding a prepared approval:
+
+- `editLocally({ revision, operations })` accepts only `removeItem`, `removeMeal`, `changeServings`, `changeQuantity` and `markAtHome`. Unchanged rows keep their quoted line; changed rows are matched again from the products already read; a row with nothing read stays unpriced (`matching.reason = "bounded-out"`).
+- `clearList({ revision })` empties meals, extras, note, assumptions, row choices and the week plan and sets `recurringPaused`. Recipes, history, purchases, settings, preferences and recurring definitions stay. Recurring items add nothing while `recurringPaused` is true; `updatePrices` (the explicit price update) and every new list clear the flag.
+- `previewHouseholdSize({ servings })` and `setHouseholdSize({ revision, servings })`. Meals planned for the old household size follow the new one; meals with another number of servings, row quantities set by the shopper, extras and recipes are kept.
+- `undoEdit` restores all of these. The undo document's optional `also` holds the fields outside the plan that the change touched (`note`, `assumptions`, `recurringPaused`, `calendar`, `household.servings`). `snapshot.edit.status` is `applied`, `cleared`, `resized` or `undone`.
+
+Related: `snapshot.pricingState` is `empty`, `unpriced`, `quoted` or `failed`. Choosing or connecting a store on a list that was never priced does not search; a priced list follows its store. `setReceiptText({ text, base })` saves the receipt text only when `base` is still the saved text, otherwise it throws `receiptTextStale`.
+
+Errors: `draftStale`, `busy`, `storageFailed`, `unknownTarget`, `undoUnavailable`. Fixtures: `tests/local-edits.test.ts`, `tests/clear-list.test.ts`, `tests/household-size.test.ts`, `tests/edit-enumeration.test.ts`, `tests/first-search.test.ts`, `tests/receipt-text.test.ts`, `tests/ui/clear-resize-api.spec.ts`, `tests/ui/local-removal.spec.ts`.
