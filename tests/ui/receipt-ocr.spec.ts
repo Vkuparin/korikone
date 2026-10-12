@@ -101,7 +101,12 @@ test("offline scanned receipts show OCR review provenance and persist through re
       ocrPages: [1],
     });
     expect(legacy.value.state.receiptText).toContain("JÄÄTELÖ");
-    expect(legacy.value.state.list).toEqual(before.state.list);
+    expect(legacy.value.state.revision).toBe(before.state.revision + 1);
+    expect({
+      ...legacy.value.state,
+      receiptText: before.state.receiptText,
+      revision: before.state.revision,
+    }).toEqual(before.state);
     expect(legacy.value.developmentRequests).toBe(0);
     await page.evaluate(() => window.korikone.setLanguage("en"));
     await page.reload();
