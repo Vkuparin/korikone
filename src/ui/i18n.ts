@@ -105,6 +105,9 @@ export const en = {
     "The generated draft did not pass validation. Try again or plan manually.",
   draftStale:
     "Your plan changed after this draft was created. Generate a fresh draft.",
+  purchaseStale: "This receipt changed since you opened it. Review it again.",
+  purchaseMissing: "That receipt or row is no longer saved.",
+  purchaseInvalid: "That change is not possible for this row.",
   staleEdit:
     "The list changed before this edit was applied. Review the list and try again.",
   unknownTarget:
@@ -406,6 +409,9 @@ export const fi: Record<Key, string> = {
   invalidDraft:
     "Luonnos ei läpäissyt tarkistusta. Yritä uudelleen tai suunnittele käsin.",
   draftStale: "Suunnitelma muuttui luonnoksen jälkeen. Luo uusi luonnos.",
+  purchaseStale: "Kuitti muuttui sen avaamisen jälkeen. Tarkista se uudelleen.",
+  purchaseMissing: "Kuittia tai riviä ei ole enää tallessa.",
+  purchaseInvalid: "Tämä muutos ei ole mahdollinen tälle riville.",
   staleEdit:
     "Lista muuttui ennen tämän muutoksen tekemistä. Tarkista lista ja yritä uudelleen.",
   unknownTarget:

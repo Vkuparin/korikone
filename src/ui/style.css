@@ -1851,3 +1851,36 @@ summary:focus-visible,
   /* Scanners need dark modules on a light ground in both themes. */
   background: #ffffff;
 }
+.receipts-panel .receipt-card {
+  margin: 12px 0;
+}
+.receipts-panel .receipt-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.receipts-panel .receipt-card th,
+.receipts-panel .receipt-card td {
+  text-align: left;
+  padding: 4px 8px 4px 0;
+  overflow-wrap: anywhere;
+}
+.receipts-panel .recon.unbalanced {
+  color: var(--kk-error);
+}
+.receipts-panel .recon.incomplete {
+  color: var(--kk-warning);
+}
+.receipts-panel .recon.balanced {
+  color: var(--kk-success);
+}
+.receipt-review,
+.receipt-ai {
+  border: 1px solid var(--kk-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.review-line {
+  padding: 8px 0;
+  border-top: 1px solid var(--kk-border);
+}

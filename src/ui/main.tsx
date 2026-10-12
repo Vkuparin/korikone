@@ -278,7 +278,18 @@ function App() {
                   "restartSetup",
                 ].includes(method)
               ? "advanced"
-              : ["importReceipt", "importData", "exportData"].includes(method)
+              : [
+                    "importReceipt",
+                    "importPurchaseReceipt",
+                    "importLegacyReceipts",
+                    "correctPurchase",
+                    "interpretPurchase",
+                    "deletePurchase",
+                    "enrichPurchase",
+                    "setReceiptConsent",
+                    "importData",
+                    "exportData",
+                  ].includes(method)
                 ? "data"
                 : page === "settings"
                   ? settingsSection

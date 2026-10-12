@@ -7,6 +7,7 @@ import { isLive } from "../stores/provider";
 import { aiScenarios } from "../ai/scenarios";
 import { useSettingsDraft } from "./settings";
 import { CategoryPreferences } from "./category-preferences";
+import { ReceiptsPanel } from "./receipts";
 const field = (label: string, control: React.ReactNode) => (
   <label>
     {label}
@@ -101,16 +102,17 @@ export function DataSettings({
     <>
       <section className="card form">
         <h3>{fi ? "Aiemmat kuitit" : "Previous receipts"}</h3>
+        <ReceiptsPanel
+          snapshot={snapshot}
+          busy={busy}
+          call={call}
+          language={state.language}
+        />
         <p>
           {fi
-            ? "Tuo PDF-kuitti, teksti- tai CSV-tiedosto tai liitä ostosrivit alle. PDF:n teksti luetaan paikallisesti. Tietoja käytetään seuraavissa ChatGPT-ehdotuksissa. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."
-            : "Import a PDF, text or CSV receipt, or paste purchase lines below. PDF text is extracted locally. These inform future ChatGPT suggestions. Scanned PDFs need OCR."}
+            ? "Tai liitä ostosrivit tekstinä alle. Teksti säilyy sellaisenaan, kunnes tuot sen kuiteiksi. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."
+            : "Or paste purchase lines as text below. The text is kept unchanged until you import it as receipts. Scanned PDFs need OCR."}
         </p>
-        <button disabled={busy} onClick={() => void call("importReceipt")}>
-          {fi
-            ? "Tuo kuitti (PDF, teksti tai CSV)"
-            : "Import receipt (PDF, text or CSV)"}
-        </button>
         <form
           onSubmit={(e) => {
             e.preventDefault();
