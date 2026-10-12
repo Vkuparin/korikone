@@ -413,6 +413,9 @@ else
         developmentLocked: forcedDevelopment,
       }),
       load: async () => {
+        service.developmentSignInCalls = development
+          ? fixtureAI.signInCalls
+          : 0;
         service.developmentModelCatalogueRequests = development
           ? fixtureAI.catalogueRequests
           : 0;

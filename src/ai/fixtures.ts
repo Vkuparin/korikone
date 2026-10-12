@@ -23,6 +23,7 @@ export class FixtureAI {
   private calls = 0;
   lastModel: string | null = null;
   catalogueRequests = 0;
+  signInCalls = 0;
   get requestCount() {
     return this.calls;
   }
@@ -45,6 +46,14 @@ export class FixtureAI {
   }
   async init() {}
   status(): AIStatus {
+    if (this.scenario === "authWaiting" || this.scenario === "authExpired")
+      return {
+        state:
+          this.scenario === "authWaiting" ? "waiting" : "permissionMissing",
+        email: "fixture@korikone.local",
+        error: null,
+        models: [],
+      };
     return {
       state: this.signedIn ? "connected" : "disconnected",
       email: this.signedIn ? "fixture@korikone.local" : "",
@@ -53,6 +62,7 @@ export class FixtureAI {
     };
   }
   async signIn() {
+    this.signInCalls++;
     this.signedIn = true;
   }
   async signOut() {
@@ -73,6 +83,7 @@ export class FixtureAI {
   }
   setScenario(scenario: (typeof aiScenarios)[number]) {
     this.scenario = scenario;
+    if (scenario === "authRestored") this.signedIn = true;
     this.calls = 0;
     this.catalogueRequests = 0;
     this.lastModel = null;

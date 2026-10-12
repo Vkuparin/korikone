@@ -1078,12 +1078,16 @@ export function ShoppingWorkspace({
                 call={call}
                 openSettings={() => settings("household")}
               />
-              <span className="chip">
+              <time
+                className="shopping-date"
+                dateTime={new Date().toISOString()}
+              >
+                {tr("Tänään", "Today")} ·{" "}
                 {new Date().toLocaleDateString(fi ? "fi-FI" : "en-FI", {
                   day: "numeric",
                   month: "long",
                 })}
-              </span>
+              </time>
               <button
                 className="chip store-chip"
                 onClick={() => settings("stores")}

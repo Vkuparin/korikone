@@ -82,6 +82,7 @@ function App() {
     developmentRequests: 0,
     developmentModel: null,
     developmentModelCatalogueRequests: 0,
+    developmentSignInCalls: 0,
     developmentAIProvider: null,
     developmentCatalogueRequests: 0,
     state: initialState(),

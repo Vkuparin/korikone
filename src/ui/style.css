@@ -263,6 +263,13 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+button.chatgpt-connected:disabled {
+  background: var(--kk-surface);
+  color: var(--kk-muted);
+  border-color: var(--kk-border);
+  opacity: 1;
+  filter: none;
+}
 .secondary {
   background: var(--kk-surface);
   color: var(--kk-action-text);
@@ -760,6 +767,13 @@ body:has(.app-main) .demo {
   padding: 6px 9px;
   border-radius: 20px;
   font-weight: 400;
+}
+.shopping-date {
+  color: var(--kk-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: text;
 }
 .store-chip {
   max-width: 180px;

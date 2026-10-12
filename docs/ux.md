@@ -80,6 +80,8 @@ About shows the running Electron application's version, including a prerelease s
 
 The AI card explains that remaining ChatGPT allowance and reset time are unavailable in Korikone and offers "Avaa ChatGPT:n käyttö" / "Open ChatGPT usage". A received request limit is shown as a usage or rate limit; it does not imply the whole plan is empty or establish a reset time. No quota request or generation is made just to open Settings.
 
+When ChatGPT is connected, the sign-in button reads "Kirjautunut ChatGPT:llä" / "Signed in with ChatGPT" and is disabled with subdued, readable colors in both themes. Sign-out, usage and model controls remain available. A saved email alone does not imply a connection: signed-out or expired authentication restores "Continue with ChatGPT"; waiting authentication keeps that button disabled. Development fixtures `authWaiting`, `authExpired` and `authRestored` exercise these states with a synthetic account. `developmentSignInCalls` counts only local fixture sign-ins, allowing disabled-button checks without live authentication.
+
 ## Receipts
 
 Settings offers PDF, TXT and CSV import plus an editable text area. PDF text extraction is local and runs off the main thread. Shopping-note interpretation never sends imported raw receipt text. Receipt import/paste/save stays local; future optional receipt enrichment has separate consent. Show distinct errors for unreadable/protected files, image-only PDFs needing OCR, and size limits. Import failure preserves all existing receipt text.
@@ -135,3 +137,5 @@ Fixtures for U19.2: FI and EN, keyboard and narrow width, for both chains in sig
 **Implemented (U19.2, b5ca649 on `claude/project-thread-ahxe8n`).** The comparison line names the missing store or sign-in; the mixed-chain search is removed from Stores settings; Stores settings and the navigation offer the way back while a store page is open or a sign-in is waiting. `tests/ui/store-access.spec.ts` covers FI and EN for both chains.
 
 **U19.4** exercises the three U19.2 changes through real development IPC and reuses `tests/ui/store-return.spec.ts`, `tests/ui/chains.spec.ts`, `tests/ui/compare.spec.ts` and `tests/ui/store.spec.ts` results. Remaining owner checks: the prominence of the comparison button (#7), and finding the way back to the store from Settings in live use (#10).
+
+The shopping composer shows today's date as compact Today / Tänään text in a semantic time element. It has no chip border/background, hover action or tab stop; household, store and model controls remain visibly interactive. B2.2 focused FI/EN development checks passed at 1280 and 800 pixels, with keyboard navigation skipping the date and no list mutation, AI request or retailer write. Normal Finnish and narrow English captures were inspected.

@@ -1,4 +1,7 @@
 export const aiScenarios = [
+  "authWaiting",
+  "authExpired",
+  "authRestored",
   "offersEmpty",
   "offersUnsupported",
   "offersPersonal",
