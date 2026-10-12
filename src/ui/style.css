@@ -860,6 +860,32 @@ body:has(.app-main) .demo {
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
+.offscreen-progress {
+  visibility: hidden;
+}
+.operation-fallback {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  max-width: calc(100vw - 210px);
+  padding: 12px 16px;
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  border: 1px solid var(--kk-control-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px var(--kk-menu-shadow);
+}
+.operation-fallback::before {
+  flex-shrink: 0;
+}
+.operation-fallback small,
+.operation-fallback button {
+  flex-shrink: 0;
+}
+.operation-finished::before {
+  display: none;
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);
