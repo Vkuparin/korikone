@@ -1,5 +1,6 @@
 import type { Category } from "../domain/categories";
 import { foodNameFacts } from "../domain/food-names";
+import { synonymQuery } from "../domain/food-synonyms";
 import type { Product, Requirement, StoreContext } from "../domain/model";
 import { relevant } from "../domain/planner";
 import {
@@ -48,8 +49,11 @@ export function candidateQueries(
   const category =
     requirement.classification?.category ??
     foodNameFacts(requirement.name).category;
+  const synonym = synonymQuery(requirement.name);
   const queries = [
     requirement.name,
+    // The same food under its other common name comes before broader aliases.
+    ...(synonym ? [synonym] : []),
     ...hints,
     ...(category ? aliases[category] : []),
   ];

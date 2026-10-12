@@ -1,3 +1,4 @@
+import { canonicalFoodWords, sameFoodState } from "./food-synonyms";
 import type { AppState, BasketLine, Product, Requirement } from "./model";
 import { classificationKey } from "./categories";
 import { pieceOrderingSchema } from "./product-evidence";
@@ -164,9 +165,22 @@ const variants = [
 ];
 export function relevant(productName: string, ingredientName: string) {
   const split = words(productName);
+  const wanted = words(ingredientName);
+  if (relevantWords(split, wanted)) return true;
+  // The same food under its other common name ("kanan" and "broilerin"). Every other word must
+  // still match, and a product in another state (cooked, marinated) is not the plain ingredient.
+  const product = canonicalFoodWords(split);
+  const ingredient = canonicalFoodWords(wanted);
+  return (
+    product.changed &&
+    ingredient.changed &&
+    sameFoodState(split, wanted) &&
+    relevantWords(product.words, ingredient.words)
+  );
+}
+function relevantWords(split: string[], wanted: string[]) {
   // Stores also write compounds apart: "kanan munat" for "kananmunat".
   const name = [...split, ...split.slice(1).map((w, i) => split[i] + w)];
-  const wanted = words(ingredientName);
   if (
     split.some((w) => variants.includes(w) && !wanted.includes(w)) &&
     !wanted.some((w) => variants.some((v) => w.startsWith(v)))
