@@ -76,10 +76,12 @@ test("view return and restart retain quotes without searches, while explicit edi
     await page.getByRole("option", { name: "English", exact: true }).click();
     await expect(page.getByText(/Last quoted prices/)).toBeVisible();
     await page.evaluate(() => window.korikone.scenario("price"));
-    await page.locator(".transfer-button").click();
-    await expect(page.getByRole("alert")).toContainText(
-      "Prices or availability changed",
-    );
+    // A review asked for directly still refuses a changed price; the one-click path reconciles
+    // it instead (tests/one-click-transfer.test.ts).
+    expect(await page.evaluate(() => window.korikone.prepare())).toEqual({
+      ok: false,
+      error: "priceChanged",
+    });
     expect((await load()).basket).toEqual(priced.basket);
     expect((await load()).review).toBeNull();
     expect((await load()).journal).toBeNull();

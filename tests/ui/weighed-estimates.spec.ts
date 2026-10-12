@@ -55,6 +55,10 @@ test("weighed estimates show split totals, requested mass and survive restart wi
     );
     const result = await page.evaluate(() => window.korikone.prepare());
     expect(result).toEqual({ ok: false, error: "unresolved" });
+    // The review is shown only when the shopper has switched it on.
+    await page.evaluate(() =>
+      window.korikone.setReviewBeforeTransfer({ enabled: true }),
+    );
     await page
       .getByRole("button", { name: /Siirrä ja avaa kaupan ostoskori/ })
       .click();

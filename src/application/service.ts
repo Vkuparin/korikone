@@ -1288,6 +1288,7 @@ export class Service {
       aiModel: next.aiModel,
       appearance: next.appearance,
       priceBasis: next.priceBasis,
+      reviewBeforeTransfer: next.reviewBeforeTransfer,
     };
     const changed =
       JSON.stringify(previousShoppingState) !== JSON.stringify(next);
@@ -2759,8 +2760,13 @@ export class Service {
     this.assertNoProvisionalTransfer();
     if (this.busy) throw new Error("busy");
     if (this.journal?.status === "partial") throw new Error("recoverFirst");
-    const { allowMissing } = z
-      .object({ allowMissing: z.boolean().default(false) })
+    // `reconcilePrices` is set by the one-click path only; a review asked for directly still
+    // stops on a changed price.
+    const { allowMissing, reconcilePrices } = z
+      .object({
+        allowMissing: z.boolean().default(false),
+        reconcilePrices: z.boolean().default(false),
+      })
       .parse(input ?? {});
     const unresolved = this.basket.filter((line) => !transferableLine(line));
     const unresolvedIntents = this.snapshot().committedIntents.filter(
@@ -2780,10 +2786,107 @@ export class Service {
         exclusions: exclusionTerms(this.state.household.exclusions),
         preferences: this.state.categoryPreferences,
       },
+      reconcilePrices,
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
+    if (this.review.priceChanges?.length)
+      await this.reconcileQuote(this.review);
     return this.snapshot();
+  }
+  /**
+   * The store's current prices for the same products and quantities replace the quoted ones, so
+   * the list, its total and the transfer record all show what will actually be charged.
+   */
+  private async reconcileQuote(review: Review) {
+    const key = (line: BasketLine) =>
+      `${line.requirement.id}:${line.requirement.unit}`;
+    const fresh = new Map(review.quotes.map((line) => [key(line), line]));
+    // A saved quote is verified by recomputing each row from its candidates, so the candidate
+    // carries the new price too. If another candidate would now rank first, the row keeps only
+    // the product that was sent; the next price update reads the alternatives again.
+    const reconciled = (only: boolean) =>
+      this.basket.map((line) => {
+        const current = fresh.get(key(line));
+        if (!current?.product || current.total === line.total) return line;
+        return {
+          ...line,
+          product: current.product,
+          total: current.total,
+          candidates: only
+            ? [current.product]
+            : line.candidates.map((p) =>
+                p.id === current.product!.id ? current.product! : p,
+              ),
+        };
+      });
+    for (const only of [false, true]) {
+      const quote = restoredQuote(
+        persistedQuoteSchema.parse({
+          key: pricingKey(this.state),
+          context: this.state.context,
+          basket: reconciled(only),
+          pickupFee: this.pickupFee,
+          quotedAt: this.quotedAt,
+        }),
+        this.state,
+      );
+      if (
+        !quote ||
+        quote.basket.some(
+          (line) =>
+            fresh.has(key(line)) && line.total !== fresh.get(key(line))!.total,
+        )
+      )
+        continue;
+      await this.db.set("last-quote", {
+        key: quote.key,
+        context: quote.context,
+        basket: quote.basket,
+        pickupFee: quote.pickupFee,
+        quotedAt: quote.quotedAt,
+      });
+      this.basket = quote.basket;
+      return;
+    }
+    // The reconciled rows cannot be verified as a saved quote: show them now, save nothing.
+    this.basket = reconciled(true);
+  }
+  /** What a transfer click authorizes: store, products, packs and quantities, not their prices. */
+  private bindingKey() {
+    return JSON.stringify({
+      context: this.state.context,
+      lines: this.basket.map((line) => [
+        line.requirement,
+        line.product && [
+          line.product.id,
+          line.product.packAmount,
+          line.product.unit,
+          line.product.nativeUnit,
+          line.product.increment,
+          line.product.pieceOrdering ?? null,
+          line.product.packageContent ?? null,
+        ],
+        line.packs,
+      ]),
+    });
+  }
+  /** Saves whether the transfer button first shows the review. Never changes the list or quote. */
+  async setReviewBeforeTransfer(input: unknown) {
+    const { enabled } = z
+      .object({ enabled: z.boolean() })
+      .strict()
+      .parse(input);
+    return this.writeState(async () => {
+      if (this.busy || this.transferPending) throw new Error("busy");
+      const next = stateSchema.parse({
+        ...this.state,
+        reviewBeforeTransfer: enabled,
+      });
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
   }
   /** The initial click approves exactly the quoted batch, never a newly priced substitute. */
   private batchKey() {
@@ -2847,8 +2950,9 @@ export class Service {
           throw new Error("accountChanged");
         return this.snapshot();
       }
+      const binding = this.bindingKey();
       try {
-        await this.prepare({ allowMissing: true });
+        await this.prepare({ allowMissing: true, reconcilePrices: true });
       } catch (error) {
         if (
           !(error instanceof Error) ||
@@ -2858,25 +2962,25 @@ export class Service {
         this.transferException = error.message;
         return this.snapshot();
       }
+      // The click authorized these products and quantities at this store. A changed price is
+      // reconciled and shown; anything else that moved is a stale request.
       if (
         revision !== this.state.revision ||
         quotedAt !== this.quotedAt ||
-        batchKey !== this.batchKey()
+        binding !== this.bindingKey()
       ) {
         this.review = null;
         throw new Error("draftStale");
       }
       const review = this.review!;
-      if (
-        review.unresolved?.length ||
-        review.unresolvedIntents?.length ||
-        review.total > this.state.household.budget ||
-        review.targets.some((target) => target.before > 0)
-      ) {
+      // Only a shopper who asked for it sees the review first. Otherwise rows left out, a budget
+      // warning and items already in the store basket were shown with the button and need no
+      // second approval.
+      if (this.state.reviewBeforeTransfer) {
         this.transferException = "acknowledgeReview";
         return this.snapshot();
       }
-      return await this.execute({ id: review.id, acknowledged: false });
+      return await this.execute({ id: review.id, acknowledged: true });
     } finally {
       this.transferPending = false;
     }

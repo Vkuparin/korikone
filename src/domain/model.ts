@@ -111,6 +111,9 @@ export const stateSchema = z
       .enum(["price", "storeBrand", "avoidStoreBrand"])
       .default("price"),
     priceBasis: priceBasisSchema.default("unit"),
+    // Off: the transfer button sends the displayed list at once. On: it first shows the review
+    // and waits for a confirmation. Older profiles have it off.
+    reviewBeforeTransfer: z.boolean().default(false),
     aiModel: z.string().min(1).max(200).default("auto"),
     resolverEnabled: z.boolean().default(true),
     categoryPreferences: categoryPreferencesSchema.default([]),
@@ -247,6 +250,13 @@ export type Review = {
   quotes: BasketLine[];
   unresolved?: Requirement[];
   unresolvedIntents?: IntentResult[];
+  /** Rows whose price the store changed after the list was priced; totals in cents. */
+  priceChanges?: {
+    productId: string;
+    name: string;
+    before: number;
+    after: number;
+  }[];
 };
 export type Journal = {
   batchKey?: string;

@@ -189,9 +189,10 @@ test("displayed transfer writes once and remains protected after restart", async
   });
   expect((restarted.registry.get("demo-k") as DemoProvider).writes).toBe(0);
 });
-test("displayed transfer stops for budget, changed prices and stale approval", async () => {
+test("with review switched on, displayed transfer stops for the review, shows a changed price and refuses a stale approval", async () => {
   const service = new Service(memory());
   await ready(service);
+  await service.setReviewBeforeTransfer({ enabled: true });
   const approval = {
     revision: service.state.revision,
     quotedAt: service.quotedAt,
@@ -206,7 +207,9 @@ test("displayed transfer stops for budget, changed prices and stale approval", a
   service.state.household.budget = 12000;
   provider.priceChange = true;
   await service.transferDisplayed(approval);
-  expect(service.transferException).toBe("priceChanged");
+  // The same products at the store's new prices are shown for the confirmation.
+  expect(service.transferException).toBe("acknowledgeReview");
+  expect(service.review!.priceChanges!.length).toBeGreaterThan(0);
   expect(provider.writes).toBe(0);
   await expect(
     service.transferDisplayed({ ...approval, revision: 999 }),
@@ -233,9 +236,10 @@ test("concurrent displayed approvals cannot add duplicate quantities", async () 
     service.journal!.review.targets.length,
   );
 });
-test("existing quantities and missing rows require an exception decision before writes", async () => {
+test("with review switched on, existing quantities and missing rows are shown before any write", async () => {
   const service = new Service(memory());
   await ready(service);
+  await service.setReviewBeforeTransfer({ enabled: true });
   const provider = service.registry.get("demo-k") as DemoProvider;
   const cart = await provider.getCart(service.state.context);
   const product = service.basket[0].product!;

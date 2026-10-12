@@ -101,6 +101,8 @@ export async function createReview(
   lines: BasketLine[],
   packSizes: AppState["packSizes"] = {},
   matchingOptions: MatchingOptions = {},
+  /** Accept a changed price for the same product and pack, and report it in `priceChanges`. */
+  reconcilePrices = false,
 ): Promise<Review> {
   if (
     !provider.capabilities.cart ||
@@ -111,7 +113,9 @@ export async function createReview(
   const baseline = await provider.getCart(context);
   if (!baseline.accountId) throw new Error("loginRequired");
   const targets: Review["targets"] = [];
-  for (const line of lines) {
+  const priceChanges: NonNullable<Review["priceChanges"]> = [];
+  const quotes = structuredClone(lines);
+  for (const line of quotes) {
     const p = line.product!;
     if (p.providerId !== context.providerId || p.storeId !== context.storeId)
       throw new Error("contextChanged");
@@ -123,18 +127,56 @@ export async function createReview(
       undefined,
       matchingOptions,
     );
+    // The product, its pack and its availability must be what was shown. Only its price may
+    // differ, and only when the caller reconciles: the same product and quantity are sent.
     if (
       !fresh ||
       fresh.available !== true ||
-      !sameSuitability(line, fresh, context, matchingOptions) ||
-      fresh.price !== p.price ||
-      fresh.deposit !== p.deposit ||
+      !sameSuitability(
+        line,
+        fresh,
+        context,
+        matchingOptions,
+        reconcilePrices,
+      ) ||
       fresh.packAmount !== p.packAmount ||
       fresh.unit !== p.unit ||
       fresh.nativeUnit !== p.nativeUnit ||
       fresh.increment !== p.increment
     )
       throw new Error("priceChanged");
+    const pieces = pieceQuote(line.requirement, fresh) !== null;
+    const unitPrice = (product: Product) =>
+      line.approximate || pieces
+        ? (product.cataloguePricing?.amount ?? null)
+        : product.price;
+    if (
+      unitPrice(fresh) !== unitPrice(p) ||
+      fresh.price !== p.price ||
+      fresh.deposit !== p.deposit
+    ) {
+      const price = unitPrice(fresh);
+      if (
+        !reconcilePrices ||
+        price === null ||
+        !Number.isSafeInteger(price) ||
+        !Number.isSafeInteger(fresh.deposit) ||
+        (pieces && pieceQuote(line.requirement, fresh)!.pieces !== line.packs)
+      )
+        throw new Error("priceChanged");
+      const total =
+        line.packs * (price + (line.approximate ? 0 : fresh.deposit));
+      if (!Number.isSafeInteger(total)) throw new Error("priceChanged");
+      if (total !== line.total)
+        priceChanges.push({
+          productId: p.id,
+          name: p.name,
+          before: line.total!,
+          after: total,
+        });
+      line.product = fresh;
+      line.total = total;
+    }
     const existing = baseline.lines.find((l) => l.productId === p.id);
     if (existing && p.pieceOrdering && !Number.isSafeInteger(existing.quantity))
       throw new Error("unitMismatch");
@@ -173,7 +215,8 @@ export async function createReview(
     targets,
     createdAt: new Date().toISOString(),
     total: targets.reduce((sum, t) => sum + t.price, 0),
-    quotes: structuredClone(lines),
+    quotes,
+    ...(priceChanges.length ? { priceChanges } : {}),
   };
 }
 const locks = new Set<string>();

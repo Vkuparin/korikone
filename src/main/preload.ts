@@ -14,6 +14,7 @@ const methods = [
   "setAppearance",
   "setAIModel",
   "setPriceBasis",
+  "setReviewBeforeTransfer",
   "setReceiptText",
   "cancelTransfer",
   "buildBasket",
