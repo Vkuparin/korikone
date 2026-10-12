@@ -10,7 +10,7 @@ import {
   nativeTheme,
 } from "electron";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
@@ -599,6 +599,29 @@ else
       },
       undoEdit: (input) => service.undoEdit(input),
       importOrders: () => service.importOrders(),
+      importPurchaseReceipt: async (input) => {
+        const { keepOriginal } = z
+          .object({ keepOriginal: z.boolean().default(false) })
+          .strict()
+          .parse(input ?? {});
+        const { filePaths } = await dialog.showOpenDialog(window, {
+          properties: ["openFile"],
+          filters: [
+            { name: "Receipt / Kuitti", extensions: ["pdf", "txt", "csv"] },
+          ],
+        });
+        if (!filePaths[0]) return service.snapshot();
+        // The reader's size, password, no-text and unreadable errors pass through unchanged.
+        const text = await readReceipt(filePaths[0]);
+        const extension = extname(filePaths[0]).toLowerCase().slice(1);
+        return service.importReceiptText({
+          text,
+          format:
+            extension === "pdf" || extension === "csv" ? extension : "txt",
+          keepOriginal,
+        });
+      },
+      importLegacyReceipts: () => service.importLegacyReceipts(),
       importRecipe: async (input) => {
         service.planning.invalidate();
         const request = z

@@ -31,7 +31,8 @@ async function extract() {
       for (const item of content.items) {
         if ("str" in item) text += item.str + (item.hasEOL ? "\n" : " ");
       }
-      text += "\n";
+      // A form feed marks the page break, so evidence keeps its page and line.
+      text += i < document.numPages ? "\n\f\n" : "\n";
       page.cleanup();
       if (text.length > 50000) throw new Error("receiptTooLarge");
     }

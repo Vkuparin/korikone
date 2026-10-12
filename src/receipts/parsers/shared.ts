@@ -31,8 +31,9 @@ export function receiptRows(text: string): {
     .map((page) =>
       page
         .split("\n")
-        .map((line) => line.replace(/\s+$/u, ""))
-        .filter((line) => line.trim()),
+        // Spacing carries no meaning: a PDF reader returns the same row with other gaps.
+        .map((line) => line.trim().replace(/\s+/gu, " "))
+        .filter((line) => line),
     )
     .filter((page) => page.length);
   if (pages.length > receiptLimits.pages) throw new Error("receiptTooLarge");

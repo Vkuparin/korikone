@@ -92,7 +92,9 @@ import {
   type EditStatus,
   type EditUndo,
 } from "./edits";
-import { PurchaseStore } from "./purchases";
+import { PurchaseStore, type ReceiptImport } from "./purchases";
+import { sGroupStore } from "../receipts/parsers/s-group";
+import { kGroupStore } from "../receipts/parsers/k-group";
 import { purchaseLedgerSchema } from "../domain/purchases";
 import {
   coordinatePlanning,
@@ -469,12 +471,70 @@ export class Service {
   /** Purchase evidence lives beside the state, never inside it. */
   readonly purchases: PurchaseStore;
   /** Counts of the last purchase import; no receipt or order content. */
-  purchaseImport: {
-    source: "orders";
-    added: number;
-    updated: number;
-    duplicate: number;
-  } | null = null;
+  purchaseImport:
+    | { source: "orders"; added: number; updated: number; duplicate: number }
+    | ({ source: "receipt" } & ReceiptImport)
+    | {
+        source: "legacy";
+        added: number;
+        updated: number;
+        duplicate: number;
+        /** Parts of the old text that are not a supported receipt; they stay saved as text. */
+        unsupported: number;
+      }
+    | null = null;
+  /**
+   * Imports one receipt text into the purchase ledger. Local only: no AI request, catalogue
+   * search or retailer call, and the shopping list, quote and revision are untouched.
+   */
+  async importReceiptText(input: unknown) {
+    const { text, format, keepOriginal } = z
+      .object({
+        text: z.string().min(1).max(50_000),
+        format: z.enum(["pdf", "txt", "csv"]),
+        keepOriginal: z.boolean().default(false),
+      })
+      .strict()
+      .parse(input);
+    this.purchaseImport = {
+      source: "receipt",
+      ...(await this.purchases.importReceipt(text, format, { keepOriginal })),
+    };
+    return this.snapshot();
+  }
+  /**
+   * The explicit import of the text saved by earlier releases. It is cut where a supported shop
+   * name starts a row; each part that parses becomes a purchase and leaves the saved text, and
+   * every other part stays there unchanged. Nothing is dated or bought by guesswork.
+   */
+  async importLegacyReceipts() {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const revision = this.state.revision;
+    const parts: string[] = [];
+    for (const line of this.state.receiptText.split("\n")) {
+      if (
+        !parts.length ||
+        sGroupStore.test(line.trim()) ||
+        kGroupStore.test(line.trim())
+      )
+        parts.push(line);
+      else parts[parts.length - 1] += `\n${line}`;
+    }
+    const summary = { added: 0, updated: 0, duplicate: 0, unsupported: 0 };
+    const kept: string[] = [];
+    for (const part of parts) {
+      if (!part.trim()) continue;
+      const result = await this.purchases.importReceipt(part, "txt");
+      summary[result.outcome]++;
+      if (result.outcome === "unsupported") kept.push(part);
+    }
+    if (revision !== this.state.revision) throw new Error("draftStale");
+    const receiptText = kept.join("\n").trim();
+    if (receiptText !== this.state.receiptText)
+      await this.save({ ...this.state, receiptText });
+    this.purchaseImport = { source: "legacy", ...summary };
+    return this.snapshot();
+  }
   /**
    * Reads the signed-in S-kaupat account's orders and keeps them as purchase evidence. Read-only
    * at the retailer: no cart, list, order or payment call, and no AI request.

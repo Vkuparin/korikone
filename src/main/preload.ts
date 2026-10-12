@@ -60,6 +60,8 @@ const methods = [
   "editList",
   "undoEdit",
   "importOrders",
+  "importPurchaseReceipt",
+  "importLegacyReceipts",
   "importRecipe",
   "approveDraft",
   "confirmPurchase",

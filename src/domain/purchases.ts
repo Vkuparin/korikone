@@ -550,6 +550,7 @@ export function mergePurchase(
   if (!previous) throw new Error("purchaseInvalid");
   const facts = (e: PurchaseEvent) =>
     JSON.stringify({ ...e, id: "", sourceIds: [] });
+  // The same facts read by the same parser are a repeat, whatever file format carried them.
   if (
     facts(previous) === facts(event) &&
     JSON.stringify(known.parser) === JSON.stringify(source.parser)
