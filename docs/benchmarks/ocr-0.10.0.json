@@ -1,0 +1,329 @@
+{
+  "node": "v26.10.0",
+  "platform": "win32",
+  "arch": "x64",
+  "coldInitMs": 128,
+  "networkDisabledInOCRWorker": true,
+  "language": {
+    "repository": "tesseract-ocr/tessdata_fast",
+    "revision": "87416418657359cb625c412a48b6e1d6d41c29bd",
+    "file": "fin.traineddata",
+    "bytes": 7865732,
+    "sha256": "61a04cd62b507c3d9ae0e1cda399e6715ebf49dea9df47897c8acdcd3bd3e13c"
+  },
+  "packages": [
+    {
+      "name": "bmp-js",
+      "version": "0.1.0",
+      "license": "MIT",
+      "bytes": 645720,
+      "alreadyPresent": false
+    },
+    {
+      "name": "idb-keyval",
+      "version": "6.3.0",
+      "license": "Apache-2.0",
+      "bytes": 55849,
+      "alreadyPresent": false
+    },
+    {
+      "name": "is-url",
+      "version": "1.2.4",
+      "license": "MIT",
+      "bytes": 6582,
+      "alreadyPresent": false
+    },
+    {
+      "name": "node-fetch",
+      "version": "2.7.0",
+      "license": "MIT",
+      "bytes": 162253,
+      "alreadyPresent": false
+    },
+    {
+      "name": "opencollective-postinstall",
+      "version": "2.0.3",
+      "license": "MIT",
+      "bytes": 3687,
+      "alreadyPresent": false
+    },
+    {
+      "name": "regenerator-runtime",
+      "version": "0.13.11",
+      "license": "MIT",
+      "bytes": 27759,
+      "alreadyPresent": false
+    },
+    {
+      "name": "tesseract.js",
+      "version": "7.0.0",
+      "license": "Apache-2.0",
+      "bytes": 1411341,
+      "alreadyPresent": false
+    },
+    {
+      "name": "tesseract.js-core",
+      "version": "7.0.0",
+      "license": "Apache-2.0",
+      "bytes": 45262431,
+      "alreadyPresent": false
+    },
+    {
+      "name": "tr46",
+      "version": "0.0.3",
+      "license": "MIT",
+      "bytes": 268388,
+      "alreadyPresent": false
+    },
+    {
+      "name": "wasm-feature-detect",
+      "version": "1.9.0",
+      "license": "Apache-2.0",
+      "bytes": 34200,
+      "alreadyPresent": false
+    },
+    {
+      "name": "webidl-conversions",
+      "version": "3.0.1",
+      "license": "BSD-2-Clause",
+      "bytes": 12370,
+      "alreadyPresent": false
+    },
+    {
+      "name": "whatwg-url",
+      "version": "5.0.0",
+      "license": "MIT",
+      "bytes": 49886,
+      "alreadyPresent": false
+    },
+    {
+      "name": "zlibjs",
+      "version": "0.3.1",
+      "license": "MIT",
+      "bytes": 3731492,
+      "alreadyPresent": false
+    }
+  ],
+  "rawPayloadBytes": 59549048,
+  "gzipPayloadEstimateBytes": 22596063,
+  "results": [
+    {
+      "id": "k-finnish-clean",
+      "dpi": 300,
+      "renderMs": 99,
+      "ocrMs": 167,
+      "coldTotalMs": 394,
+      "characterErrors": 0,
+      "referenceCharacters": 162,
+      "exactCriticalRows": 5,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 667,
+      "expectedProductCount": 3,
+      "confidence": 93,
+      "rasterPixels": 447458,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 667,
+        "printedTotal": 667,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "K-Market Kokeilu\n\nMallitie 7, 00100 Testila\n12.10.2026 15:40 Kuitti 1201\nKEVYTMAITO 1L 1,29\nRUISLEIPÄ 3,19\nJÄÄTELÖ VANILJA 1L 2,49\nK-Plussa-etu -0,30\nYhteensä 6,67\n"
+    },
+    {
+      "id": "k-finnish-low-resolution",
+      "dpi": 150,
+      "renderMs": 15,
+      "ocrMs": 111,
+      "coldTotalMs": 254,
+      "characterErrors": 2,
+      "referenceCharacters": 162,
+      "exactCriticalRows": 4,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 667,
+      "expectedProductCount": 3,
+      "confidence": 91,
+      "rasterPixels": 446985,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 667,
+        "printedTotal": 667,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "K-Market Kokeilu\n\nMallitie 7, 00100 Testila\n12.10.2026 15:40 Kuitti 1201\nKEVYTMÄITO IL 1,29\nRUISLEIPÄ 3,19\nJÄÄTELÖ VANILJA 1L 2,49\nK-Plussa-etu -0,30\nYhteensä 6,67\n"
+    },
+    {
+      "id": "k-finnish-skew",
+      "dpi": 200,
+      "renderMs": 19,
+      "ocrMs": 132,
+      "coldTotalMs": 279,
+      "characterErrors": 1,
+      "referenceCharacters": 162,
+      "exactCriticalRows": 4,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 667,
+      "expectedProductCount": 3,
+      "confidence": 88,
+      "rasterPixels": 474210,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 667,
+        "printedTotal": 667,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "K-Market Kokeilu\n\nMallitie 7, 00100 Testila\n12.10.2026 15:40 Kuitti 1201\nKEVYTMÄITO 1L 1,29\nRUISLEIPÄ 3,19\nJÄÄTELÖ VANILJA 1L 2,49\nK-Plussa-etu -0,30\nYhteensä 6,67\n"
+    },
+    {
+      "id": "k-finnish-faded",
+      "dpi": 200,
+      "renderMs": 18,
+      "ocrMs": 124,
+      "coldTotalMs": 269,
+      "characterErrors": 0,
+      "referenceCharacters": 162,
+      "exactCriticalRows": 5,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 667,
+      "expectedProductCount": 3,
+      "confidence": 92,
+      "rasterPixels": 442728,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 667,
+        "printedTotal": 667,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "K-Market Kokeilu\n\nMallitie 7, 00100 Testila\n12.10.2026 15:40 Kuitti 1201\nKEVYTMAITO 1L 1,29\nRUISLEIPÄ 3,19\nJÄÄTELÖ VANILJA 1L 2,49\nK-Plussa-etu -0,30\nYhteensä 6,67\n"
+    },
+    {
+      "id": "s-finnish-clean",
+      "dpi": 300,
+      "renderMs": 21,
+      "ocrMs": 120,
+      "coldTotalMs": 269,
+      "characterErrors": 1,
+      "referenceCharacters": 164,
+      "exactCriticalRows": 5,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 837,
+      "expectedProductCount": 3,
+      "confidence": 94,
+      "rasterPixels": 447458,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 837,
+        "printedTotal": 837,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "S-market Koekylä\nNäytepolku 5, 09100 Testila\n12.10.2026 16:20 Kuitti 2202\nBROILERI 400G 4,39\nTÄYSJYVÄPASTA 500G 1,79\nSÄMPYLÄ 6 KPL 2,59\nKAMPANJA -0,40\nYHTEENSÄ 8,37\n"
+    },
+    {
+      "id": "s-finnish-low-resolution",
+      "dpi": 150,
+      "renderMs": 16,
+      "ocrMs": 112,
+      "coldTotalMs": 256,
+      "characterErrors": 1,
+      "referenceCharacters": 164,
+      "exactCriticalRows": 5,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 837,
+      "expectedProductCount": 3,
+      "confidence": 92,
+      "rasterPixels": 446985,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 837,
+        "printedTotal": 837,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "S-market Koekylä\nNäytepolku 5, 00100 Testila\n12.10.2026 16:20 Kuitti 2207\nBROILERI 400G 4,39\nTÄYSJYVÄPASTA 500G 1,79\nSÄMPYLÄ 6 KPL 2,59\nKAMPANJA -0,40\nYHTEENSÄ 8,37\n"
+    },
+    {
+      "id": "s-finnish-skew",
+      "dpi": 200,
+      "renderMs": 21,
+      "ocrMs": 119,
+      "coldTotalMs": 268,
+      "characterErrors": 6,
+      "referenceCharacters": 164,
+      "exactCriticalRows": 4,
+      "criticalRows": 5,
+      "priceTokens": 4,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 837,
+      "expectedProductCount": 3,
+      "confidence": 88,
+      "rasterPixels": 474210,
+      "recognizedProducts": 2,
+      "reconciliation": {
+        "status": "incomplete",
+        "computedTotal": null,
+        "printedTotal": 837,
+        "difference": null,
+        "reasons": ["unreadable-lines"]
+      },
+      "recognizedText": "s-market Koekylä\nNäytepolku 5, 99100 Testila\n12.10.2026 16:20 Kuitti 2202\nBROILERI 400G 4,39\nTÄYSJYVÄPASTA 500G 11574)\nSÄMPYLÄ 6 KPL 2,59\nKAMPANJA -0,40\nYHTEENSÄ 8,37\n"
+    },
+    {
+      "id": "s-finnish-faded",
+      "dpi": 200,
+      "renderMs": 17,
+      "ocrMs": 118,
+      "coldTotalMs": 263,
+      "characterErrors": 0,
+      "referenceCharacters": 164,
+      "exactCriticalRows": 5,
+      "criticalRows": 5,
+      "priceTokens": 5,
+      "expectedPriceTokens": 5,
+      "parserOutcome": "event",
+      "expectedTotalCents": 837,
+      "expectedProductCount": 3,
+      "confidence": 92,
+      "rasterPixels": 442728,
+      "recognizedProducts": 3,
+      "reconciliation": {
+        "status": "balanced",
+        "computedTotal": 837,
+        "printedTotal": 837,
+        "difference": 0,
+        "reasons": []
+      },
+      "recognizedText": "S-market Koekylä\nNäytepolku 5, 00100 Testila\n12.10.2026 16:20 Kuitti 2202\nBROILERI 400G 4,39\nTÄYSJYVÄPASTA 500G 1,79\nSÄMPYLÄ 6 KPL 2,59\nKAMPANJA -0,40\nYHTEENSÄ 8,37\n"
+    }
+  ],
+  "lzmaPayloadEstimateBytes": 8837663,
+  "compressionCaveat": "Measured solid LZMA 7z payload, not a before/after NSIS installer build; installer framing and compression context can change the delta."
+}

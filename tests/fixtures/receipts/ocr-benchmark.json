@@ -1,0 +1,53 @@
+{
+  "provenance": "Independently authored synthetic receipts for F13.1; no owner receipt, personal, payment or loyalty data.",
+  "receipts": [
+    {
+      "id": "k-finnish",
+      "chain": "k-ruoka",
+      "rows": [
+        "K-Market Kokeilu",
+        "Mallitie 7, 00100 Testila",
+        "12.10.2026 15:40 Kuitti 1201",
+        "KEVYTMAITO 1L                 1,29",
+        "RUISLEIPÄ                     3,19",
+        "JÄÄTELÖ VANILJA 1L            2,49",
+        "K-Plussa-etu                 -0,30",
+        "Yhteensä                      6,67"
+      ],
+      "criticalRows": [3, 4, 5, 6, 7],
+      "expectedPrices": ["1,29", "3,19", "2,49", "-0,30", "6,67"],
+      "expectedTotalCents": 667,
+      "expectedProductCount": 3
+    },
+    {
+      "id": "s-finnish",
+      "chain": "s-kaupat",
+      "rows": [
+        "S-market Koekylä",
+        "Näytepolku 5, 00100 Testila",
+        "12.10.2026 16:20 Kuitti 2202",
+        "BROILERI 400G                 4,39",
+        "TÄYSJYVÄPASTA 500G            1,79",
+        "SÄMPYLÄ 6 KPL                 2,59",
+        "  KAMPANJA                   -0,40",
+        "YHTEENSÄ                      8,37"
+      ],
+      "criticalRows": [3, 4, 5, 6, 7],
+      "expectedPrices": ["4,39", "1,79", "2,59", "-0,40", "8,37"],
+      "expectedTotalCents": 837,
+      "expectedProductCount": 3
+    }
+  ],
+  "variants": [
+    { "id": "clean", "dpi": 300, "angle": 0, "contrast": 1, "blur": 0 },
+    {
+      "id": "low-resolution",
+      "dpi": 150,
+      "angle": 0,
+      "contrast": 1,
+      "blur": 0
+    },
+    { "id": "skew", "dpi": 200, "angle": 1.5, "contrast": 0.8, "blur": 0.3 },
+    { "id": "faded", "dpi": 200, "angle": 0, "contrast": 0.35, "blur": 0.7 }
+  ]
+}
