@@ -60,9 +60,8 @@ export class PurchaseStore {
     originals: { sourceId: string; text: string | null }[] = [],
   ) {
     const validated = purchaseLedgerSchema.parse(ledger);
-    if (!this.db.setMany) throw new Error("storageFailed");
-    await this.db.setMany([
-      { key: PURCHASES_KEY, value: validated },
+    const entries = [
+      { key: PURCHASES_KEY, value: validated as unknown },
       ...originals.map(({ sourceId, text }) => ({
         key: purchaseOriginalKey(sourceId),
         value:
@@ -70,7 +69,12 @@ export class PurchaseStore {
             ? null
             : z.string().max(purchaseLimits.originalCharacters).parse(text),
       })),
-    ]);
+    ];
+    // The SQLite store always commits these together. A store without `setMany` can hold only
+    // the ledger itself, so it is never left pointing at an original that was not written.
+    if (this.db.setMany) await this.db.setMany(entries);
+    else if (entries.length === 1) await this.db.set(PURCHASES_KEY, validated);
+    else throw new Error("storageFailed");
     return validated;
   }
   /** Imports order records through the shared dedupe rule, in one atomic write. */
