@@ -14,6 +14,20 @@ import {
   type Recipe,
 } from "../domain/model";
 import { requestIntentSchema, validateIntentLedger } from "../domain/intents";
+import { DraftError, IntentLedgerError } from "../domain/draft-errors";
+
+/** A position such as `meals[1].servings`, without any value. */
+const issuePath = (path: PropertyKey[] | undefined) =>
+  path?.length
+    ? path
+        .map((part, i) =>
+          typeof part === "number"
+            ? `[${part}]`
+            : `${i ? "." : ""}${String(part)}`,
+        )
+        .join("")
+        .slice(0, 80)
+    : null;
 
 function parseJSON(raw: string): unknown {
   return JSON.parse(
@@ -108,16 +122,20 @@ export function validateDraft(
   state: DraftValidationState,
   source = state.note,
 ): MealDraft {
-  let draft: MealDraft;
+  let json: unknown;
   try {
-    draft = draftSchema.parse(parseJSON(raw));
+    json = parseJSON(raw);
   } catch {
-    throw new Error("invalidDraft");
+    throw new DraftError("json");
   }
+  const shape = draftSchema.safeParse(json);
+  if (!shape.success)
+    throw new DraftError("shape", issuePath(shape.error.issues[0]?.path));
+  const draft: MealDraft = shape.data;
   const ids = new Set(state.recipes.map((r) => r.id));
   const incoming = new Set<string>();
   for (const recipe of draft.recipes) {
-    if (incoming.has(recipe.id)) throw new Error("invalidDraft");
+    if (incoming.has(recipe.id)) throw new DraftError("recipe-id");
     incoming.add(recipe.id);
     // Model IDs are references, not database keys. Remap collisions consistently.
     if (ids.has(recipe.id)) {
@@ -129,17 +147,33 @@ export function validateDraft(
     }
     ids.add(recipe.id);
   }
-  if (draft.meals.some((m) => !ids.has(m.recipeId)))
-    throw new Error("invalidDraft");
+  const unknownMeal = draft.meals.findIndex((m) => !ids.has(m.recipeId));
+  if (unknownMeal >= 0)
+    throw new DraftError("recipe-reference", `meals[${unknownMeal}]`);
   // Model specificity remains an assumption. Only validated source spans may be explicit.
-  for (const recipe of draft.recipes)
-    for (const item of recipe.ingredients)
+  const classified = (
+    path: string,
+    classification: Classification,
+    recipeIngredient: boolean,
+  ) => {
+    try {
+      return validateAIClassification(classification, source, recipeIngredient);
+    } catch {
+      throw new DraftError("classification", path);
+    }
+  };
+  for (const [r, recipe] of draft.recipes.entries())
+    for (const [i, item] of recipe.ingredients.entries())
       item.classification = item.classification
-        ? validateAIClassification(item.classification, source, true)
+        ? classified(
+            `recipes[${r}].ingredients[${i}]`,
+            item.classification,
+            true,
+          )
         : inferredClassification(item.name, "recipe-inferred");
-  for (const item of draft.items)
+  for (const [i, item] of draft.items.entries())
     item.classification = item.classification
-      ? validateAIClassification(item.classification, source)
+      ? classified(`items[${i}]`, item.classification, false)
       : inferredClassification(item.name, "model-assumed");
   // Reuse identities only when category qualifiers and their provenance also agree.
   const ingredientIds = new Map<string, string>();
@@ -173,8 +207,13 @@ export function validateDraft(
   if (draft.intents) {
     try {
       draft.intents = validateIntentLedger(draft.intents, source, draft);
-    } catch {
-      throw new Error("invalidDraft");
+    } catch (error) {
+      throw error instanceof IntentLedgerError
+        ? new DraftError(
+            error.reason,
+            error.index === null ? "intents" : `intents[${error.index}]`,
+          )
+        : new DraftError("shape", "intents");
     }
   }
   return draft;
@@ -185,7 +224,7 @@ export function validatePlanningDraft(
   source = state.note,
 ): MealDraft & { intents: NonNullable<MealDraft["intents"]> } {
   const draft = validateDraft(raw, state, source);
-  if (!draft.intents?.length) throw new Error("invalidDraft");
+  if (!draft.intents?.length) throw new DraftError("intents-missing");
   return { ...draft, intents: draft.intents };
 }
 export function draftPrompt(request: string, state: ContextState): string {

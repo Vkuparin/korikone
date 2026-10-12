@@ -1,4 +1,5 @@
 import { clearRowCorrections } from "../domain/corrections";
+import { DraftError, draftFailureReasons } from "../domain/draft-errors";
 import { z } from "zod";
 import {
   contextSchema,
@@ -141,6 +142,15 @@ export const planningSnapshotSchema = z
       })
       .strict(),
     failure: planningFailureSchema.nullable(),
+    /** Why the reply was refused, for `invalid-output` only: a fixed code and a position. */
+    failureCause: z
+      .object({
+        reason: z.enum(draftFailureReasons),
+        path: z.string().max(80).nullable(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
     committedRevision: z.number().int().nonnegative().nullable(),
     transferEligible: z.literal(false),
   })
@@ -461,13 +471,18 @@ export class PlanningRun {
     });
     this.publish();
   }
-  stop(phase: "cancelled" | "obsolete" | "failed", failure: PlanningFailure) {
+  stop(
+    phase: "cancelled" | "obsolete" | "failed",
+    failure: PlanningFailure,
+    cause: PlanningSnapshot["failureCause"] = null,
+  ) {
     if (terminal.has(this.value.phase)) return;
     this.controller.abort();
     this.draft = null;
     this.update({
       phase,
       failure,
+      failureCause: cause,
       provisional: { meals: [], rows: [] },
       coverage: [],
       intents: [],
@@ -483,6 +498,9 @@ export class PlanningRun {
           ? "obsolete"
           : "failed",
       failure,
+      error instanceof DraftError && failure === "invalid-output"
+        ? { reason: error.reason, path: error.path }
+        : null,
     );
   }
   bindInference(

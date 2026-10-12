@@ -45,6 +45,9 @@ export function planningFixtureReply(
     },
   ];
   const groceries: [RegExp, string][] = [
+    // An explicit variety keeps its own name; only the bare word is the generic grocery.
+    [/kevytmaito/i, "Kevytmaito"],
+    [/vaniljajäätelö|vanilla ice cream/i, "Vaniljajäätelö"],
     [/maito|milk/i, "Maito"],
     [/kahvi|coffee/i, "Kahvi"],
     [/kananmun(?:a|ia|at)|eggs?/i, "Kananmuna"],

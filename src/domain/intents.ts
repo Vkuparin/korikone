@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sourceEvidenceSchema, classificationKey } from "./categories";
+import { IntentLedgerError } from "./draft-errors";
 import type { BasketLine, Recipe, Requirement, Unit } from "./model";
 
 export const intentLimits = Object.freeze({
@@ -101,10 +102,33 @@ const writtenNumbers: Record<string, number> = {
   ten: 10,
   eleven: 11,
   twelve: 12,
+  // Finnish, nominative and the genitive that precedes a unit ("kahden litran").
+  yksi: 1,
+  yhden: 1,
+  kaksi: 2,
+  kahden: 2,
+  kolme: 3,
+  kolmen: 3,
+  neljä: 4,
+  neljän: 4,
+  viisi: 5,
+  viiden: 5,
+  kuusi: 6,
+  kuuden: 6,
+  seitsemän: 7,
+  kahdeksan: 8,
+  yhdeksän: 9,
+  kymmenen: 10,
+  yksitoista: 11,
+  kaksitoista: 12,
+  puoli: 0.5,
+  puolitoista: 1.5,
 };
 const writtenNumberToken = Object.keys(writtenNumbers).join("|");
 const unitToken =
-  "kg|g|ml|l|kpl|pcs|grammaa|grams?|kilograms?|litraa?|litres?|liters?|millilitraa|millilitres?|milliliters?";
+  "kg|g|ml|dl|l|kpl|pcs|kappaletta|kappale|grammaa?|grams?|kilogrammaa?|kilograms?|kiloa?|kilon|litraa?|litran|litres?|liters?|desilitraa?|desilitran|millilitraa?|millilitres?|milliliters?";
+/** A unit word in the singular that opens a request means one of it: "litra jäätelöä". */
+const bareUnit = /^\s*(litra|kilo|kilogramma|desilitra)\s+(?=\p{L})/iu;
 function literalNumbers(text: string) {
   // Do not interpret the supported tail of a compound number, range or signed amount.
   if (
@@ -136,6 +160,13 @@ export function noteQuantity(
   text: string,
 ): { amount: number; unit: Unit } | null {
   const numbers = literalNumbers(text);
+  if (!numbers.length) {
+    const bare = text.match(bareUnit)?.[1].toLowerCase();
+    if (!bare) return null;
+    return bare === "desilitra"
+      ? { amount: 100, unit: "ml" }
+      : { amount: 1000, unit: bare === "litra" ? "ml" : "g" };
+  }
   if (numbers.length !== 1) return null;
   const number = numbers[0];
   const amount = literalAmount(number[0]);
@@ -144,7 +175,8 @@ export function noteQuantity(
     .match(new RegExp(`^\\s*(${unitToken})(?=\\s|$|[,;.])`, "i"))?.[1]
     .toLowerCase();
   if (!token) {
-    const egg = "(?:eggs?|kananmunia|kananmunat|kananmuna|munia|munat|muna)";
+    const egg =
+      "(?:eggs?|kananmunia|kananmunaa|kananmunat|kananmuna|munia|munaa|munat|muna)";
     const before = text.slice(0, number.index!);
     const explicitEggs =
       new RegExp(`\\b${egg}\\s*$`, "i").test(before) ||
@@ -159,16 +191,22 @@ export function noteQuantity(
       ? { amount, unit: "pcs" }
       : null;
   }
-  const unit: Unit = /^(kpl|pcs)$/.test(token)
+  const unit: Unit = /^(kpl|pcs|kappale|kappaletta)$/.test(token)
     ? "pcs"
-    : /^(ml|l|litraa?|litres?|liters?|millilitraa|millilitres?|milliliters?)$/.test(
+    : /^(ml|dl|l|litraa?|litran|litres?|liters?|desilitraa?|desilitran|millilitraa?|millilitres?|milliliters?)$/.test(
           token,
         )
       ? "ml"
       : "g";
   const canonical =
     amount *
-    (/^(kg|kilograms?|l|litraa?|litres?|liters?)$/.test(token) ? 1000 : 1);
+    (/^(kg|kilogrammaa?|kilograms?|kiloa?|kilon|l|litraa?|litran|litres?|liters?)$/.test(
+      token,
+    )
+      ? 1000
+      : /^(dl|desilitraa?|desilitran)$/.test(token)
+        ? 100
+        : 1);
   return Number.isFinite(canonical) && canonical > 0 && canonical <= 10_000_000
     ? { amount: canonical, unit }
     : null;
@@ -188,16 +226,21 @@ export function validateIntentLedger(
   note: string,
   draft: DraftTargets,
 ): RequestIntent[] {
-  const intents = z
+  const parsed = z
     .array(requestIntentSchema)
     .min(1)
     .max(intentLimits.requests)
-    .parse(input);
+    .safeParse(input);
+  if (!parsed.success) {
+    const at = parsed.error.issues[0]?.path[0];
+    throw new IntentLedgerError("shape", typeof at === "number" ? at : null);
+  }
+  const intents = parsed.data;
   const ids = new Set<string>(),
     spans: { start: number; end: number }[] = [],
     meals = new Set<number>(),
     items = new Set<number>();
-  for (const intent of intents) {
+  for (const [index, intent] of intents.entries()) {
     const e = intent.evidence;
     if (
       note.slice(e.start, e.end) !== e.quote ||
@@ -206,20 +249,20 @@ export function validateIntentLedger(
       ids.has(intent.id) ||
       spans.some((span) => e.start < span.end && span.start < e.end)
     )
-      throw new Error("invalidIntentLedger");
+      throw new IntentLedgerError("intent-span", index);
     // UTF-16 offsets cannot split an astral character.
     if (/^[\uDC00-\uDFFF]/.test(e.quote) || /[\uD800-\uDBFF]$/.test(e.quote))
-      throw new Error("invalidIntentLedger");
+      throw new IntentLedgerError("intent-span", index);
     ids.add(intent.id);
     spans.push(e);
     if (
       intent.quantity?.provenance === "unknown" &&
       (noteQuantity(e.quote) || noteUnspecifiedCount(e.quote) !== null)
     )
-      throw new Error("invalidIntentLedger");
+      throw new IntentLedgerError("intent-quantity", index);
     if (intent.kind === "meal" && intent.mealIndex !== null) {
       if (!draft.meals[intent.mealIndex] || meals.has(intent.mealIndex))
-        throw new Error("invalidIntentLedger");
+        throw new IntentLedgerError("intent-target", index);
       meals.add(intent.mealIndex);
     }
     if (intent.quantity?.provenance === "explicit-note") {
@@ -230,10 +273,10 @@ export function validateIntentLedger(
           q.amount !== intent.quantity.amount ||
           q.unit !== intent.quantity.unit
         )
-          throw new Error("invalidIntentLedger");
+          throw new IntentLedgerError("intent-quantity", index);
       } else {
         if (q || noteUnspecifiedCount(e.quote) !== intent.quantity.amount)
-          throw new Error("invalidIntentLedger");
+          throw new IntentLedgerError("intent-quantity", index);
       }
     }
     if (intent.itemIndex !== null) {
@@ -244,7 +287,7 @@ export function validateIntentLedger(
         item.amount !== intent.quantity!.amount ||
         item.unit !== intent.quantity!.unit
       )
-        throw new Error("invalidIntentLedger");
+        throw new IntentLedgerError("intent-target", index);
       items.add(intent.itemIndex);
     }
     intent.id = `intent-${e.start}-${e.end}`;
@@ -256,7 +299,7 @@ export function validateIntentLedger(
       (recipe) => !draft.meals.some((meal) => meal.recipeId === recipe.id),
     )
   )
-    throw new Error("invalidIntentLedger");
+    throw new IntentLedgerError("intent-coverage");
   return intents;
 }
 export const intentMappingSchema = z

@@ -3,6 +3,24 @@ import type { Recipe } from "../domain/model";
 /** Scripted examples for the original multi-dish acceptance note. */
 export const mealFixtures: { pattern: RegExp; recipe: Recipe }[] = [
   {
+    // Before the plain soup pattern, so a named soup is not answered with another soup.
+    pattern: /siskonmakkarakeitto/,
+    recipe: {
+      id: "fixture-siskonmakkara-soup",
+      name: "Siskonmakkarakeitto",
+      servings: 4,
+      kind: "meal",
+      ingredients: [
+        { id: "siskonmakkara", name: "Siskonmakkara", amount: 400, unit: "g" },
+        { id: "potato", name: "Peruna", amount: 600, unit: "g" },
+        { id: "carrot", name: "Porkkana", amount: 200, unit: "g" },
+        { id: "onion", name: "Sipuli", amount: 100, unit: "g" },
+      ],
+      instructions:
+        "Keitä kasvikset pehmeiksi. Purista makkarasta pyöryköitä liemeen ja keitä kypsiksi.",
+    },
+  },
+  {
     // The live acceptance note of 9 October 2026, with the casing slip the model made.
     pattern: /makaronilaatikko|macaroni casserole/,
     recipe: {
