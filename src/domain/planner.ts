@@ -177,7 +177,9 @@ function relevantWords(split: string[], wanted: string[]) {
     wanted.length > 0 &&
     wanted.every((w) =>
       name.some((n) => {
-        if (n.startsWith(w)) return n.length - w.length <= 2;
+        // A short word allows one ending letter only: "voi" is not "voida".
+        if (n.startsWith(w))
+          return n.length - w.length <= (w.length <= 3 ? 1 : 2);
         // Stem change before an ending: kananmuna → kananmunia.
         const stem = w.slice(0, -1);
         return (

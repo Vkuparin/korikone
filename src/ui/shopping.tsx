@@ -1407,6 +1407,10 @@ export function ShoppingWorkspace({
                 "kaikkia pyyntöjä ei ollut katettu",
                 "not every request was covered",
               ),
+              "assumed-side": tr(
+                "ehdotettu lisuke ei sopinut pyyntöön",
+                "a suggested side did not fit the request",
+              ),
             }[failureCause.reason] ?? ""}
             {failureCause.path ? ` (${failureCause.path})` : ""}
             {". "}

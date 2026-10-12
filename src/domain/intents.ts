@@ -19,13 +19,17 @@ export const intentQuantitySchema = z
   .object({
     amount: z.number().positive().max(10_000_000).nullable(),
     unit: z.enum(["g", "ml", "pcs"]).nullable(),
-    provenance: z.enum(["explicit-note", "unknown"]),
+    // `assumed`: the note names the grocery without an amount and the planner chose one
+    // ordinary purchase of it. It is a default the shopper can change, never a stated amount.
+    provenance: z.enum(["explicit-note", "unknown", "assumed"]),
   })
   .strict()
   .refine((q) =>
     q.provenance === "unknown"
       ? q.amount === null && q.unit === null
-      : q.amount !== null,
+      : q.provenance === "assumed"
+        ? q.amount !== null && Number.isInteger(q.amount) && q.unit !== null
+        : q.amount !== null,
   );
 export const requestIntentSchema = z
   .object({
@@ -68,6 +72,8 @@ export const requestIntentSchema = z
       intent.quantity?.amount !== null
     )
       invalid();
+    // An assumed amount exists only for a grocery that is on the list with that amount.
+    if (intent.quantity?.provenance === "assumed" && target === null) invalid();
     if (
       intent.unresolvedReason === "unknown-unit" &&
       (intent.quantity?.amount === null || intent.quantity?.unit !== null)
@@ -255,8 +261,10 @@ export function validateIntentLedger(
       throw new IntentLedgerError("intent-span", index);
     ids.add(intent.id);
     spans.push(e);
+    // An amount the note states can be neither unknown nor replaced by an assumed one.
     if (
-      intent.quantity?.provenance === "unknown" &&
+      (intent.quantity?.provenance === "unknown" ||
+        intent.quantity?.provenance === "assumed") &&
       (noteQuantity(e.quote) || noteUnspecifiedCount(e.quote) !== null)
     )
       throw new IntentLedgerError("intent-quantity", index);
@@ -334,7 +342,8 @@ export function validStoredIntents(
     const quantity = intent.quantity;
     const known = noteQuantity(quote);
     if (
-      quantity?.provenance === "unknown" &&
+      (quantity?.provenance === "unknown" ||
+        quantity?.provenance === "assumed") &&
       (known || noteUnspecifiedCount(quote) !== null)
     )
       return false;

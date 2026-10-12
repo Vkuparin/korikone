@@ -1234,6 +1234,38 @@ export class Service {
       edit: this.edit?.revision === this.state.revision ? this.edit : null,
       editUndoAvailable: this.undo?.revision === this.state.revision,
       committedIntents,
+      // What the planner assumed for the current list, so it can be shown and changed: sides
+      // added to dishes named alone, and amounts chosen for groceries named without one.
+      proposal: {
+        sides: this.state.meals.flatMap((meal) => {
+          const recipe = this.state.recipes.find((r) => r.id === meal.recipeId);
+          return recipe?.assumedSide
+            ? [
+                {
+                  mealId: meal.id,
+                  recipeId: recipe.id,
+                  dish: recipe.name,
+                  side: recipe.assumedSide,
+                },
+              ]
+            : [];
+        }),
+        quantities: this.state.requestIntents.flatMap(
+          ({ intent, requirementKeys }) =>
+            intent.quantity?.provenance === "assumed" &&
+            requirementKeys.length === 1 &&
+            !this.state.removed.includes(requirementKeys[0])
+              ? [
+                  {
+                    requirementKey: requirementKeys[0],
+                    label: intent.label,
+                    amount: intent.quantity.amount!,
+                    unit: intent.quantity.unit!,
+                  },
+                ]
+              : [],
+        ),
+      },
       planningIncomplete: committedIntents.some(
         (intent) => intent.status !== "resolved",
       ),

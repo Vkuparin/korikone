@@ -47,3 +47,26 @@ Current main generation publishes discovery/interpretation/validated-draft phase
 `tests/planning.test.ts` covers 15 deterministic cases: validated events, invalid references/deltas, source changes, appearance/calendar preservation, replacement ownership, concurrency/read caps, bounded coverage, staged commit identity, terminal failure, smaller task limits and both real retailer adapters with Service. Provisional products cannot become saved quotes or reach review/transfer. `tests/ui/planning.spec.ts` exercises both development inference adapters through real Electron IPC, event sequencing, stale cancellation, note invalidation and zero retailer writes. The existing composer obsolescence test also passes. Related Service/quote fixtures (36) and shared provider/output/resolver fixtures (42) pass. No live accounts or release suites are used.
 
 F16.10 must consume this run, its shared session, phase methods, read slots and complete coverage; it must not instantiate another resolver session or dispatch raw IPC progress. F16.11 owns the staged-state/quote atomic write. F16.12 consumes validated snapshots and operation-bound controls, keeping provisional rows visually separate from transfer approval. F16.15 extends typed events with independently checked request intents and unresolved mappings. F16.18 should extend both-adapter coverage across that completed pipeline, rather than treating lifecycle-only fixtures as pipeline acceptance.
+
+## Default proposals from vague notes (B2.13)
+
+A vague note should still give a list the shopper can inspect and send. Three things changed; nothing is saved as a preference and no product is accepted on the shopper's behalf.
+
+**Sides.** A dish named alone is planned as a simple complete meal. The planner puts an ordinary side into that dish's own recipe ingredients and reports it in the planning reply as `sides: [{ mealIndex, name }]` (`shoppingPlanningWireSchema` in `src/ai/output.ts`, `draftSchema.sides` in `src/ai/draft.ts`). `validateDraft` stores the name on the new recipe as `Recipe.assumedSide` (`recipeSchema`, optional, 1 to 100 characters). A side is never a separate meal and has no request intent. The reply is refused with `DraftError` reason `assumed-side` (one repair, as for any draft error) when a side names no meal, repeats on one meal, names a dish the note asks for itself (`namesSameFood` against the other intents' labels and recipe names), or the note declines a side (`noSideRequested`: ilman lisuketta, ei lisuketta, pelkkä, sellaisenaan, without a side, no side, on its own, just the). A side for a saved recipe is ignored: the shopper's own recipe is used as it is.
+
+**Assumed amounts.** A grocery named without an amount gets one ordinary purchase. Its request intent carries `quantity: { amount, unit, provenance: "assumed" }` (`intentQuantitySchema` in `src/domain/intents.ts`) and targets an item of exactly that amount. `assumed` is refused when the quoted words state a number (`intent-quantity`) and when the grocery is not on the list. `unknown-quantity` stays valid for a request the planner cannot size.
+
+**Generic names.** The planning prompt asks for plain generic ingredient names with no brand, variety or qualifier the shopper did not write. Selection is unchanged: the existing matcher, bounded query expansion and optional resolver decide, so explicit conflicts, exclusions, unavailable products and unknown pack facts behave as before. Resolver recommendations still need the shopper's approval; they are not applied automatically.
+
+**Published for the UI (B2.14).** `snapshot.proposal` is derived from the saved list:
+
+- `sides: [{ mealId, recipeId, dish, side }]` for current meals whose recipe has `assumedSide`.
+- `quantities: [{ requirementKey, label, amount, unit }]` for request intents with an assumed amount whose row is still on the list. `label` is the shopper's own words.
+
+The side's ingredients are ordinary recipe rows, so removing or changing them uses the existing row edits. The assumed amount is an ordinary row amount and changes with `changeQuantity`.
+
+Two matcher corrections found by these fixtures: a three-letter ingredient word allows one ending letter only, so "Voi" no longer matches "voida" inside another product name; and possessive apostrophes are ignored, so "Lover's" equals "Lovers".
+
+Development fixtures: `mealFixtures` in `src/ai/meal-fixtures.ts` gains Uunimakkara and Poronkäristys with an optional mashed-potato `side`, and Perunamuusi as its own dish. `planningFixtureReply` adds the side unless the note names it or declines one, and gives known groceries one ordinary purchase when the note has no amount. Coffee is deliberately left without one and stays the scripted `unknown-quantity` example. The demo store sells the new ingredients.
+
+Tests: `tests/vague-proposals.test.ts` runs interpretation to committed quote on both real adapters with synthetic catalogues: "Uunimakkaraa" alone, "Uunimakkaraa, perunamuusia, poronkäristystä", plain groceries, a declined side, an excluded product, a saved required milk type, an empty store, the resolver switch, cancellation and the draft refusals. One interpretation call per note, at most three reads per row, no retailer write. `tests/ui/vague-proposal.spec.ts` drives the real composer in development mode and checks the proposal after a restart.

@@ -36,6 +36,12 @@ const catalogue: [
   ["yoghurt", "Jogurtti 1 kg", 1000, "g", 199],
   ["banana", "Banaani 6 kpl", 6, "pcs", 199],
   ["chocolate", "Suklaa 200 g", 200, "g", 249],
+  // The 12 October playtest dishes and their default side.
+  ["uunimakkara", "HK Kabanossi uunimakkara 600 g", 600, "g", 349],
+  ["grated-cheese", "Juustoraaste 150 g", 150, "g", 189],
+  ["butter", "Voi 500 g", 500, "g", 399],
+  ["reindeer", "Poronkäristys 500 g", 500, "g", 1990],
+  ["lingonberry", "Puolukkasurvos 400 g", 400, "g", 249],
   // Names and prices seen at S-market Herttoniemi on 9 October 2026, with the
   // look-alikes a loose store search returns beside the ingredient itself.
   ["macaroni", "Myllyn Paras Makaroni 400g", 400, "g", 55],

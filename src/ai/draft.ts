@@ -104,6 +104,18 @@ const draftSchema = z
     items: z.array(ingredientSchema).max(200).default([]),
     notes: z.string().max(5000).default(""),
     intents: z.array(requestIntentSchema).max(100).optional(),
+    // Sides the planner added to dishes named alone: the meal's position and the side's name.
+    sides: z
+      .array(
+        z
+          .object({
+            mealIndex: z.number().int().min(0).max(99),
+            name: z.string().trim().min(1).max(100),
+          })
+          .strict(),
+      )
+      .max(20)
+      .optional(),
   })
   .refine(
     (draft) =>
@@ -216,7 +228,47 @@ export function validateDraft(
         : new DraftError("shape", "intents");
     }
   }
+  // A side belongs to one new dish, is not a dish the note asks for itself, and is never added
+  // against the shopper's word.
+  const sided = new Set<number>();
+  for (const [index, side] of (draft.sides ?? []).entries()) {
+    const meal = draft.meals[side.mealIndex];
+    const recipe = meal && draft.recipes.find((r) => r.id === meal.recipeId);
+    const elsewhere = [
+      ...(draft.intents ?? [])
+        .filter((intent) => intent.mealIndex !== side.mealIndex)
+        .map((intent) => intent.label),
+      ...draft.recipes.filter((r) => r !== recipe).map((r) => r.name),
+    ];
+    if (
+      !meal ||
+      sided.has(side.mealIndex) ||
+      noSideRequested(source) ||
+      elsewhere.some((text) => namesSameFood(side.name, text))
+    )
+      throw new DraftError("assumed-side", `sides[${index}]`);
+    sided.add(side.mealIndex);
+    // A saved recipe is the shopper's own and is used as it is.
+    if (recipe) recipe.assumedSide = tidyName(side.name);
+  }
   return draft;
+}
+/** The note says the dish is wanted on its own. */
+export function noSideRequested(note: string) {
+  return /ilman\s+lisuk|ei\s+lisuk|(?<![\p{L}])pelk(?:kä|ät|kää|kiä|än)(?![\p{L}])|sellaisenaan|without\s+(?:a\s+|any\s+)?sides?|no\s+sides?|on\s+its\s+own|(?<![\p{L}])just\s+the(?![\p{L}])/iu.test(
+    note,
+  );
+}
+/** Whether a text mentions the food a name stands for, allowing Finnish case endings. */
+export function namesSameFood(name: string, text: string) {
+  const haystack = text.toLocaleLowerCase("fi");
+  return name
+    .toLocaleLowerCase("fi")
+    .split(/[^\p{L}]+/u)
+    .filter((word) => word.length >= 4)
+    .some((word) =>
+      haystack.includes(word.slice(0, Math.max(4, word.length - 2))),
+    );
 }
 export function validatePlanningDraft(
   raw: string,

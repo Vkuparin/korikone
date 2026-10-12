@@ -1,13 +1,16 @@
-import { initialState, type Recipe } from "../domain/model";
+import { initialState, type Unit } from "../domain/model";
 import {
   noteQuantity,
   noteUnspecifiedCount,
   type RequestIntent,
 } from "../domain/intents";
 import { mealFixtures } from "./meal-fixtures";
-import type { MealDraft } from "./draft";
+import { noSideRequested, type MealDraft } from "./draft";
 
-/** Finite synthetic planning responses. No fuzzy fallback meal and no default grocery quantities. */
+/**
+ * Finite synthetic planning responses. No fuzzy fallback meal. A dish named alone gets its scripted
+ * side, and a known grocery named without an amount gets one ordinary purchase marked as assumed.
+ */
 export function planningFixtureReply(
   note: string,
   servings: number,
@@ -18,7 +21,9 @@ export function planningFixtureReply(
     items: [],
     notes: "Development mode: local planning fixture.",
     intents: [],
+    sides: [],
   };
+  const noSide = noSideRequested(note);
   const ranges: { start: number; end: number }[] = [];
   let position = 0;
   for (const separator of note.matchAll(
@@ -29,7 +34,7 @@ export function planningFixtureReply(
   }
   ranges.push({ start: position, end: note.length });
   const defaults = initialState().recipes;
-  const recipes: { pattern: RegExp; recipe: Recipe }[] = [
+  const recipes: (typeof mealFixtures)[number][] = [
     ...mealFixtures,
     {
       pattern: /pasta/i,
@@ -59,7 +64,26 @@ export function planningFixtureReply(
     [/banaan|bananas?/i, "Banaani"],
     [/leip|bread/i, "Leipä"],
     [/pakastepizza|frozen pizza/i, "Pakastepizza"],
+    [/voi(?:ta)?(?![\p{L}])|butter/iu, "Voi"],
+    [/juusto|cheese/i, "Juusto"],
   ];
+  // One ordinary purchase of a grocery the note names without an amount. Coffee has none here on
+  // purpose: it stays the scripted example of a request the planner could not size.
+  const usual: Record<string, { amount: number; unit: Unit }> = {
+    Kevytmaito: { amount: 1000, unit: "ml" },
+    Vaniljajäätelö: { amount: 1000, unit: "ml" },
+    Maito: { amount: 1000, unit: "ml" },
+    Kananmuna: { amount: 10, unit: "pcs" },
+    Jauheliha: { amount: 400, unit: "g" },
+    Sipuli: { amount: 500, unit: "g" },
+    Riisi: { amount: 1000, unit: "g" },
+    Kerma: { amount: 200, unit: "ml" },
+    Omena: { amount: 1000, unit: "g" },
+    Banaani: { amount: 1000, unit: "g" },
+    Leipä: { amount: 500, unit: "g" },
+    Voi: { amount: 500, unit: "g" },
+    Juusto: { amount: 500, unit: "g" },
+  };
   for (const range of ranges) {
     const raw = note.slice(range.start, range.end);
     const quote = raw.trim();
@@ -68,10 +92,33 @@ export function planningFixtureReply(
       end = start + quote.length;
     const measuredBanana =
       /^\d+(?:[.,]\d+)?\s*(?:kg|g)\s+(?:banaan\p{L}*|bananas?)$/iu.test(quote);
-    const recipe = measuredBanana
+    const fixture = measuredBanana
       ? undefined
-      : recipes.find((fixture) => fixture.pattern.test(quote.toLowerCase()))
-          ?.recipe;
+      : recipes.find((entry) => entry.pattern.test(quote.toLowerCase()));
+    // A dish named alone gets its side, unless the note names that side or declines one.
+    const side =
+      fixture?.side &&
+      !noSide &&
+      !ranges.some(
+        (other) =>
+          other !== range &&
+          fixture.side!.pattern.test(
+            note.slice(other.start, other.end).toLowerCase(),
+          ),
+      )
+        ? fixture.side
+        : undefined;
+    const recipe = fixture && structuredClone(fixture.recipe);
+    if (recipe && side) {
+      recipe.id = `${recipe.id}-with-side`;
+      for (const extra of side.ingredients) {
+        const same = recipe.ingredients.find(
+          (i) => i.id === extra.id && i.unit === extra.unit,
+        );
+        if (same) same.amount += extra.amount;
+        else recipe.ingredients.push(structuredClone(extra));
+      }
+    }
     const intent: RequestIntent = {
       id: `fixture-${start}`,
       kind: recipe ? "meal" : "grocery",
@@ -87,6 +134,8 @@ export function planningFixtureReply(
       if (!draft.recipes.some((saved) => saved.id === recipe.id))
         draft.recipes.push(structuredClone(recipe));
       intent.mealIndex = draft.meals.length;
+      if (side && !draft.sides!.some((s) => s.mealIndex === intent.mealIndex))
+        draft.sides!.push({ mealIndex: intent.mealIndex, name: side.name });
       draft.meals.push({
         recipeId: recipe.id,
         day: Math.min(draft.meals.length, 6),
@@ -109,7 +158,12 @@ export function planningFixtureReply(
       if (!name) intent.unresolvedReason = "unsupported-request";
       else if (quantity && !Number.isInteger(quantity.amount))
         intent.unresolvedReason = "unsupported-quantity";
-      else if (!quantity)
+      else if (!quantity && count === null && usual[name]) {
+        // No amount in the note: one ordinary purchase, marked as an assumption.
+        intent.quantity = { ...usual[name], provenance: "assumed" };
+        intent.itemIndex = draft.items.length;
+        draft.items.push({ id: `fixture-item-${start}`, name, ...usual[name] });
+      } else if (!quantity)
         intent.unresolvedReason =
           intent.quantity.amount === null ? "unknown-quantity" : "unknown-unit";
       else {

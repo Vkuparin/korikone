@@ -26,6 +26,9 @@ export const recipeSchema = z.object({
   ingredients: z.array(ingredientSchema).min(1).max(100),
   instructions: z.string().max(10000),
   kind: z.enum(["meal", "ready", "breakfast", "evening", "snack"]).optional(),
+  // The side the planner added to a dish the shopper named alone. Its ingredients are part of
+  // this recipe; the name is kept so the assumption can be shown and changed.
+  assumedSide: z.string().min(1).max(100).optional(),
 });
 export const mealSchema = z.object({
   id: z.string(),
