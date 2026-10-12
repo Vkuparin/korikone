@@ -420,12 +420,22 @@ else
           ? fixtureAI.catalogueRequests
           : 0;
         service.developmentModel = development ? fixtureAI.lastModel : null;
-        updateChecked ??= checkUpdate().catch(() => {});
-        // A saved answer is instant; a daily network check may finish after the first snapshot.
-        await Promise.race([
-          updateChecked,
-          new Promise((resolve) => setTimeout(resolve, 1500)),
-        ]);
+        // Opening the saved list never waits for the network. A saved or local answer is ready
+        // within this tick; the daily check finishes later and announces itself.
+        if (!updateChecked) {
+          let announced = true;
+          updateChecked = checkUpdate()
+            .catch(() => {})
+            .then(() => {
+              if (!announced && service.update && !window.isDestroyed())
+                window.webContents.send("app:updateChanged", service.update);
+            });
+          await Promise.race([
+            updateChecked,
+            new Promise((resolve) => setImmediate(resolve)),
+          ]);
+          announced = false;
+        }
         service.developmentRequests = development ? fixtureAI.requestCount : 0;
         return service.snapshot();
       },

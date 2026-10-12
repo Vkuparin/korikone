@@ -68,6 +68,9 @@ declare global {
       onAppearanceChange: (
         callback: (value: AppearanceBootstrap) => void,
       ) => () => void;
+      onUpdateChange: (
+        callback: (value: { version: string; url: string }) => void,
+      ) => () => void;
       getAppInfo: () => Promise<{
         ok: boolean;
         value: { version: string; developmentLocked: boolean };
@@ -343,6 +346,14 @@ function App() {
     const result = await window.korikone.setLanguage(language);
     if (!result.ok) setError(result.error ?? "storageFailed");
   }
+  // A newer release found after the saved list was already on screen.
+  useEffect(
+    () =>
+      window.korikone.onUpdateChange((update) =>
+        setSnapshot((current) => ({ ...current, update })),
+      ),
+    [],
+  );
   useEffect(() => {
     void call("load").then(() => setLoaded(true));
     void window.korikone.getAppInfo().then((result) => {
@@ -449,10 +460,13 @@ function App() {
     aiRequestLimit,
     developmentLocked,
   };
+  // Reading the saved list from this computer: no request, search or transfer is running.
   if (!loaded)
     return (
       <main>
-        <p role="status">{t("working")}</p>
+        <p role="status" data-startup="opening">
+          {t("opening")}
+        </p>
       </main>
     );
   return (
@@ -559,7 +573,8 @@ function App() {
             </div>
           )
         : busy &&
-          !["planShopping", "commitPlanning", "editList"].includes(
+          // Reading saved data back is local and instant: it is not shown as work in progress.
+          !["planShopping", "commitPlanning", "editList", "load"].includes(
             busyMethod ?? "",
           ) && (
             <div className="progress operation-fallback">

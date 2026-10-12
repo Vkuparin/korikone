@@ -145,3 +145,17 @@ Fixtures for U19.2: FI and EN, keyboard and narrow width, for both chains in sig
 The shopping composer shows today's date as compact Today / Tänään text in a semantic time element. It has no chip border/background, hover action or tab stop; household, store and model controls remain visibly interactive. B2.2 focused FI/EN development checks passed at 1280 and 800 pixels, with keyboard navigation skipping the date and no list mutation, AI request or retailer write. Normal Finnish and narrow English captures were inspected.
 
 B2.18 uses `planningActivityPending` in `src/ui/planning-status.ts` to animate the shared status surface only during pending discovery, interpretation, catalogue search, resolution or editing. Settling and cancellation keep the indicator static; reduced motion also keeps it static. The composer uses a steady outline instead of pulsing the whole input. Reserved indicator space, status height and tabular elapsed seconds from zero keep the controls stable. Provisional previews remain read-only and expose their pending state through `aria-busy`; they show validated results without invented completion percentages or streaming text.
+
+## Startup (B2.1)
+
+Opening the app reads the saved list, quote and transfer record from this computer. It starts no generation, catalogue search or transfer, and neither does returning to Ostoslista from another page.
+
+Audit of the reported "processing" at startup found two causes. The first `load` waited up to 1.5 seconds for the daily update check before returning the saved list, and until it returned the window showed the general "Käsitellään…" / "Working…" text, the same words used for real work.
+
+- `load` no longer waits for the network. A saved or local update answer is included at once; a check that finishes later is sent to the window as `app:updateChanged` (`window.korikone.onUpdateChange`) and the update notice appears then.
+- Until the first snapshot arrives the window shows "Avataan tallennettua listaa…" / "Opening your saved list…" (`opening` in `src/ui/i18n.ts`, marked `data-startup="opening"`), which names the local read.
+- A later `load` (used to re-read saved rows after a refused action) is not shown as work in progress and offers no Cancel.
+- Sign-in recovery after launch still asks each chain with a chosen store whether its saved login holds. It updates the store state quietly and reads no catalogue.
+- Genuine conditions stay visible: an interrupted transfer is reported beside the transfer action, and a failed load shows its error.
+
+Fixtures: `tests/ui/startup.spec.ts` launches development Electron with an empty profile, a saved priced list (launch, reload and return to the list) and a profile with an interrupted transfer. Each checks the kept content, the status texts shown from the first moment of the page, and zero AI, catalogue and store-write counters. Launch-to-list time is recorded as a test annotation, not asserted.

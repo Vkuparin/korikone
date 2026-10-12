@@ -103,6 +103,17 @@ contextBridge.exposeInMainWorld("korikone", {
     ipcRenderer.on("app:planningChanged", listener);
     return () => ipcRenderer.removeListener("app:planningChanged", listener);
   },
+  // An update found after the first snapshot was returned.
+  onUpdateChange: (
+    callback: (value: { version: string; url: string }) => void,
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      value: { version: string; url: string },
+    ) => callback(value);
+    ipcRenderer.on("app:updateChanged", listener);
+    return () => ipcRenderer.removeListener("app:updateChanged", listener);
+  },
   onAppearanceChange: (callback: (value: AppearanceBootstrap) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
