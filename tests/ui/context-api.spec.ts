@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,7 +21,8 @@ test("confirmed context IPC preserves notes, reprices, rejects failures and pers
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Do not interpret this edited note");
     const result = await page.evaluate(async () => {
       const api = window.korikone;
@@ -153,12 +155,12 @@ test("confirmed context IPC preserves notes, reprices, rejects failures and pers
     await app.close();
     app = await electron.launch({ args: ["."], env });
     page = await app.firstWindow();
-    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toHaveValue(
-      result.final.state.note,
-    );
+    // With a saved list the composer edits it; the saved note stays in the state.
+    await expect(composer(page)).toHaveValue("");
     const restored = await page.evaluate(
       async () => (await window.korikone.load()).value,
     );
+    expect(restored.state.note).toBe(result.final.state.note);
     expect(restored.state.context).toEqual(result.final.state.context);
     expect(restored.basket).toEqual(result.final.basket);
     expect(restored.developmentCatalogueRequests).toBe(0);

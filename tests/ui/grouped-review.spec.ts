@@ -1,3 +1,4 @@
+import { composer, startNewList } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -113,11 +114,8 @@ for (const language of ["fi", "en"] as const) {
         name: /^(Tarkista ratkaisemattomat rivit|Review unresolved rows)/,
       });
       await expect(review).toHaveCount(0);
-      await page
-        .getByLabel(
-          fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
-        )
-        .fill("A new note that is not applied");
+      await startNewList(page);
+      await composer(page).fill("A new note that is not applied");
       await expect(review).toHaveCount(0);
       const before = await load();
       expect(

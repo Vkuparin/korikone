@@ -150,6 +150,11 @@ function App() {
   }
   const [aiRequestLimit, setAIRequestLimit] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
+  // Recipe import: the pasted text, whether its panel is open and whether the draft is unreviewed.
+  const [importing, setImporting] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importPending, setImportPending] = useState(false);
+  const [importedDraft, setImportedDraft] = useState(false);
   const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
   const state = snapshot.state;
   const editingStaple = state.staples.find(
@@ -210,6 +215,7 @@ function App() {
       const openStore = (result.value as { openStore?: Chain }).openStore;
       if (openStore) {
         setStoreChain(openStore);
+        setStoreOpen(true);
         if (snapshot.state.setupComplete) setPage("store");
         else setSetupStore(true);
       }
@@ -231,7 +237,10 @@ function App() {
       });
       return true;
     } catch (e) {
-      const code = e instanceof Error ? e.message : "operationFailed";
+      let code = e instanceof Error ? e.message : "operationFailed";
+      // The pack-size message for an edit differs from the one shown on a product row.
+      if (method === "editList" && code === "packSizeUnknown")
+        code = "editPackSizeUnknown";
       setError((current) =>
         options?.preserveError && current ? current : code,
       );
@@ -380,12 +389,16 @@ function App() {
       {control}
     </label>
   );
+  // The store tab stays loaded after leaving it, and a sign-in may be waiting there.
+  const storeCue = storeOpen || waiting;
   const settingsProps: SettingsSectionProps = {
     snapshot,
     busy,
     call,
     save,
     t,
+    storeOpen: storeCue && page !== "store",
+    returnToStore: () => setPage("store"),
     changeLanguage,
     editStaples: () => setPage("staples"),
     appVersion,
@@ -604,16 +617,18 @@ function App() {
                     : undefined
                 }
                 className={
-                  key === "store" && storeOpen && page !== "store"
+                  key === "store" && storeCue && page !== "store"
                     ? "store-open"
                     : undefined
                 }
                 onClick={() => setPage(key)}
               >
                 {t(key)}
-                {key === "store" && storeOpen && page !== "store" && (
+                {key === "store" && storeCue && page !== "store" && (
                   <small>
-                    {(storeChain ?? state.context.providerId) === "k-ruoka"
+                    {(waitingChain ??
+                      storeChain ??
+                      state.context.providerId) === "k-ruoka"
                       ? "K-Ruoka"
                       : "S-kaupat"}{" "}
                     · {state.language === "fi" ? "palaa" : "return"}
@@ -673,27 +688,88 @@ function App() {
               <>
                 <div className="section-heading">
                   <h1>{t("recipes")}</h1>
-                  <button
-                    onClick={() =>
-                      setEditing({
-                        id: crypto.randomUUID(),
-                        name: "",
-                        servings: 4,
-                        ingredients: [],
-                        instructions: "",
-                      })
-                    }
-                  >
-                    {t("newRecipe")}
-                  </button>
+                  <div className="actions">
+                    <button
+                      className="secondary"
+                      disabled={importPending || !!editing}
+                      aria-expanded={importing}
+                      onClick={() => setImporting(!importing)}
+                    >
+                      {state.language === "fi"
+                        ? "Tuo resepti tekstistä"
+                        : "Import recipe from text"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setImportedDraft(false);
+                        setEditing({
+                          id: crypto.randomUUID(),
+                          name: "",
+                          servings: 4,
+                          ingredients: [],
+                          instructions: "",
+                        });
+                      }}
+                    >
+                      {t("newRecipe")}
+                    </button>
+                  </div>
                 </div>
+                {importing && !editing && (
+                  <RecipeImport
+                    language={state.language}
+                    development={snapshot.developmentMode}
+                    connected={snapshot.ai.state === "connected"}
+                    text={importText}
+                    pending={importPending}
+                    onText={setImportText}
+                    onCancel={() => {
+                      if (importPending) {
+                        window.dispatchEvent(new Event("korikone:cancel-ai"));
+                        void window.korikone.cancelAI();
+                      }
+                      setImporting(false);
+                    }}
+                    onSubmit={async () => {
+                      if (importPending || !importText.trim()) return;
+                      setImportPending(true);
+                      let draft: Recipe | null = null;
+                      const ok = await call(
+                        "importRecipe",
+                        { text: importText.trim(), consent: true },
+                        {
+                          onSuccess: (value) => {
+                            draft = value.recipeDraft;
+                          },
+                        },
+                      );
+                      setImportPending(false);
+                      if (ok && draft) {
+                        setImporting(false);
+                        setImportText("");
+                        setImportedDraft(true);
+                        setEditing(draft);
+                      }
+                    }}
+                  />
+                )}
+                {editing && importedDraft && (
+                  <p className="input-notice" role="status">
+                    {state.language === "fi"
+                      ? "Tarkista tuotu resepti. Mitään ei tallenneta, ennen kuin painat Tallenna."
+                      : "Review the imported recipe. Nothing is saved until you press Save."}
+                  </p>
+                )}
                 {editing ? (
                   <RecipeForm
                     key={editing.id}
                     recipe={editing}
                     t={t}
                     language={state.language}
-                    onCancel={() => setEditing(null)}
+                    onCancel={() => {
+                      setImportedDraft(false);
+                      setEditing(null);
+                    }}
                     onSave={async (recipe) => {
                       if (
                         await save({
@@ -703,8 +779,10 @@ function App() {
                             recipe,
                           ],
                         })
-                      )
+                      ) {
+                        setImportedDraft(false);
                         setEditing(null);
+                      }
                     }}
                   />
                 ) : (
@@ -914,6 +992,76 @@ function App() {
         </>
       )}
     </>
+  );
+}
+function RecipeImport({
+  language,
+  development,
+  connected,
+  text,
+  pending,
+  onText,
+  onCancel,
+  onSubmit,
+}: {
+  language: string;
+  development: boolean;
+  connected: boolean;
+  text: string;
+  pending: boolean;
+  onText: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  const fi = language === "fi";
+  const tr = (a: string, b: string) => (fi ? a : b);
+  return (
+    <form
+      className="card form recipe-import"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      <label>
+        {tr("Liitä resepti tekstinä", "Paste the recipe as text")}
+        <textarea
+          value={text}
+          maxLength={10000}
+          rows={8}
+          autoFocus
+          onChange={(e) => onText(e.target.value)}
+        />
+      </label>
+      <p className="input-notice">
+        {development
+          ? tr(
+              "Kehitystila käyttää paikallista testiaineistoa. Tekstiä ei lähetetä ChatGPT:lle.",
+              "Development mode uses local fixtures. The text is not sent to ChatGPT.",
+            )
+          : connected
+            ? tr(
+                "Tuo resepti lähettää liitetyn tekstin ChatGPT:lle. Kirjoittaminen ei lähetä mitään. Resepti avautuu tarkistettavaksi, eikä sitä tallenneta automaattisesti.",
+                "Import sends the pasted text to ChatGPT. Typing sends nothing. The recipe opens for review and is not saved automatically.",
+              )
+            : tr(
+                "Yhdistä ChatGPT Asetuksissa, jotta voit tuoda reseptin tekstistä. Voit lisätä reseptin myös käsin.",
+                "Connect ChatGPT in Settings to import a recipe from text. You can also add it by hand.",
+              )}
+      </p>
+      <div className="actions">
+        <button disabled={pending || !text.trim() || !connected}>
+          {pending
+            ? tr("Tuodaan reseptiä…", "Importing the recipe…")
+            : tr("Tuo resepti", "Import recipe")}
+        </button>
+        <button type="button" className="secondary" onClick={onCancel}>
+          {pending
+            ? tr("Peruuta tuonti", "Cancel import")
+            : tr("Sulje", "Close")}
+        </button>
+      </div>
+    </form>
   );
 }
 function RecipeForm({

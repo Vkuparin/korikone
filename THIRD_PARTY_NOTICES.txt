@@ -2487,6 +2487,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ========================================================================
+qrcode-generator 2.0.4
+License: MIT
+Source: https://github.com/kazuhikoarase/qrcode-generator.git
+
+
+========================================================================
 qs 6.16.0
 License: BSD-3-Clause
 Source: https://github.com/ljharb/qs.git

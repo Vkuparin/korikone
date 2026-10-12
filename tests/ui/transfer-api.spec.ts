@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -24,7 +25,7 @@ test("verified transfer retains its result on opening failure and retries only t
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeVisible();
+    await expect(composer(page)).toBeVisible();
     const result = await page.evaluate(async () => {
       const api = window.korikone;
       let initial = (await api.load()).value;

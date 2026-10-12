@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -43,7 +44,8 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Unsaved note");
     const language = page.getByLabel("Kieli", { exact: true });
     await expect(page.locator(".language-control")).toHaveText("Suomi");
@@ -75,9 +77,7 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
       await page.screenshot({ path: "test-results/language-menu.png" });
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
-    await expect(page.getByLabel("What would you like to cook?")).toHaveValue(
-      "Unsaved note",
-    );
+    await expect(composer(page)).toHaveValue("Unsaved note");
     await expect(page.getByLabel("Language", { exact: true })).toHaveText(
       "English",
     );
@@ -121,10 +121,9 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page.evaluate(async () => {
       await window.korikone.developmentScenario("usageLimit");
     });
-    await page.getByLabel("What would you like to cook?").fill("Pasta");
-    await page
-      .getByRole("button", { name: "Update list", exact: true })
-      .click();
+    await startNewList(page);
+    await composer(page).fill("Pasta");
+    await page.getByRole("button", { name: updateName }).click();
     await expect(page.getByRole("alert")).toContainText(
       "ChatGPT limited this request",
     );

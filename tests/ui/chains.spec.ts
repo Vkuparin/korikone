@@ -49,7 +49,7 @@ test("the pinned hint and Settings set up the second chain; both session logins 
     await page.getByLabel("Lisää tuote", { exact: true }).fill("Kahvi");
     await page.getByRole("button", { name: "Lisää tuote listaan" }).click();
     const hint = page.getByRole("button", {
-      name: "Vertaa S-kaupat: kirjaudu sisään",
+      name: "Vertailu: valitse kauppa ketjulle S-kaupat",
     });
     await expect(hint).toBeVisible();
     await hint.focus();
@@ -129,7 +129,7 @@ for (const [chain, name] of [
       await page.getByRole("button", { name: "Kirjaudu kauppaan" }).click();
       await completeFixtureLogin(app, page, chain);
       await page.getByRole("button", { name: "Valmis", exact: true }).click();
-      await page.getByRole("button", { name: "Kauppa", exact: true }).click();
+      await page.getByRole("button", { name: /^Kauppa/ }).click();
       const tab = await fixtureTab(app, chain);
       await app.evaluate(
         ({ webContents }, id) =>

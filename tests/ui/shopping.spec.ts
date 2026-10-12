@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -49,15 +50,14 @@ for (const language of ["fi", "en"] as const) {
       }, state);
       await page.reload();
       const fi = language === "fi";
-      const note = page.getByLabel(
-        fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
-      );
+      const note = composer(page);
       const model = page.getByRole("button", {
         name: fi ? "AI-malli" : "AI model",
         exact: true,
       });
       const load = () =>
         page.evaluate(async () => (await window.korikone.load()).value);
+      await startNewList(page);
       await note.fill("Nakkikeitto");
       await expect(page.locator("#note-unapplied")).toBeVisible();
       await model.focus();
@@ -70,8 +70,7 @@ for (const language of ["fi", "en"] as const) {
       expect((await load()).developmentRequests).toBe(0);
       await page
         .getByRole("button", {
-          name: fi ? "Päivitä lista" : "Update list",
-          exact: true,
+          name: updateName,
         })
         .click();
       await expect
@@ -80,11 +79,11 @@ for (const language of ["fi", "en"] as const) {
       expect((await load()).developmentRequests).toBe(1);
       await expect(page.locator("#note-unapplied")).toHaveCount(0);
       await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
+      await startNewList(page);
       await note.fill("Kanapasta");
       await expect(
         page.getByRole("button", {
-          name: fi ? "Päivitä lista" : "Update list",
-          exact: true,
+          name: updateName,
         }),
       ).toBeEnabled();
       await note.press("Control+Enter");
@@ -286,13 +285,13 @@ test("typing, view return and restored edits never submit without an explicit ac
       await window.korikone.signInAI();
     }, state);
     await page.reload();
-    await expect(
-      page.getByRole("button", { name: "Päivitä lista", exact: true }),
-    ).toBeEnabled();
+    // With a saved list the composer edits it, so Update waits for an instruction.
+    await expect(composer(page)).toBeVisible();
     const load = () =>
       page.evaluate(async () => (await window.korikone.load()).value);
     const before = await load();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Nakkikeitto");
     await expect(
       page.getByText("Muistiinpanoa ei ole päivitetty listaan", {
@@ -322,9 +321,7 @@ test("typing, view return and restored edits never submit without an explicit ac
         exact: true,
       }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Update list", exact: true })
-      .click();
+    await page.getByRole("button", { name: updateName }).click();
     await expect
       .poll(async () => (await load()).state.note)
       .toBe("Nakkikeitto");
@@ -334,10 +331,10 @@ test("typing, view return and restored edits never submit without an explicit ac
       }),
     ).toHaveCount(0);
     expect((await load()).developmentRequests).toBe(1);
-    await expect(
-      page.getByRole("button", { name: "Update list", exact: true }),
-    ).toBeEnabled();
-    const englishNote = page.getByLabel("What would you like to cook?");
+    // The replacement is committed; Update waits for an edit instruction again.
+    await expect(page.getByRole("button", { name: updateName })).toBeDisabled();
+    const englishNote = composer(page);
+    await startNewList(page);
     await englishNote.fill("700 g pakastepizza");
     await englishNote.press("Control+Enter");
     await expect
@@ -368,14 +365,14 @@ test("explicit updates discard an obsolete response until the next requested upd
       await window.korikone.developmentScenario("delayedSuccess");
     }, state);
     await page.reload();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Old note");
     await note.press("Control+Enter");
     await expect(page.locator(".note-box")).toHaveClass(/is-working/);
     await note.press("Control+Enter");
-    await expect(
-      page.getByRole("button", { name: "Päivitä lista", exact: true }),
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: updateName })).toBeDisabled();
+    await startNewList(page);
     await note.fill("700 g pakastepizza");
     await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
     await page.waitForTimeout(2100);
@@ -384,14 +381,13 @@ test("explicit updates discard an obsolete response until the next requested upd
       page.evaluate(async () => (await window.korikone.load()).value);
     expect((await load()).developmentRequests).toBe(1);
     expect((await load()).state.note).toBe("");
-    await page
-      .getByRole("button", { name: "Päivitä lista", exact: true })
-      .click();
+    await page.getByRole("button", { name: updateName }).click();
     await expect(page.locator(".grocery-description")).toContainText(
       "Pakastepizza",
       { timeout: 10000 },
     );
-    await expect(note).toHaveValue("700 g pakastepizza");
+    // The committed replacement returns the composer to editing the new list.
+    await expect(note).toHaveValue("");
     await expect(page.locator(".grocery-description")).not.toContainText(
       "Old note",
     );
@@ -472,13 +468,16 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
       await window.korikone.signInAI();
     }, state);
     await page.reload();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Nakkikeitto");
     await page.waitForTimeout(400);
+    await startNewList(page);
     await note.fill("Nakkikeitto ja kanapasta");
     await page.waitForTimeout(400);
     const fullNote =
       "Nakkikeitto, kanapasta, 700 g pakastepizza, jogurttia aamuksi, herkkuja viikonlopuksi";
+    await startNewList(page);
     await note.fill(fullNote);
     await page.waitForTimeout(2100);
     await expect(page.locator(".interpretation")).toHaveCount(0);
@@ -486,9 +485,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
       (await page.evaluate(() => window.korikone.load())).value
         .developmentRequests,
     ).toBe(0);
-    await page
-      .getByRole("button", { name: "Päivitä lista", exact: true })
-      .click();
+    await page.getByRole("button", { name: updateName }).click();
     await expect(page.locator(".interpretation")).toHaveCount(4, {
       timeout: 15000,
     });
@@ -528,6 +525,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await page.evaluate(() =>
       window.korikone.developmentScenario("delayedSuccess"),
     );
+    await startNewList(page);
     await note.fill("pasta");
     await note.press("Control+Enter");
     await expect(page.locator(".note-box")).toHaveClass(/is-working/);
@@ -547,6 +545,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     expect(cancelled.draft).toBeNull();
     await expect(page.locator(".interpretation")).toHaveCount(4);
 
+    await startNewList(page);
     await note.fill("700 g pakastepizza");
     await page.evaluate(() =>
       window.korikone.developmentScenario("usageLimit"),
@@ -595,15 +594,14 @@ for (const language of ["fi", "en"] as const) {
       );
       await page.reload();
       const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
-      const note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      const note = composer(page);
       const status = page.locator("#note-update-help");
       const load = () =>
         page
           .evaluate(() => window.korikone.load())
           .then((result) => result.value);
       const baseline = await load();
+      await startNewList(page);
       await note.fill("Makaronilaatikko");
       await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveAttribute("aria-atomic", "true");
@@ -675,8 +673,7 @@ for (const language of ["fi", "en"] as const) {
       );
       await page
         .getByRole("button", {
-          name: tr("Päivitä lista", "Update list"),
-          exact: true,
+          name: updateName,
         })
         .click();
       await expect(status).toHaveText(
@@ -689,7 +686,7 @@ for (const language of ["fi", "en"] as const) {
       });
       await expect(page.locator(".grocery-row")).toHaveCount(7);
       await expect(note).toBeFocused();
-      await expect(note).toHaveValue("Makaronilaatikko");
+      await expect(note).toHaveValue("");
       await expect(page.getByRole("alert")).toHaveCount(0);
       expect((await load()).state.note).toBe("Makaronilaatikko");
       await expect(status).toHaveAttribute("data-planning-phase", "committed");
@@ -721,9 +718,7 @@ for (const language of ["fi", "en"] as const) {
       );
       await page.reload();
       const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
-      const note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      const note = composer(page);
       const status = page.locator("#note-update-help");
       const load = () =>
         page.evaluate(async () => (await window.korikone.load()).value);
@@ -731,6 +726,7 @@ for (const language of ["fi", "en"] as const) {
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedModels"),
       );
+      await startNewList(page);
       await note.fill("200 ml kermaa");
       await note.press("Control+Enter");
       await expect(status).toHaveAttribute(
@@ -775,6 +771,7 @@ for (const language of ["fi", "en"] as const) {
           exact: false,
         }),
       ).toBeVisible();
+      await startNewList(page);
       await note.fill("1 l maitoa");
       await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
       await expect(status).toHaveAttribute("data-planning-phase", "obsolete");
@@ -783,6 +780,7 @@ for (const language of ["fi", "en"] as const) {
       expect((await load()).basket).toEqual(before.basket);
       await expect(note).toHaveValue("1 l maitoa");
 
+      await startNewList(page);
       await note.fill("200 ml kermaa");
       await page.evaluate(() => {
         const data = window as unknown as { phaseEvents: string[] };
@@ -849,7 +847,8 @@ test("validated preview shows gradual rows and quantity-less requests without tr
       await window.korikone.developmentScenario("delayedSuccess");
     }, state);
     await page.reload();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("200 ml kermaa ja kahvia");
     await note.press("Control+Enter");
     const preview = page.getByRole("region", { name: "Muodostuva lista" });
@@ -913,10 +912,9 @@ for (const language of ["fi", "en"] as const) {
       );
       await page.reload();
       const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
-      const note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      const note = composer(page);
       const before = (await page.evaluate(() => window.korikone.load())).value;
+      await startNewList(page);
       await note.fill("200 ml kermaa ja kahvia");
       await note.press("Control+Enter");
       const preview = page.getByRole("region", {
@@ -984,7 +982,8 @@ test("committing removes preview controls without losing their keyboard focus an
       await window.korikone.developmentScenario("delayedSuccess");
     }, state);
     await page.reload();
-    const note = page.getByLabel("What would you like to cook?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("1 l maitoa");
     await note.press("Control+Enter");
     const forming = page.getByRole("button", {
@@ -1039,9 +1038,8 @@ for (const language of ["fi", "en"] as const) {
       );
       await page.reload();
       const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
-      let note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      let note = composer(page);
+      await startNewList(page);
       await note.fill("pasta ja kahvia");
       await note.press("Control+Enter");
       const preview = page.getByRole("region", {
@@ -1084,6 +1082,7 @@ for (const language of ["fi", "en"] as const) {
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedFailure"),
       );
+      await startNewList(page);
       await note.fill("1 l maitoa");
       await note.press("Control+Enter");
       await expect(preview).toBeVisible();
@@ -1095,6 +1094,7 @@ for (const language of ["fi", "en"] as const) {
       expect(failed.quotedAt).toBe(committed.quotedAt);
 
       await page.evaluate(() => window.korikone.developmentScenario("success"));
+      await startNewList(page);
       await note.fill("kahvia");
       await note.press("Control+Enter");
       await expect(page.locator("#note-update-help")).toHaveAttribute(
@@ -1116,15 +1116,14 @@ for (const language of ["fi", "en"] as const) {
       await page.evaluate(() =>
         window.korikone.developmentScenario("pendingSuccess"),
       );
+      await startNewList(page);
       await note.fill("1 l maitoa");
       await note.press("Control+Enter");
       await expect(preview).toBeVisible();
       await app.close();
       app = await launch(directory);
       page = await app.firstWindow();
-      note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      note = composer(page);
       await expect(note).toHaveValue("kahvia");
       await expect(
         page.getByRole("region", {

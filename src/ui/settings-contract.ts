@@ -36,6 +36,10 @@ export type SettingsSectionProps = {
   save: (state: AppState) => Promise<boolean>;
   t: (key: Key) => string;
   changeLanguage: (language: "fi" | "en") => Promise<void>;
+  /** A store page is open or a sign-in waits there. */
+  storeOpen?: boolean;
+  /** Shows the Kauppa view again. */
+  returnToStore?: () => void;
   editStaples: () => void;
   appVersion: string;
   aiRequestLimit: boolean;

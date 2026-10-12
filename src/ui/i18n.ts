@@ -105,6 +105,25 @@ export const en = {
     "The generated draft did not pass validation. Try again or plan manually.",
   draftStale:
     "Your plan changed after this draft was created. Generate a fresh draft.",
+  staleEdit:
+    "The list changed before this edit was applied. Review the list and try again.",
+  unknownTarget:
+    "That item or meal is no longer on the list. Review the list and try again.",
+  duplicateTarget:
+    "The instruction changes the same item twice. Split it into separate edits.",
+  ambiguousTarget: "Several items match that name. Say which one you mean.",
+  invalidUnit:
+    "That amount uses a unit the item does not have. Use the item's own unit.",
+  editPackSizeUnknown:
+    "The pack size is not known for that item. Give an amount instead of packs.",
+  unsupportedEdit:
+    "That instruction is not an edit the app can make. The list did not change.",
+  invalidEdit: "The edit would make the list invalid. The list did not change.",
+  noChange: "The instruction would not change the list.",
+  nothingToEdit:
+    "There is nothing on the list to edit yet. Create a list first.",
+  undoUnavailable: "There is no change to undo for this list.",
+  planningPending: "A list update is still running. Wait for it to finish.",
   revocationUnconfirmed:
     "Signed out locally. Remote revocation was not confirmed; disconnect the app in ChatGPT settings.",
   recoverFirst:
@@ -387,6 +406,23 @@ export const fi: Record<Key, string> = {
   invalidDraft:
     "Luonnos ei läpäissyt tarkistusta. Yritä uudelleen tai suunnittele käsin.",
   draftStale: "Suunnitelma muuttui luonnoksen jälkeen. Luo uusi luonnos.",
+  staleEdit:
+    "Lista muuttui ennen tämän muutoksen tekemistä. Tarkista lista ja yritä uudelleen.",
+  unknownTarget:
+    "Kohde ei ole enää listalla. Tarkista lista ja yritä uudelleen.",
+  duplicateTarget:
+    "Ohje muuttaa samaa kohdetta kahdesti. Jaa se erillisiin muutoksiin.",
+  ambiguousTarget: "Useampi kohde vastaa nimeä. Kerro, kumpaa tarkoitat.",
+  invalidUnit: "Määrän yksikkö ei sovi kohteelle. Käytä kohteen omaa yksikköä.",
+  editPackSizeUnknown:
+    "Kohteen pakkauskokoa ei tiedetä. Anna määrä pakkausten sijaan.",
+  unsupportedEdit:
+    "Sovellus ei osaa tehdä tätä muutosta ohjeella. Lista ei muuttunut.",
+  invalidEdit: "Muutos tekisi listasta virheellisen. Lista ei muuttunut.",
+  noChange: "Ohje ei muuttaisi listaa.",
+  nothingToEdit: "Listalla ei ole vielä mitään muokattavaa. Luo ensin lista.",
+  undoUnavailable: "Tälle listalle ei ole kumottavaa muutosta.",
+  planningPending: "Listan päivitys on vielä kesken. Odota, että se päättyy.",
   revocationUnconfirmed:
     "Kirjauduit ulos paikallisesti. Palvelimen valtuutuksen perumista ei varmistettu; poista sovelluksen yhteys ChatGPT:n asetuksista.",
   recoverFirst: "Keskeytynyt siirto on tarkistettava ennen uutta siirtoa.",

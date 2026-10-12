@@ -17,13 +17,15 @@ import {
   transferableLine,
   approximateCost,
   pieceQuote,
+  shoppingList,
 } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
+import { editTargets, mealTargetId, rowTargetId } from "../domain/edits";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
-import { isLive, liveProviders } from "../stores/provider";
+import { isLive } from "../stores/provider";
 import {
   ComparePanel,
   CompareSummary,
@@ -32,7 +34,242 @@ import {
   feeRange,
 } from "./compare";
 import { MealCalendarView } from "./calendar";
+import { QrExport } from "./qr";
 import type { SettingsSection } from "./settings-contract";
+
+const editUnit = (unit: string | undefined, fi: boolean) =>
+  unit === "pcs" ? (fi ? "kpl" : "pcs") : (unit ?? "");
+
+/** One line for the last edit, built from the operations the service applied. */
+function editSummary(
+  applied: NonNullable<Snapshot["edit"]> extends infer E
+    ? E extends { applied: infer A }
+      ? A
+      : never
+    : never,
+  fi: boolean,
+) {
+  return applied
+    .map((a) => {
+      const unit = editUnit(a.unit, fi);
+      switch (a.op) {
+        case "addItem":
+          return fi
+            ? `Lisätty ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`
+            : `Added ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`;
+        case "removeItem":
+          return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;
+        case "replaceMeal":
+          return fi
+            ? `Vaihdettu ${a.name} → ${a.to}`
+            : `Replaced ${a.name} with ${a.to}`;
+        case "changeServings":
+          return fi
+            ? `${a.name}: ${a.before} → ${a.after} annosta`
+            : `${a.name}: ${a.before} → ${a.after} servings`;
+        case "changeQuantity":
+          return `${a.name}: ${a.before} → ${a.after} ${unit}`;
+        case "markAtHome":
+          return a.after
+            ? fi
+              ? `${a.name} ostetaan`
+              : `${a.name} will be bought`
+            : fi
+              ? `${a.name} on kotona`
+              : `${a.name} is at home`;
+      }
+    })
+    .join("; ");
+}
+
+type Delta =
+  NonNullable<Snapshot["edit"]> extends infer E
+    ? E extends { delta: infer D }
+      ? D
+      : never
+    : never;
+
+/** Concrete changes of one edit from `EditDelta`; prices only where both sides are comparable. */
+function EditDetails({ delta, fi }: { delta: Delta; fi: boolean }) {
+  const tr = (a: string, b: string) => (fi ? a : b);
+  const money = (cents: number) =>
+    new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
+      style: "currency",
+      currency: "EUR",
+      signDisplay: "exceptZero",
+    }).format(cents / 100);
+  const priced = (price: Delta["rows"][number]["priceAfter"]) =>
+    (price.kind === "known" || price.kind === "estimated") &&
+    price.total !== null
+      ? ` · ${price.kind === "estimated" ? tr("noin ", "about ") : ""}${new Intl.NumberFormat(
+          fi ? "fi-FI" : "en-FI",
+          { style: "currency", currency: "EUR" },
+        ).format(price.total / 100)}`
+      : price.kind === "unknown"
+        ? ` · ${tr("hinta puuttuu", "price unknown")}`
+        : price.kind === "stale"
+          ? ` · ${tr("hinta ei ole ajan tasalla", "price not current")}`
+          : "";
+  const row = (r: Delta["rows"][number]) => {
+    const unit = r.unit === "pcs" ? tr("kpl", "pcs") : r.unit;
+    switch (r.change) {
+      case "added":
+        return `${tr("Lisätty", "Added")} ${r.name}: ${r.after} ${unit}${priced(r.priceAfter)}`;
+      case "removed":
+        return `${tr("Poistettu", "Removed")} ${r.name} (${r.before} ${unit})`;
+      case "quantity":
+        return `${r.name}: ${r.before} → ${r.after} ${unit}${priced(r.priceAfter)}`;
+      case "atHome":
+        return `${r.name} ${tr("on kotona", "is at home")} (${r.before} ${unit})`;
+      case "notAtHome":
+        return `${r.name} ${tr("ostetaan", "will be bought")}: ${r.after} ${unit}${priced(r.priceAfter)}`;
+    }
+  };
+  const price = delta.price;
+  const none = !delta.rows.length && !delta.meals.length;
+  return (
+    <details className="edit-details">
+      <summary>{tr("Muutoksen tiedot", "Change details")}</summary>
+      {none ? (
+        <p>
+          {tr(
+            "Ostoslistan rivit eivät muuttuneet.",
+            "No shopping list rows changed.",
+          )}
+        </p>
+      ) : (
+        <ul>
+          {delta.meals.map((m) => (
+            <li key={m.mealId}>
+              {m.change === "replaced"
+                ? `${tr("Vaihdettu", "Replaced")} ${m.name} → ${m.to}`
+                : `${m.name}: ${m.servingsBefore} → ${m.servingsAfter} ${tr("annosta", "servings")}`}
+            </li>
+          ))}
+          {delta.rows.map((r) => (
+            <li key={r.key}>{row(r)}</li>
+          ))}
+        </ul>
+      )}
+      {!!delta.retained.length && (
+        <p className="muted">
+          {tr("Ennallaan", "Unchanged")}:{" "}
+          {delta.retained.map((r) => r.name).join(", ")}
+        </p>
+      )}
+      {!none && (
+        <p className="edit-price" data-status={price.status}>
+          {price.difference !== null
+            ? `${tr("Muuttuneiden rivien hintaero", "Price difference of the changed rows")}${
+                price.status === "estimated"
+                  ? tr(" (arvio)", " (estimate)")
+                  : ""
+              }: ${money(price.difference)}`
+            : price.status === "incomparable"
+              ? tr(
+                  "Hintoja ei voi verrata, koska kauppa tai toimitustapa on eri.",
+                  "Prices cannot be compared because the store or fulfilment differs.",
+                )
+              : fi
+                ? `Hintaeroa ei voi laskea: ${price.unknownRows} rivin hinta ei ole vertailukelpoinen.`
+                : `No price difference: ${price.unknownRows} ${price.unknownRows === 1 ? "row lacks" : "rows lack"} a comparable price.`}
+        </p>
+      )}
+    </details>
+  );
+}
+
+/**
+ * The outcome of the last edit for the current revision: a one-line summary with Undo, or a
+ * clarification whose choices resubmit the instruction with an explicit target.
+ */
+function EditOutcome({
+  snapshot,
+  language,
+  busy,
+  call,
+  resubmit,
+}: {
+  snapshot: Snapshot;
+  language: string;
+  busy: boolean;
+  call: (method: string, input?: unknown) => Promise<boolean>;
+  resubmit: (targetId: string) => void;
+}) {
+  const fi = language === "fi";
+  const tr = (a: string, b: string) => (fi ? a : b);
+  const edit = snapshot.edit;
+  if (!edit && !snapshot.editUndoAvailable) return null;
+  if (!edit) return null;
+  if (edit.status === "clarification")
+    return (
+      <section className="edit-outcome" role="status" aria-live="polite">
+        {edit.ambiguities.map((ambiguity) => (
+          <div key={ambiguity.phrase}>
+            <p>
+              {tr("Mitä tarkoitat: ", "Which one do you mean: ")}
+              <strong>{ambiguity.phrase}</strong>
+            </p>
+            <div className="edit-choices">
+              {ambiguity.candidates.map((candidate) => (
+                <button
+                  key={candidate.targetId}
+                  className="secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => resubmit(candidate.targetId)}
+                >
+                  {candidate.name} ·{" "}
+                  {candidate.targetId.startsWith("meal:")
+                    ? fi
+                      ? `${candidate.detail} annosta`
+                      : `${candidate.detail} servings`
+                    : candidate.detail.replace(/ pcs$/, fi ? " kpl" : " pcs")}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {edit.unsupported.length > 0 && (
+          <p className="muted">
+            {tr(
+              "Tätä ei voi muokata ohjeella: ",
+              "Cannot be edited by instruction: ",
+            )}
+            {edit.unsupported.join(", ")}
+          </p>
+        )}
+        <p className="muted">
+          {tr("Lista ei muuttunut.", "The list did not change.")}
+        </p>
+      </section>
+    );
+  return (
+    <section className="edit-outcome" role="status" aria-live="polite">
+      <p>
+        <strong>
+          {edit.status === "undone"
+            ? tr("Muutos kumottu: ", "Change undone: ")
+            : tr("Lista päivitetty: ", "List updated: ")}
+        </strong>
+        {editSummary(edit.applied, fi)}
+      </p>
+      <EditDetails delta={edit.delta} fi={fi} />
+      {snapshot.editUndoAvailable && (
+        <button
+          className="secondary"
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void call("undoEdit", { revision: snapshot.state.revision })
+          }
+        >
+          {tr("Kumoa", "Undo")}
+        </button>
+      )}
+    </section>
+  );
+}
 
 export function ShoppingWorkspace({
   snapshot,
@@ -79,6 +316,7 @@ export function ShoppingWorkspace({
   const stopRequested = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
@@ -94,6 +332,53 @@ export function ShoppingWorkspace({
   const planningOperation = useRef<string | null>(null);
   const cancelSent = useRef<string | null>(null);
   const [showSavedDuringPlanning, setShowSavedDuringPlanning] = useState(false);
+  // The composer edits the saved list in place. "New list" is the explicit replacement
+  // draft; the saved list stays until its commit succeeds.
+  const hasList = all.length > 0 || state.meals.length > 0;
+  const [newListDraft, setNewListDraft] = useState(
+    () => sessionStorage.getItem("shopping-new-list") === "1",
+  );
+  const setNewList = (value: boolean) => {
+    try {
+      if (value) sessionStorage.setItem("shopping-new-list", "1");
+      else sessionStorage.removeItem("shopping-new-list");
+    } catch {
+      // Session storage is a convenience; the draft still works without it.
+    }
+    setNewListDraft(value);
+  };
+  const composingEdit = hasList && !newListDraft;
+  const [instruction, setInstructionValue] = useState(
+    () => sessionStorage.getItem("shopping-edit-instruction") ?? "",
+  );
+  const setInstruction = (value: string) => {
+    try {
+      sessionStorage.setItem("shopping-edit-instruction", value);
+    } catch {
+      // Same as above.
+    }
+    setInstructionValue(value);
+  };
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const [editWorking, setEditWorking] = useState(false);
+  const [editFailed, setEditFailed] = useState(false);
+  const [confirmingNewList, setConfirmingNewList] = useState(false);
+  const editRunning = useRef(false);
+  const targets = editTargets(state, new Date());
+  const focusName =
+    focusTarget === null
+      ? null
+      : (targets.rows.find((row) => row.targetId === focusTarget)?.name ??
+        targets.meals.find((meal) => meal.targetId === focusTarget)?.name ??
+        null);
+  useEffect(() => {
+    if (!hasList && newListDraft) setNewList(false);
+  }, [hasList]);
+  // A note typed before the list existed stays visible as the replacement draft.
+  useEffect(() => {
+    if (hasList && !newListDraft && note.trim() && note !== state.note)
+      setNewList(true);
+  }, [hasList]);
   useEffect(
     () =>
       window.korikone.onPlanningChange((value) => {
@@ -253,11 +538,10 @@ export function ShoppingWorkspace({
           active.current &&
           currentNote.current.trim() === requested
         )
-          if (
-            !(await call("commitPlanning", { operationId })) &&
-            active.current
-          )
-            setUpdateFailed(true);
+          if (await call("commitPlanning", { operationId })) {
+            savedDraft.current = "";
+            if (active.current) setNewList(false);
+          } else if (active.current) setUpdateFailed(true);
       } else if (!stopRequested.current && active.current)
         setUpdateFailed(true);
     } finally {
@@ -269,6 +553,83 @@ export function ShoppingWorkspace({
       }
     }
   }
+  async function applyEdit(text: string, focus: string | null) {
+    const requested = text.trim();
+    if (
+      editRunning.current ||
+      running.current ||
+      busy ||
+      !requested ||
+      snapshot.ai.state !== "connected"
+    )
+      return;
+    editRunning.current = true;
+    setEditWorking(true);
+    setEditFailed(false);
+    try {
+      let clarification = false;
+      const ok = await call(
+        "editList",
+        {
+          revision: state.revision,
+          instruction: requested,
+          ...(focus &&
+          [...targets.rows, ...targets.meals].some(
+            (target) => target.targetId === focus,
+          )
+            ? { focusTargetId: focus }
+            : {}),
+          consent: true,
+        },
+        {
+          onSuccess: (value) => {
+            clarification = value.edit?.status === "clarification";
+          },
+        },
+      );
+      if (!active.current) return;
+      if (!ok) setEditFailed(true);
+      else if (!clarification) {
+        setInstruction("");
+        setFocusTarget(null);
+      }
+    } finally {
+      editRunning.current = false;
+      if (active.current) setEditWorking(false);
+    }
+  }
+  // The unsent replacement draft survives a detour to the current list.
+  const savedDraft = useRef("");
+  const startNewList = () => {
+    setConfirmingNewList(false);
+    setEditFailed(false);
+    setFocusTarget(null);
+    // An unapplied note typed before the list existed becomes the draft.
+    changeNote(savedDraft.current || (note !== state.note ? note : ""));
+    savedDraft.current = "";
+    setNewList(true);
+    requestAnimationFrame(() => noteElement.current?.focus());
+  };
+  const leaveNewList = () => {
+    savedDraft.current = note;
+    changeNote(state.note);
+    setNewList(false);
+  };
+  const backToCurrentList = () => {
+    leaveNewList();
+    requestAnimationFrame(() => noteElement.current?.focus());
+  };
+  /** Opens the composer on one row or meal. Nothing is sent until the shopper presses Update. */
+  const editWithInstruction = (targetId: string) => {
+    if (!composingEdit) leaveNewList();
+    setConfirmingNewList(false);
+    setEditFailed(false);
+    setFocusTarget(targetId);
+    requestAnimationFrame(() => {
+      noteElement.current?.focus({ preventScroll: true });
+      noteElement.current?.scrollIntoView?.({ block: "nearest" });
+    });
+  };
   const rows = requirements(state);
   const unmatchedRequests = snapshot.committedIntents.filter(
     (intent) =>
@@ -456,29 +817,132 @@ export function ShoppingWorkspace({
             )}
           </p>
         )}
+        {hasList && (
+          <div
+            className="composer-mode"
+            data-mode={composingEdit ? "edit" : "new"}
+          >
+            <label className="composer-label" htmlFor="shopping-note">
+              {composingEdit
+                ? tr("Muokkaa nykyistä listaa", "Edit current list")
+                : tr("Uusi lista", "New list")}
+            </label>
+            {composingEdit ? (
+              <button
+                className="secondary"
+                type="button"
+                disabled={busy || working || editWorking}
+                onClick={() =>
+                  instruction.trim()
+                    ? setConfirmingNewList(true)
+                    : startNewList()
+                }
+              >
+                {tr("Uusi lista", "New list")}
+              </button>
+            ) : (
+              <button
+                className="secondary"
+                type="button"
+                disabled={busy || working}
+                onClick={backToCurrentList}
+              >
+                {tr("Takaisin nykyiseen listaan", "Back to the current list")}
+              </button>
+            )}
+          </div>
+        )}
+        {hasList && !composingEdit && (
+          <p className="muted composer-hint">
+            {tr(
+              "Nykyinen lista säilyy, kunnes uusi lista on valmis.",
+              "The current list stays until the new list is ready.",
+            )}
+          </p>
+        )}
+        {confirmingNewList && (
+          <div
+            className="composer-confirm"
+            role="alertdialog"
+            aria-labelledby="new-list-confirm"
+          >
+            <p id="new-list-confirm">
+              {tr(
+                "Kirjoittamasi muutosohje hylätään. Nykyinen lista säilyy. Aloitetaanko uusi lista?",
+                "Your unapplied instruction will be discarded. The current list stays. Start a new list?",
+              )}
+            </p>
+            <button type="button" onClick={startNewList}>
+              {tr("Aloita uusi lista", "Start new list")}
+            </button>
+            <button
+              className="secondary"
+              type="button"
+              autoFocus
+              onClick={() => {
+                setConfirmingNewList(false);
+                noteElement.current?.focus();
+              }}
+            >
+              {tr("Jatka muokkausta", "Keep editing")}
+            </button>
+          </div>
+        )}
+        {composingEdit && focusName !== null && (
+          <p className="composer-focus">
+            <span className="chip">
+              {tr("Kohde", "About")}: {focusName}
+            </span>
+            <button
+              className="text"
+              type="button"
+              onClick={() => setFocusTarget(null)}
+            >
+              {tr("Poista kohde", "Clear target")}
+            </button>
+          </p>
+        )}
         <div className={`note-box ${working ? "is-working" : ""}`}>
-          <label className="sr-only" htmlFor="shopping-note">
-            {tr("Mitä haluaisit valmistaa?", "What would you like to cook?")}
-          </label>
+          {!hasList && (
+            <label className="sr-only" htmlFor="shopping-note">
+              {tr("Mitä haluaisit valmistaa?", "What would you like to cook?")}
+            </label>
+          )}
           <textarea
             ref={noteElement}
             id="shopping-note"
             aria-describedby={
-              note !== state.note
+              !composingEdit && note !== state.note
                 ? "note-update-help note-unapplied"
                 : "note-update-help"
             }
-            value={note}
-            maxLength={10000}
-            placeholder={tr(
-              "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Jotain herkkuja viikonlopuksi…",
-              "Sausage soup, chicken pasta and frozen pizza. Yoghurt and bananas for breakfast. Some weekend treats…",
-            )}
-            onChange={(e) => changeNote(e.target.value)}
+            value={composingEdit ? instruction : note}
+            maxLength={composingEdit ? 2000 : 10000}
+            placeholder={
+              composingEdit
+                ? tr(
+                    "Esim. lisää maitoa ja vaihda pasta nakkikeittoon",
+                    "E.g. add milk and replace the pasta with sausage soup",
+                  )
+                : tr(
+                    "Nakkikeitto, kanapasta ja pakastepizza. Aamuksi jogurttia ja banaaneja. Jotain herkkuja viikonlopuksi…",
+                    "Sausage soup, chicken pasta and frozen pizza. Yoghurt and bananas for breakfast. Some weekend treats…",
+                  )
+            }
+            onChange={(e) => {
+              if (composingEdit) {
+                setEditFailed(false);
+                setInstruction(e.target.value);
+              } else changeNote(e.target.value);
+            }}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
-                void update();
+                if (composingEdit) void applyEdit(instruction, focusTarget);
+                else void update();
+              } else if (e.key === "Escape" && composingEdit && focusTarget) {
+                e.preventDefault();
+                setFocusTarget(null);
               }
             }}
           />
@@ -516,30 +980,62 @@ export function ShoppingWorkspace({
                   livePlanning?.phase ?? (working ? "starting" : "idle")
                 }
               >
-                {working
-                  ? cancelled
-                    ? tr(
-                        "Peruutetaan listan päivitystä…",
-                        "Cancelling list update…",
-                      )
-                    : livePlanning
-                      ? planningPhaseLabel(livePlanning.phase, state.language)
-                      : tr(
-                          "Aloitetaan listan päivitystä…",
-                          "Starting list update…",
+                {composingEdit && editWorking
+                  ? tr("Muokataan listaa…", "Editing the list…")
+                  : composingEdit && editFailed
+                    ? tr("Listaa ei muutettu", "The list was not changed")
+                    : composingEdit
+                      ? tr(
+                          "Ctrl + Enter päivittää listan",
+                          "Ctrl + Enter to update the list",
                         )
-                  : cancelled
-                    ? tr("Listan päivitys peruutettu", "List update cancelled")
-                    : updateFailed
-                      ? planningPhaseLabel("failed", state.language)
-                      : livePlanning &&
-                          ["committed", "obsolete"].includes(livePlanning.phase)
-                        ? planningPhaseLabel(livePlanning.phase, state.language)
-                        : tr(
-                            "Ctrl + Enter päivittää listan",
-                            "Ctrl + Enter to update the list",
-                          )}
+                      : working
+                        ? cancelled
+                          ? tr(
+                              "Peruutetaan listan päivitystä…",
+                              "Cancelling list update…",
+                            )
+                          : livePlanning
+                            ? planningPhaseLabel(
+                                livePlanning.phase,
+                                state.language,
+                              )
+                            : tr(
+                                "Aloitetaan listan päivitystä…",
+                                "Starting list update…",
+                              )
+                        : cancelled
+                          ? tr(
+                              "Listan päivitys peruutettu",
+                              "List update cancelled",
+                            )
+                          : updateFailed
+                            ? planningPhaseLabel("failed", state.language)
+                            : livePlanning &&
+                                ["committed", "obsolete"].includes(
+                                  livePlanning.phase,
+                                )
+                              ? planningPhaseLabel(
+                                  livePlanning.phase,
+                                  state.language,
+                                )
+                              : tr(
+                                  "Ctrl + Enter päivittää listan",
+                                  "Ctrl + Enter to update the list",
+                                )}
               </span>
+              {composingEdit && editWorking && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    window.dispatchEvent(new Event("korikone:cancel-ai"));
+                    void window.korikone.cancelAI();
+                    noteElement.current?.focus({ preventScroll: true });
+                  }}
+                >
+                  {tr("Peruuta muutos", "Cancel change")}
+                </button>
+              )}
               {requesting && (
                 <button
                   className="secondary"
@@ -562,20 +1058,34 @@ export function ShoppingWorkspace({
                 disabled={
                   busy ||
                   working ||
-                  !note.trim() ||
+                  editWorking ||
+                  !(composingEdit ? instruction : note).trim() ||
                   snapshot.ai.state !== "connected"
                 }
                 onClick={() => {
                   noteElement.current?.focus({ preventScroll: true });
-                  void update();
+                  if (composingEdit) void applyEdit(instruction, focusTarget);
+                  else void update();
                 }}
               >
-                {tr("Päivitä lista", "Update list")}
+                {composingEdit || !hasList
+                  ? tr("Päivitä lista", "Update list")
+                  : tr("Luo uusi lista", "Create new list")}
               </button>
             </div>
           </div>
         </div>
-        {note !== state.note && (
+        <EditOutcome
+          snapshot={snapshot}
+          language={state.language}
+          busy={busy || working || editWorking}
+          call={call}
+          resubmit={(targetId) => {
+            setFocusTarget(targetId);
+            void applyEdit(instruction, targetId);
+          }}
+        />
+        {!composingEdit && note !== state.note && (
           <p id="note-unapplied" className="muted" role="status">
             {tr(
               "Muistiinpanoa ei ole päivitetty listaan",
@@ -782,6 +1292,16 @@ export function ShoppingWorkspace({
                           +
                         </button>
                       </div>
+                      <button
+                        className="text edit-with-instruction"
+                        aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${recipe.name}`}
+                        disabled={busy || working || editWorking}
+                        onClick={() =>
+                          editWithInstruction(mealTargetId(meal.id))
+                        }
+                      >
+                        {tr("Muokkaa ohjeella", "Edit with instruction")}
+                      </button>
                       <button
                         className="text remove-meal"
                         disabled={busy}
@@ -1204,6 +1724,14 @@ export function ShoppingWorkspace({
                         <small className="row-amount">
                           {r.amount} {unitLabel(r.unit, state.language)}
                         </small>
+                        <button
+                          className="text edit-with-instruction"
+                          aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${r.name}`}
+                          disabled={busy || working || editWorking}
+                          onClick={() => editWithInstruction(rowTargetId(key))}
+                        >
+                          {tr("Muokkaa ohjeella", "Edit with instruction")}
+                        </button>
                         {!home && !line?.product && (
                           <small className="warning">
                             {tr("Tuote puuttuu", "Needs a product")}
@@ -1462,7 +1990,20 @@ export function ShoppingWorkspace({
                 >
                   {tr("Tallenna lista", "Save list")}
                 </button>
+                <button
+                  className="secondary"
+                  disabled={busy || !rows.length}
+                  aria-expanded={qrOpen}
+                  onClick={() => setQrOpen(!qrOpen)}
+                >
+                  {qrOpen
+                    ? tr("Piilota QR-koodi", "Hide QR code")
+                    : tr("Näytä QR-koodi", "Show QR code")}
+                </button>
               </div>
+              {qrOpen && !!rows.length && (
+                <QrExport text={shoppingList(state)} fi={fi} />
+              )}
               <small>
                 {tr(
                   "Tarkista toimitusmaksu ja mahdolliset pantit kaupassa.",
@@ -1585,20 +2126,27 @@ export function ShoppingWorkspace({
                 </button>
               )
             )}
-            {liveProviders.filter(
-              (chain) => snapshot.storeLogins[chain] === "signedIn",
-            ).length === 1 &&
-              isLive(state.context.providerId) && (
-                <p className="compare-hint">
-                  <button className="text" onClick={() => settings("stores")}>
-                    {tr("Vertaa", "Compare with")}{" "}
-                    {snapshot.storeLogins["k-ruoka"] === "signedIn"
-                      ? "S-kaupat"
-                      : "K-Ruoka"}
-                    : {tr("kirjaudu sisään", "sign in")}
-                  </button>
-                </p>
-              )}
+            {(() => {
+              // Say what the comparison still needs instead of hiding it.
+              const blocker = compareBlocker(snapshot);
+              return (
+                blocker && (
+                  <p className="compare-hint">
+                    <button className="text" onClick={() => settings("stores")}>
+                      {blocker.need === "store"
+                        ? tr(
+                            `Vertailu: valitse kauppa ketjulle ${blocker.chain}`,
+                            `Compare: choose a ${blocker.chain} store`,
+                          )
+                        : tr(
+                            `Vertailu: kirjaudu sisään ketjuun ${blocker.chain}`,
+                            `Compare: sign in to ${blocker.chain}`,
+                          )}
+                    </button>
+                  </p>
+                )
+              );
+            })()}
             {canCompare(snapshot) && (
               <CompareSummary
                 snapshot={snapshot}

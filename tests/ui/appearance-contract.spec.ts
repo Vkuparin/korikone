@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -63,7 +64,7 @@ test("saved appearance is synchronously available before async snapshots and set
             (window as unknown as { firstAppearance: unknown }).firstAppearance,
         ),
       )
-      .toEqual({ theme: "dark", background: "rgb(20, 28, 24)" });
+      .toEqual({ theme: "dark", background: "rgb(19, 20, 22)" });
     const built = await readFile("dist/ui/index.html", "utf8");
     expect(built.indexOf('src="./appearance-bootstrap.js"')).toBeLessThan(
       built.indexOf('rel="stylesheet"'),
@@ -75,7 +76,7 @@ test("saved appearance is synchronously available before async snapshots and set
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0].getBackgroundColor().toLowerCase(),
       ),
-    ).toBe("#141c18");
+    ).toBe("#131416");
     await app.evaluate(({ nativeTheme }) => {
       nativeTheme.themeSource = "light";
     });
@@ -86,7 +87,8 @@ test("saved appearance is synchronously available before async snapshots and set
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Retained unsaved input");
     const before = (await page.evaluate(async () => window.korikone.load()))
       .value;

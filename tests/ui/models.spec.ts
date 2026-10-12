@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
@@ -27,7 +28,7 @@ test("cancelling during catalogue lookup prevents note and recipe generations", 
     await page
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
-    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeVisible({
+    await expect(composer(page)).toBeVisible({
       timeout: 15_000,
     });
     const evidence = await page.evaluate(async () => {
@@ -121,7 +122,8 @@ test("model selectors save one preference without submitting the note and retain
       .locator(".planning-pane")
       .getByRole("button", { name: "AI-malli", exact: true });
     await expect(model).toContainText("Local large model");
-    const note = page.getByLabel("Mitä haluaisit valmistaa?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Pasta");
     const before = await page.evaluate(
       async () => (await window.korikone.load()).value,
@@ -138,9 +140,7 @@ test("model selectors save one preference without submitting the note and retain
     await model.click();
     await options.getByRole("option", { name: "Automaattinen" }).click();
     await expect(model).toHaveText("Automaattinen");
-    await expect(
-      page.getByRole("button", { name: "Päivitä lista", exact: true }),
-    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: updateName })).toBeEnabled();
     await expect(note).toHaveValue("Pasta");
     const unchanged = await page.evaluate(
       async () => (await window.korikone.load()).value,
@@ -162,9 +162,9 @@ test("model selectors save one preference without submitting the note and retain
     await model.click();
     await options.getByRole("option", { name: /^Local large model/ }).click();
     await expect(model).toBeEnabled();
-    await page
-      .getByRole("button", { name: "Päivitä lista", exact: true })
-      .focus();
+    await startNewList(page);
+    await note.fill("Pasta");
+    await page.getByRole("button", { name: updateName }).focus();
     await page.keyboard.press("Shift+Tab");
     await expect(model).toBeFocused();
     await app.evaluate(({ BrowserWindow }) =>

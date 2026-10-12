@@ -239,10 +239,20 @@ export function StoresSettings({
   call,
   save,
   t,
+  storeOpen,
+  returnToStore,
 }: SettingsSectionProps) {
   const state = snapshot.state;
+  const fi = state.language === "fi";
   return (
     <section className="card form">
+      {storeOpen && returnToStore && (
+        <p>
+          <button className="secondary" onClick={returnToStore}>
+            {fi ? "Palaa kauppaan" : "Return to store"}
+          </button>
+        </p>
+      )}
       <details>
         <summary>{t("advancedSettings")}</summary>
         {field(
@@ -301,32 +311,6 @@ export function StoresSettings({
       <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
       <p>K-Ruoka: {t("realStatus")}</p>
       <p>S-kaupat: {t("sKaupatStatus")}</p>
-      <form
-        className="inline"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void call(
-            "searchStores",
-            String(new FormData(e.currentTarget).get("query")),
-          );
-        }}
-      >
-        <label>
-          {t("searchStores")}
-          <input name="query" minLength={2} required placeholder="Helsinki" />
-        </label>
-        <button disabled={busy}>{t("search")}</button>
-      </form>
-      {snapshot.storeResults.map((store) => (
-        <button
-          className="secondary"
-          disabled={busy}
-          key={store.storeId}
-          onClick={() => void save({ ...state, context: store })}
-        >
-          {store.storeName}
-        </button>
-      ))}
     </section>
   );
 }

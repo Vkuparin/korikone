@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -45,9 +46,8 @@ for (const language of ["fi", "en"] as const) {
           .getByRole("navigation")
           .first()
           .getByRole("button", { name, exact: true });
-      const note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      const note = composer(page);
+      await startNewList(page);
       await note.fill("Retained contextual note");
       const heading = (section: string) =>
         page.locator(`#settings-section-${section}`);
@@ -84,6 +84,7 @@ for (const language of ["fi", "en"] as const) {
         )
         .toBe("connected");
       await nav(tr("Ostoslista", "Shopping list")).click();
+      await startNewList(page);
       await note.fill("Makaronilaatikko");
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedFailure"),
@@ -213,7 +214,8 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
         .click();
-      await page.getByLabel("Mitä haluaisit valmistaa?").fill("Retain my note");
+      await startNewList(page);
+      await composer(page).fill("Retain my note");
       if (language === "en") {
         await page.getByLabel("Kieli", { exact: true }).click();
         await page
@@ -335,11 +337,7 @@ for (const language of ["fi", "en"] as const) {
           exact: true,
         })
         .click();
-      await expect(
-        page.getByLabel(
-          fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
-        ),
-      ).toHaveValue("Retain my note");
+      await expect(composer(page)).toHaveValue("Retain my note");
       await page
         .getByRole("button", {
           name: fi ? "Asetukset" : "Settings",
@@ -473,9 +471,7 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
         .click();
-      await page
-        .getByLabel("Mitä haluaisit valmistaa?")
-        .fill("Keep this unapplied note");
+      await composer(page).fill("Keep this unapplied note");
       if (language === "en") {
         await page.getByLabel("Kieli", { exact: true }).click();
         await page
@@ -594,11 +590,7 @@ for (const language of ["fi", "en"] as const) {
           exact: true,
         })
         .click();
-      await expect(
-        page.getByLabel(
-          fi ? "Mitä haluaisit valmistaa?" : "What would you like to cook?",
-        ),
-      ).toHaveValue("Keep this unapplied note");
+      await expect(composer(page)).toHaveValue("Keep this unapplied note");
       expect((await load()).developmentRequests).toBe(
         baseline.developmentRequests,
       );

@@ -1,3 +1,4 @@
+import { chainIdentity } from "../domain/appearance";
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
@@ -37,6 +38,7 @@ export function Chains({
           return (
             <li
               className={`chain${active ? " active" : ""}`}
+              data-chain-cue={chainIdentity(id)}
               key={id}
               aria-label={name}
             >

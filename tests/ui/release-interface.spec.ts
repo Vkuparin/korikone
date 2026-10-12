@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import {
   test,
   expect,
@@ -134,9 +135,7 @@ for (const language of ["fi", "en"] as const) {
               .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
           ).toBeGreaterThanOrEqual(14);
           await capture("shopping-empty");
-          const note = page.getByLabel(
-            tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-          );
+          const note = composer(page);
           await tabTo(page, note);
           await page.keyboard.type("Makaronilaatikko");
           await expect(page.locator("#note-unapplied")).toBeVisible();
@@ -230,6 +229,8 @@ for (const language of ["fi", "en"] as const) {
             if (!saved.ok) throw new Error(saved.error);
           }, state);
           await page.reload();
+          // The saved list is now the target; the unapplied note is the replacement draft.
+          await startNewList(page);
           await expect(note).toHaveValue("Makaronilaatikko");
           const meal = page
             .locator(".meal-select")

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import { basePalette, chainPalette, contrast } from "./fixtures/chain-palette";
 
@@ -113,4 +114,74 @@ test("the dark base is neutral charcoal with separable surfaces", () => {
   }
   expect(contrast(p.surface, p.bg)).toBeGreaterThan(1.1);
   expect(contrast(p.subtle, p.surface)).toBeGreaterThan(1.15);
+});
+
+test("the stylesheet's base blocks equal the contract palette", () => {
+  const css = readFileSync("src/ui/style.css", "utf8");
+  const block = (selector: string) => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    return css.slice(start, css.indexOf("}", start));
+  };
+  const variable = (source: string, name: string) =>
+    source.match(new RegExp(`--kk-${name}:\\s*(#[0-9a-fA-F]+)`))?.[1];
+  const names: [keyof typeof basePalette.light, string][] = [
+    ["bg", "bg"],
+    ["surface", "surface"],
+    ["subtle", "subtle"],
+    ["text", "text"],
+    ["muted", "muted"],
+    ["border", "border"],
+    ["controlBorder", "control-border"],
+    ["focus", "focus"],
+    ["success", "success"],
+    ["warning", "warning"],
+    ["warningBg", "warning-bg"],
+    ["error", "error"],
+    ["errorBg", "error-bg"],
+  ];
+  for (const [theme, selector] of [
+    ["light", ":root"],
+    ["dark", ':root[data-theme="dark"]'],
+  ] as const)
+    for (const [key, name] of names)
+      expect(variable(block(selector), name), `${theme} ${name}`).toBe(
+        basePalette[theme][key],
+      );
+});
+
+test("the stylesheet's chain blocks equal the contract chain palette", () => {
+  const css = readFileSync("src/ui/style.css", "utf8");
+  const block = (selector: string) => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start, selector).toBeGreaterThanOrEqual(0);
+    return css.slice(start, css.indexOf("}", start));
+  };
+  const variable = (source: string, name: string) =>
+    source.match(new RegExp(`--kk-${name}:\\s*(#[0-9a-fA-F]+)`))?.[1];
+  const blocks = {
+    light: {
+      s: ':root[data-chain="s"],\n[data-chain-cue="s"]',
+      k: ':root[data-chain="k"],\n[data-chain-cue="k"]',
+      neutral: ":root",
+    },
+    dark: {
+      s: ':root[data-theme="dark"][data-chain="s"],\n:root[data-theme="dark"] [data-chain-cue="s"]',
+      k: ':root[data-theme="dark"][data-chain="k"],\n:root[data-theme="dark"] [data-chain-cue="k"]',
+      neutral: ':root[data-theme="dark"]',
+    },
+  } as const;
+  const names = [
+    ["action", "action"],
+    ["onAction", "on-action"],
+    ["actionText", "action-text"],
+    ["actionSoft", "action-soft"],
+  ] as const;
+  for (const theme of themes)
+    for (const chain of chains)
+      for (const [key, name] of names)
+        expect(
+          variable(block(blocks[theme][chain]), name),
+          `${theme} ${chain} ${name}`,
+        ).toBe(chainPalette[theme][chain][key]);
 });

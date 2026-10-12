@@ -229,7 +229,7 @@ else
     // Match the renderer's --kk-bg / --kk-text palette blocks.
     const nativePalette = {
       light: { color: "#f3f6f3", symbolColor: "#203b2e" },
-      dark: { color: "#141c18", symbolColor: "#edf5ef" },
+      dark: { color: "#131416", symbolColor: "#eceef0" },
     };
     const initialBackground = nativePalette[initialAppearance.resolved].color;
     const window = new BrowserWindow({

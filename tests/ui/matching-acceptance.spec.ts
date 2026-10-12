@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -54,9 +55,8 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
       const load = () =>
         page.evaluate(async () => (await window.korikone.load()).value);
       await page.reload();
-      const note = page.getByLabel(
-        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
-      );
+      const note = composer(page);
+      await startNewList(page);
       await note.fill("200 ml kermaa ja 1 l maitoa ja kahvia");
       await note.press("Control+Enter");
       await expect(page.locator("#note-update-help")).toHaveAttribute(
@@ -199,6 +199,7 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
         ),
       ).toContain("kahvia");
       expect(partial.value.developmentStoreWrites).toBe(0);
+      await startNewList(page);
       await note.fill("200 ml kermaa ja 1 l maitoa");
       await note.press("Control+Enter");
       await expect

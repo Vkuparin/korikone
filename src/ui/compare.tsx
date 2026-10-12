@@ -1,3 +1,4 @@
+import { chainIdentity } from "../domain/appearance";
 import React, { useEffect, useRef } from "react";
 import type { Snapshot } from "../application/service";
 import { isLive } from "../stores/provider";
@@ -136,8 +137,15 @@ export function ComparePanel({
         <thead>
           <tr>
             <th />
-            <th scope="col">{a}</th>
-            <th scope="col">{b}</th>
+            <th
+              scope="col"
+              data-chain-cue={chainIdentity(state.context.providerId)}
+            >
+              {a}
+            </th>
+            <th scope="col" data-chain-cue={chainIdentity(other.providerId)}>
+              {b}
+            </th>
           </tr>
         </thead>
         <tbody>

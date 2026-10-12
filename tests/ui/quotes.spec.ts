@@ -1,3 +1,4 @@
+import { composer, startNewList, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
 import { mkdtemp } from "node:fs/promises";
@@ -55,12 +56,11 @@ test("view return and restart retain quotes without searches, while explicit edi
     const priced = await load();
     expect(priced.developmentCatalogueRequests).toBe(2);
     const total = await page.locator(".total-line strong").textContent();
-    await page.getByLabel("Mitä haluaisit valmistaa?").fill("Nakkikeitto");
+    await startNewList(page);
+    await composer(page).fill("Nakkikeitto");
     await page.getByRole("button", { name: "Reseptit", exact: true }).click();
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
-    await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toHaveValue(
-      "Nakkikeitto",
-    );
+    await expect(composer(page)).toHaveValue("Nakkikeitto");
     expect((await load()).developmentCatalogueRequests).toBe(2);
     expect((await load()).basket).toEqual(priced.basket);
     await app.close();
@@ -111,7 +111,8 @@ test("view return and restart retain quotes without searches, while explicit edi
     await page
       .getByRole("button", { name: "Shopping list", exact: true })
       .click();
-    const note = page.getByLabel("What would you like to cook?");
+    const note = composer(page);
+    await startNewList(page);
     await note.fill("Nakkikeitto");
     await note.press("Control+Enter");
     await expect

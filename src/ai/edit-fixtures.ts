@@ -286,7 +286,15 @@ export function editFixtureReply(data: EditContext) {
           quantity: q.quantity,
         });
     } else if (q) {
-      one(phrase, rows(clause.replace(q.text.toLowerCase(), " ")), (row) =>
+      // "kaksi maitotölkkiä" names the grocery inside the pack word, so only the count is removed.
+      const rest =
+        q.quantity.kind === "packs"
+          ? clause.replace(
+              new RegExp(`(?<![\p{L}\p{N}])(?:${number})\s+`, "iu"),
+              " ",
+            )
+          : clause.replace(q.text.toLowerCase(), " ");
+      one(phrase, rows(rest), (row) =>
         operations.push({
           op: "changeQuantity",
           target: row.target,

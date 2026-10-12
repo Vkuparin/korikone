@@ -9,8 +9,10 @@
   --kk-muted: #52665a;
   --kk-border: #b6c6bb;
   --kk-control-border: #76877c;
-  --kk-action: #256343;
+  --kk-action: #3f4a54;
   --kk-on-action: #ffffff;
+  --kk-action-text: #3f4a54;
+  --kk-action-soft: #e3e7ea;
   --kk-focus: #126eab;
   --kk-success: #256343;
   --kk-warning: #805000;
@@ -20,7 +22,7 @@
   --kk-control-shadow: #203b2e08;
   --kk-menu-shadow: #203b2e24;
   --kk-footer-shadow: #0000004d;
-  --kk-pulse: #91d7ad80;
+  --kk-pulse: #9aa5b080;
 }
 [hidden] {
   display: none !important;
@@ -96,25 +98,61 @@ body:has(.app-main) nav.settings-navigation {
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --kk-bg: #141c18;
-  --kk-surface: #1e2b23;
-  --kk-subtle: #293b30;
-  --kk-text: #edf5ef;
-  --kk-muted: #b3c6b9;
-  --kk-border: #607668;
-  --kk-control-border: #82998b;
-  --kk-action: #91d7ad;
-  --kk-on-action: #152b1e;
+  --kk-bg: #131416;
+  --kk-surface: #1d1f22;
+  --kk-subtle: #2a2d31;
+  --kk-text: #eceef0;
+  --kk-muted: #b4b9c0;
+  --kk-border: #5d636b;
+  --kk-control-border: #8a919a;
+  --kk-action: #c5ccd4;
+  --kk-on-action: #16181b;
+  --kk-action-text: #c5ccd4;
+  --kk-action-soft: #30343a;
   --kk-focus: #81c7fa;
-  --kk-success: #91d7ad;
+  --kk-success: #8fd6a8;
   --kk-warning: #f3c778;
-  --kk-warning-bg: #392f1c;
+  --kk-warning-bg: #3a301c;
   --kk-error: #ffb3ba;
-  --kk-error-bg: #3b2227;
+  --kk-error-bg: #3d2327;
   --kk-control-shadow: #00000020;
   --kk-menu-shadow: #00000066;
   --kk-footer-shadow: #00000080;
-  --kk-pulse: #91d7ad40;
+  --kk-pulse: #c5ccd440;
+}
+/* Chain roles (U18.1). The root attribute is the saved shopping context; data-chain-cue re-scopes
+   one subtree such as a chain card or one side of a comparison. */
+:root[data-chain="s"],
+[data-chain-cue="s"] {
+  --kk-action: #256343;
+  --kk-on-action: #ffffff;
+  --kk-action-text: #256343;
+  --kk-action-soft: #dfeee4;
+  --kk-pulse: #91d7ad80;
+}
+:root[data-chain="k"],
+[data-chain-cue="k"] {
+  --kk-action: #b34700;
+  --kk-on-action: #ffffff;
+  --kk-action-text: #a84300;
+  --kk-action-soft: #ffe8d6;
+  --kk-pulse: #f7b98880;
+}
+:root[data-theme="dark"][data-chain="s"],
+:root[data-theme="dark"] [data-chain-cue="s"] {
+  --kk-action: #8fd6a8;
+  --kk-on-action: #10261a;
+  --kk-action-text: #8fd6a8;
+  --kk-action-soft: #1f3528;
+  --kk-pulse: #8fd6a840;
+}
+:root[data-theme="dark"][data-chain="k"],
+:root[data-theme="dark"] [data-chain-cue="k"] {
+  --kk-action: #ffa44f;
+  --kk-on-action: #2b1600;
+  --kk-action-text: #ffa44f;
+  --kk-action-soft: #3d2a17;
+  --kk-pulse: #ffa44f40;
 }
 :root {
   font-family:
@@ -146,7 +184,7 @@ header label {
   max-width: 150px;
 }
 .brand {
-  color: var(--kk-action);
+  color: var(--kk-action-text);
   text-decoration: none;
   font-size: 32px;
   font-weight: 800;
@@ -227,7 +265,7 @@ button:disabled {
 }
 .secondary {
   background: var(--kk-surface);
-  color: var(--kk-action);
+  color: var(--kk-action-text);
   border-color: var(--kk-control-border);
 }
 .text {
@@ -289,7 +327,10 @@ input[type="checkbox"] {
 }
 .context button {
   font-size: inherit;
+  color: var(--kk-action-text);
   text-decoration: underline;
+  text-decoration-color: var(--kk-action);
+  text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
 .context-selector {
@@ -622,8 +663,8 @@ nav button {
   font-weight: 500;
 }
 nav button[aria-current] {
-  background: var(--kk-subtle);
-  color: var(--kk-action);
+  background: var(--kk-action-soft);
+  color: var(--kk-action-text);
 }
 body:has(.app-main) .demo {
   margin-left: 178px;
@@ -659,14 +700,14 @@ body:has(.app-main) .demo {
 }
 .note-box {
   background: var(--kk-surface);
-  border: 1px solid var(--kk-action);
+  border: 1px solid var(--kk-action-text);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 0 0 3px var(--kk-subtle);
+  box-shadow: 0 0 0 3px var(--kk-action-soft);
   transition: box-shadow 0.2s;
 }
 .note-box:focus-within {
-  box-shadow: 0 0 0 4px var(--kk-subtle);
+  box-shadow: 0 0 0 4px var(--kk-action-soft);
 }
 .note-box textarea {
   border: 0;
@@ -806,8 +847,8 @@ body:has(.app-main) .demo {
   overflow-wrap: anywhere;
 }
 .interpretation.selected {
-  border-color: var(--kk-action);
-  box-shadow: 0 0 0 2px var(--kk-subtle);
+  border-color: var(--kk-action-text);
+  box-shadow: 0 0 0 2px var(--kk-action-soft);
 }
 .meal-select {
   width: 100%;
@@ -838,7 +879,7 @@ body:has(.app-main) .demo {
 .quantity-control button {
   padding: 8px;
   background: transparent;
-  color: var(--kk-action);
+  color: var(--kk-action-text);
   font-size: 16px;
   min-width: 36px;
   min-height: 36px;
@@ -947,8 +988,8 @@ body:has(.app-main) .demo {
   border-radius: 4px;
 }
 .grocery-row.highlighted {
-  background: var(--kk-subtle);
-  box-shadow: 0 0 0 5px var(--kk-subtle);
+  background: var(--kk-action-soft);
+  box-shadow: 0 0 0 5px var(--kk-action-soft);
 }
 .grocery-description {
   grid-column: 2 / 4;
@@ -1031,7 +1072,7 @@ body:has(.app-main) .demo {
 }
 .at-home .home-button {
   background: var(--kk-subtle);
-  border-color: var(--kk-action);
+  border-color: var(--kk-action-text);
 }
 .at-home .grocery-description {
   color: var(--kk-muted);
@@ -1342,7 +1383,7 @@ body:has(.app-main) > #root > .progress {
   font-size: 0.8em;
   padding: 1px 6px;
   border-radius: 999px;
-  background: var(--kk-subtle);
+  background: var(--kk-action-soft);
 }
 .comparison {
   display: grid;
@@ -1432,7 +1473,7 @@ body:has(.app-main) > #root > .progress {
   text-decoration: underline;
 }
 .grocery-description .row-name:focus-visible {
-  outline: 2px solid var(--kk-action);
+  outline: 2px solid var(--kk-focus);
   outline-offset: 2px;
 }
 .row-details {
@@ -1574,7 +1615,7 @@ body:has(.app-main) > #root > .progress {
 }
 .choice-trigger:focus-visible,
 .choice-menu button:focus-visible {
-  outline: 2px solid var(--kk-action);
+  outline: 2px solid var(--kk-focus);
   outline-offset: 3px;
 }
 .choice-menu {
@@ -1604,7 +1645,7 @@ body:has(.app-main) > #root > .progress {
   overflow-wrap: anywhere;
 }
 .choice-menu button[aria-selected="true"] {
-  color: var(--kk-action);
+  color: var(--kk-action-text);
   font-weight: 600;
 }
 .choice-menu button:hover,
@@ -1671,7 +1712,7 @@ nav button.store-open small {
 
 /* Shared readability and keyboard focus. Layout/row typography stays with U14.3–U14.5. */
 a {
-  color: var(--kk-action);
+  color: var(--kk-action-text);
 }
 input::placeholder,
 textarea::placeholder {
@@ -1712,4 +1753,101 @@ summary:focus-visible,
 .planning-preview-results li span,
 .planning-preview-results li small {
   display: block;
+}
+
+.composer-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.composer-label {
+  font-weight: 600;
+  font-size: 16px;
+}
+.composer-hint,
+.composer-focus {
+  margin: 0 0 8px;
+}
+.composer-confirm,
+.edit-outcome {
+  background: var(--kk-surface);
+  border: 1px solid var(--kk-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.composer-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.composer-confirm p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.edit-outcome p {
+  margin: 0 0 8px;
+}
+.edit-outcome > :last-child {
+  margin-bottom: 0;
+}
+.edit-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.edit-with-instruction {
+  justify-self: start;
+  font-size: 14px;
+  min-height: 32px;
+  padding: 4px 0;
+}
+
+.edit-details {
+  margin: 0 0 8px;
+}
+.edit-details summary {
+  cursor: pointer;
+  font-size: 14px;
+}
+.edit-details ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.edit-details p {
+  margin: 4px 0;
+}
+.comparison th[data-chain-cue] {
+  border-bottom: 3px solid var(--kk-action);
+  color: var(--kk-action-text);
+}
+.chain[data-chain-cue] {
+  border-left: 4px solid var(--kk-action);
+}
+
+.qr-codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.qr-codes figure {
+  margin: 0;
+  text-align: center;
+}
+.qr-code {
+  width: min(100%, 260px);
+  min-width: 180px;
+}
+.qr-code svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Scanners need dark modules on a light ground in both themes. */
+  background: #ffffff;
 }
