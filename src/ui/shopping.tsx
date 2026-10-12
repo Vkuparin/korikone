@@ -6,7 +6,7 @@ import { RowCorrection } from "./row-correction";
 import type { PlanningSnapshot } from "../application/planning";
 import { planningPhaseLabel } from "./planning-status";
 import { PlanningPreview, PlanningPreviewFocus } from "./planning-preview";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
 import { ModelSelector } from "./model";
@@ -303,6 +303,19 @@ function EditOutcome({
   );
 }
 
+/** One operation's feedback, shared by the composer and its off-screen fallback. */
+export type ComposerProgress = {
+  active: boolean;
+  finished: boolean;
+  visible: boolean;
+  label: string;
+  elapsed: number;
+  phase: string;
+  cancellable: boolean;
+  cancelling: boolean;
+  cancel: () => void;
+};
+
 export function ShoppingWorkspace({
   snapshot,
   busy,
@@ -312,6 +325,8 @@ export function ShoppingWorkspace({
   staples,
   openStore,
   view = "list",
+  visible = true,
+  onProgress,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -328,6 +343,8 @@ export function ShoppingWorkspace({
   staples: () => void;
   openStore: (chain: "k-ruoka" | "s-kaupat") => void;
   view?: "list" | "schedule" | "history";
+  visible?: boolean;
+  onProgress?: (progress: ComposerProgress | null) => void;
 }) {
   const state = snapshot.state;
   const all = requirements(state, new Date(), true);
@@ -395,6 +412,7 @@ export function ShoppingWorkspace({
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [editWorking, setEditWorking] = useState(false);
   const [editFailed, setEditFailed] = useState(false);
+  const [editCancelled, setEditCancelled] = useState(false);
   const [confirmingNewList, setConfirmingNewList] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   // The refused-draft cause comes from the last planning event: a failed call returns no snapshot.
@@ -403,7 +421,7 @@ export function ShoppingWorkspace({
   // Seconds since the update started: honest activity when the provider returns only a whole reply.
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    if (!working) {
+    if (!working && !editWorking) {
       setElapsed(0);
       return;
     }
@@ -413,7 +431,7 @@ export function ShoppingWorkspace({
       1000,
     );
     return () => clearInterval(timer);
-  }, [working]);
+  }, [working, editWorking]);
   const editRunning = useRef(false);
   const targets = editTargets(state, new Date());
   const focusName =
@@ -617,6 +635,7 @@ export function ShoppingWorkspace({
     editRunning.current = true;
     setEditWorking(true);
     setEditFailed(false);
+    setEditCancelled(false);
     try {
       let clarification = false;
       const ok = await call(
@@ -649,6 +668,140 @@ export function ShoppingWorkspace({
       if (active.current) setEditWorking(false);
     }
   }
+  const progressAnchor = useRef<HTMLDivElement>(null);
+  const [progressVisible, setProgressVisible] = useState(false);
+  useEffect(() => {
+    const element = progressAnchor.current;
+    const check = () => {
+      if (!element || !visible || view !== "list") {
+        setProgressVisible(false);
+        return;
+      }
+      const box = element.getBoundingClientRect();
+      const header = document.querySelector("header")?.getBoundingClientRect();
+      const headerBottom =
+        header && box.left < header.right && box.right > header.left
+          ? header.bottom
+          : 0;
+      setProgressVisible(
+        box.height > 0 &&
+          box.width > 0 &&
+          box.top >= Math.max(0, headerBottom) &&
+          box.bottom <= innerHeight &&
+          box.left >= 0 &&
+          box.right <= innerWidth,
+      );
+    };
+    const intersection = new IntersectionObserver(check, { threshold: [0, 1] });
+    const resize = new ResizeObserver(check);
+    if (element) {
+      intersection.observe(element);
+      resize.observe(element);
+    }
+    window.addEventListener("scroll", check, true);
+    window.addEventListener("resize", check);
+    check();
+    return () => {
+      intersection.disconnect();
+      resize.disconnect();
+      window.removeEventListener("scroll", check, true);
+      window.removeEventListener("resize", check);
+    };
+  }, [view, visible]);
+  const progressActive = working || editWorking;
+  const progressCancelling =
+    (working && cancelled) || (editWorking && editCancelled);
+  const progressCancellable =
+    (requesting && livePlanning?.phase !== "committing") || editWorking;
+  const progressFinished =
+    cancelled ||
+    updateFailed ||
+    editFailed ||
+    editCancelled ||
+    !!(
+      livePlanning &&
+      ["committed", "failed", "cancelled", "obsolete"].includes(
+        livePlanning.phase,
+      )
+    );
+  const progressPhase = editWorking
+    ? "editing"
+    : (livePlanning?.phase ?? (working ? "starting" : "idle"));
+  const progressLabel = editWorking
+    ? editCancelled
+      ? tr("Peruutetaan muutosta…", "Cancelling the change…")
+      : tr("Muokataan listaa…", "Editing the list…")
+    : working
+      ? cancelled
+        ? tr("Peruutetaan listan päivitystä…", "Cancelling list update…")
+        : livePlanning
+          ? planningPhaseLabel(livePlanning.phase, state.language)
+          : tr("Aloitetaan listan päivitystä…", "Starting list update…")
+      : editCancelled
+        ? tr(
+            "Muutos peruutettu. Aiempi lista säilyy.",
+            "Change cancelled. Your previous list is retained.",
+          )
+        : composingEdit && editFailed
+          ? tr("Listaa ei muutettu", "The list was not changed")
+          : cancelled
+            ? tr(
+                "Listan päivitys peruutettu. Aiempi lista säilyy.",
+                "List update cancelled. Your previous list is retained.",
+              )
+            : updateFailed
+              ? planningPhaseLabel("failed", state.language)
+              : livePlanning &&
+                  ["committed", "obsolete"].includes(livePlanning.phase)
+                ? planningPhaseLabel(livePlanning.phase, state.language)
+                : tr(
+                    "Ctrl + Enter päivittää listan",
+                    "Ctrl + Enter to update the list",
+                  );
+  const cancelProgressRef = useRef(() => {});
+  cancelProgressRef.current = () => {
+    if (!progressCancellable || progressCancelling) return;
+    window.dispatchEvent(new Event("korikone:cancel-ai"));
+    if (editWorking) {
+      setEditCancelled(true);
+      void window.korikone.cancelAI();
+    } else {
+      stopRequested.current = true;
+      setCancelled(true);
+      const operationId = planningOperation.current;
+      if (operationId) {
+        cancelSent.current = operationId;
+        void window.korikone.cancelPlanning({ operationId });
+      } else void window.korikone.cancelAI();
+    }
+    if (progressVisible) noteElement.current?.focus({ preventScroll: true });
+  };
+  const cancelProgress = useCallback(() => cancelProgressRef.current(), []);
+  useEffect(() => {
+    onProgress?.({
+      active: progressActive,
+      finished: progressFinished,
+      visible: progressVisible,
+      label: progressLabel,
+      elapsed,
+      phase: progressPhase,
+      cancellable: progressCancellable,
+      cancelling: progressCancelling,
+      cancel: cancelProgress,
+    });
+  }, [
+    onProgress,
+    progressActive,
+    progressFinished,
+    progressVisible,
+    progressLabel,
+    elapsed,
+    progressPhase,
+    progressCancellable,
+    progressCancelling,
+    cancelProgress,
+  ]);
+  useEffect(() => () => onProgress?.(null), [onProgress]);
   // The unsent replacement draft survives a detour to the current list.
   const savedDraft = useRef("");
   const startNewList = () => {
@@ -1056,6 +1209,7 @@ export function ShoppingWorkspace({
             onChange={(e) => {
               if (composingEdit) {
                 setEditFailed(false);
+                setEditCancelled(false);
                 setInstruction(e.target.value);
               } else changeNote(e.target.value);
             }}
@@ -1101,87 +1255,42 @@ export function ShoppingWorkspace({
               call={call}
               settings={() => settings("ai")}
             />
-            <div className="note-actions">
+            <div className="note-actions" ref={progressAnchor}>
               <span
                 id="note-update-help"
-                className="note-status"
-                role="status"
-                aria-atomic="true"
-                data-planning-phase={
-                  livePlanning?.phase ?? (working ? "starting" : "idle")
+                className={`note-status ${(progressActive || progressFinished) && !progressVisible ? "offscreen-progress" : ""}`}
+                role={progressVisible ? "status" : undefined}
+                aria-hidden={
+                  (progressActive || progressFinished) && !progressVisible
+                    ? true
+                    : undefined
                 }
+                aria-atomic="true"
+                data-operation-status={
+                  progressActive || progressFinished ? "composer" : undefined
+                }
+                data-planning-phase={progressPhase}
               >
-                {composingEdit && editWorking
-                  ? tr("Muokataan listaa…", "Editing the list…")
-                  : composingEdit && editFailed
-                    ? tr("Listaa ei muutettu", "The list was not changed")
-                    : composingEdit
-                      ? tr(
-                          "Ctrl + Enter päivittää listan",
-                          "Ctrl + Enter to update the list",
-                        )
-                      : working
-                        ? cancelled
-                          ? tr(
-                              "Peruutetaan listan päivitystä…",
-                              "Cancelling list update…",
-                            )
-                          : livePlanning
-                            ? planningPhaseLabel(
-                                livePlanning.phase,
-                                state.language,
-                              )
-                            : tr(
-                                "Aloitetaan listan päivitystä…",
-                                "Starting list update…",
-                              )
-                        : cancelled
-                          ? tr(
-                              "Listan päivitys peruutettu",
-                              "List update cancelled",
-                            )
-                          : updateFailed
-                            ? planningPhaseLabel("failed", state.language)
-                            : livePlanning &&
-                                ["committed", "obsolete"].includes(
-                                  livePlanning.phase,
-                                )
-                              ? planningPhaseLabel(
-                                  livePlanning.phase,
-                                  state.language,
-                                )
-                              : tr(
-                                  "Ctrl + Enter päivittää listan",
-                                  "Ctrl + Enter to update the list",
-                                )}
+                {progressLabel}
               </span>
-              {composingEdit && editWorking && (
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    window.dispatchEvent(new Event("korikone:cancel-ai"));
-                    void window.korikone.cancelAI();
-                    noteElement.current?.focus({ preventScroll: true });
-                  }}
+              {progressActive && elapsed >= 1 && (
+                <small
+                  className={`muted note-elapsed ${!progressVisible ? "offscreen-progress" : ""}`}
+                  aria-hidden="true"
                 >
-                  {tr("Peruuta muutos", "Cancel change")}
-                </button>
+                  {elapsed} s
+                </small>
               )}
-              {requesting && (
+              {progressCancellable && (
                 <button
-                  className="secondary"
-                  onClick={() => {
-                    window.dispatchEvent(new Event("korikone:cancel-ai"));
-                    const operationId = planningOperation.current;
-                    if (operationId) {
-                      cancelSent.current = operationId;
-                      void call("cancelPlanning", { operationId });
-                    }
-                    noteElement.current?.focus({ preventScroll: true });
-                  }}
-                  disabled={cancelled}
+                  className={`secondary ${!progressVisible ? "offscreen-progress" : ""}`}
+                  onClick={cancelProgress}
+                  disabled={progressCancelling}
+                  aria-hidden={!progressVisible ? true : undefined}
                 >
-                  {tr("Peruuta listan päivitys", "Cancel list update")}
+                  {editWorking
+                    ? tr("Peruuta muutos", "Cancel change")
+                    : tr("Peruuta listan päivitys", "Cancel list update")}
                 </button>
               )}
               <button
@@ -1211,11 +1320,6 @@ export function ShoppingWorkspace({
                 </span>
               </button>
             </div>
-            {working && !composingEdit && elapsed >= 1 && (
-              <small className="muted note-elapsed" aria-hidden="true">
-                {elapsed} s
-              </small>
-            )}
           </div>
         </div>
         <EditOutcome

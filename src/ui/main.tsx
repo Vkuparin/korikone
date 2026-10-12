@@ -15,7 +15,7 @@ import {
   type Recipe,
   type Unit,
 } from "../domain/model";
-import { ShoppingWorkspace } from "./shopping";
+import { ShoppingWorkspace, type ComposerProgress } from "./shopping";
 import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
@@ -141,6 +141,9 @@ function App() {
   const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyMethod, setBusyMethod] = useState<string | null>(null);
+  const [composerProgress, setComposerProgress] =
+    useState<ComposerProgress | null>(null);
   const [error, setError] = useState("");
   const [errorSettings, setErrorSettings] = useState<SettingsSection | null>(
     null,
@@ -200,6 +203,7 @@ function App() {
       }
     }
     setBusy(true);
+    setBusyMethod(method);
     if (!options?.preserveError) {
       setError("");
       setErrorSettings(null);
@@ -324,6 +328,7 @@ function App() {
       return false;
     } finally {
       setBusy(false);
+      setBusyMethod(null);
     }
   }
   const save = (next: AppState) => call("save", next);
@@ -513,21 +518,58 @@ function App() {
           )}
         </div>
       )}
-      {busy && (
-        <div role="status" className="progress">
-          {t("working")}
-          <button
-            className="text"
-            onClick={() => {
-              void window.korikone.cancelTransfer();
-              window.dispatchEvent(new Event("korikone:cancel-ai"));
-              void window.korikone.cancelAI();
-            }}
-          >
-            {t("cancel")}
-          </button>
-        </div>
-      )}
+      {composerProgress &&
+      (composerProgress.active || (!busy && composerProgress.finished))
+        ? !composerProgress.visible && (
+            <div
+              className={`progress operation-fallback ${composerProgress.active ? "" : "operation-finished"}`}
+            >
+              <span
+                role="status"
+                aria-atomic="true"
+                data-operation-status="global"
+                data-planning-phase={composerProgress.phase}
+              >
+                {composerProgress.label}
+              </span>
+              {composerProgress.active && composerProgress.elapsed >= 1 && (
+                <small aria-hidden="true">{composerProgress.elapsed} s</small>
+              )}
+              {composerProgress.cancellable && (
+                <button
+                  className="secondary"
+                  disabled={composerProgress.cancelling}
+                  onClick={composerProgress.cancel}
+                >
+                  {t("cancel")}
+                </button>
+              )}
+            </div>
+          )
+        : busy &&
+          !["planShopping", "commitPlanning", "editList"].includes(
+            busyMethod ?? "",
+          ) && (
+            <div className="progress operation-fallback">
+              <span
+                role="status"
+                aria-atomic="true"
+                data-operation-status="global"
+              >
+                {t("working")}
+              </span>
+              <button
+                className="text"
+                onClick={() => {
+                  void window.korikone.cancelTransfer();
+                  window.dispatchEvent(new Event("korikone:cancel-ai"));
+                  void window.korikone.cancelAI();
+                }}
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          )}
       {state.onboarded && !state.setupComplete && setupStore ? (
         <main className="setup">
           <div className="actions">
@@ -690,9 +732,17 @@ function App() {
                 }))
               }
             />
-            {(page === "week" || page === "weekPlan" || page === "history") && (
+            <div
+              hidden={
+                page !== "week" && page !== "weekPlan" && page !== "history"
+              }
+            >
               <ShoppingWorkspace
-                key={`${page}:${snapshot.developmentMode}`}
+                key={String(snapshot.developmentMode)}
+                visible={
+                  page === "week" || page === "weekPlan" || page === "history"
+                }
+                onProgress={setComposerProgress}
                 snapshot={snapshot}
                 busy={busy}
                 call={call}
@@ -711,7 +761,7 @@ function App() {
                       : "list"
                 }
               />
-            )}
+            </div>
             {page === "store" && (
               <StorePage
                 snapshot={snapshot}
