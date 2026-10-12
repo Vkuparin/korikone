@@ -22,6 +22,9 @@ export const en = {
   settingsCategory: "Settings category",
   householdUnapplied: "Household changes have not been saved.",
   receiptsUnapplied: "Receipt changes have not been saved.",
+  receiptsSaved: "Receipt text saved.",
+  receiptTextStale:
+    "The saved receipt text changed while you were editing, for example by an import. Your edit is still here: check it and save again to replace the saved text.",
   appearance: "Appearance",
   appearanceSystem: "System",
   appearanceLight: "Light",
@@ -329,6 +332,9 @@ export const fi: Record<Key, string> = {
   settingsCategory: "Asetusryhmä",
   householdUnapplied: "Kotitalouden muutoksia ei ole tallennettu.",
   receiptsUnapplied: "Kuittien muutoksia ei ole tallennettu.",
+  receiptsSaved: "Kuittiteksti tallennettu.",
+  receiptTextStale:
+    "Tallennettu kuittiteksti muuttui muokkauksen aikana, esimerkiksi tuonnin vuoksi. Muokkauksesi on tallella: tarkista se ja tallenna uudelleen, jos haluat korvata tallennetun tekstin.",
   appearance: "Ulkoasu",
   appearanceSystem: "Järjestelmä",
   appearanceLight: "Vaalea",

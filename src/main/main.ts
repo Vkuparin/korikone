@@ -487,6 +487,7 @@ else
       setLanguage: (input) => service.setLanguage(input),
       setAppearance: (input) => service.setAppearance(input),
       setAIModel: (input) => service.setAIModel(input),
+      setReceiptText: (input) => service.setReceiptText(input),
       cancelTransfer: async () => {
         service.controller?.abort();
         return service.snapshot();

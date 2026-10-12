@@ -479,6 +479,27 @@ export class Service {
       return this.snapshot();
     });
   }
+  /**
+   * Saves the free receipt text only if the saved text is still the one the edit started from.
+   * An import or another save in between is `receiptTextStale`, so a stale editor can never
+   * overwrite newer text silently. The shopping list, its revision and approval are untouched.
+   */
+  async setReceiptText(input: unknown) {
+    const { text, base } = z
+      .object({
+        text: z.string().max(50_000),
+        base: z.string().max(50_000),
+      })
+      .strict()
+      .parse(input);
+    return this.writeState(async () => {
+      if (this.state.receiptText !== base) throw new Error("receiptTextStale");
+      const next = { ...this.state, receiptText: text };
+      await this.db.set("state", next);
+      this.state = next;
+      return this.snapshot();
+    });
+  }
   async setAIModel(input: unknown) {
     const aiModel = z.string().min(1).max(200).parse(input);
     return this.writeState(async () => {

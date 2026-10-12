@@ -13,6 +13,7 @@ const methods = [
   "setLanguage",
   "setAppearance",
   "setAIModel",
+  "setReceiptText",
   "cancelTransfer",
   "buildBasket",
   "compareStores",

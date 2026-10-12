@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import type { SettingsSectionProps } from "./settings-contract";
 import { ModelSelector } from "./model";
 import { Chains } from "./chains";
@@ -99,6 +99,11 @@ export function DataSettings({
   const state = snapshot.state;
   const fi = state.language === "fi";
   const [draft, setDraft] = useSettingsDraft({ receipts: state.receiptText });
+  // The saved text this edit started from. Saving against it lets the app refuse a stale edit.
+  const editBase = useRef(state.receiptText);
+  const [saved, setSaved] = useState(false);
+  if (draft.receipts === state.receiptText)
+    editBase.current = state.receiptText;
   return (
     <>
       <section className="card form">
@@ -116,9 +121,23 @@ export function DataSettings({
             : "Or paste purchase lines as text below. The text is kept unchanged until you import it as receipts. Scanned PDFs need OCR."}
         </p>
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            void save({ ...state, receiptText: draft.receipts });
+            setSaved(false);
+            const text = draft.receipts;
+            // Success is shown only after the text is stored; a failure keeps the edit as typed.
+            const ok = await call("setReceiptText", {
+              text,
+              base: editBase.current,
+            });
+            if (ok) setSaved(true);
+            else {
+              // After a refusal the shopper has been told; the next Save replaces knowingly,
+              // against the text that is saved now.
+              const current = await window.korikone.load();
+              if (current.ok)
+                editBase.current = current.value.state.receiptText;
+            }
           }}
         >
           <label>
@@ -126,14 +145,19 @@ export function DataSettings({
             <textarea
               name="receipts"
               value={draft.receipts}
-              onChange={(e) => setDraft({ receipts: e.target.value })}
+              onChange={(e) => {
+                setSaved(false);
+                setDraft({ receipts: e.target.value });
+              }}
               maxLength={50000}
             />
           </label>
-          {draft.receipts !== state.receiptText && (
+          {draft.receipts !== state.receiptText ? (
             <p role="status" className="muted">
               {t("receiptsUnapplied")}
             </p>
+          ) : (
+            saved && <p role="status">{t("receiptsSaved")}</p>
           )}
           <button disabled={busy}>{t("save")}</button>
         </form>
