@@ -26,6 +26,7 @@ export const operationMetricSchema = z
     kind: z.enum([
       "interpretation",
       "recipe-import",
+      "offer-ideas",
       "pricing",
       "planning",
       "correction",

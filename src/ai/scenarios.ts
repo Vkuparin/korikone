@@ -1,4 +1,7 @@
 export const aiScenarios = [
+  "offersEmpty",
+  "offersUnsupported",
+  "offersPersonal",
   "success",
   "delayedSuccess",
   "delayedFailure",

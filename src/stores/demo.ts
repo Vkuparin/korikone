@@ -198,7 +198,70 @@ export function demoWeeklyOrders(now: Date): RetailerOrder[] {
   return orders;
 }
 export class DemoProvider implements StoreProvider {
-  capabilities = { catalogue: true, cart: true, orderHistory: false };
+  offerScenario: "success" | "empty" | "unsupported" | "personal" = "success";
+  capabilities = {
+    catalogue: true,
+    cart: true,
+    orderHistory: false,
+    offers: { public: true, personal: false },
+  };
+  async readOffers(
+    context: StoreContext,
+  ): Promise<import("../domain/offers").OfferSourceResult> {
+    if (this.offerScenario === "unsupported")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "unsupported",
+        reason: "no-discovery-source",
+      };
+    if (this.offerScenario === "empty")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "ready",
+        accountKey: null,
+        offers: [],
+        truncated: false,
+      };
+    return {
+      providerId: this.id,
+      storeId: context.storeId,
+      status: "ready",
+      accountKey:
+        this.offerScenario === "personal" ? "k-ruoka:0123456789abcdef" : null,
+      truncated: false,
+      offers: [
+        {
+          id: "synthetic-tomato-offer",
+          kind: this.offerScenario === "personal" ? "personal" : "public",
+          title: "Synteettinen tomaattitarjous",
+          products: [
+            {
+              id: "2000000000011",
+              name: "Tomaattimurska 400 g",
+              available: true,
+            },
+          ],
+          price: {
+            amount: this.offerScenario === "personal" ? 199 : 79,
+            basis: "pcs",
+            quantity: this.offerScenario === "personal" ? 3 : 1,
+            unitLabel: this.offerScenario === "personal" ? "3 kpl" : "kpl",
+          },
+          normalPrice: null,
+          validUntil: "2030-01-01",
+          remainingRedemptions: this.offerScenario === "personal" ? 2 : null,
+          eligibility:
+            this.offerScenario === "personal" ? "conditional" : "eligible",
+          conditions:
+            this.offerScenario === "personal"
+              ? ["plussa-required", "activation-unverified"]
+              : [],
+        },
+      ],
+    };
+  }
   orderReads = 0;
   /** Development scenario `history`: adds the weekly sequence to the order history. */
   weeklyHistory = false;

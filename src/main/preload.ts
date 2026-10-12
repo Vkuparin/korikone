@@ -78,6 +78,7 @@ const methods = [
   "decidePurchaseLink",
   "repeatList",
   "importRecipe",
+  "suggestOffers",
   "approveDraft",
   "confirmPurchase",
   "newWeek",

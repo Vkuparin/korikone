@@ -83,6 +83,14 @@ import { editDelta } from "../domain/edit-delta";
 import { interpretEdit } from "../ai/edit";
 import type { InferenceSession } from "../ai/provider";
 import {
+  suggestOfferIdeas,
+  offerIdeaLimits,
+  offerIdeaFacts,
+} from "../ai/offers";
+import { inferenceAppError } from "../ai/adapter-errors";
+import { collectOffers } from "./offers";
+import type { OfferIdeasView } from "./offer-ideas";
+import {
   EDIT_UNDO_KEY,
   describeAmbiguities,
   editListRequestSchema,
@@ -431,6 +439,130 @@ export class Service {
   ai: AIStatus = { state: "disconnected", email: "", error: null, models: [] };
   draft: MealDraft | null = null;
   recipeDraft: Recipe | null = null;
+  private offerIdeas: OfferIdeasView | null = null;
+  private offerIdeasContext = "";
+  private offerIdeasController: AbortController | null = null;
+  cancelOfferIdeas() {
+    this.offerIdeasController?.abort();
+    if (this.offerIdeasController)
+      this.offerIdeas = { status: "error", code: "aiCancelled" };
+  }
+  async suggestOffers(
+    input: unknown,
+    session: (
+      signal: AbortSignal,
+      maxCalls: number,
+    ) => Promise<InferenceSession>,
+  ) {
+    z.object({ consent: z.literal(true) })
+      .strict()
+      .parse(input);
+    if (this.busy || this.transferPending || this.offerIdeasController)
+      throw new Error("busy");
+    const context = { ...this.state.context };
+    const key = JSON.stringify(context);
+    const controller = new AbortController();
+    this.offerIdeasController = controller;
+    this.offerIdeasContext = key;
+    this.offerIdeas = { status: "loading" };
+    const current = () => key === JSON.stringify(this.state.context);
+    return this.measureOperation("offer-ideas", async (metrics) => {
+      let inference: InferenceSession | null = null;
+      try {
+        const result = await collectOffers(
+          this.registry.get(context.providerId),
+          context,
+          { signal: controller.signal, isCurrent: current },
+        );
+        if (result.status !== "ready") {
+          this.offerIdeas =
+            result.status === "error"
+              ? {
+                  status: "error",
+                  code:
+                    result.code === "cancelled" ? "aiCancelled" : result.code,
+                }
+              : { status: result.status };
+        } else if (!result.offers.length) {
+          this.offerIdeas = { status: "empty" };
+        } else {
+          inference = await session(controller.signal, offerIdeaLimits.calls);
+          const ideas = await suggestOfferIdeas(
+            inference,
+            result.offers,
+            this.state.language,
+          );
+          if (controller.signal.aborted) throw new Error("aiCancelled");
+          if (!current()) throw new Error("contextChanged");
+          // Recheck the private account and the referenced facts after inference latency.
+          const fresh = await collectOffers(
+            this.registry.get(context.providerId),
+            context,
+            { signal: controller.signal, isCurrent: current },
+          );
+          if (fresh.status !== "ready")
+            throw new Error(
+              fresh.status === "error"
+                ? fresh.code
+                : fresh.status === "signed-out"
+                  ? "accountChanged"
+                  : "storeUnavailable",
+            );
+          if (fresh.accountKey !== result.accountKey)
+            throw new Error("accountChanged");
+          const facts = new Map(
+            offerIdeaFacts(fresh.offers).map((p) => [
+              `${p.offerId}:${p.productId}`,
+              p,
+            ]),
+          );
+          if (
+            ideas.some((idea) =>
+              idea.products.some(
+                (p) =>
+                  JSON.stringify(facts.get(`${p.offerId}:${p.productId}`)) !==
+                  JSON.stringify(p),
+              ),
+            )
+          )
+            throw new Error("contextChanged");
+          this.offerIdeas = {
+            status: "ready",
+            ideas,
+            truncated: result.truncated,
+          };
+        }
+        return this.snapshot();
+      } catch (error) {
+        const safe = inferenceAppError(error);
+        const code = controller.signal.aborted
+          ? "aiCancelled"
+          : !current()
+            ? "contextChanged"
+            : [
+                  "notConnected",
+                  "usageLimit",
+                  "aiCancelled",
+                  "accountChanged",
+                  "modelUnavailable",
+                  "modelsUnavailable",
+                  "permissionMissing",
+                  "storeUnavailable",
+                  "storeBlocked",
+                  "contextChanged",
+                ].includes(safe.message)
+              ? safe.message
+              : "invalidDraft";
+        this.offerIdeas = { status: "error", code };
+        throw new Error(code);
+      } finally {
+        metrics.aiCalls = inference?.callCount ?? 0;
+        metrics.repairCalls = Math.max(0, metrics.aiCalls - 1);
+        metrics.payloadCharacters = inference?.payloadCharacters ?? 0;
+        this.offerIdeasController = null;
+      }
+    });
+  }
   draftRevision: number | null = null;
   draftNote = "";
   storeResults: StoreContext[] = [];
@@ -1070,6 +1202,10 @@ export class Service {
       update: this.update,
       draft: this.draft,
       recipeDraft: this.recipeDraft,
+      offerIdeas:
+        this.offerIdeasContext === JSON.stringify(this.state.context)
+          ? this.offerIdeas
+          : null,
       planning: this.planning.snapshot(),
       purchaseImport: this.purchaseImport,
       receiptEnrichment: this.receiptEnrichment,

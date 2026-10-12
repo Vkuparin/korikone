@@ -24,10 +24,15 @@ export const receiptEnrichmentTask = {
   id: "receipt-enrichment",
   version: 1,
 } satisfies InferenceTask;
+export const offerIdeasTask = {
+  id: "offer-ideas",
+  version: 1,
+} satisfies InferenceTask;
 export const inferenceTasks = [
   ...interpretationTasks,
   candidateResolutionTask,
   shoppingPlanTask,
   shoppingEditTask,
   receiptEnrichmentTask,
+  offerIdeasTask,
 ];

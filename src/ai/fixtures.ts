@@ -136,9 +136,32 @@ export class FixtureAI {
       this.scenario !== "pendingSuccess" &&
       this.scenario !== "delayedModels" &&
       this.scenario !== "invalidOnce" &&
+      this.scenario !== "offersPersonal" &&
       !["noSmallModel", "removedModel"].includes(this.scenario)
     )
       throw new Error(this.scenario);
+    if (input.startsWith("Suggest one to four different meal names")) {
+      const payload = input.slice(input.indexOf("\n") + 1);
+      const data = JSON.parse(
+        payload.slice(0, payload.lastIndexOf("}") + 1),
+      ) as {
+        language: string;
+        offerProducts: { offerId: string; productId: string }[];
+      };
+      return JSON.stringify({
+        ideas: [
+          {
+            name: data.language === "fi" ? "Tomaattipasta" : "Tomato pasta",
+            products: [
+              {
+                offerId: data.offerProducts[0].offerId,
+                productId: data.offerProducts[0].productId,
+              },
+            ],
+          },
+        ],
+      });
+    }
     const resolutionData = input.split("\nResolution data JSON:\n")[1];
     if (resolutionData) {
       const request = resolutionRequestSchema.parse(JSON.parse(resolutionData));

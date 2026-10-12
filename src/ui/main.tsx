@@ -106,6 +106,7 @@ function App() {
     update: null,
     draft: null,
     recipeDraft: null,
+    offerIdeas: null,
     planning: null,
     edit: null,
     purchaseImport: null,
@@ -204,10 +205,19 @@ function App() {
     }
     try {
       const result = await window.korikone[method](input);
+      if (method === "suggestOffers")
+        setSnapshot((current) => ({
+          ...current,
+          offerIdeas: result.value.offerIdeas,
+        }));
       if (
-        ["generate", "planShopping", "editList", "importRecipe"].includes(
-          method,
-        )
+        [
+          "generate",
+          "planShopping",
+          "editList",
+          "importRecipe",
+          "suggestOffers",
+        ].includes(method)
       )
         setAIRequestLimit(!result.ok && result.error === "usageLimit");
       if (method === "signOutAI") setAIRequestLimit(false);
@@ -264,6 +274,7 @@ function App() {
               "planShopping",
               "editList",
               "importRecipe",
+              "suggestOffers",
               "openAIUsage",
             ].includes(method)
           ? "ai"

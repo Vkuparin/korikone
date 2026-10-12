@@ -15,6 +15,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
+import { DemoProvider } from "../stores/demo";
 import { chooseModel } from "../ai/models";
 import { ChatGPTInferenceProvider } from "../ai/chatgpt-provider";
 import { FakeInferenceProvider } from "../ai/fake-provider";
@@ -320,6 +321,7 @@ else
       run: number,
       operation?: PlanningRun,
       maxCalls = 2,
+      signal?: AbortSignal,
     ) => {
       const preference =
         operation?.sourceState().aiModel ?? service.state.aiModel;
@@ -333,6 +335,7 @@ else
           provider,
           AbortSignal.any([
             controller.signal,
+            ...(signal ? [signal] : []),
             ...(operation ? [operation.signal] : []),
             AbortSignal.timeout(30000),
           ]),
@@ -351,7 +354,9 @@ else
           provider,
           models.find((m) => m.modelId === id)!,
           { maxCalls, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
-          controller.signal,
+          signal
+            ? AbortSignal.any([controller.signal, signal])
+            : controller.signal,
         );
       } catch (error) {
         if (run !== generationRun) throw new Error("aiCancelled");
@@ -471,6 +476,22 @@ else
         fixtureAI.setScenario(z.enum(aiScenarios).parse(input));
         service.developmentRequests = 0;
         service.developmentScenario = fixtureAI.scenario;
+        for (const provider of service.registry.all()) {
+          if (provider instanceof DemoProvider)
+            provider.offerScenario =
+              fixtureAI.scenario === "offersEmpty"
+                ? "empty"
+                : fixtureAI.scenario === "offersUnsupported"
+                  ? "unsupported"
+                  : fixtureAI.scenario === "offersPersonal"
+                    ? "personal"
+                    : "success";
+          if (provider instanceof DemoProvider)
+            provider.capabilities.offers = {
+              public: true,
+              personal: fixtureAI.scenario === "offersPersonal",
+            };
+        }
         return service.snapshot();
       },
       save: async (input) => {
@@ -501,6 +522,7 @@ else
         return service.snapshot();
       },
       cancelAI: async () => {
+        service.cancelOfferIdeas();
         service.planning.cancel();
         generationRun++;
         modelLookup?.abort();
@@ -525,6 +547,7 @@ else
         return service.snapshot();
       },
       signOutAI: async () => {
+        service.cancelOfferIdeas();
         service.planning.cancel();
         generationRun++;
         inferenceController?.abort();
@@ -697,6 +720,14 @@ else
             metrics.payloadCharacters = session.payloadCharacters;
           }
         });
+      },
+      suggestOffers: async (input) => {
+        const run = ++generationRun;
+        return runAITask(run, () =>
+          service.suggestOffers(input, (signal, maxCalls) =>
+            requestSession(run, undefined, maxCalls, signal),
+          ),
+        );
       },
       approveDraft: () =>
         service.refreshAfterChange(() => service.approveDraft(), {
@@ -1092,6 +1123,7 @@ else
               (name === "generate" ||
                 name === "planShopping" ||
                 name === "editList" ||
+                name === "suggestOffers" ||
                 name === "importRecipe") &&
               submittedRun !== generationRun
             )
@@ -1105,6 +1137,7 @@ else
         } catch (error) {
           return {
             ok: false,
+            ...(name === "suggestOffers" ? { value: service.snapshot() } : {}),
             error:
               error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
                 ? error.message
@@ -1121,6 +1154,7 @@ else
       if (closing) return;
       event.preventDefault();
       closing = true;
+      service.cancelOfferIdeas();
       inferenceController?.abort();
       service.planning.cancelForShutdown();
       nativeTheme.removeListener("updated", systemAppearanceChanged);

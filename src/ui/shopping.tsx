@@ -35,6 +35,7 @@ import {
 } from "./compare";
 import { MealCalendarView } from "./calendar";
 import { QrExport } from "./qr";
+import { OfferIdeas } from "./offer-ideas";
 import { HouseholdSizeControl } from "./household-size";
 import { useInsights } from "./insights";
 import { RecurringSuggestions } from "./suggestions";
@@ -1214,6 +1215,17 @@ export function ShoppingWorkspace({
           resubmit={(targetId) => {
             setFocusTarget(targetId);
             void applyEdit(instruction, targetId);
+          }}
+        />
+        <OfferIdeas
+          snapshot={snapshot}
+          busy={busy || working || editWorking}
+          call={call}
+          canAppend={(name) => note.trimEnd().length + name.length + 1 <= 10000}
+          append={(name) => {
+            setNewListDraft(true);
+            changeNote(`${note.trimEnd()}${note.trim() ? "\n" : ""}${name}`);
+            requestAnimationFrame(() => noteElement.current?.focus());
           }}
         />
         {updateFailed && !working && failureCause && !composingEdit && (
