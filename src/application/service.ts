@@ -87,6 +87,11 @@ import {
   describeAmbiguities,
   editListRequestSchema,
   localEditRequestSchema,
+  changedAlso,
+  clearListRequestSchema,
+  householdScaling,
+  householdSizeRequestSchema,
+  restoredPlan,
   editUndoSchema,
   editedPlan,
   undoEditRequestSchema,
@@ -1162,7 +1167,12 @@ export class Service {
   private saveNewList(state: AppState) {
     return this.writeState(() =>
       this.saveState(
-        { ...state, requestIntents: [], ...clearRowCorrections(this.state) },
+        {
+          ...state,
+          requestIntents: [],
+          recurringPaused: false,
+          ...clearRowCorrections(this.state),
+        },
         true,
       ),
     );
@@ -1488,6 +1498,26 @@ export class Service {
     await this.db.set(`ordered-${run}`, order);
     await this.save(next);
     return this.snapshot();
+  }
+  /**
+   * The shopper's explicit price update. Recurring items paused by Clear list join the list
+   * again here, as a new revision, before prices are read.
+   */
+  async updatePrices() {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    if (this.state.recurringPaused)
+      await this.writeState(async () => {
+        const next = stateSchema.parse({
+          ...this.state,
+          recurringPaused: false,
+          revision: this.state.revision + 1,
+        });
+        await this.db.set("state", next);
+        this.planning.invalidateFor(next);
+        this.state = next;
+        this.review = null;
+      });
+    return this.buildBasket();
   }
   async buildBasket() {
     if (this.busy || this.transferPending) throw new Error("busy");
@@ -2066,6 +2096,7 @@ export class Service {
               version: 1,
               revision: next.revision,
               plan: editedPlan(base),
+              also: changedAlso(base, next),
               quote: quoted
                 ? {
                     key: pricingKey(base),
@@ -2139,132 +2170,255 @@ export class Service {
   async editLocally(input: unknown) {
     const { revision, operations } = localEditRequestSchema.parse(input);
     return this.writeState(async () => {
-      this.assertNoProvisionalTransfer();
-      if (this.busy || this.transferPending) throw new Error("busy");
-      if (revision !== this.state.revision) throw new Error("draftStale");
-      const base = this.state;
+      this.assertLocalChange(revision);
       const now = new Date();
-      const quoted = this.quotedAt !== null;
-      const key = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
       const {
         state: edited,
         applied,
         changedKeys,
       } = applyEdits(
-        base,
+        this.state,
         { version: 1, revision, operations },
         { now, packSizes: this.quotedPackSizes() },
       );
-      const next = stateSchema.parse({
-        ...edited,
-        revision: base.revision + 1,
-      });
-      let quote: ReturnType<typeof restoredQuote> = null;
-      if (quoted) {
-        const previous = new Map(
-          this.basket.map((line) => [key(line.requirement), line]),
-        );
-        const changed = new Set(changedKeys);
-        const options = (requirement: Requirement) => ({
-          context: next.context,
-          sourceNote: next.note,
-          preferences: next.categoryPreferences,
-          holds: next.correctionHolds,
-          accepted:
-            next.accepted[
-              `${next.context.providerId}:${next.context.storeId}:${requirement.id}`
-            ] ?? [],
-          exclusions: exclusionTerms(next.household.exclusions),
-          productPreference: next.productPreference,
-        });
-        const lines = requirements(next, now).map((requirement) => {
-          const old = previous.get(key(requirement));
-          if (!old) {
-            // Nothing was ever read for this row; it is shown as not yet searched.
-            const unsearched = matchRequirement(requirement, [], {
-              context: next.context,
-              sourceNote: next.note,
-            });
-            unsearched.matching!.reason = "bounded-out";
-            return unsearched;
-          }
-          return changed.has(key(requirement))
-            ? matchRequirement(
-                requirement,
-                applyPackSizes(old.candidates, next.packSizes),
-                options(requirement),
-              )
-            : { ...structuredClone(old), requirement };
-        });
-        // The edited quote must verify like any restored quote; otherwise the list is unpriced.
-        quote = restoredQuote(
-          persistedQuoteSchema.parse({
-            key: pricingKey(next),
-            context: next.context,
-            basket: lines,
-            quotedAt: this.quotedAt,
-            pickupFee: lines.length ? this.pickupFee : null,
-          }),
-          next,
-        );
-      }
-      const delta = editDelta(
-        { state: base, basket: this.basket, quoted },
-        { state: next, basket: quote?.basket ?? [], quoted: quote !== null },
-        now,
-      );
-      const undo = editUndoSchema.parse({
-        version: 1,
-        revision: next.revision,
-        plan: editedPlan(base),
-        quote: quoted
-          ? {
-              key: pricingKey(base),
-              context: base.context,
-              basket: this.basket,
-              quotedAt: this.quotedAt,
-              pickupFee: this.pickupFee,
-            }
-          : null,
-        applied,
-        delta,
-      });
-      await this.writeAtomically([
-        { key: "state", value: next },
-        ...(quote
-          ? [
-              {
-                key: "last-quote",
-                value: {
-                  key: quote.key,
-                  context: quote.context,
-                  basket: quote.basket,
-                  pickupFee: quote.pickupFee,
-                  quotedAt: quote.quotedAt,
-                },
-              },
-            ]
-          : []),
-        { key: EDIT_UNDO_KEY, value: undo },
-      ]);
-      this.planning.invalidateFor(next);
-      this.state = next;
-      this.basket = quote?.basket ?? [];
-      this.quotedAt = quote?.quotedAt ?? null;
-      this.pickupFee = quote?.pickupFee ?? null;
-      this.pricingError = null;
-      this.review = null;
-      this.comparison = null;
-      this.transferException = null;
-      this.undo = undo;
-      this.edit = {
-        status: "applied",
-        revision: next.revision,
-        applied,
-        delta,
-      };
-      return this.snapshot();
+      return this.commitLocal(edited, { applied, changedKeys, now });
     });
+  }
+  /**
+   * Empties the current list: meals, extra items, the request text and the row choices made for
+   * it. Recipes, history, purchases, settings, preferences and the recurring items themselves
+   * stay. Recurring items add nothing to the cleared list until the next explicit price update
+   * or new list. One local Undo restores the list and its quote. Nothing already sent to a
+   * store is reversed, and no AI, catalogue or retailer call is made.
+   */
+  async clearList(input: unknown) {
+    const { revision } = clearListRequestSchema.parse(input);
+    return this.writeState(async () => {
+      this.assertLocalChange(revision);
+      const base = this.state;
+      const now = new Date();
+      const rows = requirements(base, now);
+      // An already empty list has nothing to clear and nothing to undo.
+      if (
+        !rows.length &&
+        !base.meals.length &&
+        !base.extras.length &&
+        !base.note &&
+        !base.assumptions
+      )
+        return this.snapshot();
+      const name = (recipeId: string) =>
+        base.recipes.find((r) => r.id === recipeId)?.name ?? recipeId;
+      return this.commitLocal(
+        {
+          ...base,
+          meals: [],
+          extras: [],
+          skipped: [],
+          removed: [],
+          quantities: {},
+          requestIntents: [],
+          calendar: {},
+          note: "",
+          assumptions: "",
+          recurringPaused: true,
+        },
+        {
+          applied: base.meals.slice(0, 100).map((meal) => ({
+            op: "removeMeal" as const,
+            targetId: `meal:${meal.id}`,
+            name: name(meal.recipeId),
+            before: meal.servings,
+            after: 0,
+          })),
+          status: "cleared",
+          now,
+        },
+      );
+    });
+  }
+  /** What `setHouseholdSize` would do to the current meals. Reads only; changes nothing. */
+  previewHouseholdSize(input: unknown) {
+    const { servings } = householdSizeRequestSchema
+      .pick({ servings: true })
+      .parse(input);
+    return householdScaling(this.state, servings);
+  }
+  /**
+   * Saves a new household size and scales the current meals that were planned for the old one.
+   * A meal planned for another number of servings keeps it, a row quantity the shopper set
+   * stays as set, and extra items, recipes and exclusions are untouched. Prices are recomputed
+   * from the retained quote like any local edit; one local Undo restores size, meals and quote.
+   */
+  async setHouseholdSize(input: unknown) {
+    const { revision, servings } = householdSizeRequestSchema.parse(input);
+    return this.writeState(async () => {
+      this.assertLocalChange(revision);
+      const base = this.state;
+      const scaling = householdScaling(base, servings);
+      if (scaling.from === servings) return this.snapshot();
+      const scaled = new Set(scaling.scaled.map((meal) => meal.mealId));
+      return this.commitLocal(
+        {
+          ...base,
+          household: { ...base.household, servings },
+          meals: base.meals.map((meal) =>
+            scaled.has(meal.id) ? { ...meal, servings } : meal,
+          ),
+        },
+        {
+          applied: scaling.scaled.slice(0, 100).map((meal) => ({
+            op: "changeServings" as const,
+            targetId: `meal:${meal.mealId}`,
+            name: meal.name,
+            before: meal.before,
+            after: meal.after,
+          })),
+          status: "resized",
+          now: new Date(),
+        },
+      );
+    });
+  }
+  private assertLocalChange(revision: number) {
+    this.assertNoProvisionalTransfer();
+    if (this.busy || this.transferPending) throw new Error("busy");
+    if (revision !== this.state.revision) throw new Error("draftStale");
+  }
+  /**
+   * Saves a locally changed plan as the next revision with its undo snapshot, keeping what the
+   * retained quote still proves. Call inside `writeState`.
+   */
+  private async commitLocal(
+    edited: AppState,
+    change: {
+      applied: EditUndo["applied"];
+      changedKeys?: string[];
+      status?: "applied" | "cleared" | "resized";
+      now: Date;
+    },
+  ) {
+    const base = this.state;
+    const { applied, now } = change;
+    const quoted = this.quotedAt !== null;
+    const key = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
+    const next = stateSchema.parse({
+      ...edited,
+      revision: base.revision + 1,
+    });
+    const wanted = requirements(next, now);
+    const amounts = new Map(
+      requirements(base, now).map((r) => [key(r), r.amount]),
+    );
+    const changedKeys =
+      change.changedKeys ??
+      wanted.filter((r) => amounts.get(key(r)) !== r.amount).map(key);
+    let quote: ReturnType<typeof restoredQuote> = null;
+    if (quoted) {
+      const previous = new Map(
+        this.basket.map((line) => [key(line.requirement), line]),
+      );
+      const changed = new Set(changedKeys);
+      const options = (requirement: Requirement) => ({
+        context: next.context,
+        sourceNote: next.note,
+        preferences: next.categoryPreferences,
+        holds: next.correctionHolds,
+        accepted:
+          next.accepted[
+            `${next.context.providerId}:${next.context.storeId}:${requirement.id}`
+          ] ?? [],
+        exclusions: exclusionTerms(next.household.exclusions),
+        productPreference: next.productPreference,
+      });
+      const lines = wanted.map((requirement) => {
+        const old = previous.get(key(requirement));
+        if (!old) {
+          // Nothing was ever read for this row; it is shown as not yet searched.
+          const unsearched = matchRequirement(requirement, [], {
+            context: next.context,
+            sourceNote: next.note,
+          });
+          unsearched.matching!.reason = "bounded-out";
+          return unsearched;
+        }
+        return changed.has(key(requirement))
+          ? matchRequirement(
+              requirement,
+              applyPackSizes(old.candidates, next.packSizes),
+              options(requirement),
+            )
+          : { ...structuredClone(old), requirement };
+      });
+      // The edited quote must verify like any restored quote; otherwise the list is unpriced.
+      quote = restoredQuote(
+        persistedQuoteSchema.parse({
+          key: pricingKey(next),
+          context: next.context,
+          basket: lines,
+          quotedAt: this.quotedAt,
+          pickupFee: lines.length ? this.pickupFee : null,
+        }),
+        next,
+      );
+    }
+    const delta = editDelta(
+      { state: base, basket: this.basket, quoted },
+      { state: next, basket: quote?.basket ?? [], quoted: quote !== null },
+      now,
+    );
+    const undo = editUndoSchema.parse({
+      version: 1,
+      revision: next.revision,
+      plan: editedPlan(base),
+      also: changedAlso(base, next),
+      quote: quoted
+        ? {
+            key: pricingKey(base),
+            context: base.context,
+            basket: this.basket,
+            quotedAt: this.quotedAt,
+            pickupFee: this.pickupFee,
+          }
+        : null,
+      applied,
+      delta,
+    });
+    await this.writeAtomically([
+      { key: "state", value: next },
+      ...(quote
+        ? [
+            {
+              key: "last-quote",
+              value: {
+                key: quote.key,
+                context: quote.context,
+                basket: quote.basket,
+                pickupFee: quote.pickupFee,
+                quotedAt: quote.quotedAt,
+              },
+            },
+          ]
+        : []),
+      { key: EDIT_UNDO_KEY, value: undo },
+    ]);
+    this.planning.invalidateFor(next);
+    this.state = next;
+    this.basket = quote?.basket ?? [];
+    this.quotedAt = quote?.quotedAt ?? null;
+    this.pickupFee = quote?.pickupFee ?? null;
+    this.pricingError = null;
+    this.review = null;
+    this.comparison = null;
+    this.transferException = null;
+    this.undo = undo;
+    this.edit = {
+      status: change.status ?? "applied",
+      revision: next.revision,
+      applied,
+      delta,
+    };
+    return this.snapshot();
   }
   /** Pack sizes of the products currently quoted, for edits that count packs. */
   private quotedPackSizes() {
@@ -2300,8 +2454,7 @@ export class Service {
       if (!undo || undo.revision !== this.state.revision)
         throw new Error("undoUnavailable");
       const next = stateSchema.parse({
-        ...this.state,
-        ...structuredClone(undo.plan),
+        ...restoredPlan(this.state, undo),
         revision: this.state.revision + 1,
       });
       // The earlier quote returns only if it still verifies; otherwise prices need a refresh.

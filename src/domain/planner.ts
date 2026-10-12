@@ -117,7 +117,7 @@ export function requirements(
         sources: [recipe.name],
       });
   }
-  for (const staple of state.staples) {
+  for (const staple of state.recurringPaused ? [] : state.staples) {
     const due =
       !staple.lastPurchased ||
       now.getTime() - new Date(staple.lastPurchased).getTime() >=

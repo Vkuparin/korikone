@@ -20,28 +20,34 @@ test("removing a row and a meal in the list is immediate, keeps other prices and
       .click();
     await page.evaluate(async () => {
       const api = window.korikone;
-      const state = (await api.load()).value.state;
-      const saved = await api.save({
-        ...state,
-        staples: [],
-        meals: [
-          {
-            id: "m-pasta",
-            recipeId: "pasta",
-            day: 0,
-            servings: 4,
-            leftovers: false,
-          },
-          {
-            id: "m-soup",
-            recipeId: "soup",
-            day: 1,
-            servings: 4,
-            leftovers: false,
-          },
-        ],
-        extras: [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }],
-      });
+      // The start button's own save may still be landing; save against the settled revision.
+      let saved = { ok: false, error: "draftStale" } as Awaited<
+        ReturnType<typeof api.save>
+      >;
+      for (let i = 0; i < 20 && !saved.ok; i++) {
+        const state = (await api.load()).value.state;
+        saved = await api.save({
+          ...state,
+          staples: [],
+          meals: [
+            {
+              id: "m-pasta",
+              recipeId: "pasta",
+              day: 0,
+              servings: 4,
+              leftovers: false,
+            },
+            {
+              id: "m-soup",
+              recipeId: "soup",
+              day: 1,
+              servings: 4,
+              leftovers: false,
+            },
+          ],
+          extras: [{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }],
+        });
+      }
       if (!saved.ok) throw new Error(saved.error);
     });
     await page.reload();

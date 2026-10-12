@@ -60,6 +60,9 @@ export const stateSchema = z
     meals: z.array(mealSchema).max(100),
     staples: z.array(stapleSchema).max(500),
     skipped: z.array(z.string()).max(1000),
+    // Set by Clear list: recurring items stay defined but add nothing until the next explicit
+    // update or new list. Older profiles have it off.
+    recurringPaused: z.boolean().default(false),
     // The active store. Earlier releases read only this field.
     context: contextSchema,
     // The last store chosen at each chain, keyed by provider, so switching chains keeps the other.

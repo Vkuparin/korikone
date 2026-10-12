@@ -46,6 +46,44 @@ export const localEditRequestSchema = z
       (localEditOperations as readonly string[]).includes(o.op),
     ),
   );
+export const clearListRequestSchema = z
+  .object({ revision: z.number().int().nonnegative() })
+  .strict();
+export const householdSizeRequestSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    servings: z.number().int().min(1).max(100),
+  })
+  .strict();
+/**
+ * What a new household size does to the current meals. A meal planned for the old household size
+ * follows the new one exactly. A meal the shopper deliberately planned for another number of
+ * servings is kept as it is and listed, so nothing is rounded or guessed.
+ */
+export function householdScaling(state: AppState, servings: number) {
+  const name = (recipeId: string) =>
+    state.recipes.find((r) => r.id === recipeId)?.name ?? recipeId;
+  const old = state.household.servings;
+  return {
+    from: old,
+    to: servings,
+    scaled: state.meals
+      .filter((m) => !m.leftovers && m.servings === old && old !== servings)
+      .map((m) => ({
+        mealId: m.id,
+        name: name(m.recipeId),
+        before: old,
+        after: servings,
+      })),
+    kept: state.meals
+      .filter((m) => !m.leftovers && m.servings !== old)
+      .map((m) => ({
+        mealId: m.id,
+        name: name(m.recipeId),
+        servings: m.servings,
+      })),
+  };
+}
 export const undoEditRequestSchema = z
   .object({ revision: z.number().int().nonnegative() })
   .strict();
@@ -91,8 +129,26 @@ export const editUndoSchema = z
     plan: editedPlanSchema,
     /** The quote that belonged to the plan before the edit, when there was one. */
     quote: persistedQuoteSchema.nullable(),
-    applied: z.array(appliedEditSchema).max(20),
+    applied: z.array(appliedEditSchema).max(100),
     delta: editDeltaSchema,
+    /**
+     * Other saved fields the operation changed, restored with the plan: the note and plan flags
+     * for Clear list, the household size for a size change. Absent for ordinary edits.
+     */
+    also: z
+      .object({
+        note: z.string().max(10000),
+        assumptions: z.string().max(5000),
+        recurringPaused: z.boolean(),
+        calendar: z.record(
+          z.string(),
+          z.object({ mealIds: z.array(z.string()), leftovers: z.boolean() }),
+        ),
+        household: z.object({ servings: z.number().int().min(1).max(100) }),
+      })
+      .partial()
+      .strict()
+      .optional(),
   })
   .strict();
 export type EditUndo = z.infer<typeof editUndoSchema>;
@@ -107,10 +163,36 @@ export const editedPlan = (state: AppState): EditUndo["plan"] =>
     requestIntents: state.requestIntents,
   });
 
+/** The fields outside `plan` that a change touched, as they were before it. */
+export function changedAlso(base: AppState, next: AppState): EditUndo["also"] {
+  const also: NonNullable<EditUndo["also"]> = {};
+  if (base.note !== next.note) also.note = base.note;
+  if (base.assumptions !== next.assumptions)
+    also.assumptions = base.assumptions;
+  if (base.recurringPaused !== next.recurringPaused)
+    also.recurringPaused = base.recurringPaused;
+  if (JSON.stringify(base.calendar) !== JSON.stringify(next.calendar))
+    also.calendar = structuredClone(base.calendar);
+  if (base.household.servings !== next.household.servings)
+    also.household = { servings: base.household.servings };
+  return Object.keys(also).length ? also : undefined;
+}
+/** A state with an undo snapshot put back over it. */
+export function restoredPlan(state: AppState, undo: EditUndo) {
+  const { household, ...also } = structuredClone(undo.also ?? {});
+  return {
+    ...state,
+    ...structuredClone(undo.plan),
+    ...also,
+    household: { ...state.household, ...household },
+  };
+}
+
 /** The last edit outcome for the plan revision it belongs to. Never saved in `AppState`. */
 export type EditStatus =
   | {
-      status: "applied" | "undone";
+      /** `cleared`: Clear list. `resized`: a household-size change. Both undo like an edit. */
+      status: "applied" | "undone" | "cleared" | "resized";
       revision: number;
       applied: EditUndo["applied"];
       delta: EditDelta;

@@ -618,6 +618,10 @@ else
       },
       undoEdit: (input) => service.undoEdit(input),
       editLocally: (input) => service.editLocally(input),
+      clearList: (input) => service.clearList(input),
+      previewHouseholdSize: async (input) =>
+        service.previewHouseholdSize(input),
+      setHouseholdSize: (input) => service.setHouseholdSize(input),
       importOrders: () => service.importOrders(),
       importPurchaseReceipt: async (input) => {
         const { keepOriginal } = z
@@ -701,7 +705,7 @@ else
         service.refreshAfterChange(() => service.reuseWeek(), {
           explicit: true,
         }),
-      buildBasket: () => service.buildBasket(),
+      buildBasket: () => service.updatePrices(),
       compareStores: () => service.compareStores(),
       getContextOptions: (input) => service.getContextOptions(input),
       changeContext: (input) => service.changeContext(input),

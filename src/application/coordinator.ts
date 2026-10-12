@@ -105,6 +105,7 @@ export async function coordinatePlanning(
       quantities: {},
       removed: [],
       skipped: [],
+      recurringPaused: false,
       ...clearRowCorrections(source),
     });
     const wanted = requirements(state);
