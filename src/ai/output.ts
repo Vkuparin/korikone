@@ -182,6 +182,7 @@ function taskSnapshot(state: ContextState, note: string) {
     household: structuredClone(state.household),
     productPreference: state.productPreference,
     categoryPreferences: structuredClone(state.categoryPreferences ?? []),
+    observedSummaries: structuredClone(state.observedSummaries ?? []),
     note,
   };
 }

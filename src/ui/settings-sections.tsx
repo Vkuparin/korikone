@@ -8,6 +8,7 @@ import { aiScenarios } from "../ai/scenarios";
 import { useSettingsDraft } from "./settings";
 import { CategoryPreferences } from "./category-preferences";
 import { ReceiptsPanel } from "./receipts";
+import { PurchaseMemory } from "./purchase-memory";
 const field = (label: string, control: React.ReactNode) => (
   <label>
     {label}
@@ -108,6 +109,7 @@ export function DataSettings({
           call={call}
           language={state.language}
         />
+        <PurchaseMemory snapshot={snapshot} busy={busy} call={call} />
         <p>
           {fi
             ? "Tai liitä ostosrivit tekstinä alle. Teksti säilyy sellaisenaan, kunnes tuot sen kuiteiksi. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."

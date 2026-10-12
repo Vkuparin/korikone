@@ -34,7 +34,10 @@ export type ContextState = Pick<
   AppState,
   "language" | "household" | "recipes" | "productPreference"
 > &
-  Partial<Pick<AppState, "categoryPreferences">>;
+  Partial<Pick<AppState, "categoryPreferences">> & {
+    /** Bounded hints from purchase history, present only for a request they apply to (F18.2). */
+    observedSummaries?: ObservedSummary[];
+  };
 
 const words = (text: string) =>
   text

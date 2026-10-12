@@ -1,6 +1,8 @@
 import { clearRowCorrections } from "../domain/corrections";
 import { z } from "zod";
 import { interpretPlanning } from "../ai/output";
+import type { ObservedSummary } from "../ai/context";
+import { observationsApply } from "../domain/memory";
 import type { MealDraft } from "../ai/draft";
 import { InferenceError, type InferenceSession } from "../ai/provider";
 import { resolveCandidates } from "../ai/resolve";
@@ -62,6 +64,8 @@ export type PlanningDependencies = {
   session: (run: PlanningRun) => Promise<InferenceSession>;
   provider: StoreProvider;
   resolverEnabled?: boolean;
+  /** Purchase-history hints; used only when the note asks for what is usually bought. */
+  observedSummaries?: ObservedSummary[];
   onResolverStart?: (interpretationCalls: number) => void;
 };
 
@@ -76,7 +80,12 @@ export async function coordinatePlanning(
     const session = await dependencies.session(run);
     run.assertCurrent();
     if (run.inferenceSession() !== session) throw new Error("planningPhase");
-    const interpreted = await interpretPlanning(session, note, source);
+    const interpreted = await interpretPlanning(session, note, {
+      ...source,
+      observedSummaries: observationsApply(note)
+        ? (dependencies.observedSummaries ?? [])
+        : [],
+    });
     run.publishDraft(interpreted);
     const draft = run.validatedDraft()!;
     const state = stateSchema.parse({

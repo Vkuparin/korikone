@@ -521,3 +521,14 @@ export function observedSummaries(memory: Memory, limit = 20) {
       observations: Math.min(alias.observations, 1000),
     }));
 }
+
+/**
+ * Whether a request asks for what the household usually buys. Only then are observed summaries
+ * given to the model; an ordinary request, or one that names its own groceries, gets no
+ * purchase history at all.
+ */
+export function observationsApply(request: string): boolean {
+  return /(?<![\p{L}])(?:usual(?:ly)?|as usual|the regulars?|regular items|typical(?:ly)?|like last time|as always|kuten tavallisesti|kuten aina|kuten viimeksi|tavalliset?|tavallisen|tavallisia|yleensä|tuttuun tapaan|tutut)(?![\p{L}])/iu.test(
+    request,
+  );
+}

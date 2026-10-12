@@ -94,6 +94,7 @@ import {
 } from "./edits";
 import { PurchaseStore, type ReceiptImport } from "./purchases";
 import {
+  observationsApply,
   observedSummaries,
   purchaseAliases,
   purchaseStatistics,
@@ -236,6 +237,11 @@ export class Service {
           },
           provider: this.registry.get(run.sourceState().context.providerId),
           resolverEnabled: run.sourceState().resolverEnabled,
+          // Read fresh for this request only when it asks for the usual: a deleted purchase,
+          // interpretation or preference is already gone from this read.
+          observedSummaries: observationsApply(request.prompt)
+            ? observedSummaries(await this.memory())
+            : [],
           onResolverStart: (calls) => {
             resolverBase = calls;
           },
