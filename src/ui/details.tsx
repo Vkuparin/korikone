@@ -1,5 +1,10 @@
 import React from "react";
 import type { Snapshot } from "../application/service";
+import {
+  packageAmount,
+  needsPackageCount,
+  stockCubeName,
+} from "../domain/package-content";
 import type { BasketLine, Product, Unit } from "../domain/model";
 import { en, fi, packCount, unitLabel, type Key } from "./i18n";
 import { selectableCandidate, matchingPolicy } from "../domain/matching";
@@ -91,7 +96,9 @@ export function RowDetails({
     state.accepted[
       `${context.providerId}:${context.storeId}:${requirement.id}`
     ] ?? [];
-  const bought = product ? line.packs * product.packAmount : 0;
+  const bought = product
+    ? line.packs * (packageAmount(product, requirement.unit) ?? 0)
+    : 0;
   return (
     <div
       className="row-details"
@@ -104,9 +111,9 @@ export function RowDetails({
           <>
             {" · "}
             {t("bought")}: {packCount(line.packs, language)}, {bought}{" "}
-            {u(product.unit)}
+            {u(requirement.unit)}
             {bought > requirement.amount &&
-              ` · ${t("surplus")}: ${bought - requirement.amount} ${u(product.unit)}`}
+              ` · ${t("surplus")}: ${bought - requirement.amount} ${u(requirement.unit)}`}
           </>
         )}
       </p>
@@ -263,10 +270,18 @@ export function RowDetails({
                 );
               })()}
               {approximateCost(requirement, p) === null &&
-                (!p.packAmount || p.id in state.packSizes) && (
+                (!p.packAmount ||
+                  p.id in state.packSizes ||
+                  needsPackageCount(p, requirement.unit)) && (
                   <PackSizeForm
                     key={`${p.id}:${p.packAmount}`}
                     product={p}
+                    countOnly={
+                      needsPackageCount(p, requirement.unit) ||
+                      (stockCubeName(p.name) &&
+                        requirement.unit === "pcs" &&
+                        p.id in state.packSizes)
+                    }
                     language={language}
                     busy={busy}
                     confirm={confirmPack}
@@ -371,18 +386,22 @@ function PackSizeForm({
   language,
   busy,
   confirm,
+  countOnly = false,
 }: {
   product: Product;
+  countOnly?: boolean;
   language: string;
   busy: boolean;
   confirm: (product: Product, amount: number, unit: Unit) => void;
 }) {
   const t = (key: Key) => (language === "fi" ? fi : en)[key];
   const [amount, setAmount] = React.useState(
-    product.packAmount ? String(product.packAmount) : "",
+    (!countOnly || product.unit === "pcs") && product.packAmount
+      ? String(product.packAmount)
+      : "",
   );
   const [unit, setUnit] = React.useState<Unit>(
-    product.packAmount ? product.unit : "g",
+    countOnly ? "pcs" : product.packAmount ? product.unit : "g",
   );
   const value = Number(amount);
   return (
@@ -393,6 +412,13 @@ function PackSizeForm({
         confirm(product, value, unit);
       }}
     >
+      {countOnly && (
+        <p>
+          {language === "fi"
+            ? "Vahvista kuutioiden määrä pakkauksessa."
+            : "Confirm the number of cubes in the package."}
+        </p>
+      )}
       <input
         type="number"
         min={1}
@@ -402,6 +428,7 @@ function PackSizeForm({
         onChange={(event) => setAmount(event.target.value)}
       />
       <select
+        disabled={countOnly}
         value={unit}
         aria-label={`${t("packSizeUnit")}: ${product.name}`}
         onChange={(event) => setUnit(event.target.value as Unit)}

@@ -8,6 +8,11 @@ import {
   type OperationCounters,
 } from "./metrics";
 import { z } from "zod";
+import {
+  packageAmount,
+  needsPackageCount,
+  stockCubeName,
+} from "../domain/package-content";
 import { priceBasisSchema, rankProductPrices } from "../domain/price-ranking";
 import {
   initialState,
@@ -1892,7 +1897,11 @@ export class Service {
       l.candidates.some(
         (p) =>
           p.id === productId &&
-          (!p.packAmount || productId in this.state.packSizes),
+          (!p.packAmount ||
+            productId in this.state.packSizes ||
+            needsPackageCount(p, l.requirement.unit)) &&
+          (!(stockCubeName(p.name) && l.requirement.unit === "pcs") ||
+            unit === "pcs"),
       ),
     );
     if (!known) throw new Error("unresolved");
@@ -2156,15 +2165,19 @@ export class Service {
                 line.product &&
                 !line.approximate &&
                 !line.product.pieceOrdering &&
-                Number.isSafeInteger(line.product.packAmount) &&
-                line.product.packAmount > 0 &&
-                line.product.unit === line.requirement.unit
+                Number.isSafeInteger(
+                  packageAmount(line.product, line.requirement.unit),
+                ) &&
+                packageAmount(line.product, line.requirement.unit)! > 0
                   ? [
                       [
                         key(line.requirement),
                         {
-                          amount: line.product.packAmount,
-                          unit: line.product.unit,
+                          amount: packageAmount(
+                            line.product,
+                            line.requirement.unit,
+                          )!,
+                          unit: line.requirement.unit,
                         },
                       ],
                     ]
@@ -2600,13 +2613,17 @@ export class Service {
         line.product &&
         !line.approximate &&
         !line.product.pieceOrdering &&
-        Number.isSafeInteger(line.product.packAmount) &&
-        line.product.packAmount > 0 &&
-        line.product.unit === line.requirement.unit
+        Number.isSafeInteger(
+          packageAmount(line.product, line.requirement.unit),
+        ) &&
+        packageAmount(line.product, line.requirement.unit)! > 0
           ? [
               [
                 `${line.requirement.id}:${line.requirement.unit}`,
-                { amount: line.product.packAmount, unit: line.product.unit },
+                {
+                  amount: packageAmount(line.product, line.requirement.unit)!,
+                  unit: line.requirement.unit,
+                },
               ],
             ]
           : [],
@@ -2754,6 +2771,7 @@ export class Service {
           ...(line.product.pieceOrdering
             ? [line.product.pieceOrdering, line.product.cataloguePricing]
             : []),
+          ...(line.product.packageContent ? [line.product.packageContent] : []),
         ],
         line.packs,
         line.total,

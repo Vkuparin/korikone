@@ -189,6 +189,7 @@ export type Product = {
   evidence?: import("./product-evidence").ProductEvidence;
   cataloguePricing?: import("./product-evidence").CataloguePricing;
   pieceOrdering?: import("./product-evidence").PieceOrdering;
+  packageContent?: import("./package-content").PackageContent;
 };
 export type BasketLine = {
   /** Basis used to select this saved row; changing Settings never reranks its selected product. */

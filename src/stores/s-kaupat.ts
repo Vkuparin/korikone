@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { retailerPackageContent } from "../domain/package-content";
 import {
   retailerOrderSchema,
   type RetailerOrder,
@@ -411,6 +412,7 @@ export class SKaupatProvider implements StoreProvider {
       throw new Error("storeUnavailable");
     return data.products.map((p) => {
       const pack = packFromName(p.packSize ?? p.name);
+      const content = retailerPackageContent(p.name, p.packSize ?? p.name);
       // Weighed goods and unclear packs stay unpriced, as with K-Ruoka.
       const supported =
         p.priceBasis === "per_item" &&
@@ -435,8 +437,9 @@ export class SKaupatProvider implements StoreProvider {
         storeId: context.storeId,
         name: p.name,
         ingredientId,
-        packAmount: pack?.amount ?? 0,
-        unit: pack?.unit ?? "pcs",
+        packAmount: content?.weightGrams ?? pack?.amount ?? 0,
+        unit: content ? "g" : (pack?.unit ?? "pcs"),
+        ...(content ? { packageContent: content } : {}),
         price: supported && p.price != null ? Math.round(p.price * 100) : null,
         available:
           status === "ok"

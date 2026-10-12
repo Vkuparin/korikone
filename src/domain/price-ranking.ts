@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { packageAmount } from "./package-content";
 import type { Product, Requirement } from "./model";
 import { approximateCost, pieceQuote } from "./product-price";
 
@@ -91,9 +92,10 @@ export function priceMetrics(
       fallback: unitValue ? null : "unknown-unit",
     };
   }
+  const content = packageAmount(product, requirement.unit);
   if (
     product.pieceOrdering ||
-    product.unit !== requirement.unit ||
+    content === null ||
     !Number.isSafeInteger(product.price) ||
     product.price === null ||
     product.price < 0 ||
@@ -107,7 +109,7 @@ export function priceMetrics(
     return null;
   const source = product.cataloguePricing;
   if (
-    (product.unit === "pcs" && !Number.isSafeInteger(product.packAmount)) ||
+    (requirement.unit === "pcs" && !Number.isSafeInteger(content)) ||
     (["kpl", "pcs"].includes(product.nativeUnit.toLowerCase()) &&
       !Number.isSafeInteger(product.increment))
   )
@@ -119,10 +121,10 @@ export function priceMetrics(
   )
     return null;
   const packs =
-    Math.ceil(requirement.amount / product.packAmount / product.increment) *
+    Math.ceil(requirement.amount / content! / product.increment) *
     product.increment;
   const payable = packs * (product.price + product.deposit);
-  const surplus = packs * product.packAmount - requirement.amount;
+  const surplus = packs * content! - requirement.amount;
   if (
     !Number.isFinite(packs) ||
     packs <= 0 ||
@@ -131,12 +133,7 @@ export function priceMetrics(
     surplus < 0
   )
     return null;
-  const unitValue = ratio(
-    product.price,
-    product.packAmount,
-    product.unit,
-    false,
-  );
+  const unitValue = ratio(product.price, content!, requirement.unit, false);
   return {
     unitValue,
     packs,

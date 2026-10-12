@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { priceBasisSchema } from "../domain/price-ranking";
+import { packageContentSchema } from "../domain/package-content";
 import {
   contextSchema,
   ingredientSchema,
@@ -69,6 +70,7 @@ const productSchema = z.object({
   evidence: productEvidenceSchema.optional(),
   cataloguePricing: cataloguePricingSchema.optional(),
   pieceOrdering: pieceOrderingSchema.optional(),
+  packageContent: packageContentSchema.optional(),
 });
 export const persistedQuoteSchema = z.object({
   operationId: z.uuid().optional(),
