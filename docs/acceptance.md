@@ -234,3 +234,19 @@ Final focused batch on the final build: 23 UI spec files, 63 tests passed, 0 fai
 | F12.1 | `qr-export` unit (5) and UI (2) |
 
 Owner checks outstanding: visual acceptance of the chain colours on the neutral dark surfaces and the captures (U18.5); comparison prominence and return-to-store in live use (U19.4); a phone-camera scan of a short and a long QR list plus copy/share and save (F12.1); the optional live edit-interpretation check at no more than two ChatGPT requests per edit (F17.8); and an optional live recipe import, one request or two with a repair (F10.2).
+
+## v0.9.0 Simple card evidence
+
+Source fixture evidence on branch `claude/project-thread-ahxe8n`, not merged to main and not a release-readiness claim. Zero live AI requests, zero real retailer accounts and zero retailer writes except the single explicit fixture transfer of the repeat journey. The full release flow has not been run for v0.9.0. Details and the coverage table: [receipt-learning-evaluation.md](receipt-learning-evaluation.md).
+
+| Cards | Evidence |
+| --- | --- |
+| F6.6 | `tests/receipt-fixtures.test.ts` (10) over 25 invented receipts |
+| F6.16, F6.21 | `tests/ui/receipt-review.spec.ts` (FI and EN): local import, duplicate, broken file, one grouped review, correction that survives a reload, deletion, consent off and revoked, one explicit enrichment request, usage-limit retry with facts intact, 800 px |
+| F6.3, F6.4 | `tests/ui/purchase-suggestions.spec.ts` (3) and `tests/purchase-histories.test.ts` (3) |
+| F8.1, F8.2 | `tests/spending.test.ts` (5) and `tests/ui/spending-history.spec.ts` (FI and EN) |
+| U5.2 | `tests/ui/purchase-link-review.spec.ts` (3); strong, conflicting and similar-trip cases stay in `tests/purchase-links.test.ts` |
+| F18.2, F18.4, F18.5 | `tests/memory-context.test.ts` (2), `tests/ui/repeat-list.spec.ts` (FI and EN), `tests/ui/purchase-journey.spec.ts` |
+| F6.20 | `tests/ui/purchase-journey.spec.ts` plus the existing evidence listed in the evaluation document |
+
+Owner checks outstanding: that the History chart and the suggestions read clearly with real receipts, and that an unfamiliar real receipt layout is parsed or honestly marked unsupported. Optional live checks: one receipt enrichment request per receipt, and "the usual" planning requests, at most two requests with a repair.

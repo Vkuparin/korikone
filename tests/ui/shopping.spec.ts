@@ -398,7 +398,7 @@ test("explicit updates discard an obsolete response until the next requested upd
 });
 
 // Exercises the Electron IPC and its built PDF worker, not only the Node helper.
-test("PDF receipt import reaches settings and invalid import preserves saved text", async () => {
+test("PDF receipt import reads locally, an unrecognised layout saves nothing and invalid import preserves typed text", async () => {
   const app = await launch();
   try {
     const page = await app.firstWindow();
@@ -424,9 +424,12 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
         exact: true,
       })
       .click();
-    await expect(page.getByLabel("Kuittien ostosrivit")).toContainText(
-      "Yogurtti 2.49",
-    );
+    // The local reader got the text, but no supported layout was found: nothing is saved.
+    await expect(
+      page.getByText(
+        "Tiedostoa ei tunnistettu kuitiksi. Mitään ei tallennettu.",
+      ),
+    ).toBeVisible();
     await page.getByLabel("Kuittien ostosrivit").fill("Unsaved receipt lines");
     await settingsCategory(page, "household", "Kotitalous");
     await settingsCategory(page, "data", "Tiedot");
@@ -449,7 +452,7 @@ test("PDF receipt import reaches settings and invalid import preserves saved tex
     expect(
       (await page.evaluate(async () => window.korikone.load())).value.state
         .receiptText,
-    ).toContain("Yogurtti 2.49");
+    ).toBe("");
   } finally {
     await app.close();
   }

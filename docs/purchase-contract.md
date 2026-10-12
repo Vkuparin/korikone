@@ -201,3 +201,23 @@ IPC `repeatList({ historyId, revision })` (`Service.repeatList`, `src/domain/rep
 `snapshot.repeat` (`RepeatResult`, for the revision it created only): `historyId`, `revision`, `transferredAt`, `rows`, `unresolvedRows`, `storeChanged`, `partialHistory`, `missingRecipes`, and, at the same store only, `changedPrices` (`name`, `before`, `now`) and `notSelected` (transferred products the fresh quote did not choose). A wrong revision is `draftStale`, an unknown entry `historyMissing`, and a failed catalogue read leaves the current list untouched. An unchanged repeat has the same batch key as the verified transfer, so the existing duplicate guard still applies; a changed one needs its own approval.
 
 Fixtures: `tests/repeat.test.ts` (4) and the IPC check in `tests/ui/receipt-import-api.spec.ts`.
+
+## Screens, history and context (F6.16, F6.21, F6.3, F6.4, F8.1, F8.2, U5.2, F18.2, F18.4)
+
+| Where | What | Source |
+| --- | --- | --- |
+| Settings, Data | Local receipt import (`importPurchaseReceipt({ keepOriginal })`), summary of `snapshot.purchaseImport`, printed totals and balance, one grouped review of uncertain rows with correct, interpret or accept and skip, deletion by scope with one inline confirmation for a whole purchase, `importLegacyReceipts()` while `receipts.legacy` is not null | `src/ui/receipts.tsx` |
+| Settings, Data | Optional enrichment: disclosure of the provider and data scope, first-import opt-in, the durable checkbox (`setReceiptConsent`), one-receipt action (`enrichPurchase`), the `receiptEnrichment` status with counts and an explicit retry | `src/ui/receipts.tsx` |
+| Settings, Data | What was learned (`purchaseInsights().aliases`, confirmed or model-only) and "forget all interpretations", which deletes with scope `annotations` and keeps every receipt and total | `src/ui/purchase-memory.tsx` |
+| Shopping, "Unohtuiko jotain?" | `insights.suggestions` with weeks, gap, visits, period and `typical` or "unknown"; accept is the existing staple save with the shopper's amount, dismiss is `dismissSuggestion` | `src/ui/suggestions.tsx` |
+| History | Twelve weeks from `spendingWeeks(actualPurchases, transfers, now, { confirmedTransferIds })` as plain SVG and a text table; weekly budget line; unknown totals hatched and counted; printed food and non-food shown only where printed; undated purchases listed apart; unconfirmed transfers a separate dashed estimate | `src/domain/spending.ts`, `src/ui/spending-chart.tsx` |
+| History | `insights.linkReview` as "Is this the same purchase?" with `decidePurchaseLink`, and a per-transfer signal from `snapshot.purchaseSignals` (confirmed, waiting, or "not a confirmed purchase") | `src/ui/purchase-links.tsx` |
+| History and empty list | `repeatList` with a confirmation when a list is in progress, and `RepeatSummary` from `snapshot.repeat`; labelled as a transfer, not a purchase | `src/ui/repeat.tsx` |
+
+**Weeks.** `spendingWeeks` runs Monday to Sunday from the UTC date stored on the purchase. A week's `actual` is the sum of known totals of `actualPurchases` only; `unknownTotals`, `conflicting`, `coverage` (`complete`, `partial`, `none`) and the `breakdown` counters keep what is missing visible. A transfer confirmed by a purchase is left out of the estimate by `confirmedTransferIds`, and a transferred product with no recorded price counts in `unknownItems`, so the estimate is then a lower bound.
+
+**Model context (F18.2).** `observationsApply(request)` is true only for a request that asks for the usual (usual, regulars, like last time, tavalliset, yleensä, kuten viimeksi and similar). Only then does `Service.planShopping` read `observedSummaries(memory)` fresh and pass it through `PlanningDependencies.observedSummaries` to `interpretPlanning`; any other request gets an empty array. The summaries are the confirmed, repeated category aliases of F18.1 with no category that has a saved preference. A deleted interpretation, event or preference is gone from the next request because nothing is cached.
+
+**Development histories.** Scenario `history` adds `demoWeeklyOrders(now)` to the S-kaupat stand-ins' order history; see [receipt-learning-evaluation.md](receipt-learning-evaluation.md#development-histories-f64). `PurchaseStore.importOrders` now writes the local rule interpretations of order labels as receipt import does.
+
+Fixtures: `tests/ui/receipt-review.spec.ts` (2), `tests/purchase-histories.test.ts` (3), `tests/ui/purchase-suggestions.spec.ts` (3), `tests/spending.test.ts` (5), `tests/ui/spending-history.spec.ts` (2), `tests/ui/purchase-link-review.spec.ts` (3), `tests/ui/repeat-list.spec.ts` (2), `tests/memory-context.test.ts` (2) and `tests/ui/purchase-journey.spec.ts` (1).
