@@ -2,6 +2,7 @@ import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import type { RetailerOrder } from "../domain/order-evidence";
 import { retailerEvidence } from "./candidates";
+import { pizzaPackageContent } from "../domain/package-content";
 import { SKaupatProvider } from "./s-kaupat";
 import { setTimeout as delay } from "node:timers/promises";
 // The optional last entry is a search word the store also answers with this product.
@@ -379,6 +380,7 @@ export class DemoProvider implements StoreProvider {
           name,
           packAmount,
           unit,
+          packageContent: pizzaPackageContent(name),
           price:
             price === null
               ? null

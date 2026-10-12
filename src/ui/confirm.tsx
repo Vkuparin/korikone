@@ -6,7 +6,7 @@ import { compareTransfers, hasChanges } from "../domain/changes";
 import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { en, fi, unitLabel, type Key } from "./i18n";
-import { approximateCost } from "../domain/planner";
+import { priceMetrics } from "../domain/price-ranking";
 
 const chainName = (review: Review) =>
   review.context.providerId === "k-ruoka"
@@ -38,11 +38,7 @@ export function attention(
       )
       .map((p) => ({
         product: p,
-        total:
-          approximateCost(line.requirement, p) ??
-          Math.ceil(line.requirement.amount / p.packAmount / p.increment) *
-            p.increment *
-            (p.price! + p.deposit),
+        total: priceMetrics(line.requirement, p)?.payable ?? Infinity,
       }))
       .sort((a, b) => a.total - b.total)[0];
     return best && best.total < line.total

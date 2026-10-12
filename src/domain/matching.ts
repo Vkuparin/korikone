@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { packageAmount } from "./package-content";
 import {
   categorySchema,
   classificationSchema,
@@ -302,7 +303,11 @@ function assess(
     else if (term && product.name.toLocaleLowerCase("fi").includes(term))
       return reject("excluded");
   }
-  if (product.packAmount > 0 && product.unit !== requirement.unit)
+  if (
+    product.packAmount > 0 &&
+    packageAmount(product, requirement.unit) === null &&
+    approximateCost(requirement, product) === null
+  )
     return reject("unit");
   if (!policy.category) {
     if (!relevant(product.name, requirement.name)) return reject("name");
@@ -388,7 +393,7 @@ export function purchasable(
     product.price < 0 ||
     !Number.isSafeInteger(product.deposit) ||
     product.deposit < 0 ||
-    product.unit !== requirement.unit ||
+    packageAmount(product, requirement.unit) === null ||
     !Number.isFinite(product.packAmount) ||
     product.packAmount <= 0 ||
     !Number.isFinite(product.increment) ||
@@ -398,8 +403,11 @@ export function purchasable(
   )
     return false;
   const packs =
-    Math.ceil(requirement.amount / product.packAmount / product.increment) *
-    product.increment;
+    Math.ceil(
+      requirement.amount /
+        packageAmount(product, requirement.unit)! /
+        product.increment,
+    ) * product.increment;
   return (
     Number.isFinite(packs) &&
     Number.isSafeInteger(Math.round(packs * (product.price + product.deposit)))

@@ -1,4 +1,6 @@
 import { candidateSuitability, purchasable } from "../domain/matching";
+import { packageAmount } from "../domain/package-content";
+import { priceMetrics } from "../domain/price-ranking";
 import { currentOffer } from "../domain/prices";
 import { matchingReasonLabel } from "./matching-reasons";
 import { GroupedReview } from "./grouped-review";
@@ -1870,17 +1872,15 @@ export function ShoppingWorkspace({
                   const home = state.skipped.includes(key);
                   const step =
                     line?.product && !line.approximate
-                      ? line.product.packAmount * line.product.increment
+                      ? (packageAmount(line.product, r.unit) ?? 1) *
+                        line.product.increment
                       : r.unit === "pcs"
                         ? 1
                         : 100;
                   const count =
                     line?.product && !line.approximate ? line.packs : r.amount;
                   const cost = (p: Product) =>
-                    approximateCost(r, p) ??
-                    Math.ceil(r.amount / p.packAmount / p.increment) *
-                      p.increment *
-                      (p.price! + p.deposit);
+                    priceMetrics(r, p)?.payable ?? Infinity;
                   const cheaper = line?.candidates
                     .filter(
                       (p) =>

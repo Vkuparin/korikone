@@ -1,4 +1,5 @@
 import { canonicalFoodWords, sameFoodState } from "./food-synonyms";
+import { packageAmount } from "./package-content";
 import type { AppState, BasketLine, Product, Requirement } from "./model";
 import { classificationKey } from "./categories";
 import { pieceQuote, approximateCost } from "./product-price";
@@ -22,14 +23,17 @@ export function transferableLine(line: BasketLine): boolean {
       p.price < 0 ||
       !Number.isSafeInteger(p.deposit) ||
       p.deposit < 0 ||
-      p.unit !== line.requirement.unit ||
+      packageAmount(p, line.requirement.unit) === null ||
       p.packAmount <= 0 ||
       p.increment <= 0
     )
       return false;
     const packs =
-      Math.ceil(line.requirement.amount / p.packAmount / p.increment) *
-      p.increment;
+      Math.ceil(
+        line.requirement.amount /
+          packageAmount(p, line.requirement.unit)! /
+          p.increment,
+      ) * p.increment;
     return (
       Number.isFinite(packs) &&
       packs > 0 &&
@@ -183,7 +187,7 @@ export function match(
     (p) =>
       p.ingredientId === requirement.id &&
       // A product without a readable pack size stays listed so the shopper can confirm it.
-      (p.unit === requirement.unit ||
+      (packageAmount(p, requirement.unit) !== null ||
         p.packAmount === 0 ||
         approximateCost(requirement, p) !== null),
   );
@@ -214,9 +218,7 @@ export function match(
     product && approximate
       ? (pieceQuote(requirement, product)?.pieces ?? 0)
       : product
-        ? Math.ceil(
-            requirement.amount / product.packAmount / product.increment,
-          ) * product.increment
+        ? priceMetrics(requirement, product)!.packs
         : 0;
   return {
     priceBasis,

@@ -28,6 +28,11 @@ function sameSuitability(
   allowPriceChange = false,
 ): boolean {
   const original = line.product!;
+  if (
+    JSON.stringify(original.packageContent) !==
+    JSON.stringify(fresh.packageContent)
+  )
+    return false;
   const pricingFacts = (p: Product) => {
     if (!allowPriceChange || !p.cataloguePricing) return p.cataloguePricing;
     const { amount: _amount, ...facts } = p.cataloguePricing;
