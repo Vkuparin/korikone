@@ -1968,25 +1968,94 @@ export class Service {
     )
       throw new Error("unresolved");
     const context = this.state.context;
-    return this.refreshAfterChange(() =>
-      this.writeState(() =>
-        this.saveState(
-          {
-            ...this.state,
-            correctionHolds: this.state.correctionHolds.filter(
-              (key) => key !== correctionKey(context, line!.requirement),
-            ),
-            accepted: {
-              ...this.state.accepted,
-              [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
-                productId,
-              ],
-            },
-          },
-          true,
-        ),
+    const chosen = () => ({
+      ...this.state,
+      correctionHolds: this.state.correctionHolds.filter(
+        (key) => key !== correctionKey(context, line!.requirement),
       ),
-    );
+      accepted: {
+        ...this.state.accepted,
+        [`${context.providerId}:${context.storeId}:${ingredientId}`]: [
+          productId,
+        ],
+      },
+    });
+    // Without a quote there is nothing to reuse, and without an all-or-nothing write the row
+    // and its quote cannot be saved together: the choice is then saved and priced as before.
+    if (this.quotedAt === null || !this.db.setMany)
+      return this.refreshAfterChange(() =>
+        this.writeState(() => this.saveState(chosen(), true)),
+      );
+    // The product was read for this row with the quote on screen, so only this row changes:
+    // it is matched again from its own candidates and every other row keeps its line. Nothing is
+    // searched. Current prices are still checked before anything is sent to the store.
+    return this.writeState(async () => {
+      this.assertNoProvisionalTransfer();
+      if (this.busy || this.transferPending) throw new Error("busy");
+      const next = stateSchema.parse({
+        ...chosen(),
+        revision: this.state.revision + 1,
+      });
+      const rowKey = `${line!.requirement.id}:${line!.requirement.unit}`;
+      const rows = new Map(
+        this.basket.map((l) => [
+          `${l.requirement.id}:${l.requirement.unit}`,
+          l,
+        ]),
+      );
+      const basket = requirements(next).map((requirement) => {
+        const key = `${requirement.id}:${requirement.unit}`;
+        const previous = rows.get(key);
+        if (!previous) throw new Error("draftStale");
+        if (key !== rowKey) return structuredClone(previous);
+        return matchRequirement(
+          requirement,
+          applyPackSizes(previous.candidates, next.packSizes),
+          {
+            context: next.context,
+            sourceNote: next.note,
+            preferences: next.categoryPreferences,
+            holds: next.correctionHolds,
+            accepted: [productId],
+            exclusions: exclusionTerms(next.household.exclusions),
+            productPreference: next.productPreference,
+            priceBasis: next.priceBasis,
+          },
+        );
+      });
+      const quote = restoredQuote(
+        persistedQuoteSchema.parse({
+          key: pricingKey(next),
+          context: next.context,
+          quotedAt: this.quotedAt,
+          pickupFee: this.pickupFee,
+          basket,
+        }),
+        next,
+      );
+      if (!quote) throw new Error("draftStale");
+      await this.writeAtomically([
+        { key: "state", value: next },
+        {
+          key: "last-quote",
+          value: {
+            key: quote.key,
+            context: quote.context,
+            basket: quote.basket,
+            pickupFee: quote.pickupFee,
+            quotedAt: quote.quotedAt,
+          },
+        },
+      ]);
+      this.planning.invalidateFor(next);
+      this.state = next;
+      this.basket = quote.basket;
+      this.review = null;
+      this.comparison = null;
+      this.transferException = null;
+      this.pricingError = null;
+      return this.snapshot();
+    });
   }
   /** Explicit correction changes a retained row, never a retailer cart or inference task. */
   async correctRow(input: unknown) {

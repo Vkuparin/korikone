@@ -71,6 +71,15 @@ test("a list row opens its product details and can change the product", async ()
     const replacement = details.getByRole("button", {
       name: "Käytä kerran: Kotimaista kanan jauheliha 4% 400 g",
     });
+    const counters = async () => {
+      const value = (await page.evaluate(() => window.korikone.load())).value;
+      return [
+        value.developmentCatalogueRequests,
+        value.developmentRequests,
+        value.developmentStoreWrites,
+      ];
+    };
+    const before = await counters();
     await replacement.focus();
     await page.keyboard.press("Enter");
     const chosen = list.getByRole("button", {
@@ -81,6 +90,14 @@ test("a list row opens its product details and can change the product", async ()
     await expect(details).toHaveCount(0);
     await expect(chosen).toHaveAttribute("aria-expanded", "false");
     await expect(chosen).toBeFocused();
+    // The product was already read for this row: choosing it searched nothing, asked no model
+    // and wrote nothing to the store, and the choice is saved.
+    expect(await counters()).toEqual(before);
+    const saved = (await page.evaluate(() => window.korikone.load())).value;
+    expect(
+      saved.basket.find((l) => l.requirement.name === "Jauheliha")?.product
+        ?.name,
+    ).toBe("Kotimaista kanan jauheliha 4% 400 g");
   } finally {
     await app.close();
   }
