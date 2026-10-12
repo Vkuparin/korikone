@@ -2,11 +2,11 @@
 
 A local Windows app that turns a shopping note into meals, groceries and a priced list.
 
-The current source includes explicitly requested note interpretation, automatic product choices, editable shopping rows, recipes, an optional meal schedule, transfer history and PDF receipt import. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
+The current source includes explicit note updates, product matching, contextual list edits and local Undo, recipes, structured receipt/order purchase history, recurring suggestions and repeat shopping. It supports Finnish and English, two demo stores, and K-Ruoka and S-kaupat adapters. Checkout is always manual.
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.6.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.6.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.6.0 verification](docs/release-0.6.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.9.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.9.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.9.0 verification](docs/release-0.9.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -62,11 +62,11 @@ npm run package
 
 - Korikone is an alpha pre-release for early testing. Remaining release gates are listed in [acceptance](docs/acceptance.md).
 - Authorized live checks confirmed both embedded sessions after restart, small transfers and duplicate-safe reopening. They used zero ChatGPT requests. Fresh sign-in and expiry have fixture coverage and earlier owner observations.
-- Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press *Lisää kaikki ostoskoriin* on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks, and live acceptance confirmed the account list and retained quantities after restart. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
-- Weighted pricing and ambiguous pack sizes remain unresolved for both chains. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
+- Korikone writes approved products to a shopping list called **Korikone** on the S-kaupat account; you then press _Lisää kaikki ostoskoriin_ on the site and check out there. Korikone never uses s-kaupat-mcp's ordering or payment tools. The pinned adapter passes offline checks, and live acceptance confirmed the account list and retained quantities after restart. See [S-kaupat integration](docs/s-kaupat-mcp-plan.md).
+- Known pack and price evidence is shown explicitly; missing or ambiguous pack sizes remain unresolved until supported or confirmed. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
-- Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Complete price handling is planned for v0.7.0 after the v0.6.0 design release; see the [roadmap](docs/roadmap.md).
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.6.0 verification](docs/release-0.6.0.md).
+- Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Known prices, deposits, fees and comparable changes are shown; unsupported values remain unknown. See the [roadmap](docs/roadmap.md).
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.9.0 verification](docs/release-0.9.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

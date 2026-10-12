@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.9.0 — pre-release, 12 October 2026
+
+- Import local PDF/TXT/CSV receipts into structured purchase history with printed totals, reconciliation, duplicate detection and grouped correction/review. Facts are parsed locally; optional AI enrichment requires consent and sends sanitized ambiguous labels.
+- Read supported completed S-kaupat orders, suggest recurring groceries from purchase evidence, show actual spending and repeat a previous list without AI generation. Transfers alone never count as purchases or create remembered preferences.
+- Add or update meals and groceries together on the current list; keep explicit New list for replacement. Support Finnish quantity words and contextual additions.
+- Keep the first price search explicit. Remove items/meals and clear the list locally with Undo; change household size inline and scale current meals.
+- Improve progress/failure feedback, chicken-strip synonyms, alternatives collapsing after selection, house-icon help, language-selector consistency and button spacing. Drain a locked planning commit safely during shutdown.
+
+Installation and updates remain manual. Export a backup before upgrading. Textless/scanned receipts still need external OCR; unsupported receipt layouts and uncertain facts require review. Optional live AI/order/retailer acceptance and clean-machine install/upgrade/signing gates remain open. Checkout/payment and S-kaupat's slot-reserving add-all action stay manual. No local-model runner or mobile sync is included.
+
+See [release verification](docs/release-0.9.0.md) for checks, package checksum and remaining live/installer acceptance.
+
 ## 0.6.0 — pre-release, 10 October 2026
 
 - Refresh the shopping workspace with clearer product rows, a compact note composer and a transfer footer that stays separate from scrolling rows. Explicit updates and verified, duplicate-safe store transfers remain available.
@@ -33,17 +45,17 @@
 
 - Manual grocery additions accept decimal kg/l amounts and merge matching names and units into existing recipe rows. Added quantities also increase an explicit row override. Invalid amounts preserve the list and input.
 - The total and the transfer button, which now shows the total, stay at the bottom of the shopping list while the list scrolls on its own. The list notes, fee and export buttons sit above them.
-- *Vertaa kauppoja* moved into the pinned bar. After a comparison the bar shows the result, for example "K-Ruoka 2,10 € halvempi · Vertaa", which opens the full comparison until the list changes.
+- _Vertaa kauppoja_ moved into the pinned bar. After a comparison the bar shows the result, for example "K-Ruoka 2,10 € halvempi · Vertaa", which opens the full comparison until the list changes.
 - Transfer exceptions and results stay in the list column. Missing products, existing quantities and budget overruns require a decision; changed prices or packs require a refreshed quote and new approval. Cheaper alternatives remain on the shopping rows.
-- Clicking a product name on the list opens its details under the row: needed and bought amounts, what is left over, why the product was chosen, unit prices and deposits, and the other products with *Valitse tuote*.
-- The Ostoskori page is gone. Its details are on the list rows, the transfer is confirmed in the list column, and an interrupted transfer is shown in the total bar with a *Tarkista* button that leads to recovery.
+- Clicking a product name on the list opens its details under the row: needed and bought amounts, what is left over, why the product was chosen, unit prices and deposits, and the other products with _Valitse tuote_.
+- The Ostoskori page is gone. Its details are on the list rows, the transfer is confirmed in the list column, and an interrupted transfer is shown in the total bar with a _Tarkista_ button that leads to recovery.
 - Quieter list rows: the home and remove buttons appear on hover or keyboard focus, and alternatives moved into the row details. A row shows only "Edullisempi vaihtoehto" with the saving. At live stores a look-alike, such as chicken mince for mince, is no longer offered as a cheaper option.
-- Vakiotuotteet left the navigation. Edit regular items from Asetukset or from *Muokkaa vakiotuotteita* under "Unohtuiko jotain?".
+- Vakiotuotteet left the navigation. Edit regular items from Asetukset or from _Muokkaa vakiotuotteita_ under "Unohtuiko jotain?".
 - Secondary text (hints, store name, help lines, list details) is darker and meets WCAG AA contrast, 4.5:1, on every background. A unit test checks the stylesheet.
-- Both chains can stay signed in. Settings lists K-Ruoka and S-kaupat with their own store, sign-in and *Use this store*; switching chains keeps the other chain's store and login. Setup offers the other chain after the first sign-in.
-- *Compare stores* under the list total prices the same list at the other chain without touching either cart, the saved list or a pending transfer. It shows the total for the items priced at both, all priced items with the missing count, known deposits and the three largest differences, and can switch to the other chain. Delivery fees are not included.
+- Both chains can stay signed in. Settings lists K-Ruoka and S-kaupat with their own store, sign-in and _Use this store_; switching chains keeps the other chain's store and login. Setup offers the other chain after the first sign-in.
+- _Compare stores_ under the list total prices the same list at the other chain without touching either cart, the saved list or a pending transfer. It shows the total for the items priced at both, all priced items with the missing count, known deposits and the three largest differences, and can switch to the other chain. Delivery fees are not included.
 - S-kaupat pickup fees: the list total shows the store's pickup fee range, which depends on the pickup time, and the comparison has a pickup fee row. Korikone reads it with s-kaupat-mcp's read-only `get_delivery_options`, without choosing a time. Home delivery fees and all K-Ruoka fees stay "not known"; home delivery would need your address, which Korikone does not ask for.
-- S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. Korikone now pins s-kaupat-mcp 1.2.0 and keeps its S-kaupat login for its own data folder (`SKAUPAT_LOGIN_SCOPE=data-dir`), so *Open store cart* opens the same signed-in window and signing in or out in Korikone no longer touches other apps on the PC. Existing users are asked to sign in once more. Confirmed by the owner on a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
+- S-kaupat sign-in now counts only after the store's login window has completed in Korikone's own data folder. Korikone now pins s-kaupat-mcp 1.2.0 and keeps its S-kaupat login for its own data folder (`SKAUPAT_LOGIN_SCOPE=data-dir`), so _Open store cart_ opens the same signed-in window and signing in or out in Korikone no longer touches other apps on the PC. Existing users are asked to sign in once more. Confirmed by the owner on a live account ([#3](https://github.com/Vkuparin/korikone/issues/3)).
 - Added the live acceptance note (makaronilaatikko) as a fixture, with the look-alike products a store search returns: garlic for onion, lemon pepper for black pepper, chicken mince, a ready meal and M10 egg packs. Development-mode checks cover product choice, Finnish units, tidied names and the account name in cart review.
 
 ## 0.2.0-alpha.3 — 9 October 2026

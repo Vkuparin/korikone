@@ -63,9 +63,16 @@ test("manual query miss retrieves an unknown onion type for approval and retains
       category: "onion",
       family: "onion",
     });
-    await expect(
-      page.getByRole("region", { name: "Tiedot: Sipulia" }),
-    ).toContainText("Ostetaan: 1 pakkaus, 500 g");
+    const chosen = row.getByRole("button", {
+      name: "Kotimaista sipuli 500 g",
+      exact: true,
+    });
+    const details = page.getByRole("region", { name: "Tiedot: Sipulia" });
+    await expect(details).toHaveCount(0);
+    await expect(chosen).toHaveAttribute("aria-expanded", "false");
+    await expect(chosen).toBeFocused();
+    await chosen.click();
+    await expect(details).toContainText("Ostetaan: 1 pakkaus, 500 g");
     await app.close();
     app = await electron.launch({ args: ["."], env });
     page = await app.firstWindow();

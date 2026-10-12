@@ -175,6 +175,9 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByRole("button", { name: tr("Kumoa", "Undo"), exact: true })
         .click();
+      await expect
+        .poll(async () => (await load()).state.household.servings)
+        .toBe(4);
       const undone = await load();
       expect(undone.state.household.servings).toBe(4);
       expect(undone.state.meals[0].servings).toBe(4);

@@ -1886,9 +1886,26 @@ summary:focus-visible,
   border-top: 1px solid var(--kk-border);
 }
 /* Help for the at-home button: always shown for a row at home, on hover or focus otherwise. */
+.grocery-row {
+  position: relative;
+}
 .grocery-row .home-help {
   display: none;
   max-width: 60ch;
+}
+/* Hover/focus help must not reflow the row under the pointer before a click. */
+.grocery-row:not(.at-home) .home-help {
+  position: absolute;
+  left: 44px;
+  right: 44px;
+  bottom: calc(100% + 4px);
+  z-index: 20;
+  padding: 8px 10px;
+  background: var(--kk-surface);
+  border: 1px solid var(--kk-control-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--kk-menu-shadow);
+  pointer-events: none;
 }
 .grocery-row.at-home .home-help,
 .grocery-row:has(.home-button:hover) .home-help,

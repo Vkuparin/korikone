@@ -99,9 +99,17 @@ test("removing a row and a meal in the list is immediate, keeps other prices and
     expect(afterMeal.editUndoAvailable).toBe(true);
 
     // Marking a row at home is local as well.
-    await list
-      .getByRole("button", { name: "Löytyy kotoa: Pasta", exact: true })
-      .click();
+    const home = list.getByRole("button", {
+      name: "Löytyy kotoa: Pasta",
+      exact: true,
+    });
+    await page.mouse.move(0, 0);
+    const beforeHover = await home.boundingBox();
+    await home.hover();
+    await expect(home.locator("..").locator(".home-help")).toBeVisible();
+    // Help is out of flow: showing it cannot move the actual pointer target.
+    expect(await home.boundingBox()).toEqual(beforeHover);
+    await home.click();
     await expect
       .poll(async () => (await load()).state.skipped)
       .toEqual(["pasta:g"]);

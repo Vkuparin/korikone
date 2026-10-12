@@ -249,7 +249,9 @@ test("the live acceptance note shows Finnish units, tidy names and the account n
       "Meira Mustapippuri jauhettu 25g",
       "Kotimaista vapaan kanan munat M10",
     ])
-      await expect(list.getByText(product, { exact: true })).toBeVisible();
+      await expect(
+        list.getByRole("button", { name: product, exact: true }),
+      ).toBeVisible();
     await expect(list).toContainText("Makaronilaatikko2 kpl");
     await expect(list).not.toContainText("pcs");
     await expect(page.locator("body")).not.toContainText("MakaronI");

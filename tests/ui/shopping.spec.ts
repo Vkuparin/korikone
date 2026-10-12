@@ -611,7 +611,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveAttribute("aria-atomic", "true");
       await page.evaluate(() =>
-        window.korikone.developmentScenario("delayedSuccess"),
+        window.korikone.developmentScenario("pendingSuccess"),
       );
       await note.press("Control+Enter");
       await expect(status).toHaveText(
