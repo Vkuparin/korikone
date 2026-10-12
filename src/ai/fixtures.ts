@@ -7,6 +7,11 @@ import { resolutionRequestSchema } from "../domain/resolution";
 import { planningFixtureReply } from "./planning-fixtures";
 import { EDIT_DATA_MARKER, EDIT_PROMPT_PREFIX } from "./edit";
 import { editFixtureReply } from "./edit-fixtures";
+import {
+  RECEIPT_DATA_MARKER,
+  RECEIPT_PROMPT_PREFIX,
+  receiptFixtureReply,
+} from "./receipt-enrichment";
 
 import { aiScenarios } from "./scenarios";
 export { aiScenarios } from "./scenarios";
@@ -147,6 +152,10 @@ export class FixtureAI {
         })),
       });
     }
+    if (input.startsWith(RECEIPT_PROMPT_PREFIX))
+      return JSON.stringify(
+        receiptFixtureReply(JSON.parse(input.split(RECEIPT_DATA_MARKER)[1])),
+      );
     const editData = input.startsWith(EDIT_PROMPT_PREFIX)
       ? input.split(EDIT_DATA_MARKER)[1]
       : undefined;

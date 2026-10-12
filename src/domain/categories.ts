@@ -207,3 +207,16 @@ export function classificationKey(c: Classification | undefined): string {
     ...c.qualifiers.map((q) => [q.kind, q.value, q.provenance]).sort(),
   ]);
 }
+
+/** Whether the text itself names this qualifier value. Used where a claim needs printed evidence. */
+export function qualifierEvidenced(
+  kind: Qualifier["kind"],
+  value: string,
+  text: string,
+): boolean {
+  return qualifierWords[`${kind}:${value}`]?.test(text) === true;
+}
+/** Qualifier kinds a category may carry. */
+export const categoryQualifierKinds = (category: Category) => [
+  ...allowed[category],
+];
