@@ -691,11 +691,16 @@ else
         });
       },
       approveDraft: () =>
-        service.refreshAfterChange(() => service.approveDraft()),
+        service.refreshAfterChange(() => service.approveDraft(), {
+          explicit: true,
+        }),
       confirmPurchase: () =>
         service.refreshAfterChange(() => service.confirmPurchase()),
       newWeek: () => service.refreshAfterChange(() => service.newWeek()),
-      reuseWeek: () => service.refreshAfterChange(() => service.reuseWeek()),
+      reuseWeek: () =>
+        service.refreshAfterChange(() => service.reuseWeek(), {
+          explicit: true,
+        }),
       buildBasket: () => service.buildBasket(),
       compareStores: () => service.compareStores(),
       getContextOptions: (input) => service.getContextOptions(input),

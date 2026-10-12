@@ -132,6 +132,12 @@ test("changed quantities and stores invalidate incompatible cached quotes", asyn
       context: { ...restarted.state.context, providerId: "demo-s" },
     }),
   );
+  // B1.2: a store change on a list with no current quote reads nothing by itself.
+  expect(restarted.basket).toEqual([]);
+  expect(
+    (restarted.registry.get("demo-s") as DemoProvider).searchRequests,
+  ).toBe(0);
+  await restarted.buildBasket();
   expect(restarted.basket[0].product?.providerId).toBe("demo-s");
   expect(restarted.basket[0].packs).toBe(2);
   expect(

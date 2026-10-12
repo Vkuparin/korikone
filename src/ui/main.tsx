@@ -85,6 +85,7 @@ function App() {
     developmentAIProvider: null,
     developmentCatalogueRequests: 0,
     state: initialState(),
+    pricingState: "empty",
     basket: [],
     quotedAt: null,
     pricingError: null,

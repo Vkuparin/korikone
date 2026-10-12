@@ -1022,6 +1022,15 @@ export class Service {
             )
         : 0,
       state: this.state,
+      // empty: nothing to buy. quoted: prices are shown. failed: the last read failed.
+      // unpriced: rows exist and nothing has been read for them; only the shopper starts that.
+      pricingState: !requirements(this.state).length
+        ? ("empty" as const)
+        : this.quotedAt !== null
+          ? ("quoted" as const)
+          : this.pricingError
+            ? ("failed" as const)
+            : ("unpriced" as const),
       basket: this.basket,
       cheaperProductIds: this.basket.flatMap((line) =>
         line.product && cheaperThanUsual(line.product, this.observedPrices)
@@ -1351,6 +1360,18 @@ export class Service {
           context,
           revision: this.state.revision + 1,
         });
+        // A list that has never been priced is not searched just because its store changed.
+        if (this.quotedAt === null) {
+          await this.db.set("state", next);
+          this.state = next;
+          this.review = null;
+          this.comparison = null;
+          this.contextOptions = null;
+          this.basket = [];
+          this.pickupFee = null;
+          this.pricingError = null;
+          return this.snapshot();
+        }
         const basket = await this.price(context, next);
         this.fees.delete(`${context.providerId}:${context.storeId}`);
         const pickupFee = basket.length ? await this.readFee(context) : null;
@@ -1511,9 +1532,20 @@ export class Service {
     return this.snapshot();
   }
   /** Explicit list operations refresh incompatible quotes; opening a view never calls this. */
-  async refreshAfterChange(operation: () => Promise<unknown>) {
+  async refreshAfterChange(
+    operation: () => Promise<unknown>,
+    options: { explicit?: boolean } = {},
+  ) {
     const key = pricingKey(this.state);
+    const before = this.state.context;
+    const hadQuote = this.quotedAt !== null;
     await operation();
+    // Choosing or connecting a store is not a request for prices. A list that was never priced
+    // stays unpriced through it, until the shopper asks; a priced list follows its store.
+    const storeOnly =
+      key !== pricingKey(this.state) &&
+      key === pricingKey({ ...this.state, context: before });
+    if (storeOnly && !hadQuote && !options.explicit) return this.snapshot();
     if (key !== pricingKey(this.state)) {
       try {
         return await this.buildBasket();
