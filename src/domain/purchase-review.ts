@@ -290,6 +290,9 @@ export function purchaseView(ledger: PurchaseLedger) {
         retention: sources.some((s) => s.retention === "original")
           ? ("original" as const)
           : ("sanitized" as const),
+        ocrPages: [...new Set(sources.flatMap((s) => s.ocrPages ?? []))].sort(
+          (a, b) => a - b,
+        ),
         unreadableLines: sources.reduce((n, s) => n + s.unreadableLines, 0),
         lines,
         adjustments: event.adjustments,

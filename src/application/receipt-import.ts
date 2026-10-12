@@ -116,7 +116,11 @@ export class ReceiptImportCoordinator {
   async import(
     text: string,
     format: "pdf" | "txt" | "csv",
-    options: { keepOriginal?: boolean; ai?: ReceiptAI | null } = {},
+    options: {
+      keepOriginal?: boolean;
+      ai?: ReceiptAI | null;
+      ocrPages?: number[];
+    } = {},
   ): Promise<{
     receipt: ReceiptImport;
     enrichment: ReceiptEnrichmentStatus | null;

@@ -41,7 +41,7 @@ export const en = {
   developmentScenario: "AI fixture scenario",
   developmentRequired: "This test launch requires development mode.",
   receiptNoText:
-    "This PDF has no readable text. For a scanned receipt, export a searchable PDF with OCR first, or paste its purchase lines.",
+    "No readable receipt text was found, including local OCR of scanned pages. Try a clearer PDF or paste its purchase lines.",
   receiptUnreadable:
     "The receipt could not be read. Check that the PDF is valid and not password protected.",
   receiptTooLarge:
@@ -351,7 +351,7 @@ export const fi: Record<Key, string> = {
   developmentScenario: "Tekoälyn testitapaus",
   developmentRequired: "Tämä testikäynnistys edellyttää kehitystilaa.",
   receiptNoText:
-    "PDF ei sisällä luettavaa tekstiä. Tee skannatulle kuitille tekstintunnistus (OCR) tai liitä ostosrivit tekstinä.",
+    "Kuitista ei löytynyt luettavaa tekstiä myöskään paikallisella tekstintunnistuksella. Kokeile tarkempaa PDF-tiedostoa tai liitä ostosrivit tekstinä.",
   receiptUnreadable:
     "Kuitin lukeminen epäonnistui. Tarkista, että PDF on ehjä eikä salasanasuojattu.",
   receiptTooLarge:

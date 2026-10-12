@@ -4,6 +4,9 @@ const lock = JSON.parse(await readFile("package-lock.json", "utf8"));
 const notices = [
   "Korikone third-party notices\n\nKorikone source is Apache-2.0. Dependencies retain their own licenses.\nK-Ruoka worker licensing is in resources/vendor/k-ruoka/LICENSE.\nThe S-kaupat worker (s-kaupat-mcp, Apache-2.0) is in resources/vendor/s-kaupat/LICENSE; its bundled dependencies are listed in its source repository, https://github.com/Vkuparin/s-kaupat-mcp.\nElectron and Chromium notices accompany the packaged runtime.",
 ];
+notices.push(
+  `\nFinnish OCR language data (tessdata_fast, Apache-2.0)\nSource: https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd\nBundled model and license: resources/vendor/ocr/\n${await readFile("vendor/ocr/LICENSE", "utf8")}`,
+);
 for (const [directory, metadata] of Object.entries(lock.packages).sort(
   ([a], [b]) => a.localeCompare(b),
 )) {

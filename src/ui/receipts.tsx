@@ -126,6 +126,10 @@ export function ReceiptsPanel({
     }[e.status];
   };
   const imported = snapshot.purchaseImport;
+  const ocrNotice = tr(
+    "Kuitti luettiin paikallisella tekstintunnistuksella (OCR). Tarkista määrät ja hinnat alkuperäisestä kuitista, vaikka summa täsmäisi.",
+    "This receipt was read with local text recognition (OCR). Check quantities and prices against the original receipt, even if the total matches.",
+  );
   const summary = imported
     ? imported.source === "receipt"
       ? imported.outcome === "unsupported"
@@ -202,6 +206,11 @@ export function ReceiptsPanel({
                 }[imported.reconciliation]
               }`
             : ""}
+        </p>
+      )}
+      {imported?.source === "receipt" && !!imported.ocrPages?.length && (
+        <p role="status" className="receipt-ocr-notice">
+          {ocrNotice}
         </p>
       )}
       {view && view.purchases.length > 0 && (
@@ -344,6 +353,12 @@ export function ReceiptsPanel({
                 </span>
               )}
             </summary>
+            {!!purchase.ocrPages.length && (
+              <p className="receipt-ocr-notice">
+                {ocrNotice} {tr("Sivut", "Pages")}:{" "}
+                {purchase.ocrPages.join(", ")}.
+              </p>
+            )}
             <table>
               <thead>
                 <tr>

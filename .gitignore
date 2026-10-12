@@ -1,4 +1,6 @@
 node_modules/
+vendor/ocr/*.traineddata
+vendor/ocr/*.partial
 dist/
 release/
 .research/

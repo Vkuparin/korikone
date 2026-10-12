@@ -5,7 +5,16 @@ await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  external: ["pdfjs-dist/*"],
+  external: ["pdfjs-dist/*", "@napi-rs/canvas", "tesseract.js"],
+  target: "node24",
+});
+await build({
+  entryPoints: ["src/receipts/ocr-worker.cts"],
+  outfile: "dist/main/receipt-ocr-worker.cjs",
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  external: ["tesseract.js/*"],
   target: "node24",
 });
 await build({

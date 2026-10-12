@@ -677,17 +677,19 @@ export class Service {
    * search or retailer call, and the shopping list, quote and revision are untouched.
    */
   async importReceiptText(input: unknown, ai: ReceiptAI | null = null) {
-    const { text, format, keepOriginal } = z
+    const { text, format, keepOriginal, ocrPages } = z
       .object({
         text: z.string().min(1).max(50_000),
         format: z.enum(["pdf", "txt", "csv"]),
         keepOriginal: z.boolean().default(false),
+        ocrPages: z.array(z.number().int().min(1).max(100)).max(100).optional(),
       })
       .strict()
       .parse(input);
     this.receiptEnrichment = null;
     const result = await this.receipts.import(text, format, {
       keepOriginal,
+      ocrPages,
       ai,
     });
     this.purchaseImport = { source: "receipt", ...result.receipt };

@@ -9,6 +9,7 @@ import {
   purchaseEventSchema,
   purchaseLedgerSchema,
   purchaseSourceSchema,
+  receiptOCRPagesSchema,
   purchaseLimits,
   purchaseOriginalKey,
   readLedger,
@@ -24,6 +25,7 @@ import { parseReceipt, type ReceiptParse } from "../receipts/parsers";
 import type { Storage } from "./service";
 
 export type ReceiptImport = {
+  ocrPages?: number[];
   outcome: PurchaseMergeOutcome | "unsupported";
   eventId: string | null;
   lines: number;
@@ -207,9 +209,12 @@ export class PurchaseStore {
   importReceipt(
     text: string,
     format: "pdf" | "txt" | "csv",
-    options: { keepOriginal?: boolean } = {},
+    options: { keepOriginal?: boolean; ocrPages?: number[] } = {},
   ): Promise<ReceiptImport> {
     return this.serialize(async () => {
+      const ocrPages = receiptOCRPagesSchema.parse(options.ocrPages ?? []);
+      if (ocrPages.length && format !== "pdf")
+        throw new Error("purchaseInvalid");
       const parsed = parseReceipt(text);
       if (parsed.outcome === "unsupported")
         return {
@@ -218,6 +223,7 @@ export class PurchaseStore {
           lines: parsed.lines,
           unreadableLines: parsed.lines,
           reconciliation: null,
+          ...(ocrPages.length ? { ocrPages } : {}),
         };
       const importedAt = new Date().toISOString();
       const { source, event } = receiptPurchase(
@@ -226,8 +232,14 @@ export class PurchaseStore {
         receiptFingerprint(parsed),
         importedAt,
       );
+      if (ocrPages.length) {
+        if (ocrPages.some((page) => page > (source.pages ?? 1)))
+          throw new Error("purchaseInvalid");
+        source.ocrPages = ocrPages;
+      }
       const merged = mergePurchase(await this.ledger(), source, event);
       const summary = {
+        ...(ocrPages.length ? { ocrPages } : {}),
         outcome: merged.outcome,
         eventId: merged.eventId,
         lines: parsed.receipt.lines,

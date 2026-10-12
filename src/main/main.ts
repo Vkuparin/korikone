@@ -39,7 +39,7 @@ import {
 } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
 import { interpretShopping, extractRecipe } from "../ai/output";
-import { readReceipt } from "../receipts/read";
+import { readReceiptDetailed } from "../receipts/read";
 import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
 import type { PlanningRun } from "../application/planning";
@@ -663,12 +663,19 @@ else
         });
         if (!filePaths[0]) return service.snapshot();
         // The reader's size, password, no-text and unreadable errors pass through unchanged.
-        const text = await readReceipt(filePaths[0]);
+        const { text, ocrPages } = await readReceiptDetailed(filePaths[0], {
+          assets: join(
+            app.isPackaged ? process.resourcesPath : app.getAppPath(),
+            "vendor",
+            "ocr",
+          ),
+        });
         const extension = extname(filePaths[0]).toLowerCase().slice(1);
         const run = ++generationRun;
         return service.importReceiptText(
           {
             text,
+            ocrPages,
             format:
               extension === "pdf" || extension === "csv" ? extension : "txt",
             keepOriginal,
@@ -984,9 +991,18 @@ else
           ],
         });
         if (filePaths[0]) {
-          const text = await readReceipt(filePaths[0]);
+          const { text, ocrPages } = await readReceiptDetailed(filePaths[0], {
+            assets: join(
+              app.isPackaged ? process.resourcesPath : app.getAppPath(),
+              "vendor",
+              "ocr",
+            ),
+          });
           if (service.state.receiptText.length + text.length + 1 > 50000)
             throw new Error("receiptTooLarge");
+          // Preserve OCR provenance and its review notice for the older import API too.
+          if (ocrPages.length)
+            await service.importReceiptText({ text, format: "pdf", ocrPages });
           return service.save({
             ...service.state,
             receiptText: service.state.receiptText + "\n" + text,

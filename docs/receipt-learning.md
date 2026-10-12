@@ -4,7 +4,13 @@ Accepted planning scope, 10 October 2026, after v0.6.0 publication. Reviewed sou
 
 ## Delivery and reuse
 
-v0.7.0 establishes a shared AI-provider contract and removes raw receipt text from ordinary shopping prompts. v0.9.0 adds structured purchase evidence, receipt accounting and learning. Local-model runtime support and additional live providers remain later work under F21. OCR remains F13 in v0.10.0; the initial importer handles text-bearing PDFs/TXT/CSV through the existing local reader.
+v0.7.0 establishes a shared AI-provider contract and removes raw receipt text from ordinary shopping prompts. v0.9.0 adds structured purchase evidence, receipt accounting and learning. v0.10.0 adds the accepted local Finnish OCR for image-only PDF pages alongside text-bearing PDFs/TXT/CSV. Local-model runtime support and additional live providers remain later work under F21.
+
+The receipt worker uses bundled Tesseract.js/core 7.0.0 and checksum-pinned Finnish language data. It reads text-bearing pages directly and rasterizes image-only pages at 300 dpi, in page order. Limits remain 20 MiB, 100 pages, 50000 characters and 30 seconds for the entire worker. Page and intermediate canvases are limited to 12 million pixels and 12000 pixels per dimension before allocation. OCR uses local paths, no disk cache, no runtime downloads and no cloud fallback. Missing/corrupt assets, unreadable ink-bearing pages and deadlines fail the import instead of dropping a page.
+
+`readReceiptDetailed` returns text and one-based `ocrPages`; `readReceipt` remains the text-only API. The purchase source retains optional, validated OCR page numbers through SQLite and backups. The import summary and saved receipt show a Finnish/English notice to check quantities and prices against the original, even when totals match. OCR cannot fill an unreadable price or balance a receipt; the parser's review and correction paths remain in use. Optional provider-neutral AI enrichment is separate and still requires consent.
+
+Build preparation uses `npm run prepare:ocr` to fetch the fixed public language revision only when the local asset is absent, verifies size/SHA-256 and packages it with its license/source manifest under `resources/vendor/ocr`. The model binary is ignored in Git. `scripts/ocr-package-smoke.mjs` checks one local scanned import in a packaged executable using temporary development data, including ASAR/native/WASM/model loading; it is not a release validation flow.
 
 Reuse F15 categories, qualifiers and explicit preferences, F16 compact context and task validation, F18 memory reads, existing SQLite/backups, Data/History and the optional uncertain-row review pattern. Receipt import is a separate explicit operation; it neither modifies the shopping list nor writes to a retailer. There is no additional memory store or permanent shopping-screen panel.
 

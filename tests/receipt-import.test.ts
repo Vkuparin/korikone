@@ -11,9 +11,10 @@ import {
   PURCHASES_KEY,
   purchaseOriginalKey,
   type PurchaseLedger,
+  restoreLedger,
 } from "../src/domain/purchases";
 import { parseReceipt } from "../src/receipts/parsers";
-import { readReceipt } from "../src/receipts/read";
+import { readReceipt, readReceiptDetailed } from "../src/receipts/read";
 import { fixtureText, receiptFixtures } from "./fixtures/receipts";
 import { receiptTextPDF } from "./fixtures/receipts/pdf";
 import { memoryStorage } from "./helpers/purchase-fixtures";
@@ -32,6 +33,52 @@ const receipt = (service: Service, id: string, extra = {}) =>
     format: "txt",
     ...extra,
   });
+
+test("OCR import preserves review provenance through persistence and backup without changing list facts", async () => {
+  const { service, storage, entries } = await profile();
+  const state = structuredClone(service.state);
+  const extraction = await readReceiptDetailed(
+    join(process.cwd(), "tests/fixtures/receipts/ocr-k-clean.pdf"),
+    {
+      workerURL: pathToFileURL(
+        join(process.cwd(), "dist/main/receipt-worker.js"),
+      ),
+    },
+  );
+  expect(
+    (await service.importReceiptText({ ...extraction, format: "pdf" }))
+      .purchaseImport,
+  ).toMatchObject({
+    outcome: "added",
+    ocrPages: [1],
+    reconciliation: "balanced",
+  });
+  const ledger = entries.get(PURCHASES_KEY) as PurchaseLedger;
+  expect(ledger.sources[0].ocrPages).toEqual([1]);
+  expect(
+    ledger.events[0].printed.find((amount) => amount.role === "total")?.amount,
+  ).toBe(667);
+  const restarted = new Service(storage);
+  await restarted.init();
+  expect((await restarted.receipts.view("")).purchases[0].ocrPages).toEqual([
+    1,
+  ]);
+  const restored = restoreLedger(
+    (await restarted.purchases.backup()).purchases,
+  );
+  expect(restored.sources[0].ocrPages).toEqual([1]);
+  expect(
+    (await restarted.purchases.backup()).purchases.sources[0].ocrPages,
+  ).toEqual([1]);
+  expect(service.state).toEqual(state);
+  await expect(
+    service.importReceiptText({ ...extraction, format: "txt" }),
+  ).rejects.toThrow("purchaseInvalid");
+  await expect(
+    service.importReceiptText({ ...extraction, format: "pdf", ocrPages: [2] }),
+  ).rejects.toThrow("purchaseInvalid");
+  expect(entries.get(PURCHASES_KEY)).toEqual(ledger);
+}, 30000);
 
 test("a receipt is committed whole: source, evidence, balance and rule interpretations", async () => {
   const { service, entries } = await profile();

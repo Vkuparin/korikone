@@ -41,6 +41,13 @@ export const sourceSpanSchema = z
 export type SourceSpan = z.infer<typeof sourceSpanSchema>;
 /** Who established a fact: the receipt or order itself, or a later explicit correction. */
 export const factProvenanceSchema = z.enum(["source", "user"]);
+/** Pages read locally from pixels rather than a PDF text layer. Older sources omit this. */
+export const receiptOCRPagesSchema = z
+  .array(z.number().int().min(1).max(100))
+  .max(100)
+  .refine((pages) =>
+    pages.every((page, index) => index === 0 || page > pages[index - 1]),
+  );
 
 /**
  * One imported file, order or the legacy text. A source is evidence; only a purchase event built
@@ -52,6 +59,7 @@ export const purchaseSourceSchema = z
     kind: z.enum(["receipt", "order", "legacy-text"]),
     chain: purchaseChainSchema,
     format: z.enum(["pdf", "txt", "csv", "order", "legacy"]),
+    ocrPages: receiptOCRPagesSchema.optional(),
     /** Null for the legacy text, which no parser has read. */
     parser: z
       .object({
@@ -72,7 +80,15 @@ export const purchaseSourceSchema = z
     /** Lines the parser could not place. They are counted, never dropped silently. */
     unreadableLines: z.number().int().min(0).max(100_000),
   })
-  .strict();
+  .strict()
+  .refine(
+    (source) =>
+      !source.ocrPages?.length ||
+      (source.kind === "receipt" &&
+        source.format === "pdf" &&
+        source.pages !== null &&
+        source.ocrPages.every((page) => page <= source.pages!)),
+  );
 export type PurchaseSource = z.infer<typeof purchaseSourceSchema>;
 
 export const purchaseQuantitySchema = z

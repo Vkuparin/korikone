@@ -33,7 +33,7 @@ Write meals and groceries in one note. In the current source, press **Päivitä 
 
 Returning to the shopping list or restarting restores compatible products, totals and the time labelled **Viimeksi haetut hinnat** / **Last quoted prices**, without requesting interpretation or catalogue data. Explicit list, product and store changes refresh prices. A list without a compatible quote shows **Ei hinnoiteltu** / **Not priced** and an explicit action to fetch products and prices. If an edit saves but pricing fails, the saved rows stay visible as unpriced with a retry action. Transfer review checks fresh retailer data before any write.
 
-Import PDF, TXT or CSV receipts in settings. PDF text is extracted locally and can be edited before use in future ChatGPT suggestions. Scanned PDFs require OCR first. Copy or save the list for manual shopping; direct phone sync is not implemented.
+Import PDF, TXT or CSV receipts in Settings. PDF text and Finnish scanned pages are read locally, then stored as purchase evidence with totals and uncertain rows to review. Scanned pages show an OCR notice: check quantities and prices against the original receipt even when the total matches. OCR uses no ChatGPT requests; optional AI enrichment has its own consent. Copy or save the list for manual shopping; direct phone sync is not implemented.
 
 ## Follow development
 

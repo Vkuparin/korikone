@@ -2,6 +2,7 @@
 export function receiptPDF(
   text: string | string[],
   font: "Helvetica" | "Courier" = "Helvetica",
+  graphics = "",
 ) {
   const pages = typeof text === "string" ? [text] : text;
   const hex = (value: string) =>
@@ -19,7 +20,9 @@ export function receiptPDF(
   ];
   for (const page of pages) {
     const contentId = objects.length + 2;
-    const stream = page ? `BT /F1 12 Tf 30 150 Td <${hex(page)}> Tj ET` : "";
+    const stream = page
+      ? `BT /F1 12 Tf 30 150 Td <${hex(page)}> Tj ET`
+      : graphics;
     objects.push(
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 900 200] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`,
       `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
