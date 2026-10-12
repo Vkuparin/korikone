@@ -78,7 +78,7 @@ import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote, persistedQuoteSchema } from "./quotes";
 import { PlanningLifecycle } from "./planning";
 import { mapIntentResults } from "../domain/intents";
-import { applyEditIntent } from "../domain/edits";
+import { applyEditIntent, applyEdits } from "../domain/edits";
 import { editDelta } from "../domain/edit-delta";
 import { interpretEdit } from "../ai/edit";
 import type { InferenceSession } from "../ai/provider";
@@ -86,6 +86,7 @@ import {
   EDIT_UNDO_KEY,
   describeAmbiguities,
   editListRequestSchema,
+  localEditRequestSchema,
   editUndoSchema,
   editedPlan,
   undoEditRequestSchema,
@@ -2095,6 +2096,163 @@ export class Service {
         metrics.payloadCharacters = inference?.payloadCharacters ?? 0;
       }
     });
+  }
+  /**
+   * Applies edits that need no interpretation, using only the retained quote: a removed row or
+   * dish, changed servings or quantity, or a row marked at home. Rows that did not change keep
+   * their quoted line; rows whose amount changed are matched again from the products already
+   * read. Nothing is searched: a row with no retained products stays unpriced until the shopper
+   * asks for prices. No AI request and no retailer write.
+   */
+  async editLocally(input: unknown) {
+    const { revision, operations } = localEditRequestSchema.parse(input);
+    return this.writeState(async () => {
+      this.assertNoProvisionalTransfer();
+      if (this.busy || this.transferPending) throw new Error("busy");
+      if (revision !== this.state.revision) throw new Error("draftStale");
+      const base = this.state;
+      const now = new Date();
+      const quoted = this.quotedAt !== null;
+      const key = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
+      const {
+        state: edited,
+        applied,
+        changedKeys,
+      } = applyEdits(
+        base,
+        { version: 1, revision, operations },
+        { now, packSizes: this.quotedPackSizes() },
+      );
+      const next = stateSchema.parse({
+        ...edited,
+        revision: base.revision + 1,
+      });
+      let quote: ReturnType<typeof restoredQuote> = null;
+      if (quoted) {
+        const previous = new Map(
+          this.basket.map((line) => [key(line.requirement), line]),
+        );
+        const changed = new Set(changedKeys);
+        const options = (requirement: Requirement) => ({
+          context: next.context,
+          sourceNote: next.note,
+          preferences: next.categoryPreferences,
+          holds: next.correctionHolds,
+          accepted:
+            next.accepted[
+              `${next.context.providerId}:${next.context.storeId}:${requirement.id}`
+            ] ?? [],
+          exclusions: exclusionTerms(next.household.exclusions),
+          productPreference: next.productPreference,
+        });
+        const lines = requirements(next, now).map((requirement) => {
+          const old = previous.get(key(requirement));
+          if (!old) {
+            // Nothing was ever read for this row; it is shown as not yet searched.
+            const unsearched = matchRequirement(requirement, [], {
+              context: next.context,
+              sourceNote: next.note,
+            });
+            unsearched.matching!.reason = "bounded-out";
+            return unsearched;
+          }
+          return changed.has(key(requirement))
+            ? matchRequirement(
+                requirement,
+                applyPackSizes(old.candidates, next.packSizes),
+                options(requirement),
+              )
+            : { ...structuredClone(old), requirement };
+        });
+        // The edited quote must verify like any restored quote; otherwise the list is unpriced.
+        quote = restoredQuote(
+          persistedQuoteSchema.parse({
+            key: pricingKey(next),
+            context: next.context,
+            basket: lines,
+            quotedAt: this.quotedAt,
+            pickupFee: lines.length ? this.pickupFee : null,
+          }),
+          next,
+        );
+      }
+      const delta = editDelta(
+        { state: base, basket: this.basket, quoted },
+        { state: next, basket: quote?.basket ?? [], quoted: quote !== null },
+        now,
+      );
+      const undo = editUndoSchema.parse({
+        version: 1,
+        revision: next.revision,
+        plan: editedPlan(base),
+        quote: quoted
+          ? {
+              key: pricingKey(base),
+              context: base.context,
+              basket: this.basket,
+              quotedAt: this.quotedAt,
+              pickupFee: this.pickupFee,
+            }
+          : null,
+        applied,
+        delta,
+      });
+      await this.writeAtomically([
+        { key: "state", value: next },
+        ...(quote
+          ? [
+              {
+                key: "last-quote",
+                value: {
+                  key: quote.key,
+                  context: quote.context,
+                  basket: quote.basket,
+                  pickupFee: quote.pickupFee,
+                  quotedAt: quote.quotedAt,
+                },
+              },
+            ]
+          : []),
+        { key: EDIT_UNDO_KEY, value: undo },
+      ]);
+      this.planning.invalidateFor(next);
+      this.state = next;
+      this.basket = quote?.basket ?? [];
+      this.quotedAt = quote?.quotedAt ?? null;
+      this.pickupFee = quote?.pickupFee ?? null;
+      this.pricingError = null;
+      this.review = null;
+      this.comparison = null;
+      this.transferException = null;
+      this.undo = undo;
+      this.edit = {
+        status: "applied",
+        revision: next.revision,
+        applied,
+        delta,
+      };
+      return this.snapshot();
+    });
+  }
+  /** Pack sizes of the products currently quoted, for edits that count packs. */
+  private quotedPackSizes() {
+    return Object.fromEntries(
+      (this.quotedAt !== null ? this.basket : []).flatMap((line) =>
+        line.product &&
+        !line.approximate &&
+        !line.product.pieceOrdering &&
+        Number.isSafeInteger(line.product.packAmount) &&
+        line.product.packAmount > 0 &&
+        line.product.unit === line.requirement.unit
+          ? [
+              [
+                `${line.requirement.id}:${line.requirement.unit}`,
+                { amount: line.product.packAmount, unit: line.product.unit },
+              ],
+            ]
+          : [],
+      ),
+    );
   }
   /**
    * Restores the plan from before the last edit as a new revision. Local only: no AI, catalogue

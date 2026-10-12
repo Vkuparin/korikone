@@ -48,6 +48,7 @@ const operationWireSchema = z
       "markAtHome",
       "addMeal",
       "setItem",
+      "removeMeal",
     ]),
     target: z.string().nullable(),
     name: z.string().nullable(),
@@ -157,6 +158,7 @@ export function editPrompt(context: EditContext): string {
     "Supported operations, each naming a target copied exactly from the data: " +
     '{"op":"addItem","target":"row:…" or null,"name":"Maito" when target is null,"quantity":Q} adds a grocery, using target when the grocery already has a row; ' +
     '{"op":"removeItem","target":"row:…"}; ' +
+    '{"op":"removeMeal","target":"meal:…"} takes a dish off the list; ' +
     '{"op":"replaceMeal","target":"meal:…","recipeId":"saved recipe id" or null,"recipe":new recipe or null,"servings":number or null} with exactly one of recipeId and recipe; ' +
     '{"op":"changeServings","target":"meal:…","servings":8} with the resulting whole number of servings; ' +
     '{"op":"changeQuantity","target":"row:…","quantity":Q} sets the whole row quantity; ' +
@@ -223,6 +225,7 @@ const fields: Record<EditOperation["op"], string[]> = {
   markAtHome: ["target", "atHome"],
   addMeal: ["recipeId", "recipe", "servings"],
   setItem: ["name", "quantity"],
+  removeMeal: ["target"],
 };
 
 /**
@@ -259,7 +262,10 @@ export function validateEditIntent(
       )
     )
       throw invalid();
-    const meal = wire.op === "replaceMeal" || wire.op === "changeServings";
+    const meal =
+      wire.op === "replaceMeal" ||
+      wire.op === "changeServings" ||
+      wire.op === "removeMeal";
     let target: string | undefined;
     if (wire.target !== undefined) {
       if (
@@ -325,6 +331,8 @@ export function validateEditIntent(
           servings: wire.servings,
         };
       }
+      case "removeMeal":
+        return { op: wire.op, mealId: target };
       case "removeItem":
         return { op: wire.op, rowKey: target };
       case "changeQuantity":

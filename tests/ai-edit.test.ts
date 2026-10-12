@@ -241,7 +241,7 @@ for (const alternative of [false, true]) {
           quantity: { kind: "amount", amount: 1000, unit: "ml", price: 129 },
         },
       ]),
-      reply([{ op: "removeMeal", target: "meal:m-pasta" }]),
+      reply([{ op: "orderDelivery", target: "meal:m-pasta" }]),
       reply([{ op: "removeItem", target: "row:pasta:g" }], { store: "x" }),
       "{",
     ]) {

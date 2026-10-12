@@ -2,6 +2,7 @@ import { z } from "zod";
 import { editDeltaSchema, type EditDelta } from "../domain/edit-delta";
 import {
   editAmbiguitySchema,
+  editOperationSchema,
   editTargetIdSchema,
   editTargets,
   type EditAmbiguity,
@@ -26,6 +27,25 @@ export const editListRequestSchema = editRequestSchema
     consent: z.literal(true),
   })
   .strict();
+/** Edits that need no interpretation and no catalogue read: they work from the retained quote. */
+export const localEditOperations = [
+  "removeItem",
+  "removeMeal",
+  "changeServings",
+  "changeQuantity",
+  "markAtHome",
+] as const;
+export const localEditRequestSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    operations: z.array(editOperationSchema).min(1).max(100),
+  })
+  .strict()
+  .refine((request) =>
+    request.operations.every((o) =>
+      (localEditOperations as readonly string[]).includes(o.op),
+    ),
+  );
 export const undoEditRequestSchema = z
   .object({ revision: z.number().int().nonnegative() })
   .strict();
@@ -41,6 +61,7 @@ const appliedEditSchema = z
       "markAtHome",
       "addMeal",
       "setItem",
+      "removeMeal",
     ]),
     targetId: editTargetIdSchema,
     name: z.string(),

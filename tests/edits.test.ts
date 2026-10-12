@@ -136,7 +136,7 @@ test("unknown, duplicate, stale and malformed edits reject without mutation", ()
     "staleEdit",
   );
   for (const invalid of [
-    batch([{ op: "removeMeal", mealId: "m-soup" } as never]),
+    batch([{ op: "orderDelivery", mealId: "m-soup" } as never]),
     batch([{ op: "removeItem", rowKey: "pasta:g", fuzzy: true } as never]),
     batch([{ op: "addItem", quantity: { kind: "packs", count: 1 } } as never]),
     batch([

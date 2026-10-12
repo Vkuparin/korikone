@@ -60,6 +60,7 @@ const methods = [
   "commitPlanning",
   "editList",
   "undoEdit",
+  "editLocally",
   "importOrders",
   "importPurchaseReceipt",
   "importLegacyReceipts",

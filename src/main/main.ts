@@ -617,6 +617,7 @@ else
         );
       },
       undoEdit: (input) => service.undoEdit(input),
+      editLocally: (input) => service.editLocally(input),
       importOrders: () => service.importOrders(),
       importPurchaseReceipt: async (input) => {
         const { keepOriginal } = z

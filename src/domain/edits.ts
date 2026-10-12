@@ -98,6 +98,8 @@ export const editOperationSchema = z.discriminatedUnion("op", [
       servings: z.number().int().min(1).max(100).optional(),
     })
     .strict(),
+  // Takes a dish off the list. Its recipe stays saved; rows it shared keep the other shares.
+  z.object({ op: z.literal("removeMeal"), mealId: editMealIdSchema }).strict(),
   // States the amount wanted of a named grocery: sets its row, or adds it when it has none.
   z
     .object({
@@ -335,7 +337,11 @@ export function applyEdits(
   };
   const newRecipes = new Set<string>();
   batch.operations.forEach((operation, index) => {
-    if (operation.op === "replaceMeal" || operation.op === "changeServings") {
+    if (
+      operation.op === "replaceMeal" ||
+      operation.op === "changeServings" ||
+      operation.op === "removeMeal"
+    ) {
       if (!meals.has(operation.mealId))
         throw new EditError("unknownTarget", index);
       claim(mealTargetId(operation.mealId), index);
@@ -461,6 +467,25 @@ export function applyEdits(
         name: recipeName(meal.recipeId, next),
         before: 0,
         after: meal.servings,
+      });
+      continue;
+    }
+    if (operation.op === "removeMeal") {
+      const removed = meals.get(operation.mealId)!;
+      next.meals = next.meals.filter((m) => m.id !== removed.id);
+      for (const day of Object.values(next.calendar))
+        day.mealIds = day.mealIds.filter((id) => id !== removed.id);
+      // The shopper took the requested dish off: its request is settled, not missing.
+      if (!next.meals.some((m) => m.recipeId === removed.recipeId))
+        next.requestIntents = next.requestIntents.filter(
+          (mapping) => mapping.recipeId !== removed.recipeId,
+        );
+      applied.push({
+        op: operation.op,
+        targetId: mealTargetId(removed.id),
+        name: recipeName(removed.recipeId),
+        before: removed.servings,
+        after: 0,
       });
       continue;
     }

@@ -43,7 +43,7 @@ export const editDeltaSchema = z
         z
           .object({
             mealId: z.string(),
-            change: z.enum(["replaced", "servings", "added"]),
+            change: z.enum(["replaced", "servings", "added", "removed"]),
             name: z.string(),
             to: z.string().nullable(),
             servingsBefore: z.number().int(),
@@ -181,6 +181,16 @@ export function editDelta(
       servingsAfter: meal.servings,
     });
   }
+  for (const old of before.state.meals)
+    if (!after.state.meals.some((m) => m.id === old.id))
+      meals.push({
+        mealId: old.id,
+        change: "removed",
+        name: recipe(before.state, old.recipeId),
+        to: null,
+        servingsBefore: old.servings,
+        servingsAfter: 0,
+      });
   const facts = rows.flatMap((row) => [row.priceBefore, row.priceAfter]);
   const unknownRows = rows.filter((row) =>
     [row.priceBefore.kind, row.priceAfter.kind].some(

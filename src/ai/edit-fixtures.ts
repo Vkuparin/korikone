@@ -230,9 +230,15 @@ export function editFixtureReply(data: EditContext) {
         operations.push({ op: "markAtHome", target: row.target, atHome }),
       );
     } else if (/^(?:poista|remove|delete)(?![\p{L}])/iu.test(clause)) {
-      one(phrase, rows(), (row) =>
-        operations.push({ op: "removeItem", target: row.target }),
-      );
+      // A grocery row first; a dish only when no row is named.
+      if (rows().length || !meals().length)
+        one(phrase, rows(), (row) =>
+          operations.push({ op: "removeItem", target: row.target }),
+        );
+      else
+        one(phrase, meals(), (meal) =>
+          operations.push({ op: "removeMeal", target: meal.target }),
+        );
     } else if (/^(?:vaihda|korvaa|replace|swap)(?![\p{L}])/iu.test(clause)) {
       // The dish to replace is named first; the replacement follows it.
       const parts = clause.split(/\s+/);

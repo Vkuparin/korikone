@@ -77,6 +77,7 @@ function editSummary(
               ? `Lisätty ${a.name} (${a.after} ${unit})`
               : `Added ${a.name} (${a.after} ${unit})`;
         case "removeItem":
+        case "removeMeal":
           return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;
         case "replaceMeal":
           return fi
@@ -160,11 +161,13 @@ function EditDetails({ delta, fi }: { delta: Delta; fi: boolean }) {
         <ul>
           {delta.meals.map((m) => (
             <li key={m.mealId}>
-              {m.change === "added"
-                ? `${tr("Lisätty", "Added")} ${m.name} (${m.servingsAfter} ${tr("annosta", "servings")})`
-                : m.change === "replaced"
-                  ? `${tr("Vaihdettu", "Replaced")} ${m.name} → ${m.to}`
-                  : `${m.name}: ${m.servingsBefore} → ${m.servingsAfter} ${tr("annosta", "servings")}`}
+              {m.change === "removed"
+                ? `${tr("Poistettu", "Removed")} ${m.name}`
+                : m.change === "added"
+                  ? `${tr("Lisätty", "Added")} ${m.name} (${m.servingsAfter} ${tr("annosta", "servings")})`
+                  : m.change === "replaced"
+                    ? `${tr("Vaihdettu", "Replaced")} ${m.name} → ${m.to}`
+                    : `${m.name}: ${m.servingsBefore} → ${m.servingsAfter} ${tr("annosta", "servings")}`}
             </li>
           ))}
           {delta.rows.map((r) => (
@@ -1386,9 +1389,10 @@ export function ShoppingWorkspace({
                         className="text remove-meal"
                         disabled={busy}
                         onClick={() =>
-                          void save({
-                            ...state,
-                            meals: state.meals.filter((m) => m.id !== meal.id),
+                          // Local: the other rows keep their prices and nothing is searched.
+                          void call("editLocally", {
+                            revision: state.revision,
+                            operations: [{ op: "removeMeal", mealId: meal.id }],
                           })
                         }
                       >
@@ -1735,12 +1739,22 @@ export function ShoppingWorkspace({
                         aria-pressed={home}
                         disabled={busy}
                         onClick={() =>
-                          void save({
-                            ...state,
-                            skipped: home
-                              ? state.skipped.filter((k) => k !== key)
-                              : [...state.skipped, key],
-                          })
+                          // Marking at home needs no search; bringing a row back does.
+                          void (home
+                            ? save({
+                                ...state,
+                                skipped: state.skipped.filter((k) => k !== key),
+                              })
+                            : call("editLocally", {
+                                revision: state.revision,
+                                operations: [
+                                  {
+                                    op: "markAtHome",
+                                    rowKey: key,
+                                    atHome: true,
+                                  },
+                                ],
+                              }))
                         }
                       >
                         ⌂
@@ -1899,10 +1913,9 @@ export function ShoppingWorkspace({
                         aria-label={`${tr("Poista", "Remove")}: ${r.name}`}
                         disabled={busy}
                         onClick={() =>
-                          void save({
-                            ...state,
-                            removed: [...state.removed, key],
-                            skipped: state.skipped.filter((k) => k !== key),
+                          void call("editLocally", {
+                            revision: state.revision,
+                            operations: [{ op: "removeItem", rowKey: key }],
                           })
                         }
                       >
