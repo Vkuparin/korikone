@@ -64,7 +64,7 @@ for (const language of ["fi", "en"] as const) {
       const composer = page.getByLabel(
         tr("Muokkaa nykyistä listaa", "Edit current list"),
       );
-      const update = button(tr("Päivitä lista", "Update list"));
+      const update = button(tr("Taio muutokset", "Update my shopping list"));
       await expect(composer).toBeVisible();
       await expect(button(tr("Uusi lista", "New list"))).toBeVisible();
       const planned = await load();
@@ -162,7 +162,7 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByLabel(tr("Uusi lista", "New list"), { exact: true })
         .fill("Nakkikeitto");
-      await button(tr("Luo uusi lista", "Create new list")).click();
+      await button(tr("Taio ostoslista", "Create my shopping list")).click();
       await expect(composer).toBeVisible();
       const replaced = await load();
       expect(replaced.state.note).toBe("Nakkikeitto");
@@ -203,7 +203,7 @@ test("a failed edit keeps the instruction and the list", async () => {
     const composer = page.getByLabel("Edit current list");
     await composer.fill("double the soup");
     await page
-      .getByRole("button", { name: "Update list", exact: true })
+      .getByRole("button", { name: "Update my shopping list", exact: true })
       .click();
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(composer).toHaveValue("double the soup");

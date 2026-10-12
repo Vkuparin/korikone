@@ -69,7 +69,7 @@ for (const language of ["fi", "en"] as const) {
         tr("Muokkaa nykyistä listaa", "Edit current list"),
       );
       const update = page.getByRole("button", {
-        name: tr("Päivitä lista", "Update list"),
+        name: tr("Taio muutokset", "Update my shopping list"),
         exact: true,
       });
       const start = await load();
