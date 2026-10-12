@@ -35,7 +35,7 @@ for (const language of ["fi", "en"] as const) {
       const note = composer(page);
       const text = "Nakkikeitto ja kanapasta";
       const update = page.getByRole("button", {
-        name: tr("Päivitä lista", "Update list"),
+        name: tr("Taio ostoslista", "Create my shopping list"),
         exact: true,
       });
       const status = page.locator("#note-update-help");
@@ -67,7 +67,7 @@ for (const language of ["fi", "en"] as const) {
       await note.fill(text);
       await page
         .getByRole("button", {
-          name: tr("Luo uusi lista", "Create new list"),
+          name: tr("Taio ostoslista", "Create my shopping list"),
           exact: true,
         })
         .click();
@@ -86,7 +86,7 @@ for (const language of ["fi", "en"] as const) {
       await page.evaluate(() => window.korikone.developmentScenario("success"));
       await page
         .getByRole("button", {
-          name: tr("Luo uusi lista", "Create new list"),
+          name: tr("Taio ostoslista", "Create my shopping list"),
           exact: true,
         })
         .click();

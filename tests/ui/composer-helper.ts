@@ -9,9 +9,9 @@ export function composer(page: Page): Locator {
   return page.getByLabel(composerLabel);
 }
 
-/** The explicit Update button in any composer mode. */
+/** The primary AI action in any composer mode. */
 export const updateName =
-  /^(Päivitä lista|Update list|Luo uusi lista|Create new list)$/;
+  /^(Taio ostoslista|Taio muutokset|Create my shopping list|Update my shopping list)$/;
 
 /**
  * Opens the replacement draft when a list exists, so a test can plan over a saved list through

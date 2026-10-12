@@ -61,7 +61,7 @@ for (const [chain, name, destination] of [
         (await page.evaluate(async () => (await window.korikone.load()).value))
           .developmentRequests,
       ).toBe(0);
-      await click("Päivitä lista");
+      await click("Taio ostoslista");
       await expect(page.locator(".grocery-row .row-name")).toHaveCount(1);
       await click(
         chain === "s-kaupat"

@@ -88,7 +88,7 @@ test("real IPC uses fixtures for setup, AI retry, both stores and transfers", as
       ),
     ).toBe(0);
     await page
-      .getByRole("button", { name: "Update list", exact: true })
+      .getByRole("button", { name: "Create my shopping list", exact: true })
       .click();
     await expect(page.locator(".interpretation")).toHaveCount(2, {
       timeout: 15000,

@@ -1186,6 +1186,8 @@ export function ShoppingWorkspace({
               )}
               <button
                 className="update-note"
+                aria-busy={working || editWorking}
+                data-pending={working || editWorking}
                 disabled={
                   busy ||
                   working ||
@@ -1199,9 +1201,14 @@ export function ShoppingWorkspace({
                   else void update();
                 }}
               >
-                {composingEdit || !hasList
-                  ? tr("Päivitä lista", "Update list")
-                  : tr("Luo uusi lista", "Create new list")}
+                <span className="update-note-symbol" aria-hidden="true">
+                  {working || editWorking ? "…" : "✦"}
+                </span>
+                <span>
+                  {composingEdit
+                    ? tr("Taio muutokset", "Update my shopping list")
+                    : tr("Taio ostoslista", "Create my shopping list")}
+                </span>
               </button>
             </div>
             {working && !composingEdit && elapsed >= 1 && (
@@ -1304,9 +1311,16 @@ export function ShoppingWorkspace({
               "Development mode uses local fixtures. Your note and receipts are not sent to ChatGPT.",
             )
           ) : snapshot.ai.state === "connected" ? (
-            tr(
-              "Päivitä lista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle.",
-              "Update list sends your note, relevant recipes and household preferences to ChatGPT.",
+            composingEdit ? (
+              tr(
+                "Taio muutokset lähettää muutosohjeen, nykyisen listan ja talouden toiveet ChatGPT:lle.",
+                "Update my shopping list sends your instruction, current list and household preferences to ChatGPT.",
+              )
+            ) : (
+              tr(
+                "Taio ostoslista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle.",
+                "Create my shopping list sends your note, relevant recipes and household preferences to ChatGPT.",
+              )
             )
           ) : (
             <>

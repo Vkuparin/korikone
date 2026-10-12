@@ -798,8 +798,39 @@ body:has(.app-main) .demo {
   border-radius: 8px;
 }
 .update-note {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  min-width: 14rem;
+  max-width: 100%;
+  padding: 10px 18px;
   font-size: 16px;
+  line-height: 1.4;
+  font-weight: 700;
+  border-color: var(--kk-action-text);
+  box-shadow: 0 0 0 3px var(--kk-action-soft);
+}
+.update-note-symbol {
+  flex: 0 0 1em;
+  width: 1em;
+  font-size: 20px;
+  line-height: 1;
+}
+.update-note:disabled {
+  background: var(--kk-subtle);
+  color: var(--kk-muted);
+  border-color: var(--kk-control-border);
+  opacity: 1;
+  box-shadow: none;
+  filter: none;
+}
+.update-note[data-pending="true"] {
+  background: var(--kk-action-soft);
+  color: var(--kk-action-text);
+  border-color: var(--kk-action-text);
+  box-shadow: 0 0 0 3px var(--kk-action-soft);
 }
 .input-notice {
   font-size: 14px;

@@ -118,7 +118,7 @@ for (const language of ["fi", "en"] as const) {
         .fill(tr("poista kahvi", "remove coffee"));
       await page
         .getByRole("button", {
-          name: tr("Päivitä lista", "Update list"),
+          name: tr("Taio muutokset", "Update my shopping list"),
           exact: true,
         })
         .click();
