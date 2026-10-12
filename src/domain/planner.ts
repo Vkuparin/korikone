@@ -1,5 +1,5 @@
 import { canonicalFoodWords, sameFoodState } from "./food-synonyms";
-import { packageAmount } from "./package-content";
+import { packageAmount, needsPackageCount } from "./package-content";
 import type { AppState, BasketLine, Product, Requirement } from "./model";
 import { classificationKey } from "./categories";
 import { pieceQuote, approximateCost } from "./product-price";
@@ -188,6 +188,7 @@ export function match(
       p.ingredientId === requirement.id &&
       // A product without a readable pack size stays listed so the shopper can confirm it.
       (packageAmount(p, requirement.unit) !== null ||
+        needsPackageCount(p, requirement.unit) ||
         p.packAmount === 0 ||
         approximateCost(requirement, p) !== null),
   );
@@ -244,7 +245,10 @@ export function applyPackSizes(
 ): Product[] {
   return products.map((p) => {
     const size = sizes[p.id];
-    return !p.pieceOrdering && !p.packAmount && size
+    return !p.pieceOrdering &&
+      !p.packageContent &&
+      size &&
+      (!p.packAmount || (size.unit === "pcs" && needsPackageCount(p, "pcs")))
       ? { ...p, packAmount: size.amount, unit: size.unit }
       : p;
   });

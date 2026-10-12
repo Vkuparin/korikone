@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { packageAmount } from "./package-content";
+import { packageAmount, needsPackageCount } from "./package-content";
 import {
   categorySchema,
   classificationSchema,
@@ -305,6 +305,7 @@ function assess(
   }
   if (
     product.packAmount > 0 &&
+    !needsPackageCount(product, requirement.unit) &&
     packageAmount(product, requirement.unit) === null &&
     approximateCost(requirement, product) === null
   )
@@ -348,6 +349,7 @@ function assess(
       return review("preference-missing");
   }
   if (product.available !== true) return review("stock");
+  if (needsPackageCount(product, requirement.unit)) return review("pack");
   if (approximateCost(requirement, product) !== null)
     return result("eligible", "resolved");
   if (

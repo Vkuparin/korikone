@@ -2,7 +2,7 @@ import type { Cart, Product, StoreContext, Target } from "../domain/model";
 import type { StoreProvider } from "./provider";
 import type { RetailerOrder } from "../domain/order-evidence";
 import { retailerEvidence } from "./candidates";
-import { pizzaPackageContent } from "../domain/package-content";
+import { retailerPackageContent } from "../domain/package-content";
 import { SKaupatProvider } from "./s-kaupat";
 import { setTimeout as delay } from "node:timers/promises";
 // The optional last entry is a search word the store also answers with this product.
@@ -29,6 +29,8 @@ const catalogue: [
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],
   ["pizza", "Pakastepizza 350 g", 350, "g", 249],
+  ["stock-cube", "Knorr Lihaliemikuutio 12 x 10 g", 120, "g", 249],
+  ["stock-cube-unconfirmed", "Testi Lihaliemikuutio 120 g", 120, "g", 299],
   ["sausage", "Nakki 400 g", 400, "g", 299],
   ["chicken", "Broilerin fileesuikale 400 g", 400, "g", 449],
   ["yoghurt", "Jogurtti 1 kg", 1000, "g", 199],
@@ -380,7 +382,7 @@ export class DemoProvider implements StoreProvider {
           name,
           packAmount,
           unit,
-          packageContent: pizzaPackageContent(name),
+          packageContent: retailerPackageContent(name),
           price:
             price === null
               ? null

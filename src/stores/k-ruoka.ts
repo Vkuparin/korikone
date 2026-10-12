@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pizzaPackageContent } from "../domain/package-content";
+import { retailerPackageContent } from "../domain/package-content";
 import type {
   Cart,
   Product,
@@ -164,7 +164,7 @@ export class KRuokaProvider implements StoreProvider {
       if (p.storeId && p.storeId !== context.storeId)
         throw new Error("contextChanged");
       const pack = packFromName(p.name);
-      const content = pizzaPackageContent(p.name);
+      const content = retailerPackageContent(p.name);
       // Weight pricing and missing pack data remain unresolved; never assume a kg is a pack.
       const supported = p.priceIsApproximate === false && p.priceUnit === "kpl";
       const ordering =

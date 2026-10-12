@@ -8,7 +8,11 @@ import {
   type OperationCounters,
 } from "./metrics";
 import { z } from "zod";
-import { packageAmount } from "../domain/package-content";
+import {
+  packageAmount,
+  needsPackageCount,
+  stockCubeName,
+} from "../domain/package-content";
 import { priceBasisSchema, rankProductPrices } from "../domain/price-ranking";
 import {
   initialState,
@@ -1893,7 +1897,11 @@ export class Service {
       l.candidates.some(
         (p) =>
           p.id === productId &&
-          (!p.packAmount || productId in this.state.packSizes),
+          (!p.packAmount ||
+            productId in this.state.packSizes ||
+            needsPackageCount(p, l.requirement.unit)) &&
+          (!(stockCubeName(p.name) && l.requirement.unit === "pcs") ||
+            unit === "pcs"),
       ),
     );
     if (!known) throw new Error("unresolved");

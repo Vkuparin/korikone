@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Product, Unit } from "./model";
 
-/** Fixed pizza contents; this is separate from estimated weighed-piece ordering. */
+/** Fixed pizza/cube contents; separate from estimated weighed-piece ordering. */
 export const packageContentSchema = z
   .object({
     source: z.literal("retailer-label"),
@@ -13,13 +13,18 @@ export const packageContentSchema = z
   .strict();
 export type PackageContent = z.infer<typeof packageContentSchema>;
 
-/** Singular pizza plus an unambiguous weight names one pizza; explicit multipacks name their count. */
-export function pizzaPackageContent(
+/** Pizza may establish a single item; stock cubes always need an explicit count. */
+function labelledContent(
   name: string,
-  label = name,
+  label: string,
+  cube: boolean,
 ): PackageContent | undefined {
   if (
-    !/(?<![\p{L}])(?:pakastepizzat?|pizzat?|pizzas)(?![\p{L}])/iu.test(name) ||
+    !(cube
+      ? stockCubeName(name)
+      : /(?<![\p{L}])(?:pakastepizzat?|pizzat?|pizzas)(?![\p{L}])/iu.test(
+          name,
+        )) ||
     /mini|pizzapala|pizzapohja|pizzakit|pizzakitti|taikina|dough|slice|base|kit|ateriapakkaus/iu.test(
       name,
     )
@@ -45,7 +50,8 @@ export function pizzaPackageContent(
         !multiple) ||
       (/\bpizzat\b|\bpakastepizzat\b|\bpizzas\b/iu.test(name) &&
         !counts.length &&
-        !multiple)
+        !multiple) ||
+      (cube && !counts.length && !multiple)
     )
       return;
     if (
@@ -86,13 +92,53 @@ export function pizzaPackageContent(
   return parsed.success ? parsed.data : undefined;
 }
 
+export function stockCubeName(name: string): boolean {
+  return (
+    /(?<![\p{L}])(?:(?:liha|kasvis|kana|kala)?liemikuutio(?:t|ita)?|(?:beef|vegetable|chicken|fish)\s+stock\s+cubes?)(?![\p{L}])/iu.test(
+      name,
+    ) &&
+    !/jauhe|powder|kastike|sauce|keitto|soup|nestemäinen|liquid/iu.test(name)
+  );
+}
+export function pizzaPackageContent(
+  name: string,
+  label = name,
+): PackageContent | undefined {
+  return labelledContent(name, label, false);
+}
+export function stockCubePackageContent(
+  name: string,
+  label = name,
+): PackageContent | undefined {
+  return labelledContent(name, label, true);
+}
+export function retailerPackageContent(
+  name: string,
+  label = name,
+): PackageContent | undefined {
+  return (
+    pizzaPackageContent(name, label) ?? stockCubePackageContent(name, label)
+  );
+}
+/** A known mass cannot answer a cube-count request; keep the explicit local confirmation available. */
+export function needsPackageCount(product: Product, unit: Unit): boolean {
+  return (
+    unit === "pcs" &&
+    stockCubeName(product.name) &&
+    !product.packageContent &&
+    !product.pieceOrdering &&
+    (product.unit !== "pcs" || !product.packAmount) &&
+    ["kpl", "pcs"].includes(product.nativeUnit.toLowerCase())
+  );
+}
+
 /** Revalidate persisted content claims instead of trusting a count field alone. */
 export function packageAmount(product: Product, unit: Unit): number | null {
   if (product.packageContent) {
     const parsed = packageContentSchema.safeParse(product.packageContent);
     if (!parsed.success) return null;
     const source = parsed.data;
-    const derived = pizzaPackageContent(source.name, source.label);
+    const derived = retailerPackageContent(source.name, source.label);
     if (
       source.name !== product.name ||
       !derived ||
