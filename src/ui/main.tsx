@@ -249,15 +249,23 @@ function App() {
       setError((current) =>
         options?.preserveError && current ? current : code,
       );
-      const target: SettingsSection | null =
-        /AI$/.test(method) ||
-        [
-          "generate",
-          "planShopping",
-          "editList",
-          "importRecipe",
-          "openAIUsage",
-        ].includes(method)
+      // A refused draft, a stale plan or a missing target is not a sign-in problem.
+      const notAuthentication = [
+        "invalidDraft",
+        "draftStale",
+        "contextTooLarge",
+        "incompleteDraft",
+      ].includes(code);
+      const target: SettingsSection | null = notAuthentication
+        ? null
+        : /AI$/.test(method) ||
+            [
+              "generate",
+              "planShopping",
+              "editList",
+              "importRecipe",
+              "openAIUsage",
+            ].includes(method)
           ? "ai"
           : [
                 "buildBasket",

@@ -351,6 +351,8 @@ test("commit lock rejects cancellation/replacement until acknowledgement and ser
     expect(() => env.service.planning.control({ operationId: id })).toThrow(
       "busy",
     );
+    expect(() => env.service.planning.cancelForShutdown()).not.toThrow();
+    expect(env.service.planning.snapshot()!.phase).toBe("committing");
     await expect(ready(env.service, "kahvia")).rejects.toThrow("busy");
     const appearance = env.service.setAppearance("dark");
     release!();

@@ -30,7 +30,7 @@ export function RowDetails({
   line: BasketLine;
   busy: boolean;
   money: (cents: number) => string;
-  choose: (product: Product) => void;
+  choose: (product: Product) => void | Promise<unknown>;
   remember: (input: {
     revision: number;
     requirementKey: string;

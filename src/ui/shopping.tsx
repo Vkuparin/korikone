@@ -35,6 +35,7 @@ import {
 } from "./compare";
 import { MealCalendarView } from "./calendar";
 import { QrExport } from "./qr";
+import { HouseholdSizeControl } from "./household-size";
 import { useInsights } from "./insights";
 import { RecurringSuggestions } from "./suggestions";
 import { SpendingChart } from "./spending-chart";
@@ -274,9 +275,15 @@ function EditOutcome({
         <strong>
           {edit.status === "undone"
             ? tr("Muutos kumottu: ", "Change undone: ")
-            : tr("Lista päivitetty: ", "List updated: ")}
+            : edit.status === "cleared"
+              ? tr("Lista tyhjennetty: ", "List cleared: ")
+              : edit.status === "resized"
+                ? tr("Talouden koko muutettu: ", "Household size changed: ")
+                : tr("Lista päivitetty: ", "List updated: ")}
         </strong>
-        {editSummary(edit.applied, fi)}
+        {edit.status === "cleared" && !edit.applied.length
+          ? tr("kaikki rivit poistettu", "all rows removed")
+          : editSummary(edit.applied, fi)}
       </p>
       <EditDetails delta={edit.delta} fi={fi} />
       {snapshot.editUndoAvailable && (
@@ -388,6 +395,24 @@ export function ShoppingWorkspace({
   const [editWorking, setEditWorking] = useState(false);
   const [editFailed, setEditFailed] = useState(false);
   const [confirmingNewList, setConfirmingNewList] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  // The refused-draft cause comes from the last planning event: a failed call returns no snapshot.
+  const failureCause =
+    livePlanning?.failureCause ?? snapshot.planning?.failureCause ?? null;
+  // Seconds since the update started: honest activity when the provider returns only a whole reply.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!working) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(
+      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [working]);
   const editRunning = useRef(false);
   const targets = editTargets(state, new Date());
   const focusName =
@@ -644,6 +669,21 @@ export function ShoppingWorkspace({
     leaveNewList();
     requestAnimationFrame(() => noteElement.current?.focus());
   };
+  /** Unsent composer text that clearing the list would discard. */
+  const unsentText = composingEdit
+    ? instruction.trim().length > 0
+    : note.trim().length > 0 && note !== state.note;
+  async function clearList() {
+    setConfirmingClear(false);
+    const applied = await call("clearList", { revision: state.revision });
+    if (!applied) return;
+    changeNote("");
+    setInstruction("");
+    setFocusTarget(null);
+    setNewList(false);
+    savedDraft.current = "";
+    requestAnimationFrame(() => noteElement.current?.focus());
+  }
   /** Opens the composer on one row or meal. Nothing is sent until the shopper presses Update. */
   const editWithInstruction = (targetId: string) => {
     if (!composingEdit) leaveNewList();
@@ -1031,9 +1071,12 @@ export function ShoppingWorkspace({
           />
           <div className="note-footer">
             <div className="note-context">
-              <button className="chip" onClick={() => settings("household")}>
-                {state.household.servings} {tr("henkeä", "people")}
-              </button>
+              <HouseholdSizeControl
+                snapshot={snapshot}
+                busy={busy || working || editWorking}
+                call={call}
+                openSettings={() => settings("household")}
+              />
               <span className="chip">
                 {new Date().toLocaleDateString(fi ? "fi-FI" : "en-FI", {
                   day: "numeric",
@@ -1107,6 +1150,11 @@ export function ShoppingWorkspace({
                                   "Ctrl + Enter to update the list",
                                 )}
               </span>
+              {working && !composingEdit && elapsed >= 1 && (
+                <span className="muted note-elapsed" aria-hidden="true">
+                  {elapsed} s
+                </span>
+              )}
               {composingEdit && editWorking && (
                 <button
                   className="secondary"
@@ -1168,6 +1216,63 @@ export function ShoppingWorkspace({
             void applyEdit(instruction, targetId);
           }}
         />
+        {updateFailed && !working && failureCause && !composingEdit && (
+          <p className="muted" role="status" data-testid="failure-cause">
+            {tr(
+              "Tekoälyn vastaus ei läpäissyt tarkistusta",
+              "The reply did not pass validation",
+            )}
+            {": "}
+            {{
+              json: tr(
+                "vastaus ei ollut luettavaa JSONia",
+                "the reply was not readable JSON",
+              ),
+              shape: tr(
+                "vastauksen rakenne oli väärä",
+                "the reply had the wrong structure",
+              ),
+              "recipe-id": tr(
+                "reseptin tunniste oli virheellinen",
+                "a recipe ID was invalid",
+              ),
+              "recipe-reference": tr(
+                "ateria viittasi tuntemattomaan reseptiin",
+                "a meal referred to an unknown recipe",
+              ),
+              classification: tr(
+                "ryhmittely oli virheellinen",
+                "a classification was invalid",
+              ),
+              "intents-missing": tr(
+                "pyyntöjen luettelo puuttui",
+                "the request list was missing",
+              ),
+              "intent-span": tr(
+                "pyynnön kohta muistiinpanossa ei täsmännyt",
+                "a request did not match the note",
+              ),
+              "intent-quantity": tr(
+                "määrä oli virheellinen",
+                "a quantity was invalid",
+              ),
+              "intent-target": tr(
+                "pyyntö viittasi puuttuvaan riviin",
+                "a request pointed at a missing row",
+              ),
+              "intent-coverage": tr(
+                "kaikkia pyyntöjä ei ollut katettu",
+                "not every request was covered",
+              ),
+            }[failureCause.reason] ?? ""}
+            {failureCause.path ? ` (${failureCause.path})` : ""}
+            {". "}
+            {tr(
+              "Muistiinpanosi säilyi. Voit yrittää uudelleen tai muokata sitä.",
+              "Your note was kept. You can try again or edit it.",
+            )}
+          </p>
+        )}
         {!composingEdit && note !== state.note && (
           <p id="note-unapplied" className="muted" role="status">
             {tr(
@@ -1184,8 +1289,8 @@ export function ShoppingWorkspace({
             )
           ) : snapshot.ai.state === "connected" ? (
             tr(
-              "Päivitä lista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle. Raakakuitit ja muu historia pysyvät paikallisina. Kirjoittaminen ei lähetä tietoja.",
-              "Update list sends your note, relevant recipes and household preferences to ChatGPT. Raw receipts and unrelated history stay local. Typing does not send data.",
+              "Päivitä lista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle.",
+              "Update list sends your note, relevant recipes and household preferences to ChatGPT.",
             )
           ) : (
             <>
@@ -1375,29 +1480,33 @@ export function ShoppingWorkspace({
                           +
                         </button>
                       </div>
-                      <button
-                        className="text edit-with-instruction"
-                        aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${recipe.name}`}
-                        disabled={busy || working || editWorking}
-                        onClick={() =>
-                          editWithInstruction(mealTargetId(meal.id))
-                        }
-                      >
-                        {tr("Muokkaa ohjeella", "Edit with instruction")}
-                      </button>
-                      <button
-                        className="text remove-meal"
-                        disabled={busy}
-                        onClick={() =>
-                          // Local: the other rows keep their prices and nothing is searched.
-                          void call("editLocally", {
-                            revision: state.revision,
-                            operations: [{ op: "removeMeal", mealId: meal.id }],
-                          })
-                        }
-                      >
-                        {tr("Poista", "Remove")}
-                      </button>
+                      <div className="meal-actions">
+                        <button
+                          className="text edit-with-instruction"
+                          aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${recipe.name}`}
+                          disabled={busy || working || editWorking}
+                          onClick={() =>
+                            editWithInstruction(mealTargetId(meal.id))
+                          }
+                        >
+                          {tr("Muokkaa ohjeella", "Edit with instruction")}
+                        </button>
+                        <button
+                          className="text remove-meal"
+                          disabled={busy}
+                          onClick={() =>
+                            // Local: the other rows keep their prices and nothing is searched.
+                            void call("editLocally", {
+                              revision: state.revision,
+                              operations: [
+                                { op: "removeMeal", mealId: meal.id },
+                              ],
+                            })
+                          }
+                        >
+                          {tr("Poista", "Remove")}
+                        </button>
+                      </div>
                     </article>
                   );
                 })}
@@ -1528,19 +1637,19 @@ export function ShoppingWorkspace({
               {tr("Ostoslista", "Shopping list")}{" "}
               <span className="muted">· {all.length}</span>
             </h2>
+            <button
+              className="secondary clear-list"
+              disabled={busy || working || (!all.length && !state.note.trim())}
+              onClick={() =>
+                unsentText ? setConfirmingClear(true) : void clearList()
+              }
+            >
+              {tr("Tyhjennä lista", "Clear list")}
+            </button>
             <details className="list-menu">
               <summary aria-label={tr("Listan toiminnot", "List actions")}>
                 ···
               </summary>
-              <button
-                className="text"
-                disabled={busy}
-                onClick={async () => {
-                  if (await call("newWeek")) changeNote("");
-                }}
-              >
-                {tr("Tyhjennä ostoslista", "Clear shopping list")}
-              </button>
               <button className="text" onClick={() => void call("exportList")}>
                 {tr("Tallenna tekstinä", "Save as text")}
               </button>
@@ -1556,6 +1665,35 @@ export function ShoppingWorkspace({
               </button>
             </details>
           </div>
+          {confirmingClear && (
+            <div className="composer-confirm" role="alertdialog">
+              <p>
+                {tr(
+                  "Kirjoittamasi keskeneräinen teksti hylätään, kun lista tyhjennetään. Tyhjennys voidaan kumota, mutta teksti ei palaa.",
+                  "The unsent text you wrote is discarded when the list is cleared. Clearing can be undone, but the text will not come back.",
+                )}
+              </p>
+              <button type="button" onClick={() => void clearList()}>
+                {tr("Tyhjennä lista", "Clear list")}
+              </button>
+              <button
+                className="secondary"
+                type="button"
+                autoFocus
+                onClick={() => setConfirmingClear(false)}
+              >
+                {tr("Säilytä lista", "Keep the list")}
+              </button>
+            </div>
+          )}
+          {!all.length && (
+            <p className="muted list-empty-note" role="status">
+              {tr(
+                "Lista on tyhjä. Lisää tuote, kirjoita uusi lista tai kumoa tyhjennys. Vakiotuotteet palaavat, kun päivität hinnat tai teet uuden listan.",
+                "The list is empty. Add an item, write a new list or undo the clearing. Recurring items return when you update prices or make a new list.",
+              )}
+            </p>
+          )}
           <form
             className="quick-add"
             onSubmit={(e) => {
@@ -1732,11 +1870,24 @@ export function ShoppingWorkspace({
                     <div
                       className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
                       key={key}
+                      data-row-key={key}
                     >
                       <button
                         className="home-button"
                         aria-label={`${tr("Löytyy kotoa", "Already at home")}: ${r.name}`}
                         aria-pressed={home}
+                        aria-describedby={`home-help-${key}`}
+                        title={
+                          home
+                            ? tr(
+                                "Löytyy kotoa, joten tätä ei siirretä kauppaan. Paina uudelleen, niin tuote palaa siirrettäviin.",
+                                "Already at home, so it is not transferred. Press again to include it.",
+                              )
+                            : tr(
+                                "Merkitse kotona olevaksi: tuotetta ei siirretä kauppaan.",
+                                "Mark as already at home: it is left out of the transfer.",
+                              )
+                        }
                         disabled={busy}
                         onClick={() =>
                           // Marking at home needs no search; bringing a row back does.
@@ -1760,6 +1911,21 @@ export function ShoppingWorkspace({
                         ⌂
                       </button>
                       <div className="grocery-description">
+                        <small
+                          id={`home-help-${key}`}
+                          className="home-help muted"
+                          role="note"
+                        >
+                          {home
+                            ? tr(
+                                "Löytyy kotoa, joten tätä ei siirretä kauppaan. Paina ⌂ uudelleen, niin tuote palaa siirrettäviin.",
+                                "Already at home, so it is not transferred. Press ⌂ again to include it.",
+                              )
+                            : tr(
+                                "Merkitse kotona olevaksi: tuotetta ei siirretä kauppaan. Merkintä ei ole osto eikä muuta kaupan koria.",
+                                "Mark as already at home: it is left out of the transfer. This is not a purchase and does not change the store basket.",
+                              )}
+                        </small>
                         {line?.matching &&
                           line.matching.status !== "resolved" && (
                             <p className="warning">
@@ -1980,13 +2146,24 @@ export function ShoppingWorkspace({
                               unit,
                             })
                           }
-                          choose={(p) => {
-                            if (line.product)
-                              setUndo({ ...undo, [key]: line.product.id });
-                            void call("accept", {
+                          choose={async (p) => {
+                            const previous = line.product?.id;
+                            const applied = await call("accept", {
                               ingredientId: r.id,
                               productId: p.id,
                             });
+                            // The list of alternatives closes only once the choice has been
+                            // applied; a failure keeps it open beside the error.
+                            if (!applied) return;
+                            if (previous) setUndo({ ...undo, [key]: previous });
+                            setOpened(null);
+                            requestAnimationFrame(() =>
+                              document
+                                .querySelector<HTMLElement>(
+                                  `[data-row-key="${CSS.escape(key)}"] .row-name`,
+                                )
+                                ?.focus(),
+                            );
                           }}
                         />
                       )}

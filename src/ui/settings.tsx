@@ -150,8 +150,8 @@ export function GeneralSettings({
           )}
         </p>
       )}
-      <label>
-        {t("language")}
+      {/* The same compact selector as in the header; its accessible name is the language label. */}
+      <div className="language-control">
         <Choice
           label={t("language")}
           value={snapshot.state.language}
@@ -161,7 +161,7 @@ export function GeneralSettings({
           ]}
           onChange={(value) => changeLanguage(value as "fi" | "en")}
         />
-      </label>
+      </div>
     </div>
   );
 }
@@ -169,6 +169,7 @@ export function GeneralSettings({
 export function HouseholdSettings({
   snapshot,
   busy,
+  call,
   save,
   t,
   editStaples,
@@ -188,16 +189,35 @@ export function HouseholdSettings({
     <>
       <form
         className="card form"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          void save({
-            ...state,
-            household: {
-              servings: Number(draft.servings),
-              budget: Math.round(Number(draft.budget.replace(",", ".")) * 100),
-              exclusions: draft.exclusions,
-            },
-          });
+          const servings = Number(draft.servings);
+          const budget = Math.round(
+            Number(draft.budget.replace(",", ".")) * 100,
+          );
+          // The household size goes through the one local operation that also scales the
+          // planned meals; budget and exclusions are ordinary settings saved after it.
+          if (servings !== state.household.servings) {
+            const resized = await call("setHouseholdSize", {
+              revision: state.revision,
+              servings,
+            });
+            if (!resized) return;
+          }
+          if (
+            budget !== state.household.budget ||
+            draft.exclusions !== state.household.exclusions
+          ) {
+            const latest = (await window.korikone.load()).value.state;
+            await save({
+              ...latest,
+              household: {
+                ...latest.household,
+                budget,
+                exclusions: draft.exclusions,
+              },
+            });
+          }
         }}
       >
         <label>

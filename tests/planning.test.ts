@@ -45,6 +45,17 @@ function setup() {
     },
   };
 }
+
+test("shutdown cancels a pending planning run without mutating saved state", () => {
+  const state = initialState();
+  const before = structuredClone(state);
+  const lifecycle = new PlanningLifecycle(() => state);
+  const run = lifecycle.start("1 l maitoa");
+  expect(() => lifecycle.cancelForShutdown()).not.toThrow();
+  expect(run.signal.aborted).toBe(true);
+  expect(lifecycle.snapshot()!.phase).toBe("cancelled");
+  expect(state).toEqual(before);
+});
 const requirement: Requirement = {
   id: "milk",
   name: "Maito",

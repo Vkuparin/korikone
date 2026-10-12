@@ -353,6 +353,9 @@ export class PlanningLifecycle {
     this.run?.assertCommitMutable();
     this.run?.stop("cancelled", "cancelled");
   }
+  cancelForShutdown() {
+    this.run?.cancelForShutdown();
+  }
   control(input: unknown, obsolete = false) {
     const control = planningControlSchema.parse(input);
     if (!this.run || this.run.operationId !== control.operationId)
@@ -383,6 +386,9 @@ export class PlanningRun {
   private commitLocked = false;
   assertCommitMutable() {
     if (this.commitLocked) throw new Error("busy");
+  }
+  cancelForShutdown() {
+    if (!this.commitLocked) this.stop("cancelled", "cancelled");
   }
   private value: PlanningSnapshot;
   private sourceSignature: string;

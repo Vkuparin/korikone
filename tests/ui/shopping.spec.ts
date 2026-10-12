@@ -249,7 +249,9 @@ test("shopping workspace adds recipes, marks home items, removes rows, schedules
       fullPage: true,
     });
     await page.getByLabel("Listan toiminnot").click();
-    await page.getByRole("button", { name: "Tyhjennä ostoslista" }).click();
+    await page
+      .getByRole("button", { name: "Tyhjennä lista", exact: true })
+      .click();
     await expect(page.locator(".grocery-row")).toHaveCount(0);
     await expect(page.locator(".interpretation")).toHaveCount(0);
     await page.screenshot({

@@ -77,12 +77,10 @@ test("a list row opens its product details and can change the product", async ()
       name: "Kotimaista kanan jauheliha 4% 400 g",
       exact: true,
     });
-    await expect(chosen).toHaveAttribute("aria-expanded", "true");
-    await expect(details).toContainText(
-      "Hyväksyit tämän tuotteen nykyiseen listaan.",
-    );
-    await chosen.click();
+    // The alternatives close once the choice is applied, and focus returns to the row's product.
     await expect(details).toHaveCount(0);
+    await expect(chosen).toHaveAttribute("aria-expanded", "false");
+    await expect(chosen).toBeFocused();
   } finally {
     await app.close();
   }
