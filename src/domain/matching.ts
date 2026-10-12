@@ -15,7 +15,7 @@ export {
   categoryPreferenceSchema,
   type CategoryPreference,
 } from "./preferences";
-import { foodNameFacts } from "./food-names";
+import { foodNameFacts, ordinaryOnionName } from "./food-names";
 import { correctionKey } from "./corrections";
 import { productEvidenceSchema, type ProductFamily } from "./product-evidence";
 import { match, relevant, approximateCost, pieceQuote } from "./planner";
@@ -137,7 +137,12 @@ export function matchingPolicy(
         .filter(
           (q) =>
             q.provenance === "explicit-note" ||
-            q.provenance === "recipe-inferred",
+            (q.provenance === "recipe-inferred" &&
+              !(
+                classification.category === "onion" &&
+                ((q.kind === "onion" && q.value === "yellow") ||
+                  q.kind === "organic")
+              )),
         )
         .map((q) => ({
           kind: q.kind,
@@ -304,13 +309,20 @@ function assess(
   } else {
     if (!evidence?.category) return reject("unknown-category");
     if (evidence.category !== policy.category) return reject("category");
+    // Semantic name equivalence for comparison only; retain the retailer's observed qualifiers unchanged.
+    const qualifiers =
+      evidence.family === "onion" &&
+      !evidence.qualifiers.some((q) => q.kind === "onion") &&
+      ordinaryOnionName(evidence.quote)
+        ? [...evidence.qualifiers, { kind: "onion" as const, value: "yellow" }]
+        : evidence.qualifiers;
     for (const q of policy.required) {
-      const actual = evidence.qualifiers.find((v) => v.kind === q.kind);
+      const actual = qualifiers.find((v) => v.kind === q.kind);
       if (!actual) return reject("qualifier-unknown");
       if (actual.value !== q.value) return reject("qualifier-conflict");
     }
     const value = (kind: Value["kind"]) =>
-      evidence.qualifiers.find((q) => q.kind === kind)?.value;
+      qualifiers.find((q) => q.kind === kind)?.value;
     const requested = (kind: Value["kind"]) =>
       policy.required.find((q) => q.kind === kind)?.value ??
       policy.preferred.find((q) => q.kind === kind)?.value;
@@ -325,8 +337,7 @@ function assess(
       return review("default-review");
     if (
       policy.preferred.some(
-        (q) =>
-          evidence.qualifiers.find((v) => v.kind === q.kind)?.value !== q.value,
+        (q) => qualifiers.find((v) => v.kind === q.kind)?.value !== q.value,
       )
     )
       return review("preference-missing");
