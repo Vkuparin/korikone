@@ -223,7 +223,7 @@ U18.2–U18.4 add focused unit/IPC/UI evidence for the changed paths. U18.5 reus
 
 ### U18.1 contract
 
-Settled 12 October 2026. The values below replace the v0.6.0 dark palette and add chain roles. They are a contract for U18.2 and U18.4; `src/ui/style.css` still holds the v0.6.0 values until those cards apply them. The identity part of the lifecycle (U18.3) is implemented. No visual acceptance is claimed.
+Settled 12 October 2026. The values below replace the v0.6.0 dark palette and add chain roles. They are a contract for U18.2 and U18.4; `src/ui/style.css` and `nativePalette` hold these values since U18.2/U18.4 (b5ca649 on `claude/project-thread-ahxe8n`); `tests/chain-palette.test.ts` requires the CSS blocks to equal `tests/fixtures/chain-palette.ts`. Owner visual acceptance is outstanding. The identity part of the lifecycle (U18.3) is implemented. No visual acceptance is claimed.
 
 **Base palette.** Light base values are unchanged. Dark becomes neutral charcoal with a slight cool cast; no channel leads by more than 16 of 255 and green never exceeds blue.
 

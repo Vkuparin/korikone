@@ -216,3 +216,21 @@ Source fixture evidence on branch `claude/project-thread-q9ucii`, not merged to 
 | U19.1, U19.3 | `tests/ui/store-return.spec.ts` 1 passed and `tests/compare-blocker.test.ts` 1 passed; issue-by-issue findings in [ux.md](ux.md#store-selection-comparison-and-return-audit-u191). No lifecycle bug reproduced, so U19.3 is dropped |
 
 Owner checks still outstanding: visual acceptance of chain colours after U18.4 (U18.5), comparison prominence and return-to-store in live use after U19.2 (U19.4), and the optional live edit-interpretation check prepared by F17.8 at no more than two ChatGPT requests per edit.
+
+## v0.8.0 Simple card evidence — 2026-10-12
+
+Source fixture evidence on branch `claude/project-thread-ahxe8n` at b5ca649 (built on `claude/project-thread-q9ucii`), not merged to main and not a release-readiness claim. Zero live AI requests, zero real retailer accounts and zero retailer writes. The full release flow has not been run for v0.8.0.
+
+Final focused batch on the final build: 23 UI spec files, 63 tests passed, 0 failed: `edit-composer`, `edit-entry`, `edit-journey`, `edit-api`, `chain-accent`, `chain-identity`, `appearance-contract`, `palette`, `store-access`, `store-return`, `chains`, `compare`, `recipe-import`, `recipe-import-api`, `qr-export`, `shopping`, `settings`, `release-interface`, `models`, `context`, `context-api`, `store`, `transfer-api`. Unit checks: `tests/chain-palette.test.ts`, `contrast`, `qr-export`, `ai-shopping-edits`, `ai-edit`, `edits`, `service-edits`, `edit-delta`, `compare-blocker`, `appearance`, `appearance-ui`, `ai-shopping` (70 passed in 12 files). `npx tsc --noEmit` and the Prettier check on changed files. The composer change made existing specs that planned over a saved list use New list (`tests/ui/composer-helper.ts`).
+
+| Cards | Evidence |
+| --- | --- |
+| F17.6, F17.9, F17.11 | `edit-composer` (3), `edit-entry` (2): label and New list, clarification choices, summary, Undo, row/meal entry, collapsed details, restart, FI/EN, keyboard, 800 px |
+| F17.7 | `tests/ai-shopping-edits.test.ts` (4): 20 cases x 2 adapters, one request each, undo with zero calls |
+| F17.8 | `edit-journey` (1): create, multi-edit, transfer, undo, restart, stale approval; edit at most 2 requests |
+| U18.2, U18.4, U18.5 | CSS equals the contract in `chain-palette.test.ts`; `chain-accent` (1); 16 captures from `chain-captures.spec.ts` (`test-results/captures/`, not committed) |
+| U19.2, U19.4 | `store-access` (2) plus `store-return`, `chains`, `compare`, `store` |
+| F10.2 | `recipe-import` (2), `recipe-import-api` (1) |
+| F12.1 | `qr-export` unit (5) and UI (2) |
+
+Owner checks outstanding: visual acceptance of the chain colours on the neutral dark surfaces and the captures (U18.5); comparison prominence and return-to-store in live use (U19.4); a phone-camera scan of a short and a long QR list plus copy/share and save (F12.1); the optional live edit-interpretation check at no more than two ChatGPT requests per edit (F17.8); and an optional live recipe import, one request or two with a repair (F10.2).

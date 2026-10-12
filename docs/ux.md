@@ -132,4 +132,6 @@ Audited 12 October 2026 against issues [#6](https://github.com/Vkuparin/korikone
 
 Fixtures for U19.2: FI and EN, keyboard and narrow width, for both chains in signed-out, missing-store and ready states, through `changeContext`, `save` and the fixture sign-in as `tests/ui/store-return.spec.ts` and `tests/ui/chains.spec.ts` do. Assert that browsing the other chain's tab, opening a picker and selecting a comparison candidate leave `state.context` unchanged, and that the catalogue and AI request counts do not move.
 
+**Implemented (U19.2, b5ca649 on `claude/project-thread-ahxe8n`).** The comparison line names the missing store or sign-in; the mixed-chain search is removed from Stores settings; Stores settings and the navigation offer the way back while a store page is open or a sign-in is waiting. `tests/ui/store-access.spec.ts` covers FI and EN for both chains.
+
 **U19.4** exercises the three U19.2 changes through real development IPC and reuses `tests/ui/store-return.spec.ts`, `tests/ui/chains.spec.ts`, `tests/ui/compare.spec.ts` and `tests/ui/store.spec.ts` results. Remaining owner checks: the prominence of the comparison button (#7), and finding the way back to the store from Settings in live use (#10).
