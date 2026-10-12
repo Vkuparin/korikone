@@ -37,6 +37,7 @@ import { MealCalendarView } from "./calendar";
 import { QrExport } from "./qr";
 import { useInsights } from "./insights";
 import { RecurringSuggestions } from "./suggestions";
+import { SpendingChart } from "./spending-chart";
 import type { SettingsSection } from "./settings-contract";
 
 const editUnit = (unit: string | undefined, fi: boolean) =>
@@ -713,6 +714,13 @@ export function ShoppingWorkspace({
     return (
       <section>
         <h1>{tr("Historia", "History")}</h1>
+        {insights && (
+          <SpendingChart
+            insights={insights}
+            budget={state.household.budget}
+            language={state.language}
+          />
+        )}
         <p>
           {tr(
             "Kaupan ostoskoriin siirretyt listat. Ostoksen maksaminen ei tallennu automaattisesti.",
