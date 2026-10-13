@@ -148,6 +148,7 @@ export class FixtureAI {
       this.scenario !== "delayedModels" &&
       this.scenario !== "invalidOnce" &&
       this.scenario !== "offersPersonal" &&
+      this.scenario !== "offersMixed" &&
       !["noSmallModel", "removedModel"].includes(this.scenario)
     )
       throw new Error(this.scenario);

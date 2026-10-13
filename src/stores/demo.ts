@@ -210,7 +210,16 @@ export function demoWeeklyOrders(now: Date): RetailerOrder[] {
   return orders;
 }
 export class DemoProvider implements StoreProvider {
-  offerScenario: "success" | "empty" | "unsupported" | "personal" = "success";
+  offerScenario:
+    | "success"
+    | "empty"
+    | "unsupported"
+    | "personal"
+    | "expired"
+    | "exhausted"
+    | "mixed"
+    | "error"
+    | "signedOut" = "success";
   capabilities = {
     catalogue: true,
     cart: true,
@@ -227,6 +236,19 @@ export class DemoProvider implements StoreProvider {
         status: "unsupported",
         reason: "no-discovery-source",
       };
+    if (this.offerScenario === "signedOut")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "signed-out",
+      };
+    if (this.offerScenario === "error")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "error",
+        code: "storeUnavailable",
+      };
     if (this.offerScenario === "empty")
       return {
         providerId: this.id,
@@ -236,14 +258,103 @@ export class DemoProvider implements StoreProvider {
         offers: [],
         truncated: false,
       };
+    // Source-shaped current, expired, exhausted and unavailable offers; the shared collector
+    // keeps only those that are still current before anything reaches the AI task.
+    const stale = (
+      id: string,
+      name: string,
+      change: Partial<import("../domain/offers").RetailerOffer>,
+    ): import("../domain/offers").RetailerOffer => ({
+      id,
+      kind: "public",
+      title: name,
+      products: [{ id: "2000000000028", name, available: true }],
+      price: { amount: 99, basis: "pcs", quantity: 1, unitLabel: "kpl" },
+      normalPrice: null,
+      validUntil: "2030-01-01",
+      remainingRedemptions: null,
+      eligibility: "eligible",
+      conditions: [],
+      ...change,
+    });
+    const personalStale = (
+      id: string,
+      name: string,
+      change: Partial<import("../domain/offers").RetailerOffer>,
+    ) =>
+      stale(id, name, {
+        kind: "personal",
+        eligibility: "conditional",
+        conditions: ["plussa-required", "activation-unverified"],
+        remainingRedemptions: 1,
+        ...change,
+      });
+    if (this.offerScenario === "expired")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "ready",
+        accountKey: null,
+        truncated: false,
+        offers: [
+          stale("synthetic-expired-offer", "Vanhentunut synteettinen tarjous", {
+            validUntil: "2020-01-01",
+          }),
+        ],
+      };
+    if (this.offerScenario === "exhausted")
+      return {
+        providerId: this.id,
+        storeId: context.storeId,
+        status: "ready",
+        accountKey: "k-ruoka:0123456789abcdef",
+        truncated: false,
+        offers: [
+          personalStale(
+            "synthetic-exhausted-offer",
+            "Käytetty synteettinen tarjous",
+            { remainingRedemptions: 0 },
+          ),
+        ],
+      };
+    const mixed = this.offerScenario === "mixed";
     return {
       providerId: this.id,
       storeId: context.storeId,
       status: "ready",
       accountKey:
-        this.offerScenario === "personal" ? "k-ruoka:0123456789abcdef" : null,
+        this.offerScenario === "personal" || mixed
+          ? "k-ruoka:0123456789abcdef"
+          : null,
       truncated: false,
       offers: [
+        ...(mixed
+          ? [
+              stale(
+                "synthetic-expired-offer",
+                "Vanhentunut synteettinen tarjous",
+                { validUntil: "2020-01-01" },
+              ),
+              personalStale(
+                "synthetic-exhausted-offer",
+                "Käytetty synteettinen tarjous",
+                { remainingRedemptions: 0 },
+              ),
+              stale(
+                "synthetic-unavailable-offer",
+                "Loppunut synteettinen tarjous",
+                {
+                  products: [
+                    {
+                      id: "2000000000035",
+                      name: "Loppunut synteettinen tuote",
+                      available: false,
+                    },
+                  ],
+                },
+              ),
+            ]
+          : []),
         {
           id: "synthetic-tomato-offer",
           kind: this.offerScenario === "personal" ? "personal" : "public",

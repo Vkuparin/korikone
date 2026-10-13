@@ -15,6 +15,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
+import { offerSourceScenarios } from "../ai/scenarios";
 import { DemoProvider } from "../stores/demo";
 import { chooseModel } from "../ai/models";
 import { ChatGPTInferenceProvider } from "../ai/chatgpt-provider";
@@ -497,20 +498,18 @@ else
         service.developmentRequests = 0;
         service.developmentScenario = fixtureAI.scenario;
         for (const provider of service.registry.all()) {
-          if (provider instanceof DemoProvider)
+          if (provider instanceof DemoProvider) {
             provider.offerScenario =
-              fixtureAI.scenario === "offersEmpty"
-                ? "empty"
-                : fixtureAI.scenario === "offersUnsupported"
-                  ? "unsupported"
-                  : fixtureAI.scenario === "offersPersonal"
-                    ? "personal"
-                    : "success";
-          if (provider instanceof DemoProvider)
+              offerSourceScenarios[
+                fixtureAI.scenario as keyof typeof offerSourceScenarios
+              ] ?? "success";
             provider.capabilities.offers = {
               public: true,
-              personal: fixtureAI.scenario === "offersPersonal",
+              personal: ["personal", "exhausted", "mixed"].includes(
+                provider.offerScenario,
+              ),
             };
+          }
         }
         return service.snapshot();
       },

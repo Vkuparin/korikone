@@ -56,7 +56,7 @@ test("view return and restart retain quotes without searches, while explicit edi
     const priced = await load();
     expect(priced.developmentCatalogueRequests).toBe(2);
     const total = await page.locator(".total-line strong").textContent();
-    await startNewList(page);
+    // An unsent instruction is kept across views; the saved quote stays as it was.
     await composer(page).fill("Nakkikeitto");
     await page.getByRole("button", { name: "Reseptit", exact: true }).click();
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();
@@ -87,8 +87,7 @@ test("view return and restart retain quotes without searches, while explicit edi
     expect((await load()).journal).toBeNull();
     await page.evaluate(() => window.korikone.scenario("price"));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await settingsCategory(page, "stores", "Stores");
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await settingsCategory(page, "advanced", "Advanced");
     const beforeSwitch = (await load()).developmentCatalogueRequests;
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
     await expect

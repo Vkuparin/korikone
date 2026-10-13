@@ -37,8 +37,7 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Peruna · 125 g")).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await settingsCategory(page, "stores", "Stores");
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await settingsCategory(page, "advanced", "Advanced");
     await page.getByLabel("Store", { exact: true }).selectOption("demo-s");
     await expect(page.locator(".context")).toContainText("S-kaupat");
     await page

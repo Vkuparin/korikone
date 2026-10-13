@@ -74,7 +74,7 @@ for (const language of ["fi", "en"] as const) {
         await hint.focus();
         await page.keyboard.press("Enter");
         await expect(
-          page.getByRole("heading", {
+          page.getByRole("region", {
             name: tr("Kauppaketjut", "Store chains"),
           }),
         ).toBeVisible();

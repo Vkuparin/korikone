@@ -96,6 +96,59 @@ export function AdvancedSettings({
           </label>
         </>
       )}
+      {snapshot.developmentMode && (
+        <fieldset className="development-stores">
+          <legend>
+            {snapshot.state.language === "fi"
+              ? "Kehitystilan kauppa"
+              : "Development store"}
+          </legend>
+          {field(
+            t("store"),
+            <select
+              aria-label={t("store")}
+              value={snapshot.state.context.providerId}
+              onChange={(e) =>
+                void save({
+                  ...snapshot.state,
+                  context: {
+                    ...snapshot.state.context,
+                    providerId: e.target.value,
+                    storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
+                  },
+                })
+              }
+            >
+              <option value="demo-k">K-Ruoka (demo)</option>
+              <option value="demo-s">S-kaupat (demo)</option>
+              {isLive(snapshot.state.context.providerId) && (
+                <option value={snapshot.state.context.providerId}>
+                  {snapshot.state.context.storeName}
+                </option>
+              )}
+            </select>,
+          )}
+          {field(
+            t("pickup") + " / " + t("delivery"),
+            <select
+              value={snapshot.state.context.fulfillment}
+              disabled={isLive(snapshot.state.context.providerId)}
+              onChange={(e) =>
+                void save({
+                  ...snapshot.state,
+                  context: {
+                    ...snapshot.state.context,
+                    fulfillment: e.target.value as "pickup" | "delivery",
+                  },
+                })
+              }
+            >
+              <option value="pickup">{t("pickup")}</option>
+              <option value="delivery">{t("delivery")}</option>
+            </select>,
+          )}
+        </fieldset>
+      )}
       <button
         className="secondary"
         disabled={busy}
@@ -308,6 +361,10 @@ export function StoresSettings({
           </button>
         </p>
       )}
+      <section aria-label={t("chainsTitle")}>
+        <p className="muted">{t("chainsHelp")}</p>
+        <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
+      </section>
       <fieldset className="price-basis">
         <legend>{fi ? "Hintavertailu" : "Price comparison"}</legend>
         {field(
@@ -336,64 +393,13 @@ export function StoresSettings({
             : "The same choice applies to both chains. A better unit price can cost more at the checkout. The setting does not change the current list; it affects the next pricing and the order of alternatives."}
         </p>
       </fieldset>
-      <details>
-        <summary>{t("advancedSettings")}</summary>
-        {field(
-          t("store"),
-          <select
-            aria-label={t("store")}
-            value={state.context.providerId}
-            onChange={(e) =>
-              void save({
-                ...state,
-                context: {
-                  ...state.context,
-                  providerId: e.target.value,
-                  storeName: `${e.target.value === "demo-k" ? "K-Ruoka" : "S-kaupat"} · Helsinki (demo)`,
-                },
-              })
-            }
-          >
-            <option value="demo-k">K-Ruoka (demo)</option>
-            <option value="demo-s">S-kaupat (demo)</option>
-            {isLive(state.context.providerId) && (
-              <option value={state.context.providerId}>
-                {state.context.storeName}
-              </option>
-            )}
-          </select>,
-        )}
-        {field(
-          t("pickup") + " / " + t("delivery"),
-          <select
-            value={state.context.fulfillment}
-            disabled={isLive(state.context.providerId)}
-            onChange={(e) =>
-              void save({
-                ...state,
-                context: {
-                  ...state.context,
-                  fulfillment: e.target.value as "pickup" | "delivery",
-                },
-              })
-            }
-          >
-            <option value="pickup">{t("pickup")}</option>
-            <option value="delivery">{t("delivery")}</option>
-          </select>,
-        )}
+      <details className="connection-help">
+        <summary>
+          {fi ? "Miten yhteys toimii" : "How the connection works"}
+        </summary>
+        <p>K-Ruoka: {t("realStatus")}</p>
+        <p>S-kaupat: {t("sKaupatStatus")}</p>
       </details>
-      <h3>{t("storeConnection")}</h3>
-      {isLive(state.context.providerId) && (
-        <p>
-          <strong>{state.context.storeName}</strong>
-        </p>
-      )}
-      <h3>{t("chainsTitle")}</h3>
-      <p className="muted">{t("chainsHelp")}</p>
-      <Chains snapshot={snapshot} t={t} busy={busy} call={call} />
-      <p>K-Ruoka: {t("realStatus")}</p>
-      <p>S-kaupat: {t("sKaupatStatus")}</p>
     </section>
   );
 }

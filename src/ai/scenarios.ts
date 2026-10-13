@@ -5,6 +5,11 @@ export const aiScenarios = [
   "offersEmpty",
   "offersUnsupported",
   "offersPersonal",
+  "offersExpired",
+  "offersExhausted",
+  "offersMixed",
+  "offersError",
+  "offersSignedOut",
   "success",
   "delayedSuccess",
   "delayedFailure",
@@ -21,3 +26,15 @@ export const aiScenarios = [
   "modelsFailed",
   "handoffFailed",
 ] as const;
+
+/** Development offer-source behaviour behind each offers scenario (F11.3). */
+export const offerSourceScenarios = {
+  offersEmpty: "empty",
+  offersUnsupported: "unsupported",
+  offersPersonal: "personal",
+  offersExpired: "expired",
+  offersExhausted: "exhausted",
+  offersMixed: "mixed",
+  offersError: "error",
+  offersSignedOut: "signedOut",
+} as const;
