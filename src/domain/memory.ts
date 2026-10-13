@@ -2,7 +2,11 @@ import type { Category, Qualifier } from "./categories";
 import { sameGrocery } from "./purchase-links";
 import type { AppState } from "./model";
 import type { CategoryPreference } from "./preferences";
-import { effectiveAnnotation } from "./purchase-review";
+import {
+  displayName,
+  effectiveAnnotation,
+  type DisplayName,
+} from "./purchase-review";
 import type {
   EvidenceLine,
   PurchaseChain,
@@ -53,7 +57,35 @@ export type PurchaseObservation = {
   promotion: boolean;
   scope: "food" | "non-food" | "unknown";
   identity: ItemIdentity | null;
+  /**
+   * How the line reads (F27.6), for showing only. It is never part of `identity`: a readable
+   * name does not group purchases, confirm an alias or count as a preference.
+   */
+  display: DisplayName;
 };
+/** A readable name with the evidence behind it, as the memory views carry it (F27.10). */
+export type ReadableName = Pick<DisplayName, "text" | "tier" | "nameOrigin">;
+const readable = (display: DisplayName): ReadableName => ({
+  text: display.text,
+  tier: display.tier,
+  nameOrigin: display.nameOrigin,
+});
+/**
+ * Whether a readable name may be given to the planning model as a hint: the shopper's own name,
+ * or a name whose every word the receipt prints or spells out, made by the local rule. A model's
+ * name stays out however well grounded, and so do generic names and bare printed labels.
+ */
+export const contextNameRule = /^[\p{L}\p{N}][\p{L}\p{N} ,.%+&'()/-]{1,79}$/u;
+export function contextName(display: ReadableName): string | null {
+  return (display.nameOrigin === "user" || display.nameOrigin === "rule") &&
+    (display.tier === "user" ||
+      display.tier === "exact" ||
+      display.tier === "expanded") &&
+    contextNameRule.test(display.text) &&
+    !/\d{4,}/.test(display.text)
+    ? display.text
+    : null;
+}
 export type TransferRecord = {
   id: string;
   date: string;
@@ -126,6 +158,15 @@ export function readMemory(state: AppState, ledger: PurchaseLedger): Memory {
           annotation && line.role !== "non-food"
             ? identityOf(annotation)
             : null,
+        display: displayName(
+          line,
+          ledger.annotations.filter(
+            (a) =>
+              a.eventId === event.id &&
+              a.lineId === line.id &&
+              a.sourceRevision === revision,
+          ),
+        ),
       });
     }
   }
@@ -155,11 +196,65 @@ export type PurchaseAlias = {
   origins: { rule: number; model: number; user: number };
   confirmed: boolean;
   /** The printed labels behind the alias, per chain. The same alias is never the same product. */
-  labels: { chain: PurchaseChain; label: string; observations: number }[];
+  labels: {
+    chain: PurchaseChain;
+    label: string;
+    observations: number;
+    /** How this label reads; the newest reading of the same label. */
+    display: ReadableName;
+  }[];
   observations: number;
   /** A saved preference for this category whose qualifiers the alias does not all carry. */
   conflictsWithRemembered: boolean;
+  /**
+   * The readable name most often bought under this alias, the shopper's own first; null when
+   * every purchase shows only a generic name or its printed label.
+   */
+  display: (ReadableName & { observations: number }) | null;
+  /**
+   * Whether this alias is given to the planning model for a request that asks for the usual,
+   * and why not when it is not (F27.10). `readableName` is the name sent with it, or null.
+   * Decided by `aliasContext`; `observedSummaries` sends exactly the eligible ones.
+   */
+  context: AliasContext;
 };
+export type AliasContext = {
+  eligible: boolean;
+  reason:
+    | "eligible"
+    /** Only a model read these purchases. */
+    | "model-only"
+    /** Grouped by name; there is no validated category to send. */
+    | "no-category"
+    /** The shopper saved a preference for the category, which speaks instead. */
+    | "remembered-preference"
+    /** Fewer than two purchases. */
+    | "few-observations";
+  readableName: string | null;
+};
+export const contextRules = Object.freeze({ observations: 2, summaries: 20 });
+function aliasContext(
+  alias: Omit<PurchaseAlias, "context">,
+  remembered: Set<Category>,
+): AliasContext {
+  const reason: AliasContext["reason"] = !alias.confirmed
+    ? "model-only"
+    : alias.category === null
+      ? "no-category"
+      : remembered.has(alias.category)
+        ? "remembered-preference"
+        : alias.observations < contextRules.observations
+          ? "few-observations"
+          : "eligible";
+  return {
+    eligible: reason === "eligible",
+    reason,
+    readableName:
+      reason === "eligible" && alias.display
+        ? contextName(alias.display)
+        : null,
+  };
+}
 /**
  * Groups interpreted purchase lines into aliases by category and qualifiers, or by name. Lines
  * nobody interpreted are returned as `unresolved` labels and belong to no alias. An alias links
@@ -168,12 +263,24 @@ export type PurchaseAlias = {
  */
 export function purchaseAliases(memory: Memory): {
   aliases: PurchaseAlias[];
-  unresolved: { chain: PurchaseChain; label: string; observations: number }[];
+  unresolved: {
+    chain: PurchaseChain;
+    label: string;
+    observations: number;
+    display: ReadableName;
+  }[];
 } {
-  const aliases = new Map<string, PurchaseAlias>();
+  const aliases = new Map<string, Omit<PurchaseAlias, "context">>();
+  /** Per alias, how often each readable name was bought. */
+  const names = new Map<string, Map<string, ReadableName & { n: number }>>();
   const unresolved = new Map<
     string,
-    { chain: PurchaseChain; label: string; observations: number }
+    {
+      chain: PurchaseChain;
+      label: string;
+      observations: number;
+      display: ReadableName;
+    }
   >();
   for (const purchase of memory.purchases) {
     if (purchase.scope === "non-food") continue;
@@ -183,6 +290,7 @@ export function purchaseAliases(memory: Memory): {
         chain: purchase.chain,
         label: purchase.label,
         observations: 0,
+        display: readable(purchase.display),
       };
       entry.observations++;
       unresolved.set(key, entry);
@@ -201,6 +309,7 @@ export function purchaseAliases(memory: Memory): {
       confirmed: false,
       labels: [],
       observations: 0,
+      display: null,
       conflictsWithRemembered:
         !!rule &&
         rule.qualifiers.some(
@@ -224,11 +333,46 @@ export function purchaseAliases(memory: Memory): {
         chain: purchase.chain,
         label: purchase.label,
         observations: 1,
+        display: readable(purchase.display),
       });
+    // Generic names and bare labels say nothing more than the alias itself.
+    if (
+      purchase.display.tier !== "generic" &&
+      purchase.display.tier !== "raw"
+    ) {
+      const counted = names.get(identity.key) ?? new Map();
+      const name = readable(purchase.display);
+      const id = `${name.tier === "user" ? 0 : 1}\n${name.text}`;
+      counted.set(id, { ...name, n: (counted.get(id)?.n ?? 0) + 1 });
+      names.set(identity.key, counted);
+    }
     aliases.set(identity.key, alias);
   }
+  const remembered = new Set(memory.remembered.map((r) => r.category));
   return {
-    aliases: [...aliases.values()].sort((a, b) => a.key.localeCompare(b.key)),
+    aliases: [...aliases.values()]
+      .map((alias) => {
+        // The shopper's own name first, then the most bought, then alphabetically.
+        const best = [...(names.get(alias.key)?.entries() ?? [])].sort(
+          (a, b) =>
+            Number(b[1].tier === "user") - Number(a[1].tier === "user") ||
+            b[1].n - a[1].n ||
+            a[0].localeCompare(b[0]),
+        )[0]?.[1];
+        const withName = {
+          ...alias,
+          display: best
+            ? {
+                text: best.text,
+                tier: best.tier,
+                nameOrigin: best.nameOrigin,
+                observations: best.n,
+              }
+            : null,
+        };
+        return { ...withName, context: aliasContext(withName, remembered) };
+      })
+      .sort((a, b) => a.key.localeCompare(b.key)),
     unresolved: [...unresolved.values()],
   };
 }
@@ -431,6 +575,8 @@ function typicalQuantity(
 export type RecurrenceSuggestion = PurchaseStatistic & {
   /** The label most often bought, for display beside the name. */
   label: string;
+  /** How that label reads (F27.10). Showing only: accepting a suggestion saves no preference. */
+  display: ReadableName;
 };
 /**
  * Groceries bought in at least four of the last eight weeks, most regular first, at most five.
@@ -463,12 +609,20 @@ export function recurrenceSuggestions(
     for (const p of memory.purchases)
       if (p.identity?.key === key)
         counts.set(p.label, (counts.get(p.label) ?? 0) + 1);
-    return [...counts].sort(
+    const label = [...counts].sort(
       (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
     )[0][0];
+    return {
+      label,
+      display: readable(
+        memory.purchases.find(
+          (p) => p.identity?.key === key && p.label === label,
+        )!.display,
+      ),
+    };
   };
   return purchaseStatistics(memory, now)
-    .map((s) => ({ ...s, label: labelOf(s.key) }))
+    .map((s) => ({ ...s, ...labelOf(s.key) }))
     .filter(
       (s) =>
         s.weeksOfLastEight >= statisticsRules.weeksNeeded &&
@@ -493,23 +647,25 @@ export function recurrenceSuggestions(
 /**
  * Bounded observed summaries for the compact AI context (`ObservedSummary` in `src/ai/context.ts`):
  * confirmed category aliases with at least two purchases, most observed first. A category with a
- * saved preference is left out, because the explicit preference already speaks for it.
+ * saved preference is left out, because the explicit preference already speaks for it. Exactly
+ * the aliases whose `context.eligible` is true, each with its `context.readableName` when it has
+ * one. The name is a hint about how the purchase reads; it carries no product code, and the
+ * classification beside it holds only what the interpretation itself established.
  */
-export function observedSummaries(memory: Memory, limit = 20) {
-  const remembered = new Set(memory.remembered.map((r) => r.category));
+export function observedSummaries(
+  memory: Memory,
+  limit: number = contextRules.summaries,
+) {
   return purchaseAliases(memory)
-    .aliases.filter(
-      (alias) =>
-        alias.category !== null &&
-        alias.confirmed &&
-        alias.observations >= 2 &&
-        !remembered.has(alias.category),
-    )
+    .aliases.filter((alias) => alias.context.eligible)
     .sort(
       (a, b) => b.observations - a.observations || a.key.localeCompare(b.key),
     )
-    .slice(0, Math.max(0, Math.min(limit, 20)))
+    .slice(0, Math.max(0, Math.min(limit, contextRules.summaries)))
     .map((alias) => ({
+      ...(alias.context.readableName
+        ? { readableName: alias.context.readableName }
+        : {}),
       classification: {
         category: alias.category!,
         provenance: "observed" as const,

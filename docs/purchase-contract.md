@@ -172,10 +172,38 @@ Fixtures are in `tests/receipt-coordinator.test.ts`: an unbalanced receipt balan
   - **Comparability.** Piece counts are comparable only for the same label at the same chain, because the pack size is part of the label. Weights and volumes compare across labels. A visit with any unknown quantity in a class is left out of that class.
   - **Typical quantity.** Stated only with at least three comparable visits (`statisticsRules.quantityVisits`): the median per visit, with `visits`, `min` and `max`. Visits under a campaign or group offer are left out while three ordinary ones exist, and a visit above three times the median is an outlier. Otherwise `typical` is null, which means unknown.
 - `recurrenceSuggestions(memory, now, { dismissed?, existing? })` keeps F6.3's rules: at least four of the last eight Monday-based weeks, at most five, ninety days after a dismissal, never for something that is already a recurring item (matched by name against the label). Each suggestion is a statistic plus its most common `label`. It adds nothing to a list.
-- `observedSummaries(memory, limit)` returns at most 20 values in the shape of `ObservedSummary` in `src/ai/context.ts`: confirmed category aliases with two or more purchases, leaving out every category that has a saved preference.
+- `observedSummaries(memory, limit)` returns at most 20 values in the shape of `ObservedSummary` in `src/ai/context.ts`: confirmed category aliases with two or more purchases, leaving out every category that has a saved preference. F27.10 adds an optional readable name; see below.
 - Service and IPC: `Service.memory()`; `purchaseInsights()` returns the snapshot plus `insights: { aliases, unresolved, statistics, suggestions, observedSummaries, actualPurchases, transfers, linkReview, confirmedTransfers }`; `dismissSuggestion({ key })` saves the dismissal in the ledger's `dismissedSuggestions`.
 
 Fixtures: `tests/memory.test.ts` (5): completed versus pending, cancelled and transferred; an explicit preference overriding an observation; an old profile; distinct milk types and chains; a model-only alias; context summaries; forgetting; two visits giving no cadence; four of eight weeks; an outlier, an undated and a future purchase; dismissal and existing items; unknown quantities, mixed pack sizes and three five-pouch variants under one offer; and the service reading fresh after deletion.
+
+## Readable names in memory and planning context (F27.10)
+
+A readable name says how a purchase reads. It is carried beside what the memory already knew and changes none of it: identity keys, `confirmed`, statistics, recurrence thresholds and preferences are computed exactly as before. `src/domain/memory.ts`:
+
+- `PurchaseObservation.display` is the line's `DisplayName` (F27.1, F27.6), for food and non-food lines alike.
+- `ReadableName` is `{ text, tier, nameOrigin }`. It is on every entry of `PurchaseAlias.labels`, on every `unresolved` label and, as `display`, on each `RecurrenceSuggestion` for its most bought label.
+- `PurchaseAlias.display` is the readable name most often bought under the alias with its `observations`, the shopper's own name first; null when every purchase shows only a generic name or its printed label.
+- `PurchaseAlias.context` is `{ eligible, reason, readableName }`, the one place that decides what a request for the usual receives:
+
+| `reason`                | Meaning                                                              | Sent |
+| ----------------------- | -------------------------------------------------------------------- | ---- |
+| `eligible`              | A rule or the shopper read the category; two or more purchases       | Yes  |
+| `model-only`            | Only a model read these purchases, with or without a category        | No   |
+| `no-category`           | Grouped by name; there is no validated category to send              | No   |
+| `remembered-preference` | A saved preference exists for the category and speaks instead        | No   |
+| `few-observations`      | Fewer than two purchases (`contextRules.observations`)               | No   |
+
+- `contextName(display)` decides the name: only the shopper's own name, or an `exact` or `expanded` name made by the local rule from the printed label, of at most 80 characters, without a run of four or more digits, a link or markup. A model's name is never sent, however well grounded and also beside a rule's category; neither is a generic name or a bare printed label. An eligible alias without such a name is sent without one.
+- `observedSummaries(memory)` returns exactly the eligible aliases, most observed first, at most 20, each `{ classification, observations }` plus `readableName` when there is one. The classification holds only what the interpretation established, with provenance `observed`: a name adds no qualifier, brand requirement or product code.
+
+`src/ai/context.ts`: `observedSummarySchema` accepts the optional `readableName` under the same text rule and still refuses every other key. `src/ai/draft.ts` adds one sentence about the name to the planning prompt only when a name is sent, so an ordinary request and a usual request without names are byte for byte as before. Gating is unchanged: `observationsApply(request)` decides, and nothing from receipts reaches any other task. No store is read at import or for the summary; a later request resolves products at the selected store with its current price basis, as any request does.
+
+A correction (`interpretPurchase`), a deleted interpretation or purchase and a restored backup show on the next read, because nothing here is stored. Accepting or dismissing a suggestion saves no preference.
+
+For F27.11: show `alias.display?.text` when present, else the alias key as today; mark `context.reason === "model-only"` as tentative and never as identified; `labels[].display` gives each printed label its reading (`tier` `generic` or `raw` means the name says no more than the kind or the label); `suggestions[].display.text` beside the suggestion; `unresolved[].display.text` for labels nobody interpreted. The count of aliases that can be shared is `aliases.filter((a) => a.context.eligible).length`, equal to `observedSummaries.length`.
+
+Fixtures: `tests/memory-names.test.ts` (5): every eligibility reason with and without a name; model, generic, raw and unsafe names refused by `contextName` and by the schema; a rule category beside a model's grounded name sent without the name; statistics and suggestion counts equal with and without names; a saved preference speaking instead; a correction, forgotten interpretations and a deleted purchase on the next read; and the real `Service` planning prompt for a usual request, an ordinary request, after a rename and after a deletion, with no preference saved and no store write.
 
 ## Source linking and purchase confirmation (F6.19, U5.1)
 

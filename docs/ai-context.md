@@ -32,3 +32,5 @@ The shared shopping evaluator now accepts `ShoppingCase.contextSetup` with optio
 Shopping and draft consent text now lists relevant recipes and household preferences, and states that raw receipts and unrelated history stay local. Development mode uses local fixtures with zero live provider or retailer requests.
 
 F15.11 adds disclosure for the optional candidate resolver: bounded requirement/constraint and catalogue facts go to the same selected provider/model. Credentials stay local. The default-enabled saved switch, batch bounds and focused evidence are in [resolution-contract.md](resolution-contract.md).
+
+F27.10, 13 October 2026: an observed summary may carry one text field, `readableName`: how the usual purchase reads, as the shopper named it or as the local rule read it from the printed label. At most 80 characters, no run of four or more digits, no link or markup. A model's name, a generic name and a raw label are not sent; every other key is still rejected. The planning prompt mentions the field only when one is present. Eligibility and reasons are in [the purchase contract](purchase-contract.md#readable-names-in-memory-and-planning-context-f2710).

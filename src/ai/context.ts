@@ -8,9 +8,20 @@ export const MAX_CONTEXT_RECIPES = 12;
 export const MAX_CONTEXT_PREFERENCES = 8;
 export const MAX_OBSERVED_SUMMARIES = 20;
 
-/** Future F18 input: bounded semantic hints only; no free text, dates or transaction identity. */
+/**
+ * Bounded semantic hints from purchase history (F18.2): no dates, amounts, stores or transaction
+ * identity. `readableName` (F27.10) is the one text field: how the usual purchase reads, as the
+ * shopper named it or as the receipt prints it, at most 80 characters, with no run of four or
+ * more digits. A printed label as such, a model's name and anything else are not accepted here;
+ * `contextName` in `src/domain/memory.ts` decides what qualifies.
+ */
 export const observedSummarySchema = z
   .object({
+    readableName: z
+      .string()
+      .regex(/^[\p{L}\p{N}][\p{L}\p{N} ,.%+&'()/-]{1,79}$/u)
+      .refine((name) => !/\d{4,}/.test(name))
+      .optional(),
     classification: classificationSchema.refine(
       (c) =>
         c.provenance === "observed" &&

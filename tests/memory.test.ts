@@ -169,7 +169,12 @@ test("facts, interpretations, preferences and transfers are read apart, and only
     },
   ]);
   expect(unresolved).toEqual([
-    { chain: "s-group", label: "OUTO TUOTE", observations: 1 },
+    {
+      chain: "s-group",
+      label: "OUTO TUOTE",
+      observations: 1,
+      display: { text: "OUTO TUOTE", tier: "raw", nameOrigin: null },
+    },
   ]);
   expect(observedSummaries(memory)).toEqual([]);
   // An old profile with no ledger still reads: preferences and transfers only.
@@ -230,18 +235,27 @@ test("aliases keep milk types and chains distinct, and a model-only alias is unc
     ["category:milk|fat=skimmed", 1, true],
   ]);
   // Same kind of milk at two chains: one alias, three labels, and no claim of one product.
-  expect(aliases[1].labels).toEqual([
+  expect(
+    aliases[1].labels.map(({ display: _display, ...label }) => label),
+  ).toEqual([
     { chain: "s-group", label: "KEVYTMAITO 1L", observations: 1 },
     { chain: "k-group", label: "PIRKKA KEVYTMAITO 1L", observations: 1 },
     { chain: "k-group", label: "KEVYTMAITO 1L", observations: 1 },
   ]);
   expect(unresolved).toEqual([
-    { chain: "s-group", label: "XTRA JOTAIN", observations: 1 },
+    {
+      chain: "s-group",
+      label: "XTRA JOTAIN",
+      observations: 1,
+      display: { text: "XTRA JOTAIN", tier: "raw", nameOrigin: null },
+    },
   ]);
   // Only confirmed, repeated categories reach the AI context, as observations.
   const summaries = observedSummaries(memory);
   expect(summaries).toEqual([
     {
+      // How the most bought of them reads on the receipts (F27.10).
+      readableName: "Kevytmaito 1 l",
       classification: {
         category: "milk",
         provenance: "observed",
