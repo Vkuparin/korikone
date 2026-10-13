@@ -26,6 +26,19 @@ export type Comparison = {
   cheaper: "a" | "b" | null;
   /** Common rows with the biggest price difference, largest first. */
   largest: RowDifference[];
+  /**
+   * How much of the list the comparison rests on. `complete` is true only when both chains
+   * priced every row; otherwise the two priced totals cover different rows and their difference
+   * is not a saving.
+   */
+  coverage: {
+    rows: number;
+    common: number;
+    onlyA: number;
+    onlyB: number;
+    neither: number;
+    complete: boolean;
+  };
 };
 
 const key = (line: BasketLine) =>
@@ -72,6 +85,13 @@ export function compareBaskets(
       ...(line.approximate || other.approximate ? { approximate: true } : {}),
     });
   }
+  const priced = (line?: BasketLine) => !!line?.product && line.total !== null;
+  const onlyA = a.filter(
+    (l) => priced(l) && !priced(others.get(key(l))),
+  ).length;
+  const onlyB = a.filter(
+    (l) => !priced(l) && priced(others.get(key(l))),
+  ).length;
   const common = {
     rows: rows.length,
     a: rows.reduce((sum, r) => sum + r.a, 0),
@@ -96,5 +116,13 @@ export function compareBaskets(
           x.requirement.name.localeCompare(y.requirement.name, "fi"),
       )
       .slice(0, limit),
+    coverage: {
+      rows: a.length,
+      common: rows.length,
+      onlyA,
+      onlyB,
+      neither: a.length - rows.length - onlyA - onlyB,
+      complete: a.length > 0 && rows.length === a.length,
+    },
   };
 }

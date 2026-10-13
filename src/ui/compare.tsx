@@ -98,6 +98,10 @@ export function CompareSummary({
             : tr("Sama hinta molemmissa", "Same price at both")
           : tr("Ei yhteisiä tuotteita", "No items in common")
         : `${cheaper} ${estimateLabel}${money(difference)} ${tr("halvempi", "cheaper")}`}
+      {/* A difference over part of the list says which part. */}
+      {!result.coverage.complete &&
+        result.common.rows > 0 &&
+        ` ${tr("yhteisissä", "on the shared")} ${result.coverage.common}/${result.coverage.rows} ${tr("rivissä", "rows")}`}
       {" · "}
       {tr("Vertaa", "Compare")}
     </button>
@@ -205,6 +209,14 @@ export function ComparePanel({
               )
           : `${result.cheaper === "a" ? a : b} ${tr("on edullisempi", "is cheaper by")}${tr(" ", " ")}${money(Math.abs(result.common.a - result.common.b))}${tr(" yhteisillä tuotteilla.", " on the shared items.")}`}
       </p>
+      {!result.coverage.complete && (
+        <p className="muted" data-comparison-coverage="partial">
+          {tr(
+            `Molemmissa hinnoiteltu ${result.coverage.common} / ${result.coverage.rows} riviä. Vain ${a}: ${result.coverage.onlyA}, vain ${b}: ${result.coverage.onlyB}, ei kummassakaan: ${result.coverage.neither}. Kaikkien hinnoiteltujen summat kattavat eri rivit, joten niiden erotus ei ole koko korin säästö.`,
+            `Priced at both: ${result.coverage.common} of ${result.coverage.rows} rows. Only ${a}: ${result.coverage.onlyA}, only ${b}: ${result.coverage.onlyB}, neither: ${result.coverage.neither}. The all-priced totals cover different rows, so their difference is not a saving on the whole basket.`,
+          )}
+        </p>
+      )}
       {result.largest.length > 0 && (
         <>
           <h3>{tr("Suurimmat erot", "Largest differences")}</h3>

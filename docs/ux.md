@@ -170,3 +170,17 @@ The Store view has two different ways back and names each for what it does.
 Nothing here reads the catalogue, asks a model or writes to a store.
 
 Fixture: `tests/ui/store-back.spec.ts` uses the local development store pages for both chains: a directly opened page with no history, history after the shopper moves on, a reload, walking back until history is exhausted, the toolbar's measured layout at 800 px, and the return to the same place in an unchanged list.
+
+## Store comparison coverage (B2.12)
+
+Audit of the reported "about EUR 14 against EUR 30" comparison. No arithmetic fault was found: both chains are priced for the same rows and the same required amounts, each row's total is whole packs at that chain's price (or the weighed estimate, marked approximate), deposits are inside the totals, and the stated difference is computed only over rows both chains priced (`compareBaskets` in `src/domain/compare.ts`). What the owner saw is consistent with the panel's "all priced" totals, which sit side by side but cover different rows when one chain cannot price part of the list. The panel and the summary line did not say how much of the list the stated difference rested on.
+
+Changes:
+
+- `Comparison.coverage` is `{ rows, common, onlyA, onlyB, neither, complete }`. `complete` is true only when both chains priced every row.
+- The summary line in the total bar adds the coverage when it is partial: "K-Ruoka 1,00 € halvempi yhteisissä 5/11 rivissä". It never states a difference between totals that cover different rows.
+- The panel adds, when coverage is partial: how many rows both priced, how many only one chain priced, how many neither, and that the all-priced totals are not a saving on the whole basket.
+
+Fixture explained: eleven rows; this store prices all for 30,00 €, the other prices five for 14,00 €. The raw totals differ by 16,00 € in the other chain's favour. On the five rows both sell, this store costs 13,00 € against 14,00 €, so the truthful statement is "this store is 1,00 € cheaper on 5 of 11 rows". `tests/compare.test.ts` checks this result, the four coverage counts, whole-pack and deposit reconciliation to the cent, and the rendered Finnish and English texts.
+
+Not changed: comparison speed (accepted by the owner), offer conditions, and prices themselves. No live price survey was made.
