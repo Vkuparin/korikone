@@ -52,6 +52,79 @@ export const printedAbbreviations: Readonly<Record<string, string>> = {
   tlk: "tölkki",
   ps: "pussi",
 };
+/**
+ * Words an abbreviation may be spelled out to. A printed token that is a prefix of exactly one of
+ * these words stands for that word; a token that fits several ("RUISL" for ruisleipä and
+ * ruislimppu, "KEVYTM" for kevytmaito and kevytmaitojuoma) proves none of them and is not
+ * expanded. A word outside this list is never an expansion, however plausible. The list is
+ * reviewed vocabulary, extended only together with independent fixtures (F27.7).
+ */
+export const expansionWords: readonly string[] = [
+  "jogurtti",
+  "kevytmaito",
+  "kevytmaitojuoma",
+  "täysmaito",
+  "maitojuoma",
+  "rasvaton",
+  "laktoositon",
+  "gluteeniton",
+  "luomu",
+  "piimä",
+  "viili",
+  "rahka",
+  "raejuusto",
+  "juusto",
+  "juustoraaste",
+  "kerma",
+  "ruokakerma",
+  "kuohukerma",
+  "margariini",
+  "kananmuna",
+  "jauheliha",
+  "broileri",
+  "kalkkuna",
+  "makkara",
+  "kinkku",
+  "leikkele",
+  "tonnikala",
+  "ruisleipä",
+  "ruislimppu",
+  "paahtoleipä",
+  "sämpylä",
+  "viipaloitu",
+  "tomaatti",
+  "kurkku",
+  "peruna",
+  "porkkana",
+  "sipuli",
+  "banaani",
+  "omena",
+  "appelsiini",
+  "appelsiinimehu",
+  "omenamehu",
+  "kivennäisvesi",
+  "virvoitusjuoma",
+  "kahvi",
+  "suodatinjauhatus",
+  "vehnäjauho",
+  "kaurahiutale",
+  "makaroni",
+  "spagetti",
+  "tomaattimurska",
+  "ketsuppi",
+  "majoneesi",
+  "rypsiöljy",
+  "oliiviöljy",
+  "suklaa",
+  "suklaalevy",
+  "keksi",
+  "pakastepizza",
+  "astianpesuaine",
+  "pyykinpesuaine",
+  "talouspaperi",
+  "hammastahna",
+  "alkaliparisto",
+];
 const lower = (text: string) => text.toLocaleLowerCase("fi").normalize("NFC");
 const units = "kg|g|mg|l|dl|cl|ml|kpl|pkt|prk|plo|tlk|ps|%";
 /** "1KG", "1,5 L", "6X33CL" and "200 G" as comparable pack tokens: "1kg", "1,5l", "6x33cl". */
@@ -82,8 +155,9 @@ const tokens = (text: string) =>
  * Checks a proposed display name against the printed label it is for and returns it normalized
  * with its evidence tier, or null when any part of it is not on the receipt.
  *
- * Every word must be a printed word, or spell out one printed abbreviation: the printed token is
- * a prefix of the word (three letters or more), or `printedAbbreviations` maps it to the word.
+ * Every word must be a printed word, or spell out one printed abbreviation: the printed token
+ * (three letters or more) is a prefix of exactly one word in `expansionWords`, which is that word,
+ * or `printedAbbreviations` maps the token to the word.
  * Each printed token supports at most one word. A pack size must be one the label prints, the
  * same number and unit. No other number, no link, and no word the label does not carry: so
  * "VALIO JOG 1KG" may become "Valio jogurtti 1 kg" and never a flavour, a brand or a product code
@@ -134,9 +208,12 @@ export function groundedDisplayName(
       (token) =>
         !/^\d/.test(token) &&
         (printedAbbreviations[token] === word ||
+          // The token must fit this word and no other word it could stand for.
           (token.length >= 3 &&
+            word.length > token.length &&
             word.startsWith(token) &&
-            word.length <= token.length + 14)),
+            expansionWords.includes(word) &&
+            expansionWords.filter((w) => w.startsWith(token)).length === 1)),
     );
     if (short < 0) return null;
     printed.splice(short, 1);

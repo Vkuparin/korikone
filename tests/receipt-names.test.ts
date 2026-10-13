@@ -41,9 +41,11 @@ test("a display name may spell out what is printed and nothing else", () => {
     name: "Valio jogurtti 1 kg",
     tier: "expanded",
   });
-  expect(grounded("PIRKKA KEVYTM 1L", "Pirkka kevytmaito 1 l")?.tier).toBe(
-    "expanded",
-  );
+  // "KEVYTM" fits both kevytmaito and kevytmaitojuoma, so it proves neither.
+  expect(grounded("PIRKKA KEVYTM 1L", "Pirkka kevytmaito 1 l")).toBeNull();
+  expect(grounded("FAZER RUISL 500G", "Fazer ruisleipä 500 g")).toBeNull();
+  // A word outside the reviewed vocabulary is never an expansion.
+  expect(grounded("XYZ HERK 200G", "Xyz herkkusieni 200 g")).toBeNull();
   expect(
     grounded("ARLA LTON MAITOJUOMA 1L", "Arla laktoositon maitojuoma 1 l")
       ?.tier,

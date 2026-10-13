@@ -44,3 +44,44 @@ Finding recorded while building this: order import wrote no rule interpretations
 - Live ChatGPT interpretation quality of receipt labels and of "the usual" requests. A live check would be one request per receipt and one per planning request, at most two with a repair.
 - Receipts and orders from real shops, scanned PDFs (OCR is F13) and K-Ruoka order history (no read is established).
 - Phone and window-size ergonomics beyond the 800 px width the focused UI checks use.
+
+## Readable-name goldens and metrics (F27.7)
+
+`tests/fixtures/receipts/names.ts` holds 24 invented abbreviated-label cases in the style of Finnish shop receipts. Each expectation was written from the printed label alone, before the validator was run against it: the fullest name the label proves (`display`, or null), its tier, acceptable generic names, the scope, and `inventions`, plausible answers that add something the label does not print. No expectation comes from a model's answer or confidence, from the resolver under test or from an owner receipt.
+
+Review record: the runner was first run after the cases were written. It found one fault in the validator (an expansion was accepted for a word that did not start with its printed token, so `ARLA LTON MAITOJUOMA 1L` supported "kevytmaitojuoma"), which was fixed in the validator. No expectation was changed to fit the code. The cases were authored and reviewed by one agent; a second reader has not checked them.
+
+Areas: brand and pack abbreviations, a yoghurt with no printed flavour and one with a printed flavour, milk qualifiers (printed, abbreviated ambiguously, and from the abbreviation table), private-label and abbreviated bread, the same label twice on one receipt, weighed produce, a mince pack without its fat percentage, eggs, a multipack, a deposit row, a campaign row, two non-food products, a label too terse to read, and two labels carrying an instruction.
+
+### Metrics
+
+Computed over bought lines (roles `product` and `non-food`) with `tierCounts` in `tests/receipt-name-goldens.test.ts`, from `DisplayName.tier`:
+
+- **exact**: every word shown is printed, apart from case and spacing.
+- **expanded**: at least one printed abbreviation is spelled out, under the F27.6 evidence rule.
+- **generic**: a grocery name with no brand or pack.
+- **raw-only**: the sanitized printed label is shown.
+- **false specificity**: the number of `inventions` accepted as a display name, over the inventions tried. The gate is zero, and separately zero on the cases marked `ambiguous`.
+
+A model's self-reported confidence is never an input to any of these.
+
+### Baseline, 13 October 2026
+
+| Measure | Result |
+| --- | --- |
+| What the 24 labels support (expected tiers) | 14 exact, 3 expanded, 3 generic, 4 raw-only |
+| Expected names accepted by `groundedDisplayName` with the expected tier | 17 of 17 |
+| Inventions accepted (false specificity) | 0 of 56; 0 on the 9 ambiguous cases |
+| Shown today for the 22 bought lines, local rules only | 0 exact, 0 expanded, 0 generic, 22 raw-only |
+| Of those 22, lines where a rule knows the category | 11 |
+| Bought labels that become an exact name by ordinary capitalisation alone, with no model | 22 of 22 |
+
+Read with care: this is a fixture baseline of the contract, not a measure of real receipts or of any model. The last row says a local resolver (F27.8) can reach an exact name for every one of these labels without a request; a model is needed only for the three expansions and for generic names.
+
+Known limits recorded for F27.8 to F27.10:
+
+- A generic `name` proposed by a model is still accepted without printed evidence, as before F27.6 (a short plain label is enough). For the two instruction-bearing labels and `TK 2KPL` the goldens expect no generic name; whatever a model proposes there stays model-only and tentative, and is not a display name.
+- Expansions are limited to `expansionWords` and `printedAbbreviations` in `src/domain/receipt-names.ts`. An abbreviation that fits two listed words (`KEVYTM`, `RUISL`) is deliberately not expanded. Extending either list needs a new golden case.
+- `M10` on the egg label stays as printed; turning it into a count would restate a quantity.
+
+Contracts consumed by F27.8 and F27.9: `nameGoldens` with its `NameGolden` type, `tierCounts`, `groundedDisplayName` and the three assertions of `tests/receipt-name-goldens.test.ts` (expected names accepted, zero inventions accepted, baseline tier counts). A resolver or task under test reports its own tier counts beside this baseline and must keep false specificity at zero.
