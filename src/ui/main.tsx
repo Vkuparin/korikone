@@ -142,6 +142,15 @@ function App() {
     receiptIntakeRunning: null,
     reset: null,
     proposal: { sides: [], quantities: [] },
+    merchandise: {
+      capabilities: {
+        discovery: false,
+        variants: "none",
+        stock: "none",
+        cartWrite: false,
+      },
+      statuses: [],
+    },
     planningIncomplete: false,
     cheaperProductIds: [],
   });

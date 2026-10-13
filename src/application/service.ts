@@ -1,3 +1,5 @@
+import { lineMerchandiseStatus } from "../domain/matching";
+import { noMerchandise } from "../domain/merchandise";
 import {
   METRICS_KEY,
   METRICS_LIMIT,
@@ -1226,6 +1228,25 @@ export class Service {
       };
     }
   }
+  private merchandiseView() {
+    const capabilities =
+      this.registry.get(this.state.context.providerId).capabilities
+        .merchandise ?? noMerchandise;
+    return {
+      capabilities,
+      statuses: this.basket.flatMap((line) => {
+        const status = lineMerchandiseStatus(line, capabilities);
+        return status
+          ? [
+              {
+                requirementKey: `${line.requirement.id}:${line.requirement.unit}`,
+                status,
+              },
+            ]
+          : [];
+      }),
+    };
+  }
   snapshot() {
     const committedIntents = this.state.requestIntents.length
       ? mapIntentResults(
@@ -1354,6 +1375,9 @@ export class Service {
               : [],
         ),
       },
+      // What the selected store can do for non-food rows, and the one statement each such row
+      // supports (F22.6). Read from the quote only: no request is made to produce it.
+      merchandise: this.merchandiseView(),
       planningIncomplete: committedIntents.some(
         (intent) => intent.status !== "resolved",
       ),

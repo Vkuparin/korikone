@@ -28,6 +28,7 @@ import {
 import { addGrocery } from "../domain/groceries";
 import { editTargets, mealTargetId, rowTargetId } from "../domain/edits";
 import { RowFind, type FindResult } from "./row-find";
+import { MerchandiseRow } from "./merchandise";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
@@ -2210,6 +2211,8 @@ export function ShoppingWorkspace({
                       l.requirement.unit === r.unit,
                   );
                   const home = state.skipped.includes(key);
+                  const merchandiseIntent =
+                    line?.requirement.merchandise ?? r.merchandise ?? null;
                   const step =
                     line?.product && !line.approximate
                       ? (packageAmount(line.product, r.unit) ?? 1) *
@@ -2392,7 +2395,45 @@ export function ShoppingWorkspace({
                             {tr("Tuote puuttuu", "Needs a product")}
                           </small>
                         )}
-                        {!home && !line?.product && (
+                        {!home && merchandiseIntent && (
+                          <MerchandiseRow
+                            language={state.language}
+                            intent={merchandiseIntent}
+                            status={
+                              snapshot.merchandise.statuses.find(
+                                (s) => s.requirementKey === key,
+                              )?.status ?? null
+                            }
+                            evidence={line?.product?.merchandise ?? null}
+                            capabilities={snapshot.merchandise.capabilities}
+                            busy={busy || working || editWorking}
+                            canOpenStore={isLive(state.context.providerId)}
+                            openStore={() =>
+                              openStore?.(
+                                state.context.providerId === "s-kaupat"
+                                  ? "s-kaupat"
+                                  : "k-ruoka",
+                              )
+                            }
+                            answer={(kind, value) =>
+                              call("editList", {
+                                revision: state.revision,
+                                instruction: `${
+                                  {
+                                    size: tr("koko", "size"),
+                                    colour: tr("väri", "colour"),
+                                    model: tr("malli", "model"),
+                                    material: tr("materiaali", "material"),
+                                    spec: tr("tarkenne", "spec"),
+                                  }[kind]
+                                } ${value}`,
+                                focusTargetId: rowTargetId(key),
+                                consent: true,
+                              })
+                            }
+                          />
+                        )}
+                        {!home && !line?.product && !merchandiseIntent && (
                           <RowFind
                             language={state.language}
                             name={r.name}
