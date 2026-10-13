@@ -96,19 +96,22 @@ test("every line has a readable name, and name quality is reported apart from fa
     l1: ["Valio jogurtti 1 kg", "named"],
     l2: ["Kevytmaito 1 l", "named"],
     l3: ["Ruisleipä", "user"],
-    l4: ["PIRKKA KAHVI", "general"],
+    // The local rule writes the printed label in ordinary case (F27.8).
+    l4: ["Pirkka kahvi", "named"],
     l5: ["TUNTEMATON RIVI", "raw"],
     l6: ["IRTOKARKIT", "raw"],
     l7: ["PARISTOT AA", "raw"],
   });
   // Origins are kept per field: the rule's category does not become the model's, or the reverse.
+  // The label supports the same name locally, so the rule's name stands and the line is not
+  // a model's alone.
   expect(row(view, "l1").display).toMatchObject({
-    nameOrigin: "model",
+    nameOrigin: "rule",
     categoryOrigin: null,
-    modelOnly: true,
+    modelOnly: false,
   });
   expect(row(view, "l2").display).toMatchObject({
-    nameOrigin: "model",
+    nameOrigin: "rule",
     categoryOrigin: "rule",
     modelOnly: false,
   });
@@ -122,7 +125,7 @@ test("every line has a readable name, and name quality is reported apart from fa
     modelOnly: false,
   });
   expect(row(view, "l4").display).toMatchObject({
-    nameOrigin: null,
+    nameOrigin: "rule",
     categoryOrigin: "rule",
   });
   // A model's name, or no name at all, is not an issue. Unknown facts are.
@@ -141,10 +144,10 @@ test("every line has a readable name, and name quality is reported apart from fa
   expect(view[0].names).toEqual({
     lines: 7,
     user: 1,
-    named: 2,
-    general: 1,
+    named: 3,
+    general: 0,
     raw: 3,
-    modelOnly: 1,
+    modelOnly: 0,
   });
   expect(view[0].factual).toEqual({
     unbalanced: false,
@@ -200,16 +203,16 @@ test("unbalanced and scanned receipts are factual; old records without annotatio
     ocr: true,
   });
   expect(old[0].lines.map((l) => [l.display.text, l.issues])).toEqual([
-    ["KEVYTMAITO 1L", []],
+    ["Kevytmaito 1 l", []],
     ["???", ["unreadable"]],
   ]);
   // An unreadable line is not a bought line and is not counted among names.
   expect(old[0].names).toEqual({
     lines: 1,
     user: 0,
-    named: 0,
+    named: 1,
     general: 0,
-    raw: 1,
+    raw: 0,
     modelOnly: 0,
   });
   expect(old[0].issueCount).toBe(1);
@@ -238,8 +241,8 @@ test("a correction by the shopper becomes the name without accepting anything el
     modelOnly: false,
   });
   // The other rows keep their own origins; nothing was turned into a user interpretation.
-  expect(row(view, "l2").display.nameOrigin).toBe("model");
-  expect(view[0].names).toMatchObject({ user: 2, named: 1, modelOnly: 0 });
+  expect(row(view, "l2").display.nameOrigin).toBe("rule");
+  expect(view[0].names).toMatchObject({ user: 2, named: 2, modelOnly: 0 });
   expect(corrected.annotations.filter((a) => a.origin === "user")).toHaveLength(
     2,
   );
@@ -264,7 +267,10 @@ test("an annotation made for an older revision of the source is not used", () =>
       sources: [purchaseSource("s1", { revision: 2 })],
     }),
   );
-  expect(stale[0].lines.every((l) => l.display.specificity === "raw")).toBe(
-    true,
-  );
+  // Nothing of the old annotations is used: no category and no model origin, only the local rule.
+  expect(
+    stale[0].lines.every(
+      (l) => l.display.categoryOrigin === null && l.display.modelOnly === false,
+    ),
+  ).toBe(true);
 });

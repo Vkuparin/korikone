@@ -7,7 +7,11 @@ import {
   qualifierSchema,
   qualifierValues,
 } from "./categories";
-import { displayNameLimits, groundedDisplayName } from "./receipt-names";
+import {
+  displayNameLimits,
+  groundedDisplayName,
+  hasAmbiguousAbbreviation,
+} from "./receipt-names";
 import {
   RECEIPT_DATA_SCOPE,
   sanitizeLabel,
@@ -176,13 +180,22 @@ export function buildEnrichmentBatch(
       .filter((s) => event.sourceIds.includes(s.id))
       .map((s) => s.revision),
   );
+  // A line a rule classified is settled, unless its label carries an abbreviation that fits
+  // several words: the local readable-name rule gives up there, so the line is worth asking about
+  // (F27.8). The shopper's own interpretation always settles a line.
+  const labels = new Map(event.lines.map((l) => [l.id, l.label]));
   const settled = new Set(
     ledger.annotations
       .filter(
         (a) =>
           a.eventId === eventId &&
           a.origin !== "model" &&
-          a.sourceRevision === sourceRevision,
+          a.sourceRevision === sourceRevision &&
+          !(
+            a.origin === "rule" &&
+            !a.display &&
+            hasAmbiguousAbbreviation(labels.get(a.lineId) ?? "")
+          ),
       )
       .map((a) => a.lineId),
   );

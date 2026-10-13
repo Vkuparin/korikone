@@ -1,7 +1,10 @@
 import { expect, test } from "vitest";
 import { displayName } from "../src/domain/purchase-review";
 import { sanitizeLabel } from "../src/domain/purchases";
-import { groundedDisplayName } from "../src/domain/receipt-names";
+import {
+  groundedDisplayName,
+  localDisplayName,
+} from "../src/domain/receipt-names";
 import { ruleAnnotations } from "../src/domain/receipt-semantics";
 import { nameGoldens } from "./fixtures/receipts/names";
 import { purchaseEvent, purchaseLine } from "./helpers/purchase-fixtures";
@@ -92,7 +95,7 @@ test("every expected name is supported by its label, and no invention is ever ac
   ).toEqual([]);
 });
 
-test("baseline: what the goldens allow, and what the local rules show today", () => {
+test("baseline: what the goldens allow, and what the local resolver shows without a model (F27.8)", () => {
   // The ceiling the labels themselves support, by tier.
   expect(tierCounts(nameGoldens.map((g) => g.expected.tier))).toEqual({
     lines: 24,
@@ -101,7 +104,6 @@ test("baseline: what the goldens allow, and what the local rules show today", ()
     generic: 3,
     raw: 4,
   });
-  // Today: local rules give a category and no name, so every line shows its printed label.
   const bought = nameGoldens.filter(
     (g) => g.role === "product" || g.role === "non-food",
   );
@@ -119,21 +121,48 @@ test("baseline: what the goldens allow, and what the local rules show today", ()
       rules.filter((a) => a.lineId === line.id),
     ),
   );
+  // Before F27.8 every line showed its printed label (raw 22). The resolver now names what the
+  // label supports and leaves the rest as printed.
   expect(tierCounts(shown.map((d) => d.tier))).toEqual({
     lines: 22,
-    exact: 0,
-    expanded: 0,
+    exact: 14,
+    expanded: 3,
     generic: 0,
-    raw: 22,
+    raw: 5,
   });
-  // A rule's category is known for some lines even though no name is.
-  expect(shown.filter((d) => d.specificity === "general").length).toBe(11);
-  // Every line has something readable to show.
+  // Every line still has something readable to show.
   expect(shown.every((d) => d.text.length > 0)).toBe(true);
-  // Exact names need no model: writing the label out in ordinary case already grounds them.
-  const lowerCased = bought.filter((g) => {
-    const plain = g.label.charAt(0) + g.label.slice(1).toLocaleLowerCase("fi");
-    return groundedDisplayName(g.label, plain)?.tier === "exact";
-  });
-  expect(lowerCased.length).toBe(22);
+});
+
+test("the local resolver never says more than the golden allows and gives up where the label is ambiguous", () => {
+  const wrong: string[] = [];
+  let named = 0;
+  for (const golden of nameGoldens) {
+    const role = golden.role;
+    const local =
+      role === "product" || role === "non-food"
+        ? localDisplayName(golden.label)
+        : null;
+    if (golden.expected.display === null) {
+      // The label proves no readable name: nothing may be made up.
+      if (local) wrong.push(`${golden.id}: named ${local.name}`);
+      continue;
+    }
+    if (!local) {
+      wrong.push(`${golden.id}: gave up`);
+      continue;
+    }
+    named++;
+    if (
+      local.name.toLocaleLowerCase("fi") !==
+        golden.expected.display.toLocaleLowerCase("fi") ||
+      local.tier !== golden.expected.tier
+    )
+      wrong.push(`${golden.id}: ${local.name} (${local.tier})`);
+    // No invention is ever produced.
+    expect(
+      golden.inventions.map((i) => i.toLocaleLowerCase("fi")),
+    ).not.toContain(local.name.toLocaleLowerCase("fi"));
+  }
+  expect({ wrong, named }).toEqual({ wrong: [], named: 17 });
 });

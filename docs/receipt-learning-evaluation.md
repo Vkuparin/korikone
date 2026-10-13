@@ -85,3 +85,7 @@ Known limits recorded for F27.8 to F27.10:
 - `M10` on the egg label stays as printed; turning it into a count would restate a quantity.
 
 Contracts consumed by F27.8 and F27.9: `nameGoldens` with its `NameGolden` type, `tierCounts`, `groundedDisplayName` and the three assertions of `tests/receipt-name-goldens.test.ts` (expected names accepted, zero inventions accepted, baseline tier counts). A resolver or task under test reports its own tier counts beside this baseline and must keep false specificity at zero.
+
+## Local resolver baseline (F27.8)
+
+Same 22 bought lines of the goldens, shown through `displayName` with no model and no consent. Before F27.8: exact 0, expanded 0, generic 0, raw 22. With `localDisplayName`: exact 14, expanded 3, generic 0, raw 5 (`tests/receipt-name-goldens.test.ts`). All 17 golden names are produced and none differs from its expectation apart from case; the five raw lines are the two ambiguous abbreviations, the unknown short code, the injected instruction and the injected product line. Inventions accepted: 0 of 56. The three golden `generic` cases need a category from a rule or a model, which is not claimed here. No live-quality claim.

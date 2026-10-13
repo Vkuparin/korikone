@@ -192,7 +192,7 @@ test("version 2 results keep a grounded name per row and drop only what the labe
   expect(first.lines.map((l) => [l.display.text, l.display.tier])).toEqual([
     ["Valio jogurtti 1 kg", "expanded"],
     ["Kevytmaito", "generic"],
-    ["TUNTEMATON 3KPL", "raw"],
+    ["Tuntematon 3 kpl", "exact"],
   ]);
   // The facts are exactly as imported: labels, quantities, amounts and reconciliation.
   expect(saved.events).toEqual(base.events);
@@ -352,8 +352,9 @@ test("old ledgers and backups without display names still load, and the task con
   expect(
     purchaseView(old).find((p) => p.eventId === "e1")!.lines[0].display,
   ).toMatchObject({
-    text: "Jogurtti",
-    tier: "generic",
+    // The record is unchanged; the local rule (F27.8) only improves what is shown for it.
+    text: "Valio jogurtti 1 kg",
+    tier: "expanded",
   });
   // A stored display name is validated as data too.
   for (const display of [

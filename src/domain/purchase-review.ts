@@ -14,6 +14,7 @@ import {
   type SemanticAnnotation,
 } from "./purchases";
 import { reconcile, withNetPrices } from "./receipt-accounting";
+import { localDisplayName } from "./receipt-names";
 
 const id = z.string().min(1).max(100);
 const binding = {
@@ -246,7 +247,7 @@ export type DisplayName = {
  * without either taking the other's origin. Every line gets a text.
  */
 export function displayName(
-  line: Pick<EvidenceLine, "label">,
+  line: Pick<EvidenceLine, "label"> & { role?: EvidenceLine["role"] },
   annotations: SemanticAnnotation[],
 ): DisplayName {
   const ordered = [...annotations].sort(
@@ -255,13 +256,34 @@ export function displayName(
   // The shopper's own name first; then a grounded display name, exact before expanded and a
   // rule's before a model's within a tier; then a generic name; then the printed label.
   const own = ordered.find((a) => a.origin === "user" && a.name);
-  const grounded =
-    ordered.find((a) => a.display?.tier === "exact") ??
-    ordered.find((a) => a.display?.tier === "expanded");
+  // The local rule of F27.8 needs no model and no stored record: it reads the printed label only.
+  const local =
+    line.role === "product" || line.role === "non-food"
+      ? localDisplayName(line.label)
+      : null;
+  const pick = (tier: "exact" | "expanded") => {
+    const rule = ordered.find(
+      (a) => a.origin !== "model" && a.display?.tier === tier,
+    );
+    if (rule) return { name: rule.display!.name, tier, origin: rule.origin };
+    if (local?.tier === tier)
+      return { name: local.name, tier, origin: "rule" as const };
+    const model = ordered.find((a) => a.display?.tier === tier);
+    return model
+      ? { name: model.display!.name, tier, origin: model.origin }
+      : null;
+  };
+  const groundedName = pick("exact") ?? pick("expanded");
+  const grounded = groundedName && {
+    origin: groundedName.origin,
+    display: { name: groundedName.name, tier: groundedName.tier },
+  };
   const generic = ordered.find((a) => a.name);
   const named = own ?? grounded ?? generic;
   const categorised = ordered.find((a) => a.category);
   const origins = new Set(ordered.map((a) => a.origin));
+  // A name the local rule made is the rule's own, even when only a model annotated the line.
+  if (grounded?.origin === "rule") origins.add("rule");
   return {
     text: own?.name ?? grounded?.display!.name ?? generic?.name ?? line.label,
     specificity: named

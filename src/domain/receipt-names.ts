@@ -225,3 +225,90 @@ export function groundedDisplayName(
     tier: expanded ? "expanded" : "exact",
   });
 }
+
+/**
+ * Words a shop never prints in a product label. A label that carries one reads like an
+ * instruction, not a product, so no readable name is made for it and it stays as printed.
+ */
+const instructionWords =
+  /(?<![\p{L}])(?:ignore|previous|instructions?|system|prompt|assistant|answer|say|sano|vastaa|unohda|lisää|add|remove|poista|delete)(?![\p{L}])/iu;
+const packToken = new RegExp(
+  `^(\\d+(?:[.,]\\d+)?)(?:[x×](\\d+(?:[.,]\\d+)?))?(${units})$`,
+  "iu",
+);
+const vowelOrCommonEnding = /[aeiouyäöånst]$/u;
+/** Words in the reviewed list that the printed token is a proper prefix of. */
+const completions = (token: string) =>
+  expansionWords.filter((w) => w.length > token.length && w.startsWith(token));
+/** A printed token that could be a cut-off word: letters only, three or more, no common ending. */
+const cutOff = (token: string) =>
+  token.length >= 3 &&
+  /^\p{L}+$/u.test(token) &&
+  !expansionWords.includes(token) &&
+  !vowelOrCommonEnding.test(token);
+
+/**
+ * Whether a printed label carries an abbreviation that fits several words, so it proves none of
+ * them. Such a line is not given a readable name locally and may be put to the model.
+ */
+export function hasAmbiguousAbbreviation(label: string): boolean {
+  return tokens(label).some(
+    (token) =>
+      !(token in printedAbbreviations) &&
+      cutOff(token) &&
+      token.length >= 4 &&
+      completions(token).length > 1,
+  );
+}
+
+/**
+ * The readable name a printed label supports without any model (F27.8), or null.
+ *
+ * It writes the label in ordinary case, puts a space inside pack sizes ("1KG" becomes "1 kg"),
+ * and spells out a printed abbreviation only where `groundedDisplayName` allows it. A label that
+ * reads like an instruction, carries an ambiguous abbreviation or shows nothing the vocabulary
+ * recognizes (a reviewed word, or a pack size beside a word of four letters or more) gets no
+ * name and keeps its printed label. The result always passes `groundedDisplayName` itself.
+ */
+export function localDisplayName(label: string): DisplayNameEvidence | null {
+  if (instructionWords.test(label) || hasAmbiguousAbbreviation(label))
+    return null;
+  const chunks = label.normalize("NFC").trim().split(/\s+/).filter(Boolean);
+  if (!chunks.length) return null;
+  let anchored = false;
+  let pack = false;
+  let longWord = false;
+  const out = chunks.map((chunk) => {
+    const asPack = chunk.match(packToken);
+    if (asPack) {
+      pack = true;
+      const unit = asPack[3].toLocaleLowerCase("fi");
+      return `${asPack[1]}${asPack[2] ? ` x ${asPack[2]}` : ""}${unit === "%" ? "" : " "}${unit}`;
+    }
+    const word = lower(chunk);
+    if (/^\p{L}+(?:-\p{L}+)*$/u.test(word) && word.length >= 4) longWord = true;
+    const mapped = printedAbbreviations[word];
+    if (mapped) {
+      anchored = true;
+      return mapped;
+    }
+    if (expansionWords.includes(word)) anchored = true;
+    else if (cutOff(word)) {
+      const only = completions(word);
+      if (only.length === 1) {
+        anchored = true;
+        return only[0];
+      }
+    }
+    // Keep the shopper-visible case of codes such as M10 or AA.
+    return /\d/.test(chunk) ||
+      (chunk.length <= 3 && chunk === chunk.toLocaleUpperCase("fi"))
+      ? chunk
+      : word;
+  });
+  if (!anchored && !(pack && longWord)) return null;
+  const text = out
+    .join(" ")
+    .replace(/^\p{L}/u, (c) => c.toLocaleUpperCase("fi"));
+  return groundedDisplayName(label, text);
+}

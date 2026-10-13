@@ -302,7 +302,7 @@ test("without consent nothing is sent and the shopper is invited once; one answe
   expect(once.receiptIntake!.enrichment!.accepted).toBeGreaterThan(0);
   expect((await service.purchaseView()).consent.automatic).toBeNull();
   const named = (await service.purchaseView()).purchases.flatMap((p) =>
-    p.lines.filter((l) => l.display.nameOrigin === "model"),
+    p.lines.filter((l) => l.interpretation?.origin === "model"),
   );
   expect(named.length).toBe(once.receiptIntake!.enrichment!.accepted);
   // The request carried labels and quantities only: no store, date, price or file name.
