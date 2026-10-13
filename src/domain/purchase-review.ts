@@ -220,6 +220,68 @@ export function effectiveAnnotation(
   );
 }
 
+export type DisplayName = {
+  /** Always something readable: the best name there is, else the sanitized printed label. */
+  text: string;
+  /**
+   * user: the shopper named it. named: a rule or a model gave a readable name. general: only a
+   * category is known and the printed label is shown. raw: nothing is known beyond the label.
+   */
+  specificity: "user" | "named" | "general" | "raw";
+  /** Who gave the name shown, and who gave the category; null when nobody did. */
+  nameOrigin: SemanticAnnotation["origin"] | null;
+  categoryOrigin: SemanticAnnotation["origin"] | null;
+  /** The name or category rests on a model alone. Information, never a reason to review. */
+  modelOnly: boolean;
+};
+/**
+ * The name to show for a line. The shopper's wins, then a rule's, then a model's; the name and the
+ * category are resolved separately, so a rule's category can stand beside a model's fuller name
+ * without either taking the other's origin. Every line gets a text.
+ */
+export function displayName(
+  line: Pick<EvidenceLine, "label">,
+  annotations: SemanticAnnotation[],
+): DisplayName {
+  const ordered = [...annotations].sort(
+    (a, b) => rank[a.origin] - rank[b.origin],
+  );
+  const named = ordered.find((a) => a.name);
+  const categorised = ordered.find((a) => a.category);
+  const origins = new Set(ordered.map((a) => a.origin));
+  return {
+    text: named?.name ?? line.label,
+    specificity: named
+      ? named.origin === "user"
+        ? "user"
+        : "named"
+      : categorised
+        ? "general"
+        : "raw",
+    nameOrigin: named?.origin ?? null,
+    categoryOrigin: categorised?.origin ?? null,
+    modelOnly: origins.has("model") && origins.size === 1,
+  };
+}
+function nameCounts(
+  lines: { role: EvidenceLine["role"]; display: DisplayName }[],
+) {
+  const bought = lines.filter(
+    (l) => l.role === "product" || l.role === "non-food",
+  );
+  const count = (specificity: DisplayName["specificity"]) =>
+    bought.filter((l) => l.display.specificity === specificity).length;
+  return {
+    lines: bought.length,
+    user: count("user"),
+    named: count("named"),
+    general: count("general"),
+    raw: count("raw"),
+    /** Of all bought lines, those whose interpretation is a model's alone. */
+    modelOnly: bought.filter((l) => l.display.modelOnly).length,
+  };
+}
+
 /** What the receipt screens show: facts, the interpretation that counts, and what needs a look. */
 export function purchaseView(ledger: PurchaseLedger) {
   return ledger.events
@@ -253,12 +315,34 @@ export function purchaseView(ledger: PurchaseLedger) {
             qualifiers: a.qualifiers,
             scope: a.scope,
           };
+        const current = ledger.annotations.filter(
+          (a) =>
+            a.eventId === event.id &&
+            a.lineId === line.id &&
+            a.sourceRevision === revision,
+        );
+        // Factual and accounting issues only: what the source could not establish.
+        const issues = [
+          ...(line.role === "unreadable" ? (["unreadable"] as const) : []),
+          ...(line.role !== "unreadable" && line.gross === null
+            ? (["missing-amount"] as const)
+            : []),
+          ...(line.role === "product" && line.quantity.provenance === "unknown"
+            ? (["unknown-quantity"] as const)
+            : []),
+        ];
         return {
           ...line,
+          issues,
+          display: displayName(line, current),
           interpretation: pick(chosen),
           /** A model proposal the shopper has not accepted, beside a rule or user interpretation. */
           proposal: pick(proposal),
-          /** Why the line is in the review group; empty when nothing needs a look. */
+          /**
+           * Legacy (before F27.1): mixes factual issues with `uninterpreted` and
+           * `model-proposal`. New code reads `issues` and `display`; a model's interpretation
+           * alone is not something to review.
+           */
           review: [
             ...(line.role === "unreadable" ? (["unreadable"] as const) : []),
             ...(line.role !== "unreadable" && line.gross === null
@@ -298,7 +382,19 @@ export function purchaseView(ledger: PurchaseLedger) {
         adjustments: event.adjustments,
         printed: event.printed,
         reconciliation: event.reconciliation,
+        /** Legacy count over `review`; includes model-only and uninterpreted rows. */
         reviewCount: lines.filter((l) => l.review.length).length,
+        /** Lines with a factual issue. A model-made or missing name never counts here. */
+        issueCount: lines.filter((l) => l.issues.length).length,
+        /** Facts about the whole receipt that the reading or the accounting left open. */
+        factual: {
+          unbalanced: event.reconciliation.status === "unbalanced",
+          incomplete: event.reconciliation.status === "incomplete",
+          unreadableLines: sources.reduce((n, s) => n + s.unreadableLines, 0),
+          ocr: sources.some((s) => (s.ocrPages ?? []).length > 0),
+        },
+        /** How the bought lines (products and non-food) are named. The five kinds add up. */
+        names: nameCounts(lines),
       };
     })
     .sort((a, b) =>

@@ -223,3 +223,25 @@ Fixtures: `tests/repeat.test.ts` (4) and the IPC check in `tests/ui/receipt-impo
 **Development histories.** Scenario `history` adds `demoWeeklyOrders(now)` to the S-kaupat stand-ins' order history; see [receipt-learning-evaluation.md](receipt-learning-evaluation.md#development-histories-f64). `PurchaseStore.importOrders` now writes the local rule interpretations of order labels as receipt import does.
 
 Fixtures: `tests/ui/receipt-review.spec.ts` (2), `tests/purchase-histories.test.ts` (3), `tests/ui/purchase-suggestions.spec.ts` (3), `tests/spending.test.ts` (5), `tests/ui/spending-history.spec.ts` (2), `tests/ui/purchase-link-review.spec.ts` (3), `tests/ui/repeat-list.spec.ts` (2), `tests/memory-context.test.ts` (2) and `tests/ui/purchase-journey.spec.ts` (1).
+
+## Receipt read model without routine review (F27.1)
+
+`purchaseView(ledger)` in `src/domain/purchase-review.ts` now reports three things separately. Nothing in the ledger changes: no proposal is accepted in bulk, and money, identities and preferences are untouched.
+
+Per line:
+
+- `issues`: factual and accounting issues only, any of `unreadable`, `missing-amount` (a readable line with no price) and `unknown-quantity` (a product whose quantity the source does not state). A name made by a model, or no name at all, is never an issue.
+- `display` (`DisplayName`, from `displayName(line, annotations)`): `text` is always readable, the best name there is or else the sanitized printed label. `specificity` is `user` (the shopper named it), `named` (a rule or a model gave a name), `general` (only a category is known; the label is shown) or `raw` (only the label). `nameOrigin` and `categoryOrigin` say who gave each, resolved separately in the order user, rule, model, so a rule's category can stand beside a model's fuller name without either taking the other's origin. `modelOnly` is true when every interpretation of the line is a model's.
+- `interpretation` and `proposal` keep their earlier meaning.
+
+Per receipt:
+
+- `issueCount`: lines with at least one issue. This is the count to show as needing attention.
+- `factual`: `{ unbalanced, incomplete, unreadableLines, ocr }` from the saved reconciliation and sources.
+- `names`: `{ lines, user, named, general, raw, modelOnly }` over bought lines (roles `product` and `non-food`). `user + named + general + raw = lines`. `modelOnly` counts within those lines and is information, not a task.
+
+Legacy, kept so existing screens and records keep working: `line.review` and `reviewCount` still include `uninterpreted` and `model-proposal`. New screens read `issues`, `issueCount`, `display` and `names` instead.
+
+Only annotations made for the source's current revision count; an annotation of an older revision is ignored and the line falls back to its label. `Service.purchaseView()` and the receipt import result return this projection unchanged.
+
+Fixtures for F27.2 and F27.6: `tests/purchase-read-model.test.ts` has one receipt with a model-only name, a rule category beside a model name, a user correction over a model name, a rule category alone, a raw line, an unknown quantity and a missing amount, plus an unbalanced scanned receipt with an unreadable line and a stale-revision record.
