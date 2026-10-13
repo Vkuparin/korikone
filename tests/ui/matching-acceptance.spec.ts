@@ -57,12 +57,13 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
       await page.reload();
       const note = composer(page);
       await startNewList(page);
+      const create = page.getByRole("button", { name: updateName });
       await note.fill("200 ml kermaa ja 1 l maitoa ja kahvia");
-      await note.press("Control+Enter");
-      await expect(page.locator("#note-update-help")).toHaveAttribute(
-        "data-planning-phase",
-        "committed",
-      );
+      await expect(create).toBeEnabled();
+      await create.click();
+      await expect
+        .poll(async () => (await load()).planning?.phase)
+        .toBe("committed");
       const before = await load();
       const beforeReport = await diagnostics();
       expect(beforeReport.counts.unresolvedLines).toBe(1);

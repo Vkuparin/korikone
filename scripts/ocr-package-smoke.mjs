@@ -31,16 +31,18 @@ try {
       filePaths: [path],
     });
   }, resolve("tests/fixtures/receipts/ocr-k-clean.pdf"));
-  const result = await page.evaluate(() =>
-    window.korikone.importPurchaseReceipt(),
-  );
+  const result = await page.evaluate(() => window.korikone.importReceipts());
   assert.equal(result.ok, true, JSON.stringify(result));
-  assert.deepEqual(result.value.purchaseImport.ocrPages, [1]);
-  assert.equal(result.value.purchaseImport.reconciliation, "balanced");
+  assert.equal(result.value.receiptIntake.counts.added, 1);
+  assert.equal(result.value.receiptIntake.files[0].outcome, "added");
   assert.equal(result.value.developmentRequests, 0);
   assert.equal(result.value.developmentStoreWrites, 0);
   const listed = await page.evaluate(() => window.korikone.listPurchases());
   assert.deepEqual(listed.value.receipts.purchases[0].ocrPages, [1]);
+  assert.equal(
+    listed.value.receipts.purchases[0].reconciliation.status,
+    "balanced",
+  );
   console.log(
     `Packaged ${expectedVersion}: local OCR import, total and saved provenance passed; zero AI/retailer writes.`,
   );
