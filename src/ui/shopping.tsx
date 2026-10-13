@@ -86,6 +86,7 @@ function editSummary(
               ? `Lisätty ${a.name} (${a.after} ${unit})`
               : `Added ${a.name} (${a.after} ${unit})`;
         case "specifyItem":
+        case "setAttribute":
           return `${a.name} → ${a.to}`;
         case "removeItem":
         case "removeMeal":
@@ -1542,6 +1543,10 @@ export function ShoppingWorkspace({
               "assumed-side": tr(
                 "ehdotettu lisuke ei sopinut pyyntöön",
                 "a suggested side did not fit the request",
+              ),
+              merchandise: tr(
+                "tuotteen ominaisuus ei ollut pyynnössä",
+                "a product attribute was not in the request",
               ),
             }[failureCause.reason] ?? ""}
             {failureCause.path ? ` (${failureCause.path})` : ""}

@@ -101,6 +101,7 @@ const appliedEditSchema = z
       "setItem",
       "removeMeal",
       "specifyItem",
+      "setAttribute",
     ]),
     targetId: editTargetIdSchema,
     name: z.string(),

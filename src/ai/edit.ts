@@ -1,3 +1,9 @@
+import {
+  merchandiseAttributeKinds,
+  merchandiseIntentSchema,
+  printedIn,
+  type MerchandiseIntent,
+} from "../domain/merchandise";
 import { z } from "zod";
 import {
   EDIT_VERSION,
@@ -5,12 +11,13 @@ import {
   editLimits,
   editTargetIdSchema,
   editTargets,
+  rowTargetId,
   type EditIntent,
   type EditOperation,
 } from "../domain/edits";
 import { unitSchema, type AppState } from "../domain/model";
 import { MAX_CONTEXT_CHARACTERS, relevantRecipes } from "./context";
-import { validateRecipe } from "./draft";
+import { validateRecipe, validatedMerchandise } from "./draft";
 import { invokeTaskOutput, omitNulls, recipeWireSchema } from "./output";
 import type { InferenceOutput, InferenceSession } from "./provider";
 import { shoppingEditTask } from "./tasks";
@@ -50,6 +57,7 @@ const operationWireSchema = z
       "setItem",
       "removeMeal",
       "specifyItem",
+      "setAttribute",
     ]),
     target: z.string().nullable(),
     name: z.string().nullable(),
@@ -66,6 +74,12 @@ const operationWireSchema = z
     recipe: recipeWireSchema.nullable(),
     servings: z.int().nullable(),
     atHome: z.boolean().nullable(),
+    // Non-food: the intent of a new item, and one attribute for setAttribute. Null otherwise.
+    merchandise: z.unknown().nullable(),
+    attribute: z
+      .object({ kind: z.enum(merchandiseAttributeKinds), value: z.string() })
+      .strict()
+      .nullable(),
   })
   .strict();
 export const editWireSchema = z
@@ -116,6 +130,23 @@ export function buildEditContext(
   );
   if (recipes.length > editTaskLimits.recipes)
     throw new Error("contextTooLarge");
+  const merchandise = new Map(
+    state.extras.flatMap((item) =>
+      item.merchandise
+        ? [
+            [
+              rowTargetId(`${item.id}:${item.unit}`),
+              {
+                attributes: item.merchandise.attributes.map(
+                  ({ kind, value }) => ({ kind, value }),
+                ),
+                missing: item.merchandise.missing,
+              },
+            ] as const,
+          ]
+        : [],
+    ),
+  );
   const context = {
     language: state.language,
     household: {
@@ -130,6 +161,10 @@ export function buildEditContext(
       unit: r.unit,
       sources: r.sources,
       atHome: r.atHome,
+      // A non-food row: what it must have, and what is still to be asked.
+      ...(merchandise.get(r.targetId)
+        ? { merchandise: merchandise.get(r.targetId) }
+        : {}),
     })),
     meals: targets.meals.map((m) => ({
       target: m.targetId,
@@ -168,6 +203,8 @@ export function editPrompt(context: EditContext): string {
     '{"op":"setItem","name":"Kevytmaito","quantity":Q} states the amount wanted of a named grocery that has no row yet, with no target. ' +
     '{"op":"specifyItem","target":"row:…","name":"Knorr Lihaliemikuutio"} says what an existing row should be: the product, brand or type the shopper names for it, keeping its amount. ' +
     "When focus is a row and the instruction is only a product, brand or grocery name, with no verb and no amount, it is specifyItem for the focus row: never a new dish, a new grocery or unsupported. Write name as the shopper wrote it; when they give only a brand, put the row's grocery after the brand. " +
+    '{"op":"setAttribute","target":"row:…","attribute":{"kind":"size","value":"32"}} gives a non-food row (one with merchandise in the data) an attribute the shopper states, copied as written; kind is size, colour, model, material or spec. When focus is such a row with missing listed and the instruction is only a value, it answers the first missing kind. ' +
+    'A new non-food item (boots, a pan, batteries) is setItem counted in pieces with "merchandise":{"version":1,"family":"kumisaapas","attributes":[{"kind":"size","value":"32","provenance":"explicit-note"}],"missing":[]}: only attributes the shopper wrote, and "size" in missing when footwear or clothing has none. Never add a size, colour, brand, model, product code, price or availability the shopper did not write; merchandise and attribute are null for groceries. ' +
     "A plain list of dishes and groceries with no verb means: add each dish that is not on the list (addMeal), and for each grocery with an amount state that amount (changeQuantity when the grocery has a row, otherwise setItem). Use addItem only when the shopper says add or more, such as lisää: it increases what is there. Never replace a dish unless the shopper says to replace or swap it. Keep the shopper's own words for a grocery variety, such as kevytmaito or vaniljajäätelö, in name. A number word and a written unit count as an amount: kaksi litraa is 2000 ml and litra jäätelöä is 1000 ml. " +
     'Q is {"kind":"amount","amount":positive integer,"unit":"g"|"ml"|"pcs"} in the row\'s own unit (convert kg and l; never decimals), ' +
     'or {"kind":"packs","count":positive integer} when the shopper counts cartons, packs, bags or jars. Never convert a pack count to an amount and never guess a pack size. ' +
@@ -203,6 +240,12 @@ const looseOperationSchema = z
     recipe: optional(z.unknown()),
     servings: optional(z.number()),
     atHome: optional(z.boolean()),
+    merchandise: optional(z.unknown()),
+    attribute: optional(
+      z
+        .object({ kind: z.enum(merchandiseAttributeKinds), value: z.string() })
+        .strict(),
+    ),
   })
   .strict();
 const looseIntentSchema = z
@@ -230,6 +273,12 @@ const fields: Record<EditOperation["op"], string[]> = {
   setItem: ["name", "quantity"],
   removeMeal: ["target"],
   specifyItem: ["target", "name"],
+  setAttribute: ["target", "attribute"],
+};
+// A new item may also say that it is a non-food request.
+const optionalFields: Partial<Record<EditOperation["op"], string[]>> = {
+  addItem: ["merchandise"],
+  setItem: ["merchandise"],
 };
 
 /**
@@ -240,6 +289,8 @@ export function validateEditIntent(
   raw: string,
   known: ReadonlySet<string>,
   state: Pick<AppState, "recipes" | "note">,
+  /** The shopper's instruction: the only evidence for a non-food family or attribute. */
+  instruction = "",
 ): EditIntent {
   const invalid = () => new Error("invalidDraft");
   let loose: z.infer<typeof looseIntentSchema>;
@@ -262,7 +313,10 @@ export function validateEditIntent(
   const operations = loose.operations.map((wire): unknown => {
     if (
       Object.keys(wire).some(
-        (key) => key !== "op" && !fields[wire.op].includes(key),
+        (key) =>
+          key !== "op" &&
+          !fields[wire.op].includes(key) &&
+          !optionalFields[wire.op]?.includes(key),
       )
     )
       throw invalid();
@@ -284,6 +338,28 @@ export function validateEditIntent(
       !(["addItem", "addMeal", "setItem"] as string[]).includes(wire.op)
     )
       throw invalid();
+    // A non-food intent or attribute is the shopper's own words in this instruction, or nothing.
+    let merchandise: MerchandiseIntent | undefined;
+    if (wire.merchandise !== undefined) {
+      const intent = merchandiseIntentSchema.safeParse(wire.merchandise);
+      if (!intent.success) throw invalid();
+      try {
+        merchandise = validatedMerchandise(
+          { unit: "pcs", merchandise: intent.data },
+          instruction,
+          "",
+        );
+      } catch {
+        throw invalid();
+      }
+    }
+    if (
+      wire.attribute !== undefined &&
+      (/\d{4,}/.test(wire.attribute.value) ||
+        !wire.attribute.value.trim() ||
+        !printedIn(instruction, wire.attribute.value))
+    )
+      throw invalid();
     const q = wire.quantity;
     const quantity =
       q &&
@@ -300,10 +376,30 @@ export function validateEditIntent(
       case "addItem":
         if ((target === undefined) === (wire.name === undefined))
           throw invalid();
-        return { op: wire.op, rowKey: target, name: wire.name, quantity };
+        if (merchandise && target !== undefined) throw invalid();
+        return {
+          op: wire.op,
+          rowKey: target,
+          name: wire.name,
+          quantity,
+          ...(merchandise ? { merchandise } : {}),
+        };
       case "setItem":
         if (wire.name === undefined) throw invalid();
-        return { op: wire.op, name: wire.name, quantity };
+        return {
+          op: wire.op,
+          name: wire.name,
+          quantity,
+          ...(merchandise ? { merchandise } : {}),
+        };
+      case "setAttribute":
+        if (wire.attribute === undefined) throw invalid();
+        return {
+          op: wire.op,
+          rowKey: target,
+          kind: wire.attribute.kind,
+          value: wire.attribute.value.trim(),
+        };
       case "addMeal": {
         if ((wire.recipeId === undefined) === (wire.recipe === undefined))
           throw invalid();
@@ -406,12 +502,21 @@ export function interpretEdit(
     native: editNativeOutput,
     normalizeNative: (raw) => {
       try {
-        return JSON.stringify(editWireSchema.parse(JSON.parse(raw)));
+        // A reply from before non-food edits has neither field on its operations.
+        const parsed = JSON.parse(raw) as { operations?: unknown };
+        if (Array.isArray(parsed.operations))
+          parsed.operations = parsed.operations.map((operation) =>
+            operation && typeof operation === "object"
+              ? { merchandise: null, attribute: null, ...operation }
+              : operation,
+          );
+        return JSON.stringify(editWireSchema.parse(parsed));
       } catch {
         throw new Error("invalidDraft");
       }
     },
-    validate: (raw) => validateEditIntent(raw, known, snapshot),
+    validate: (raw) =>
+      validateEditIntent(raw, known, snapshot, request.instruction),
     repairLimit: 1,
     correction:
       " The previous response failed validation. Copy every target exactly from the data, use each at most once, give only the fields its operation uses, and report anything unclear in ambiguities or unsupported. Return the complete JSON object only.",

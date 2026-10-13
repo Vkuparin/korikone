@@ -135,7 +135,22 @@ const unitToken =
   "kg|g|ml|dl|l|kpl|pcs|kappaletta|kappale|grammaa?|grams?|kilogrammaa?|kilograms?|kiloa?|kilon|litraa?|litran|litres?|liters?|desilitraa?|desilitran|millilitraa?|millilitres?|milliliters?";
 /** A unit word in the singular that opens a request means one of it: "litra jäätelöä". */
 const bareUnit = /^\s*(litra|kilo|kilogramma|desilitra)\s+(?=\p{L})/iu;
-function literalNumbers(text: string) {
+/**
+ * A number that describes the product is not an amount: a size after "koko" or "size", and a
+ * measure in centimetres, millimetres, inches, volts, watts or milliamp-hours.
+ */
+const withoutAttributeNumbers = (text: string) =>
+  text
+    .replace(
+      /(?<![\p{L}])(?:koko|kokoa|size|numero|nro)\s*\d+(?:[.,]\d+)?(?![\p{L}\p{N}])/giu,
+      " ",
+    )
+    .replace(
+      /\d+(?:[.,]\d+)?\s*(?:cm|mm|tuumaa|tuuman|inch|inches|"|v|w|mah)(?![\p{L}\p{N}])/giu,
+      " ",
+    );
+function literalNumbers(source: string) {
+  const text = withoutAttributeNumbers(source);
   // Do not interpret the supported tail of a compound number, range or signed amount.
   if (
     /\b(?:thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|minus|negative)\b/i.test(

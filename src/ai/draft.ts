@@ -1,3 +1,9 @@
+import {
+  merchandiseIntentSchema,
+  printedIn,
+  requiredMerchandiseKinds,
+  type MerchandiseIntent,
+} from "../domain/merchandise";
 import { z } from "zod";
 import { buildCompactContext, type ContextState } from "./context";
 import {
@@ -183,10 +189,17 @@ export function validateDraft(
             true,
           )
         : inferredClassification(item.name, "recipe-inferred");
-  for (const [i, item] of draft.items.entries())
+  for (const [i, item] of draft.items.entries()) {
+    if (item.merchandise) {
+      // A non-food request: validated against the shopper's own words, with no grocery category.
+      item.merchandise = validatedMerchandise(item, source, `items[${i}]`);
+      delete item.classification;
+      continue;
+    }
     item.classification = item.classification
       ? classified(`items[${i}]`, item.classification, false)
       : inferredClassification(item.name, "model-assumed");
+  }
   // Reuse identities only when category qualifiers and their provenance also agree.
   const ingredientIds = new Map<string, string>();
   const key = (i: {
@@ -252,6 +265,43 @@ export function validateDraft(
     if (recipe) recipe.assumedSide = tidyName(side.name);
   }
   return draft;
+}
+/**
+ * Checks a model's non-food intent against the note. The family and every attribute must be the
+ * shopper's own words: an attribute value that is not printed in the note, a provenance other
+ * than `explicit-note`, a value that looks like a product code, or a unit other than pieces is
+ * refused. A kind the family needs and the shopper did not give is moved to `missing`, so the row
+ * is asked about and never completed with a guess.
+ */
+export function validatedMerchandise(
+  item: { unit: string; merchandise?: MerchandiseIntent },
+  note: string,
+  path: string,
+): MerchandiseIntent {
+  const intent = item.merchandise!;
+  if (
+    item.unit !== "pcs" ||
+    !namesSameFood(intent.family, note) ||
+    intent.attributes.some(
+      (a) =>
+        a.provenance !== "explicit-note" ||
+        /\d{4,}/.test(a.value) ||
+        !printedIn(note, a.value),
+    )
+  )
+    throw new DraftError("merchandise", path);
+  const given = new Set(intent.attributes.map((a) => a.kind));
+  const parsed = merchandiseIntentSchema.safeParse({
+    ...intent,
+    missing: [
+      ...new Set([
+        ...intent.missing,
+        ...requiredMerchandiseKinds(intent.family),
+      ]),
+    ].filter((kind) => !given.has(kind)),
+  });
+  if (!parsed.success) throw new DraftError("merchandise", path);
+  return parsed.data;
 }
 /** The note says the dish is wanted on its own. */
 export function noSideRequested(note: string) {

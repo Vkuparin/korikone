@@ -15,6 +15,7 @@ import {
 } from "./provider";
 import { shoppingDraftTask, recipeImportTask, shoppingPlanTask } from "./tasks";
 import { requestIntentSchema } from "../domain/intents";
+import { merchandiseAttributeKinds } from "../domain/merchandise";
 import {
   draftPrompt,
   recipePrompt,
@@ -95,11 +96,32 @@ export const shoppingNativeOutput = nativeOutput(
   "shopping_draft_v1",
   shoppingWireSchema,
 );
+// A non-food request on a direct item. Null for every grocery.
+const merchandiseWireSchema = z
+  .object({
+    version: z.int(),
+    family: z.string(),
+    attributes: z.array(
+      z
+        .object({
+          kind: z.enum(merchandiseAttributeKinds),
+          value: z.string(),
+          provenance: z.string(),
+        })
+        .strict(),
+    ),
+    missing: z.array(z.enum(merchandiseAttributeKinds)),
+  })
+  .strict();
+const itemWireSchema = ingredientWireSchema
+  .extend({ merchandise: merchandiseWireSchema.nullable() })
+  .strict();
 const sidesWireSchema = z.array(
   z.object({ mealIndex: z.int(), name: z.string() }).strict(),
 );
 export const shoppingPlanningWireSchema = shoppingWireSchema
   .extend({
+    items: z.array(itemWireSchema),
     intents: z.array(requestIntentSchema).min(1).max(100),
     sides: sidesWireSchema,
   })
@@ -221,13 +243,21 @@ export function interpretPlanning(
     prompt:
       "Planning intent ledger v1.\n" +
       draftPrompt(note, snapshot) +
-      ' Required planning intent ledger v1. Identify every requested meal and direct grocery with an exact, non-overlapping note span. Add required intents array. Each intent has id (unique temporary reference), kind meal or grocery, label exactly the quoted note span, evidence {start,end,quote} with UTF-16 offsets, provenance explicit-note, quantity, mealIndex, itemIndex, unresolvedReason. Every returned meal/item must be targeted exactly once by an intent; new recipes must have a meal. mealIndex/itemIndex are zero-based positions and exactly one is set for represented requests. Meals have quantity null and itemIndex null. Grocery quantity is {amount,unit,provenance}. Only a literal number with a g/kg/ml/dl/l/kpl/pcs unit proves a direct grocery quantity; normalize kg/l/dl to integer g/ml. The number may be digits or a number word from one to twelve in English or Finnish (yksi, kaksi, kolme … kaksitoista, puoli, puolitoista), and the unit may be written out (litra, litraa, kilo, kiloa, gramma, grammaa, desilitra, kappaletta). A singular unit word that opens the request means one of it: "litra jäätelöä" is 1000 ml and "kilo jauhelihaa" is 1000 g. When a direct grocery has no amount, choose one ordinary shop purchase of it for this household, for example Maito 1000 ml, Kananmuna 10 pcs, Kahvi 500 g or Voi 500 g: give that as the item amount and as quantity {amount,unit,provenance:"assumed"} with the item targeted. Never use assumed for a request that states a number. Only when no ordinary purchase size exists keep {amount:null,unit:null,provenance:"unknown"}, both target indexes null and unresolvedReason unknown-quantity. A literal count with unknown unit keeps its number, unit null and provenance explicit-note, unresolvedReason unknown-unit. Known quantities that cannot become positive integer g/ml/pcs remain in quantity with null targets and unresolvedReason unsupported-quantity; never round or guess them. Other unrepresentable requests keep null target indexes and unresolvedReason unsupported-request, ambiguous-request or excluded-request. For represented requests unresolvedReason is null. Unresolved-only drafts are valid; never invent items or a fallback meal to fill them. A dish named alone is a simple complete meal: put an ordinary side for it (such as potatoes, mashed potato, rice, pasta or a plain salad, whichever suits the dish) into the recipe ingredients of that dish and report it in sides as {"mealIndex":position of the meal,"name":"Perunamuusi"}. Do not add a side when the dish is complete by itself (soups, casseroles, pasta dishes, pizza, ready meals), when the note names a side or another dish that serves as one (then that is the side for the dishes in the note and is not repeated), or when the shopper says no side, such as ilman lisuketta or pelkkä. Never make a side a separate meal and never give it an intent. sides is [] when nothing was added. Keep every ingredient a plain generic grocery name a shop search would find, such as Uunimakkara, Peruna, Voi or Maito: no brand, no variety and no qualifier the shopper did not write. Use literal enum strings with JSON quotes. Return complete JSON only.',
+      ' Required planning intent ledger v1. Identify every requested meal and direct grocery with an exact, non-overlapping note span. Add required intents array. Each intent has id (unique temporary reference), kind meal or grocery, label exactly the quoted note span, evidence {start,end,quote} with UTF-16 offsets, provenance explicit-note, quantity, mealIndex, itemIndex, unresolvedReason. Every returned meal/item must be targeted exactly once by an intent; new recipes must have a meal. mealIndex/itemIndex are zero-based positions and exactly one is set for represented requests. Meals have quantity null and itemIndex null. Grocery quantity is {amount,unit,provenance}. Only a literal number with a g/kg/ml/dl/l/kpl/pcs unit proves a direct grocery quantity; normalize kg/l/dl to integer g/ml. The number may be digits or a number word from one to twelve in English or Finnish (yksi, kaksi, kolme … kaksitoista, puoli, puolitoista), and the unit may be written out (litra, litraa, kilo, kiloa, gramma, grammaa, desilitra, kappaletta). A singular unit word that opens the request means one of it: "litra jäätelöä" is 1000 ml and "kilo jauhelihaa" is 1000 g. When a direct grocery has no amount, choose one ordinary shop purchase of it for this household, for example Maito 1000 ml, Kananmuna 10 pcs, Kahvi 500 g or Voi 500 g: give that as the item amount and as quantity {amount,unit,provenance:"assumed"} with the item targeted. Never use assumed for a request that states a number. Only when no ordinary purchase size exists keep {amount:null,unit:null,provenance:"unknown"}, both target indexes null and unresolvedReason unknown-quantity. A literal count with unknown unit keeps its number, unit null and provenance explicit-note, unresolvedReason unknown-unit. Known quantities that cannot become positive integer g/ml/pcs remain in quantity with null targets and unresolvedReason unsupported-quantity; never round or guess them. Other unrepresentable requests keep null target indexes and unresolvedReason unsupported-request, ambiguous-request or excluded-request. For represented requests unresolvedReason is null. Unresolved-only drafts are valid; never invent items or a fallback meal to fill them. A dish named alone is a simple complete meal: put an ordinary side for it (such as potatoes, mashed potato, rice, pasta or a plain salad, whichever suits the dish) into the recipe ingredients of that dish and report it in sides as {"mealIndex":position of the meal,"name":"Perunamuusi"}. Do not add a side when the dish is complete by itself (soups, casseroles, pasta dishes, pizza, ready meals), when the note names a side or another dish that serves as one (then that is the side for the dishes in the note and is not repeated), or when the shopper says no side, such as ilman lisuketta or pelkkä. Never make a side a separate meal and never give it an intent. sides is [] when nothing was added. A request for something that is not food or drink (boots, a frying pan, batteries) is a direct item counted in pieces with unit "pcs", name the product in base form, and "merchandise":{"version":1,"family":"kumisaapas","attributes":[{"kind":"size","value":"32","provenance":"explicit-note"}],"missing":[]}. attributes hold only what the shopper wrote, copied as written: kind is size, colour, model, material or spec. Never add a size, colour, brand, model, product code, price or availability the shopper did not write. Footwear and clothing need a size: when it is not written, leave attributes without it and put "size" in missing; do the same for any attribute without which the product cannot be chosen. A size or a measure such as 28 cm is never the amount: the amount is how many pieces, 1 when no count is written, with quantity provenance assumed. Groceries have merchandise null. Keep every ingredient a plain generic grocery name a shop search would find, such as Uunimakkara, Peruna, Voi or Maito: no brand, no variety and no qualifier the shopper did not write. Use literal enum strings with JSON quotes. Return complete JSON only.',
     native: shoppingPlanningNativeOutput,
     normalizeNative: (raw) => {
       try {
         // A reply from before sides existed has none.
         const { intents, sides, ...shopping } = shoppingPlanningWireSchema
-          .extend({ sides: sidesWireSchema.default([]) })
+          .extend({
+            sides: sidesWireSchema.default([]),
+            // A reply from before non-food requests has no `merchandise` on its items.
+            items: z.array(
+              itemWireSchema.extend({
+                merchandise: merchandiseWireSchema.nullable().default(null),
+              }),
+            ),
+          })
           .parse(JSON.parse(raw));
         return JSON.stringify({
           ...(omitNulls(shopping) as Record<string, unknown>),

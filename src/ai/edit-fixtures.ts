@@ -1,6 +1,7 @@
 import { noteQuantity } from "../domain/intents";
 import { initialState, type Recipe, type Unit } from "../domain/model";
 import { mealFixtures } from "./meal-fixtures";
+import { merchandiseFixture } from "./merchandise-fixtures";
 import type { EditContext } from "./edit";
 
 type Row = EditContext["rows"][number];
@@ -351,6 +352,31 @@ export function editFixtureReply(data: EditContext) {
           name: groceryName(typed),
           quantity: q.quantity,
         });
+    } else if (
+      data.rows.find((r) => r.target === data.focus)?.merchandise?.missing
+        .length &&
+      /(?<!\d)\d{2}(?!\d)/.test(phrase)
+    ) {
+      // A value given for a non-food row that still needs one answers its first missing kind.
+      const row = data.rows.find((r) => r.target === data.focus)!;
+      operations.push({
+        op: "setAttribute",
+        target: row.target,
+        attribute: {
+          kind: row.merchandise!.missing[0],
+          value: phrase.match(/(?<!\d)\d{2}(?!\d)/)![0],
+        },
+      });
+      used.add(row.target);
+    } else if (merchandiseFixture(phrase)) {
+      // A new non-food item: one piece, with only the attributes the shopper wrote.
+      const found = merchandiseFixture(phrase)!;
+      operations.push({
+        op: "setItem",
+        name: found.name,
+        quantity: { kind: "amount", amount: 1, unit: "pcs" },
+        merchandise: found.merchandise,
+      });
     } else if (data.focus?.startsWith("row:")) {
       // A bare name with a row selected says what that row should be.
       const row = data.rows.find((r) => r.target === data.focus)!;

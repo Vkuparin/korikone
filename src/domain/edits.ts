@@ -1,3 +1,8 @@
+import {
+  merchandiseAttributeKinds,
+  merchandiseIntentSchema,
+  merchandiseLimits,
+} from "./merchandise";
 import { z } from "zod";
 import { inferredClassification } from "./categories";
 import {
@@ -61,6 +66,8 @@ export const editOperationSchema = z.discriminatedUnion("op", [
       rowKey: editRowKeySchema.optional(),
       name: z.string().trim().min(1).max(200).optional(),
       quantity: editQuantitySchema,
+      // Makes a new named row a non-food request (F22.4). Ignored for a row that exists.
+      merchandise: merchandiseIntentSchema.optional(),
     })
     .strict()
     .refine((o) => (o.rowKey === undefined) !== (o.name === undefined)),
@@ -115,6 +122,16 @@ export const editOperationSchema = z.discriminatedUnion("op", [
       op: z.literal("setItem"),
       name: z.string().trim().min(1).max(200),
       quantity: editQuantitySchema,
+      merchandise: merchandiseIntentSchema.optional(),
+    })
+    .strict(),
+  // Gives a non-food row one attribute the shopper stated, such as the size that was missing.
+  z
+    .object({
+      op: z.literal("setAttribute"),
+      rowKey: editRowKeySchema,
+      kind: z.enum(merchandiseAttributeKinds),
+      value: z.string().trim().min(1).max(merchandiseLimits.valueCharacters),
     })
     .strict(),
   z
@@ -310,6 +327,9 @@ function resolveAmount(
  * Applies a whole batch to a clone, or throws an `EditError` and changes nothing. Targets are exact
  * keys and IDs validated against the supplied plan; no operation searches by similarity.
  */
+/** The non-food intent of the extra that already has this row key, if any. */
+const previousMerchandise = (state: AppState, key: string) =>
+  state.extras.find((i) => `${i.id}:${i.unit}` === key)?.merchandise;
 export function applyEdits(
   state: AppState,
   input: unknown,
@@ -591,9 +611,18 @@ export function applyEdits(
         ...next.staples,
       ].find((i) => requirementKey(i) === key);
       const name = row?.name ?? known?.name ?? operation.name?.trim() ?? id;
+      // A new named row may be a non-food request, counted in pieces; an existing row keeps
+      // whatever it already is.
+      const merchandise =
+        !row && !known && operation.op === "addItem"
+          ? operation.merchandise
+          : previousMerchandise(next, key);
+      if (merchandise && unit !== "pcs")
+        throw new EditError("invalidEdit", index);
       // An existing identity keeps its own constraints, or the row could not add together.
-      const classification =
-        row || known
+      const classification = merchandise
+        ? undefined
+        : row || known
           ? (row?.classification ?? known?.classification)
           : inferredClassification(name, "model-assumed");
       const previous = next.extras.filter((i) => requirementKey(i) === key);
@@ -603,6 +632,7 @@ export function applyEdits(
         unit,
         amount: previous.reduce((sum, i) => sum + i.amount, amount),
         ...(classification ? { classification } : {}),
+        ...(merchandise ? { merchandise } : {}),
       });
       if (!extra.success) throw new EditError("invalidEdit", index);
       next.extras = [
@@ -654,15 +684,23 @@ export function applyEdits(
         ...next.staples,
       ].find((i) => requirementKey(i) === key);
       const name = known?.name ?? operation.name.trim();
-      const classification = known
-        ? known.classification
-        : inferredClassification(name, "model-assumed");
+      const merchandise = known
+        ? previousMerchandise(next, key)
+        : operation.merchandise;
+      if (merchandise && unit !== "pcs")
+        throw new EditError("invalidEdit", index);
+      const classification = merchandise
+        ? undefined
+        : known
+          ? known.classification
+          : inferredClassification(name, "model-assumed");
       const extra = ingredientSchema.safeParse({
         id,
         name,
         unit,
         amount,
         ...(classification ? { classification } : {}),
+        ...(merchandise ? { merchandise } : {}),
       });
       if (!extra.success) throw new EditError("invalidEdit", index);
       // Not on the list (new, or removed earlier): it returns with exactly this amount.
@@ -684,6 +722,39 @@ export function applyEdits(
     }
     // A meal operation in the same batch may have removed the row this operation names.
     if (!row || !existing) throw new EditError("unknownTarget", index);
+    if (operation.op === "setAttribute") {
+      // Only a non-food row the shopper added has attributes to set.
+      const item = next.extras.find((i) => requirementKey(i) === key);
+      if (!item?.merchandise) throw new EditError("invalidEdit", index);
+      const intent = merchandiseIntentSchema.safeParse({
+        ...item.merchandise,
+        attributes: [
+          ...item.merchandise.attributes.filter(
+            (a) => a.kind !== operation.kind,
+          ),
+          {
+            kind: operation.kind,
+            value: operation.value,
+            provenance: "clarified",
+          },
+        ],
+        missing: item.merchandise.missing.filter((k) => k !== operation.kind),
+      });
+      if (!intent.success) throw new EditError("invalidEdit", index);
+      // Stating the value the row already has is not a change.
+      if (JSON.stringify(intent.data) === JSON.stringify(item.merchandise))
+        continue;
+      item.merchandise = intent.data;
+      respecified.add(key);
+      applied.push({
+        op: operation.op,
+        targetId: rowTargetId(key),
+        name: row.name,
+        to: `${operation.kind}: ${operation.value}`,
+        unit,
+      });
+      continue;
+    }
     if (operation.op === "specifyItem") {
       const own = row.specifiedFrom ?? row.name;
       const name = operation.name.trim();

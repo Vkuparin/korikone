@@ -5,6 +5,7 @@ import {
   type RequestIntent,
 } from "../domain/intents";
 import { mealFixtures } from "./meal-fixtures";
+import { merchandiseFixture } from "./merchandise-fixtures";
 import { noSideRequested, type MealDraft } from "./draft";
 
 /**
@@ -141,6 +142,27 @@ export function planningFixtureReply(
         day: Math.min(draft.meals.length, 6),
         servings,
         leftovers: false,
+      });
+    } else if (merchandiseFixture(quote)) {
+      // A non-food request: one piece unless a count in pieces is written.
+      const found = merchandiseFixture(quote)!;
+      const stated = noteQuantity(quote);
+      const pieces =
+        stated?.unit === "pcs" && Number.isInteger(stated.amount)
+          ? stated.amount
+          : 1;
+      intent.quantity = {
+        amount: pieces,
+        unit: "pcs",
+        provenance: stated?.unit === "pcs" ? "explicit-note" : "assumed",
+      };
+      intent.itemIndex = draft.items.length;
+      draft.items.push({
+        id: `fixture-item-${start}`,
+        name: found.name,
+        amount: pieces,
+        unit: "pcs",
+        merchandise: found.merchandise,
       });
     } else {
       const name = groceries.find(([pattern]) => pattern.test(quote))?.[1];

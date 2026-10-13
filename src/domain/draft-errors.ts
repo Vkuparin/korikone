@@ -14,6 +14,7 @@ export const draftFailureReasons = [
   "intent-target",
   "intent-coverage",
   "assumed-side",
+  "merchandise",
 ] as const;
 export type DraftFailureReason = (typeof draftFailureReasons)[number];
 /** The message stays `invalidDraft`, which is what triggers the single repair request. */

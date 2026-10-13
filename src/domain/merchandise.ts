@@ -122,6 +122,24 @@ export const merchandiseEvidenceSchema = z
   .strict();
 export type MerchandiseEvidence = z.infer<typeof merchandiseEvidenceSchema>;
 
+/**
+ * Attribute kinds a family cannot be bought without. Footwear and clothing need a size; nothing
+ * else is assumed to need anything. A required kind the shopper has not given is asked for, never
+ * guessed.
+ */
+export function requiredMerchandiseKinds(
+  family: string,
+): MerchandiseAttribute["kind"][] {
+  return /saap|saappa|kenk|kengä|tossu|sandaal|lenkkar|housu|farku|takki|paita|hanska|käsine|lapas|sukka|sukat|pipo|haalar|boots?\b|shoes?\b|sneakers?\b|trousers|jeans|jacket|shirt|gloves?\b|mittens?\b|socks?\b/iu.test(
+    family,
+  )
+    ? ["size"]
+    : [];
+}
+/** Whether a value is in a text as consecutive whole words, ignoring case. */
+export function printedIn(text: string, value: string) {
+  return printed(words(text), value);
+}
 const words = (text: string) =>
   text
     .toLocaleLowerCase("fi")
