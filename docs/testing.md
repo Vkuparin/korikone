@@ -114,3 +114,7 @@ For v0.7, reuse CI run 38175606384's passing build/574 unit results, rerun the s
 ## v0.9.0 purchase evidence and history
 
 Focused checks, all local fixtures: `npm test -- tests/receipt-fixtures.test.ts tests/purchase-histories.test.ts tests/spending.test.ts tests/memory-context.test.ts` and `npm run test:ui -- tests/ui/receipt-review.spec.ts tests/ui/purchase-suggestions.spec.ts tests/ui/spending-history.spec.ts tests/ui/purchase-link-review.spec.ts tests/ui/repeat-list.spec.ts tests/ui/purchase-journey.spec.ts`. Receipt files for UI checks are written from `tests/fixtures/receipts` (`fixtureText`, `receiptTextPDF`) and chosen through a stubbed file dialog; the order history is the development scenario `history`. Dates that must fall in a recent week are built from today's date inside the test.
+
+## Non-food shopping fixtures (F22.8)
+
+The K development stand-in (`demo-k`) has a synthetic non-food shelf and declares discovery without a basket write. Use `tests/merchandise-fixtures.test.ts` for status outcomes and `tests/ui/merchandise-transfer.spec.ts` / `tests/ui/merchandise-row.spec.ts` for real IPC. A small store is `demo-alternate`. Never use a live store account for routine checks; see the owner gates in `docs/retail-expansion.md`.

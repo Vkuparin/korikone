@@ -209,6 +209,91 @@ export function demoWeeklyOrders(now: Date): RetailerOrder[] {
   });
   return orders;
 }
+/**
+ * A synthetic non-food shelf for the K stand-in (F22.8). Names print their variant, as the real
+ * store's names do; availability is a flag with unknown allowed. Nothing here is a real product.
+ */
+const nonFoodShelf: {
+  id: string;
+  name: string;
+  packAmount: number;
+  price: number;
+  available: boolean | null;
+  brand: string | null;
+  inStore: boolean | null;
+  online: boolean | null;
+}[] = [
+  {
+    id: "boots-32",
+    name: "Kumisaapas koko 32 musta",
+    packAmount: 1,
+    price: 2990,
+    available: true,
+    brand: "Nokian",
+    inStore: true,
+    online: true,
+  },
+  {
+    id: "boots-34",
+    name: "Kumisaapas koko 34 musta",
+    packAmount: 1,
+    price: 3190,
+    available: true,
+    brand: "Nokian",
+    inStore: true,
+    online: true,
+  },
+  {
+    id: "boots-30",
+    name: "Kumisaapas koko 30 musta",
+    packAmount: 1,
+    price: 2790,
+    available: false,
+    brand: "Nokian",
+    inStore: false,
+    online: false,
+  },
+  {
+    id: "pan-28",
+    name: "Paistinpannu 28 cm",
+    packAmount: 1,
+    price: 3490,
+    available: null,
+    brand: null,
+    inStore: null,
+    online: null,
+  },
+  {
+    id: "pan-24",
+    name: "Paistinpannu 24 cm",
+    packAmount: 1,
+    price: 2490,
+    available: true,
+    brand: null,
+    inStore: true,
+    online: true,
+  },
+  {
+    id: "battery-aa",
+    name: "Alkaliparisto AA 4 kpl",
+    packAmount: 4,
+    price: 499,
+    available: true,
+    brand: null,
+    inStore: true,
+    online: true,
+  },
+  {
+    id: "battery-aaa",
+    name: "Alkaliparisto AAA 4 kpl",
+    packAmount: 4,
+    price: 449,
+    available: true,
+    brand: null,
+    inStore: true,
+    online: true,
+  },
+];
 export class DemoProvider implements StoreProvider {
   offerScenario:
     | "success"
@@ -220,7 +305,7 @@ export class DemoProvider implements StoreProvider {
     | "mixed"
     | "error"
     | "signedOut" = "success";
-  capabilities = {
+  capabilities: StoreProvider["capabilities"] = {
     catalogue: true,
     cart: true,
     orderHistory: false,
@@ -404,6 +489,18 @@ export class DemoProvider implements StoreProvider {
     public id: string,
     private save?: () => void,
   ) {
+    // Only the K stand-in has a non-food shelf (F22.8). It can be searched and its stock is a
+    // flag, but nothing can be written to the basket, so non-food rows end as a manual hand-off.
+    if (id === "demo-k")
+      this.capabilities = {
+        ...this.capabilities,
+        merchandise: {
+          discovery: true,
+          variants: "name",
+          stock: "flag",
+          cartWrite: false,
+        },
+      };
     if (["s-kaupat", "demo-s"].includes(id)) {
       this.capabilities = { ...this.capabilities, orderHistory: true };
       this.orderHistory = async (limit) => {
@@ -477,7 +574,38 @@ export class DemoProvider implements StoreProvider {
       return provider.searchProducts(context, query, ingredientId);
     }
     const adjust = this.id === "k-ruoka" ? kRuokaFixture : {};
-    return catalogue
+    const shelf =
+      this.id === "demo-k" && context.storeId !== "demo-alternate"
+        ? nonFoodShelf
+            .filter(
+              (p) =>
+                p.id === ingredientId ||
+                p.name
+                  .toLocaleLowerCase("fi")
+                  .includes(query.toLocaleLowerCase("fi")),
+            )
+            .map((p): Product => ({
+              id: p.id,
+              providerId: this.id,
+              storeId: context.storeId,
+              ingredientId,
+              name: p.name,
+              packAmount: p.packAmount,
+              unit: "pcs",
+              price: p.price,
+              available: p.available,
+              deposit: 0,
+              nativeUnit: "kpl",
+              increment: 1,
+              observedAt: new Date().toISOString(),
+              merchandise: {
+                brand: p.brand,
+                inStore: p.inStore,
+                online: p.online,
+              },
+            }))
+        : [];
+    const foods = catalogue
       .filter(
         (p) =>
           !["weighed-banana", "weighed-mince"].includes(p[0]) ||
@@ -573,6 +701,7 @@ export class DemoProvider implements StoreProvider {
             }
           : {}),
       }));
+    return [...shelf, ...foods];
   }
   async pickupFee() {
     // Only the S-kaupat fixture reports fees, as only the real S-kaupat worker does.

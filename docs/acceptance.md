@@ -253,3 +253,7 @@ Owner checks outstanding: that the History chart and the suggestions read clearl
 ## v0.10.0 pre-release, 13 October 2026
 
 The owner authorized release with minimum testing and reuse of recorded focused checks. All 36 Done cards are integrated on main and included in v0.10.0. One full release flow ran locally; only failed/affected cases were rerun, and every failure has a passing result. A small completion-overlay click fix and refreshed build/package passed the affected layouts and local OCR smoke. No live AI, retailer account or private receipt was used. See [release verification](release-0.10.0.md) for exact counts, source tag, checksum and remaining live/installer acceptance.
+
+## v0.11.0 non-food acceptance scope (F22.8)
+
+Fixture evidence: variant statuses (not listed here, exact available, variant missing, out of stock, unknown), a missing attribute asked once, hand-off by hand, groceries sent alone with zero non-food writes, retry after a failed read and backup round trip. Owner gates, none run: three read-only live K-store searches (no sign-in, basket call or AI request); one optional live non-food note (1 to 2 ChatGPT requests); any basket write only after a separately authorized live write and read-back. No automatic non-food transfer is claimed.

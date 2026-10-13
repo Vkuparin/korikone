@@ -59,12 +59,17 @@ test("a list with a non-food row transfers its groceries only, and a non-food li
     await page.reload();
     const transfer = page.locator(".transfer-button");
     await expect(transfer).toBeEnabled();
-    // The store stand-in declares no non-food capability at all, and the app says so.
+    // The K stand-in has a non-food shelf: size 32 is found and reported available, nothing
+    // can be written, so the app lists the row as the shopper's own to add.
     const before = await load();
     expect(before.merchandise).toMatchObject({
-      capabilities: { discovery: false, cartWrite: false },
-      manual: [],
-      statuses: [{ requirementKey: "kumisaapas:pcs", status: "unsupported" }],
+      capabilities: { discovery: true, cartWrite: false },
+      manual: [
+        { requirementKey: "kumisaapas:pcs", productId: "boots-32", packs: 1 },
+      ],
+      statuses: [
+        { requirementKey: "kumisaapas:pcs", status: "exact-available" },
+      ],
     });
     await expect(page.locator(".merchandise-manual")).toBeVisible();
 
@@ -76,8 +81,10 @@ test("a list with a non-food row transfers its groceries only, and a non-food li
     expect(sent.journal!.review.targets.map((t) => t.productId)).toEqual([
       "milk",
     ]);
-    expect(sent.journal!.review.unresolved!.map((r) => r.id)).toEqual([
-      "kumisaapas",
+    // Not "unresolved": it has an exact product, and is handed over by hand.
+    expect(sent.journal!.review.unresolved ?? []).toEqual([]);
+    expect(sent.journal!.review.manual?.map((m) => m.productId)).toEqual([
+      "boots-32",
     ]);
     expect(sent.developmentStoreWrites).toBe(1);
     // The row is still on the list after the transfer and after a restart.

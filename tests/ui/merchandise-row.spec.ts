@@ -81,15 +81,14 @@ for (const language of ["fi", "en"] as const) {
           ?.id,
       ).toBe(milk!.product!.id);
 
-      // The development store cannot search non-food: said plainly, with the manual hand-off.
-      await expect(boots).toContainText(
-        "koko 32".replace("koko", tr("koko", "size")),
-      );
+      // The development shelf has size 32 and reports it available; the app still hands the
+      // row over by hand because nothing can be written.
+      await expect(boots).toContainText(tr("koko 32", "size 32"));
       await expect(boots.locator(".merchandise-status")).toContainText(
-        tr(
-          "ei tue ei-ruokatuotteiden hakua",
-          "does not support searching non-food products",
-        ),
+        tr("ilmoitettu saatavilla olevaksi", "reported available"),
+      );
+      await expect(boots.locator(".merchandise-evidence")).toContainText(
+        "Nokian",
       );
       await expect(boots.locator(".merchandise-manual")).toContainText(
         tr("ei siirretä automaattisesti", "not transferred automatically"),
