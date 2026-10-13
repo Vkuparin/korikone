@@ -1,4 +1,4 @@
-import { composer, startNewList, updateName } from "./composer-helper";
+import { composer, updateName } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -30,7 +30,6 @@ test("header selectors cancel, search, confirm and preserve the typed note witho
     const load = () =>
       page.evaluate(async () => (await window.korikone.load()).value);
     const note = composer(page);
-    await startNewList(page);
     await note.fill("Nakkikeitto, edited but not applied");
     const before = await load();
     const store = page.getByRole("button", { name: /Vaihda kauppaa/ });

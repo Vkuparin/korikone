@@ -184,9 +184,16 @@ for (const language of ["fi", "en"] as const) {
           exact: true,
         })
         .click();
+      await page
+        .getByRole("button", {
+          name: language === "fi" ? "Aloita uusi lista" : "Start new list",
+          exact: true,
+        })
+        .click();
       await expect(primary).toHaveAccessibleName(createName);
       await expect(primary).toBeDisabled();
-      expect((await load()).state.extras[0].amount).toBe(1000);
+      // The confirmed reset leaves the empty workspace.
+      expect((await load()).state.extras).toEqual([]);
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedSuccess"),
       );

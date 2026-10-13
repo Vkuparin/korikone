@@ -123,50 +123,34 @@ for (const language of ["fi", "en"] as const) {
       ).toBeVisible();
       expect((await load()).state.revision).toBe(undone.state.revision);
 
-      // New list: unapplied input needs a confirmation, the saved list stays.
+      // New list always asks once; Cancel keeps the list, the instruction and the focus.
       await button(tr("Uusi lista", "New list")).click();
       await expect(page.getByRole("alertdialog")).toBeVisible();
-      await button(tr("Jatka muokkausta", "Keep editing")).click();
+      await button(tr("Peruuta", "Cancel")).click();
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
       await expect(composer).toHaveValue(
         tr("tilaa kotiinkuljetus", "order home delivery"),
       );
-      await composer.fill("");
-      await button(tr("Uusi lista", "New list")).click();
-      const draft = page.getByLabel(tr("Uusi lista", "New list"), {
-        exact: true,
-      });
-      await expect(draft).toBeVisible();
-      await expect(draft).toHaveValue("");
-      await expect(
-        page.getByText(
-          tr(
-            "Nykyinen lista säilyy, kunnes uusi lista on valmis.",
-            "The current list stays until the new list is ready.",
-          ),
-        ),
-      ).toBeVisible();
-      await draft.fill(tr("Kanapasta", "Chicken pasta"));
-      // The draft context survives navigation away and back.
-      await page.reload();
-      await expect(
-        page.getByLabel(tr("Uusi lista", "New list"), { exact: true }),
-      ).toHaveValue(tr("Kanapasta", "Chicken pasta"));
       expect((await load()).state.meals).toHaveLength(2);
-      await button(
-        tr("Takaisin nykyiseen listaan", "Back to the current list"),
-      ).click();
-      await expect(composer).toBeVisible();
 
-      // The replacement commits only when the new list succeeds.
+      // Confirming resets the whole workspace and returns the empty first-list composer.
       await button(tr("Uusi lista", "New list")).click();
-      await page
-        .getByLabel(tr("Uusi lista", "New list"), { exact: true })
-        .fill("Nakkikeitto");
+      await button(tr("Aloita uusi lista", "Start new list")).click();
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+      const empty = await load();
+      expect(empty.state.meals).toEqual([]);
+      expect(empty.editUndoAvailable).toBe(false);
+      const fresh = page.getByLabel(
+        tr("Mitä haluaisit valmistaa?", "What would you like to cook?"),
+        { exact: true },
+      );
+      await expect(fresh).toHaveValue("");
+      await fresh.fill("Nakkikeitto");
       await button(tr("Taio ostoslista", "Create my shopping list")).click();
-      await expect(composer).toBeVisible();
-      const replaced = await load();
-      expect(replaced.state.note).toBe("Nakkikeitto");
-      expect(replaced.editUndoAvailable).toBe(false);
+      await expect
+        .poll(async () => (await load()).state.note, { timeout: 20000 })
+        .toBe("Nakkikeitto");
+      expect((await load()).editUndoAvailable).toBe(false);
     } finally {
       await app.close();
     }

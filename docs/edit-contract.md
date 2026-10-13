@@ -203,3 +203,7 @@ Rules:
 - A storage failure leaves the list, quote and Undo as they were.
 
 Fixtures: `tests/reset-list.test.ts` (populated, empty and preview-only reset, restart, stale revision, storage failure, late and failed planning replies, verified and partial transfer records, a write in flight, and Clear list kept separate) and `tests/ui/reset-api.spec.ts` (real IPC and restart).
+
+## Find product on unresolved rows (B2.4)
+
+An unresolved row has a "Etsi tuote… / Find a product…" action (`src/ui/row-find.tsx`). It opens a small form that names the row and its amount; pressing Find sends the wording once through `editList` with `focusTargetId: "row:<key>"` and `consent: true` (the `specifyItem` contract above). Nothing runs while typing and nothing is remembered. A resolved row closes the form and focuses the row name; options open the row details for Use once; no candidates keeps the form with guidance and the row's amount. Check: `tests/ui/row-find.spec.ts` (FI/EN).

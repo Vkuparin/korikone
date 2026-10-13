@@ -36,8 +36,9 @@ test("one request retains one progress/cancel surface across scroll, navigation 
     await page.reload();
     const load = () =>
       page.evaluate(async () => (await window.korikone.load()).value!);
-    const saved = await load();
     await startNewList(page);
+    // New list is a confirmed reset: the retained state below is the empty workspace.
+    const saved = await load();
     await composer(page).fill("Nakkikeitto");
     expect((await load()).developmentRequests).toBe(0);
     await page.evaluate(() =>

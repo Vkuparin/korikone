@@ -2,7 +2,7 @@ import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { composer } from "./composer-helper";
+import { composer, startNewList } from "./composer-helper";
 
 for (const language of ["fi", "en"] as const) {
   const fi = language === "fi";
@@ -58,9 +58,7 @@ for (const language of ["fi", "en"] as const) {
       });
 
       // A refused draft: the note is kept, the cause is named and no sign-in link is offered.
-      await page
-        .getByRole("button", { name: tr("Uusi lista", "New list") })
-        .click();
+      await startNewList(page);
       await page.evaluate(() =>
         window.korikone.developmentScenario("invalidDraft"),
       );
@@ -80,7 +78,8 @@ for (const language of ["fi", "en"] as const) {
         tr("Muistiinpanosi säilyi", "Your note was kept"),
       );
       const failed = await load();
-      expect(failed.state.meals.length).toBeGreaterThan(0);
+      // The confirmed New list left an empty workspace; the failure changes nothing.
+      expect(failed.state.meals).toEqual([]);
 
       // Explicit retry after the failure works from the same note.
       await page.evaluate(() => window.korikone.developmentScenario("success"));

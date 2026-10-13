@@ -1,4 +1,4 @@
-import { composer, startNewList, updateName } from "./composer-helper";
+import { composer } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -22,7 +22,6 @@ test("confirmed context IPC preserves notes, reprices, rejects failures and pers
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
     const note = composer(page);
-    await startNewList(page);
     await note.fill("Do not interpret this edited note");
     const result = await page.evaluate(async () => {
       const api = window.korikone;

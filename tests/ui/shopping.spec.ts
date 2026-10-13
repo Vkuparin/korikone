@@ -291,9 +291,10 @@ test("typing, view return and restored edits never submit without an explicit ac
     await expect(composer(page)).toBeVisible();
     const load = () =>
       page.evaluate(async () => (await window.korikone.load()).value);
-    const before = await load();
     const note = composer(page);
     await startNewList(page);
+    // New list is a confirmed reset; nothing typed afterwards may change the empty workspace.
+    const before = await load();
     await note.fill("Nakkikeitto");
     await expect(
       page.getByText("Muistiinpanoa ei ole päivitetty listaan", {
@@ -727,11 +728,13 @@ for (const language of ["fi", "en"] as const) {
       const status = page.locator("#note-update-help");
       const load = () =>
         page.evaluate(async () => (await window.korikone.load()).value);
-      const before = await load();
+      let before = await load();
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedModels"),
       );
       await startNewList(page);
+      // New list is a confirmed reset; retention below is of the empty workspace.
+      before = await load();
       await note.fill("200 ml kermaa");
       await note.press("Control+Enter");
       await expect(status).toHaveAttribute(
@@ -765,18 +768,7 @@ for (const language of ["fi", "en"] as const) {
         tr("Haetaan tuotteita ja hintoja…", "Getting products and prices…"),
       );
       expect((await load()).quotedAt).toBe(before.quotedAt);
-      await page
-        .getByRole("button", {
-          name: tr("Tallennettu lista", "Saved list"),
-          exact: true,
-        })
-        .click();
-      await expect(
-        page.getByText(tr("Viimeksi haetut hinnat", "Last quoted prices"), {
-          exact: false,
-        }),
-      ).toBeVisible();
-      await startNewList(page);
+      // Changing the note while the run is still searching makes its result obsolete.
       await note.fill("1 l maitoa");
       await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
       await expect(status).toHaveAttribute("data-planning-phase", "obsolete");
@@ -1088,15 +1080,17 @@ for (const language of ["fi", "en"] as const) {
         window.korikone.developmentScenario("delayedFailure"),
       );
       await startNewList(page);
+      // New list is a confirmed reset; the failed run must leave that empty workspace as it is.
+      const emptied = (await page.evaluate(() => window.korikone.load())).value;
       await note.fill("1 l maitoa");
       await note.press("Control+Enter");
       await expect(preview).toBeVisible();
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(preview).toHaveCount(0);
       const failed = (await page.evaluate(() => window.korikone.load())).value;
-      expect(failed.state).toEqual(committed.state);
-      expect(failed.basket).toEqual(committed.basket);
-      expect(failed.quotedAt).toBe(committed.quotedAt);
+      expect(failed.state).toEqual(emptied.state);
+      expect(failed.basket).toEqual(emptied.basket);
+      expect(failed.quotedAt).toBe(emptied.quotedAt);
 
       await page.evaluate(() => window.korikone.developmentScenario("success"));
       await startNewList(page);
@@ -1122,6 +1116,9 @@ for (const language of ["fi", "en"] as const) {
         window.korikone.developmentScenario("pendingSuccess"),
       );
       await startNewList(page);
+      const beforeInterrupted = (
+        await page.evaluate(() => window.korikone.load())
+      ).value;
       await note.fill("1 l maitoa");
       await note.press("Control+Enter");
       await expect(preview).toBeVisible();
@@ -1129,7 +1126,7 @@ for (const language of ["fi", "en"] as const) {
       app = await launch(directory);
       page = await app.firstWindow();
       note = composer(page);
-      await expect(note).toHaveValue("kahvia");
+      await expect(note).toHaveValue("");
       await expect(
         page.getByRole("region", {
           name: tr("Muodostuva lista", "List in progress"),
@@ -1138,7 +1135,9 @@ for (const language of ["fi", "en"] as const) {
       const restored = (await page.evaluate(() => window.korikone.load()))
         .value;
       expect(restored.planning).toBeNull();
-      expect(restored.committedIntents).toEqual(unknown.committedIntents);
+      expect(restored.committedIntents).toEqual(
+        beforeInterrupted.committedIntents,
+      );
       expect(restored.basket).toEqual([]);
       expect(restored.developmentStoreWrites).toBe(0);
     } finally {

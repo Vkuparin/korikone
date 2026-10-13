@@ -38,7 +38,7 @@ test("real planning stages drive one activity surface and read-only previews thr
     await page.reload();
     const load = () =>
       page.evaluate(async () => (await window.korikone.load()).value!);
-    const saved = await load();
+    let saved = await load();
     await page.evaluate(() => {
       const data = window as unknown as { activityEvents: PlanningSnapshot[] };
       data.activityEvents = [];
@@ -47,6 +47,8 @@ test("real planning stages drive one activity surface and read-only previews thr
       );
     });
     await startNewList(page);
+    // New list is a confirmed reset; later retention checks compare with the empty workspace.
+    saved = await load();
     const note = composer(page);
     const primary = page.getByRole("button", { name: updateName });
     const local = page.locator("#note-update-help");
@@ -160,8 +162,9 @@ test("real planning stages drive one activity surface and read-only previews thr
       ),
     ).toBe("none");
 
-    // A delayed failure stops activity and preserves the committed list and its typed replacement.
+    // A delayed failure stops activity and leaves the workspace as the confirmed reset left it and keeps the typed text.
     await startNewList(page);
+    const afterReset = await load();
     await page.evaluate(() =>
       window.korikone.developmentScenario("delayedFailure"),
     );
@@ -177,8 +180,8 @@ test("real planning stages drive one activity surface and read-only previews thr
     await expect(preview).toHaveCount(0);
     await expect(note).toHaveValue("500 g suodatinjauhettua kahvia");
     const failed = await load();
-    expect(failed.state).toEqual(completed.state);
-    expect(failed.basket).toEqual(completed.basket);
+    expect(failed.state).toEqual(afterReset.state);
+    expect(failed.basket).toEqual(afterReset.basket);
     expect(failed.developmentRequests).toBeLessThanOrEqual(2);
     expect(
       await activity.evaluate(
@@ -222,8 +225,8 @@ test("real planning stages drive one activity surface and read-only previews thr
     await expect(statuses).toContainText("peruutettu");
     await expect(cancels).toHaveCount(0);
     const cancelled = await load();
-    expect(cancelled.state).toEqual(completed.state);
-    expect(cancelled.basket).toEqual(completed.basket);
+    expect(cancelled.state).toEqual(afterReset.state);
+    expect(cancelled.basket).toEqual(afterReset.basket);
     expect(cancelled.developmentRequests).toBe(1);
     expect(cancelled.developmentStoreWrites).toBe(0);
     await page.getByRole("button", { name: "Ostoslista", exact: true }).click();

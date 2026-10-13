@@ -47,7 +47,6 @@ for (const language of ["fi", "en"] as const) {
           .first()
           .getByRole("button", { name, exact: true });
       const note = composer(page);
-      await startNewList(page);
       await note.fill("Retained contextual note");
       const heading = (section: string) =>
         page.locator(`#settings-section-${section}`);
@@ -91,7 +90,6 @@ for (const language of ["fi", "en"] as const) {
         )
         .toBe("connected");
       await nav(tr("Ostoslista", "Shopping list")).click();
-      await startNewList(page);
       await note.fill("Makaronilaatikko");
       await page.evaluate(() =>
         window.korikone.developmentScenario("delayedFailure"),
