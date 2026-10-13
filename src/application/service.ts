@@ -134,9 +134,16 @@ import { repeatPlan, repeatResult, type RepeatResult } from "../domain/repeat";
 import {
   ReceiptImportCoordinator,
   enrichPurchaseRequestSchema,
+  receiptConsentActionSchema,
   type ReceiptAI,
   type ReceiptEnrichmentStatus,
 } from "./receipt-import";
+import {
+  ReceiptIntake,
+  type IntakeFile,
+  type IntakeProgress,
+  type IntakeResult,
+} from "./receipt-intake";
 import { sGroupStore } from "../receipts/parsers/s-group";
 import { kGroupStore } from "../receipts/parsers/k-group";
 import { purchaseLedgerSchema } from "../domain/purchases";
@@ -706,6 +713,82 @@ export class Service {
   }
   /** Outcome of the last enrichment step, as counts and a code. */
   receiptEnrichment: ReceiptEnrichmentStatus | null = null;
+  /** Result of the last multi-file import: per-file outcomes, counts and the optional request. */
+  receiptIntake: IntakeResult | null = null;
+  private intakeRun: {
+    operationId: string;
+    controller: AbortController;
+  } | null = null;
+  /**
+   * One import action over files the main process has checked. It runs beside planning, edits
+   * and transfers and changes none of them: it reads no list, quote or store. Local saves come
+   * first and stay whatever happens to the optional request. One action at a time.
+   */
+  async importReceiptFiles(
+    files: IntakeFile[],
+    options: {
+      keepOriginal?: boolean;
+      ai?: ReceiptAI | null;
+      onProgress?: (progress: IntakeProgress) => void;
+    } = {},
+  ) {
+    if (this.intakeRun) throw new Error("receiptIntakeBusy");
+    if (!files.length) return this.snapshot();
+    const run = {
+      operationId: crypto.randomUUID(),
+      controller: new AbortController(),
+    };
+    this.intakeRun = run;
+    try {
+      this.receiptIntake = await new ReceiptIntake(this.receipts).run(files, {
+        operationId: run.operationId,
+        keepOriginal: options.keepOriginal,
+        ai: options.ai,
+        signal: run.controller.signal,
+        onProgress: options.onProgress,
+      });
+    } finally {
+      this.intakeRun = null;
+    }
+    return this.snapshot();
+  }
+  /** Cancels the named import only. Files already saved stay saved. */
+  cancelReceiptIntake(input: unknown) {
+    const { operationId } = z
+      .object({ operationId: z.uuid() })
+      .strict()
+      .parse(input);
+    if (this.intakeRun?.operationId !== operationId)
+      throw new Error("receiptIntakeStale");
+    this.intakeRun.controller.abort();
+    return this.snapshot();
+  }
+  /** The signal of the running import, for the one request it may make. */
+  receiptIntakeSignal() {
+    return this.intakeRun?.controller.signal;
+  }
+  /**
+   * The answer to the invitation of the last import: enable for future imports, just this
+   * import, or not now. The first two interpret that import's purchases in this same action.
+   */
+  async receiptConsentAction(input: unknown, ai: ReceiptAI | null) {
+    const action = receiptConsentActionSchema.parse(input);
+    const last = this.receiptIntake;
+    if (
+      !last?.invitation ||
+      last.invitation.providerId !== action.providerId ||
+      action.eventIds.some((id) => !last.eventIds.includes(id))
+    )
+      throw new Error("receiptIntakeStale");
+    const enrichment = await this.receipts.consentAction(action, ai);
+    this.receiptIntake = { ...last, invitation: null, enrichment };
+    return this.snapshot();
+  }
+  /** Lets newly imported purchases confirm the transfers they belong to. */
+  async applyPurchaseEvidence() {
+    await this.confirmFromEvidence();
+    return this.snapshot();
+  }
   /** One explicit enrichment action for one purchase: at most one AI request, facts untouched. */
   async enrichPurchase(input: unknown, ai: ReceiptAI | null) {
     const { eventId, consent } = enrichPurchaseRequestSchema.parse(input);
@@ -1226,6 +1309,8 @@ export class Service {
       planning: this.planning.snapshot(),
       purchaseImport: this.purchaseImport,
       receiptEnrichment: this.receiptEnrichment,
+      receiptIntake: this.receiptIntake,
+      receiptIntakeRunning: this.intakeRun?.operationId ?? null,
       purchaseSignals: this.purchaseSignals,
       // A Repeat describes the revision it created only.
       repeat:

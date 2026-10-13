@@ -245,3 +245,47 @@ Legacy, kept so existing screens and records keep working: `line.review` and `re
 Only annotations made for the source's current revision count; an annotation of an older revision is ignored and the line falls back to its label. `Service.purchaseView()` and the receipt import result return this projection unchanged.
 
 Fixtures for F27.2 and F27.6: `tests/purchase-read-model.test.ts` has one receipt with a model-only name, a rule category beside a model name, a user correction over a model name, a rule category alone, a raw line, an unknown quantity and a missing amount, plus an unbalanced scanned receipt with an unreadable line and a stale-revision record.
+
+## Multi-file intake, isolated ownership and the one-request batch (F27.3)
+
+One action imports several receipts. It runs beside planning, edits and transfers and changes none of them: it reads no shopping list, quote or store, and its optional model request never cancels or delays theirs.
+
+### Entry points
+
+- `window.korikone.importReceipts({ keepOriginal? })` opens the multi-file picker for PDF, TXT and CSV. It resolves with the usual snapshot once every file is finished.
+- Drop: the preload script (`src/main/preload.ts`) listens for `drop` on the window, takes each dropped file's path from the operating system (`webUtils.getPathForFile`) and sends them on a channel the page cannot call (`app:receiptDrop`). A file object made by page script has no path and is ignored. The page receives the result through `window.korikone.onReceiptDrop(callback)` as `{ ok, value: snapshot }` or `{ ok: false, error }`, and `dragover` with files is prevented so a drop never navigates the window. The page never names a path, and `window.korikone` has no path-taking method.
+- `window.korikone.onReceiptIntake(callback)` delivers `IntakeProgress`: `{ operationId, stage, file, files, results, cancellable }` with `stage` one of `reading`, `saving`, `interpreting` (only when a request is actually made) and `done`. `results` lists finished files; each is durable when listed.
+- `window.korikone.cancelReceiptIntake({ operationId })` cancels that import only; `receiptIntakeStale` for any other. Files already saved stay saved; the rest are `cancelled`.
+- `window.korikone.receiptConsentAction({ choice, providerId, scope, eventIds })` answers the invitation (below).
+
+All three IPC methods and the drop channel require the main window's main frame as sender and bypass the serialized operation queue. Linking new purchases to verified transfers, which may save the list, is queued behind other work (`Service.applyPurchaseEvidence`).
+
+### Validation and bounds
+
+`intakeFile(path)` in `src/receipts/intake-files.ts` checks each path before anything is read: an absolute path without NUL to a regular file (not a folder, link or device) with extension `.pdf`, `.txt` or `.csv`, non-empty, at most 20 MiB, whose first bytes fit the type (`%PDF-` for PDF, no NUL byte in the first 1024 bytes for text). Refusals carry a fixed code: `receiptUnsupported`, `receiptTooLarge`, `receiptNoText` or `receiptUnreadable`.
+
+`intakeLimits` in `src/application/receipt-intake.ts`: 20 files, 60 MiB in total and 180 seconds per action, beside the reader's own per-file bounds (20 MiB, 100 PDF pages, 50 000 characters, 30 seconds, existing OCR bounds). A file beyond a bound is listed as failed with `receiptBatchLimit` and never opened; after the deadline the remaining files are `cancelled` with `receiptDeadline`. Files are read one at a time. Nothing is copied or staged, so there are no temporary files to clean up; the reader's worker is terminated on success, failure and timeout as before.
+
+### Result
+
+`snapshot.receiptIntake` (`IntakeResult`): `files: [{ name, outcome, code, eventId }]` with `outcome` one of `added`, `updated`, `duplicate`, `unsupported`, `failed`, `cancelled`; `counts` by outcome; `eventIds` of added or updated purchases; `cancelled`; `enrichment` (`BatchEnrichmentStatus` or null) and `invitation` (or null). `snapshot.receiptIntakeRunning` is the running operation ID or null. File names are for the local list only and are never written to diagnostics. One action at a time: a second one is refused with `receiptIntakeBusy`.
+
+### One combined request
+
+`buildCombinedBatch(ledger, eventIds)` and `validateCombined` in `src/domain/receipt-semantics.ts` make and check the single request of an action. The limits are those of one receipt, shared by the whole action: 40 rows and 12 000 request characters (`enrichmentLimits`), 8 000 output characters, 60 seconds and one call (`receiptTaskLimits`), with no repair, chunk, retry or provider switch. Lines with the same sanitized label and verified quantity are sent once; row IDs (`r0`, `r1`, …) are opaque and map back to every source-bound line they stand for. Purchases are never merged. Lines no row stands for are counted in `omitted` and keep their local names.
+
+`BatchEnrichmentStatus`: `{ status, reason, events, stale, accepted, rejected, unresolved, omitted }`. Each purchase is committed on its own, only if it is still at the revision its rows were read at; one corrected, reprocessed or deleted meanwhile gets nothing and is counted in `stale`. Consent is checked before the request and again before the answer is used.
+
+### Consent
+
+- Saved automatic consent for the selected provider and data scope: the import makes its one request without asking.
+- No saved consent: nothing is sent. `invitation` is `{ providerId, scope, eventIds, rows, omitted }` when there are rows a model could name and the shopper has neither enabled nor declined for this provider and scope.
+- `receiptConsentAction` with `choice: "enable"` saves automatic consent and names that import's purchases in the same action; `"once"` names them and saves nothing; `"decline"` records `consent.declined: { providerId, scope, at }` and sends nothing, so the invitation is not repeated for that pair. The action must name the provider of the invitation and only purchases of the last import, otherwise `receiptIntakeStale`. A signed-in account alone grants nothing. Settings' `setReceiptConsent` and the per-receipt `enrichPurchase` work as before.
+
+### Ownership of the AI connection
+
+Audit: the earlier receipt import advanced the shared `generationRun` counter and went through `requestSession`, which aborts the shared `inferenceController`, so importing a receipt cancelled a shopping request in flight. Now receipts have their own controller and session builder in `src/main/main.ts` and touch neither. `ReceiptAI.busy()` is true while a model lookup, a busy service operation or an active planning run owns the connection: the request is then skipped with status `unavailable`, reason `aiBusy`, and nothing is queued for later. A shopping request that starts while a receipt request is in flight aborts the receipt request (status `cancelled`); the purchases are already saved. Cancelling an import aborts only its own request.
+
+### Fixtures
+
+`tests/receipt-intake.test.ts` (8): partial success and duplicates with real stages, count and byte caps, cancellation and stale cancel, no consent with invitation, one-time and enabled consent with exact request counts, decline, a busy connection, a failing model, a purchase deleted during the request, the combined batch's limits and mapping, and path validation. `tests/ui/receipt-intake-api.spec.ts` drives the picker through real IPC and the PDF worker beside a planning request in flight. `tests/ui/receipt-drop.spec.ts` drops real files through the DevTools protocol (`Input.dispatchDragEvent` with `files`) and shows that a script-made file is ignored; F27.4 can reuse that recipe for the overlay.

@@ -50,14 +50,15 @@ export function receiptPrompt(request: EnrichmentRequest): string {
   );
 }
 
-const attempted = new WeakSet<EnrichmentBatch>();
+const attempted = new WeakSet<object>();
 /**
  * The single model call of one enrichment action. It returns the structurally valid result;
  * `validateEnrichment` then decides row by row what may be kept. A batch is never sent twice.
  */
 export async function enrichReceipt(
   session: InferenceSession,
-  batch: EnrichmentBatch,
+  /** A batch for one purchase, or the combined batch of one multi-receipt action. */
+  batch: Pick<EnrichmentBatch, "request">,
 ): Promise<EnrichmentResult> {
   if (!batch.request) return { version: 1, rows: [] };
   if (attempted.has(batch)) throw new InferenceError("requestLimit");

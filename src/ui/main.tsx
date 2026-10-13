@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { IntakeProgress } from "../application/receipt-intake";
 import type { Snapshot } from "../application/service";
 import type { PlanningRequest } from "../application/coordinator";
 import type { AppearanceBootstrap } from "../domain/appearance";
@@ -71,6 +72,16 @@ declare global {
       onUpdateChange: (
         callback: (value: { version: string; url: string }) => void,
       ) => () => void;
+      onReceiptIntake: (
+        callback: (value: IntakeProgress) => void,
+      ) => () => void;
+      onReceiptDrop: (
+        callback: (value: {
+          ok: boolean;
+          value?: Snapshot;
+          error?: string;
+        }) => void,
+      ) => () => void;
       onStoreHistoryChange: (
         callback: (value: { chain: string; canGoBack: boolean }) => void,
       ) => () => void;
@@ -126,6 +137,8 @@ function App() {
     repeat: null,
     editUndoAvailable: false,
     committedIntents: [],
+    receiptIntake: null,
+    receiptIntakeRunning: null,
     reset: null,
     proposal: { sides: [], quantities: [] },
     planningIncomplete: false,

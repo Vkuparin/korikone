@@ -10,7 +10,7 @@ import {
   nativeTheme,
 } from "electron";
 import { fileURLToPath } from "node:url";
-import { extname, join } from "node:path";
+import { basename, extname, join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
 import { createService } from "../application/development";
@@ -41,6 +41,8 @@ import {
 import { ChatGPT } from "../ai/chatgpt";
 import { interpretShopping, extractRecipe } from "../ai/output";
 import { readReceiptDetailed } from "../receipts/read";
+import { intakeFile } from "../receipts/intake-files";
+import { intakeLimits } from "../application/receipt-intake";
 import { checkForUpdate } from "../application/updates";
 import { diagnostics } from "../application/diagnostics";
 import type { PlanningRun } from "../application/planning";
@@ -335,6 +337,8 @@ else
         operation?.sourceState().aiModel ?? service.state.aiModel;
       const controller = new AbortController();
       inferenceController?.abort();
+      // A receipt request in flight yields to shopping; its purchases are already saved.
+      receiptController?.abort();
       inferenceController = controller;
       modelLookup = controller;
       try {
@@ -373,17 +377,93 @@ else
         if (modelLookup === controller) modelLookup = null;
       }
     };
-    // Receipt enrichment has its own cap of one request, apart from shopping and edits.
-    const receiptAI = (run: number): ReceiptAI | null => {
+    // Receipt enrichment owns its own controller and run: it never cancels shopping, an edit or
+    // a recipe import, and never advances their run counter. It is one request per action.
+    let receiptController: AbortController | null = null;
+    const receiptAI = (): ReceiptAI | null => {
+      let provider: ReturnType<typeof inferenceProvider>;
       try {
-        return {
-          providerId: inferenceProvider().id,
-          session: () =>
-            requestSession(run, undefined, receiptTaskLimits.aiCalls),
-        };
+        provider = inferenceProvider();
       } catch {
         return null;
       }
+      const active = ["discovering", "interpreting", "searching", "resolving"];
+      return {
+        providerId: provider.id,
+        // Another inference owns the connection: skip, with nothing queued for later.
+        busy: () =>
+          modelLookup !== null ||
+          service.busy ||
+          active.includes(service.planning.snapshot()?.phase ?? ""),
+        session: async () => {
+          const controller = new AbortController();
+          receiptController?.abort();
+          receiptController = controller;
+          // Cancelling the import it belongs to cancels the request as well.
+          const signal = service.receiptIntakeSignal();
+          const stop = signal
+            ? AbortSignal.any([controller.signal, signal])
+            : controller.signal;
+          try {
+            const models = await discoverInferenceModels(
+              provider,
+              AbortSignal.any([stop, AbortSignal.timeout(30000)]),
+            );
+            const id = chooseModel(
+              models.map((m) => ({ slug: m.modelId, name: m.name })),
+              service.state.aiModel,
+            );
+            return new InferenceSession(
+              provider,
+              models.find((m) => m.modelId === id)!,
+              {
+                maxCalls: receiptTaskLimits.aiCalls,
+                maxOutputCharacters: receiptTaskLimits.maxOutputCharacters,
+                timeoutMs: receiptTaskLimits.timeoutMs,
+              },
+              stop,
+            );
+          } catch (error) {
+            throw stop.aborted
+              ? new Error("aiCancelled")
+              : inferenceAppError(error);
+          }
+        },
+      };
+    };
+    const receiptAssets = () =>
+      join(
+        app.isPackaged ? process.resourcesPath : app.getAppPath(),
+        "vendor",
+        "ocr",
+      );
+    /** One intake action for paths that came from the picker or from an operating-system drop. */
+    const intakeReceipts = async (paths: unknown[], keepOriginal: boolean) => {
+      const files = [];
+      // Paths beyond the batch bound are named and refused without being opened.
+      for (const [index, path] of paths.slice(0, 200).entries())
+        files.push(
+          index < intakeLimits.files
+            ? await intakeFile(path, (file) =>
+                readReceiptDetailed(file, { assets: receiptAssets() }),
+              )
+            : {
+                name:
+                  typeof path === "string" ? basename(path).slice(0, 200) : "",
+                refused: "receiptBatchLimit",
+              },
+        );
+      const result = await service.importReceiptFiles(files, {
+        keepOriginal,
+        ai: receiptAI(),
+        onProgress: (progress) => {
+          if (!window.isDestroyed())
+            window.webContents.send("app:receiptIntakeChanged", progress);
+        },
+      });
+      // Linking purchases to transfers may save the list: it waits its turn behind other work.
+      queue = queue.then(() => service.applyPurchaseEvidence()).catch(() => {});
+      return result;
     };
     const handoff = async () => {
       try {
@@ -694,7 +774,6 @@ else
           ),
         });
         const extension = extname(filePaths[0]).toLowerCase().slice(1);
-        const run = ++generationRun;
         return service.importReceiptText(
           {
             text,
@@ -703,13 +782,33 @@ else
               extension === "pdf" || extension === "csv" ? extension : "txt",
             keepOriginal,
           },
-          receiptAI(run),
+          receiptAI(),
         );
       },
-      enrichPurchase: async (input) => {
-        const run = ++generationRun;
-        return service.enrichPurchase(input, receiptAI(run));
+      enrichPurchase: async (input) =>
+        service.enrichPurchase(input, receiptAI()),
+      // Several receipts in one action, from the file picker. Runs beside other operations.
+      importReceipts: async (input) => {
+        const { keepOriginal } = z
+          .object({ keepOriginal: z.boolean().default(false) })
+          .strict()
+          .parse(input ?? {});
+        const { filePaths } = await dialog.showOpenDialog(window, {
+          properties: ["openFile", "multiSelections"],
+          filters: [
+            { name: "Receipt / Kuitti", extensions: ["pdf", "txt", "csv"] },
+          ],
+        });
+        if (!filePaths.length) return service.snapshot();
+        return intakeReceipts(filePaths, keepOriginal);
       },
+      cancelReceiptIntake: async (input) => {
+        const result = service.cancelReceiptIntake(input);
+        receiptController?.abort();
+        return result;
+      },
+      receiptConsentAction: (input) =>
+        service.receiptConsentAction(input, receiptAI()),
       setReceiptConsent: (input) => service.setReceiptConsent(input),
       correctPurchase: (input) => service.correctPurchase(input),
       interpretPurchase: (input) => service.interpretPurchase(input),
@@ -1156,6 +1255,10 @@ else
             name === "hideStore" ||
             name === "storeAction" ||
             name === "storeHistory" ||
+            // Receipt intake runs beside shopping work and never waits behind or ahead of it.
+            name === "importReceipts" ||
+            name === "cancelReceiptIntake" ||
+            name === "receiptConsentAction" ||
             name === "load"
           ) {
             const value = (await handler(input)) as object;
@@ -1194,6 +1297,34 @@ else
           publishAppearance();
         }
       });
+    // Files dropped on the app. Only the preload script can send this, with paths it got from
+    // the operating system for the dropped files; the page has no way to name a path.
+    ipcMain.handle("app:receiptDrop", async (event, input) => {
+      if (
+        event.sender !== window.webContents ||
+        event.senderFrame !== window.webContents.mainFrame
+      )
+        throw new Error("forbidden");
+      try {
+        if (closing) throw new Error("busy");
+        const { paths } = z
+          .object({
+            paths: z.array(z.string().min(1).max(4096)).min(1).max(100),
+          })
+          .strict()
+          .parse(input);
+        const value = await intakeReceipts(paths, false);
+        return { ok: true, value: { ...value, ai: ai.status() } };
+      } catch (error) {
+        return {
+          ok: false,
+          error:
+            error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+              ? error.message
+              : "operationFailed",
+        };
+      }
+    });
     await window.loadFile(ui);
     app.on("before-quit", (event) => {
       if (closing) return;
@@ -1201,6 +1332,7 @@ else
       closing = true;
       service.cancelOfferIdeas();
       inferenceController?.abort();
+      receiptController?.abort();
       service.planning.cancelForShutdown();
       nativeTheme.removeListener("updated", systemAppearanceChanged);
       ai.cancel();

@@ -320,6 +320,19 @@ export const receiptConsentSchema = z
       .nullable(),
     /** Whether the first-import question has been answered, either way. */
     asked: z.boolean(),
+    /**
+     * The provider and data scope the shopper answered "not now" for. The invitation is not shown
+     * again for exactly that pair; another provider or scope may ask once. Absent in older ledgers.
+     */
+    declined: z
+      .object({
+        providerId: z.string().min(1).max(100),
+        scope: z.literal(RECEIPT_DATA_SCOPE),
+        at: timestamp,
+      })
+      .strict()
+      .nullable()
+      .optional(),
   })
   .strict();
 export type ReceiptConsent = z.infer<typeof receiptConsentSchema>;

@@ -3,8 +3,10 @@ import { InferenceError, type InferenceSession } from "../ai/provider";
 import { receiptEnrichmentTask } from "../ai/tasks";
 import type { PurchaseLedger, SemanticAnnotation } from "../domain/purchases";
 import {
+  buildCombinedBatch,
   buildEnrichmentBatch,
   enrichmentAllowed,
+  validateCombined,
   validateEnrichment,
 } from "../domain/receipt-semantics";
 
@@ -98,6 +100,93 @@ export async function runReceiptEnrichment(options: {
   }
 }
 
+export type BatchEnrichmentRun =
+  | {
+      status: "enriched";
+      /** Each purchase that got proposals and the source revision they were made for. */
+      events: Map<string, number>;
+      annotations: SemanticAnnotation[];
+      rejected: number;
+      unresolved: number;
+      omitted: number;
+      stale: string[];
+    }
+  | { status: "skipped"; reason: "consent" | "nothing-ambiguous" }
+  | {
+      status: "unavailable" | "failed" | "cancelled" | "stale";
+      reason: string;
+    };
+/**
+ * The one enrichment request of a multi-receipt action. Like `runReceiptEnrichment` it writes
+ * nothing and asks for a session only after consent for its provider is established. Consent is
+ * checked again when the answer arrives, so consent withdrawn meanwhile discards the answer.
+ */
+export async function runBatchEnrichment(options: {
+  ledger: () => Promise<PurchaseLedger>;
+  eventIds: string[];
+  providerId: string;
+  consent?: unknown;
+  /** Another inference owns the connection: nothing is asked and nothing is queued. */
+  busy?: () => boolean;
+  session: () => Promise<InferenceSession>;
+  now?: () => Date;
+}): Promise<BatchEnrichmentRun> {
+  const before = await options.ledger();
+  if (!enrichmentAllowed(before.consent, options.providerId, options.consent))
+    return { status: "skipped", reason: "consent" };
+  const batch = buildCombinedBatch(before, options.eventIds);
+  if (!batch.request) return { status: "skipped", reason: "nothing-ambiguous" };
+  if (options.busy?.()) return { status: "unavailable", reason: "aiBusy" };
+  let session: InferenceSession;
+  try {
+    session = await options.session();
+  } catch (error) {
+    return failure(error) as BatchEnrichmentRun;
+  }
+  if (session.model.providerId !== options.providerId)
+    return { status: "unavailable", reason: "unsupportedProvider" };
+  if (
+    !session.model.capabilities.tasks.some(
+      (task) =>
+        task.id === receiptEnrichmentTask.id &&
+        task.version === receiptEnrichmentTask.version,
+    )
+  )
+    return { status: "unavailable", reason: "unsupportedTask" };
+  let result: unknown;
+  try {
+    result = await enrichReceipt(session, batch);
+  } catch (error) {
+    return failure(error) as BatchEnrichmentRun;
+  }
+  const after = await options.ledger();
+  if (!enrichmentAllowed(after.consent, options.providerId, options.consent))
+    return { status: "skipped", reason: "consent" };
+  try {
+    const outcome = validateCombined(
+      batch,
+      result,
+      after,
+      {
+        providerId: session.model.providerId,
+        modelId: session.model.modelId,
+        taskVersion: receiptEnrichmentTask.version,
+      },
+      (options.now?.() ?? new Date()).toISOString(),
+    );
+    if (outcome.stale.length === batch.events.size)
+      return { status: "stale", reason: "enrichmentStale" };
+    return {
+      status: "enriched",
+      events: batch.events,
+      ...outcome,
+      omitted: batch.omitted,
+    };
+  } catch {
+    return { status: "failed", reason: "invalidOutput" };
+  }
+}
+
 function failure(error: unknown): EnrichmentRun {
   const code =
     error instanceof InferenceError
@@ -107,6 +196,8 @@ function failure(error: unknown): EnrichmentRun {
         : "transport";
   if (code === "cancelled" || code === "aiCancelled")
     return { status: "cancelled", reason: "cancelled" };
+  // The connection is answering someone else: nothing is queued for later.
+  if (code === "busy") return { status: "unavailable", reason: "aiBusy" };
   return [
     "unsupportedProvider",
     "unsupportedTask",

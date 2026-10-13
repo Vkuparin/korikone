@@ -194,6 +194,171 @@ export function buildEnrichmentBatch(
   };
 }
 
+/** One request for several purchases: the same limits as for one, shared by all of them. */
+export type CombinedBatch = {
+  /** Each purchase in the batch and the source revision its rows were read at. */
+  events: Map<string, number>;
+  request: EnrichmentRequest | null;
+  /**
+   * Row ID to every line it stands for. Lines with the same sanitized label and verified
+   * quantity share one row, within and across purchases; the purchases themselves stay apart.
+   */
+  rows: Map<
+    string,
+    {
+      label: string;
+      lines: { eventId: string; lineId: string; label: string }[];
+    }
+  >;
+  /** Ambiguous lines no row stands for, because a limit was reached. They stay as they are. */
+  omitted: number;
+  /** Ambiguous lines a row does stand for. */
+  covered: number;
+};
+/**
+ * The single request of one multi-receipt action. It sends what `buildEnrichmentBatch` would send
+ * for each purchase, with equal rows sent once, under the same 40-row and 12 000-character limits
+ * for the whole action. Nothing identifies a purchase, a store or a file.
+ */
+export function buildCombinedBatch(
+  ledger: PurchaseLedger,
+  eventIds: string[],
+): CombinedBatch {
+  const events = new Map<string, number>();
+  const rows: CombinedBatch["rows"] = new Map();
+  const byContent = new Map<string, string>();
+  const request: EnrichmentRequest["rows"] = [];
+  let omitted = 0;
+  let covered = 0;
+  for (const eventId of [...new Set(eventIds)]) {
+    const single = ledger.events.some((e) => e.id === eventId)
+      ? buildEnrichmentBatch(ledger, eventId)
+      : null;
+    if (!single) continue;
+    events.set(eventId, single.sourceRevision);
+    omitted += single.omitted;
+    for (const sent of single.request?.rows ?? []) {
+      const line = single.rows.get(sent.rowId)!;
+      const content = JSON.stringify([sent.label, sent.quantity]);
+      const existing = byContent.get(content);
+      if (existing) {
+        rows.get(existing)!.lines.push({ eventId, ...line });
+        covered++;
+        continue;
+      }
+      const row = { ...sent, rowId: `r${request.length}` };
+      if (
+        request.length >= enrichmentLimits.rows ||
+        JSON.stringify([...request, row]).length >
+          enrichmentLimits.requestCharacters
+      ) {
+        omitted++;
+        continue;
+      }
+      request.push(row);
+      byContent.set(content, row.rowId);
+      rows.set(row.rowId, { label: line.label, lines: [{ eventId, ...line }] });
+      covered++;
+    }
+  }
+  return {
+    events,
+    request: request.length
+      ? enrichmentRequestSchema.parse({
+          version: ENRICHMENT_VERSION,
+          rows: request,
+          categories: categorySchema.options,
+          qualifiers: qualifierValues,
+        })
+      : null,
+    rows,
+    omitted,
+    covered,
+  };
+}
+/**
+ * Validates the one result of a combined batch. Each purchase is checked on its own: one that was
+ * corrected, reprocessed or deleted while the model answered is reported in `stale` and gets
+ * nothing, and the others keep their accepted rows. Row rules are those of `validateEnrichment`.
+ */
+export function validateCombined(
+  batch: CombinedBatch,
+  input: unknown,
+  ledger: PurchaseLedger,
+  model: { providerId: string; modelId: string; taskVersion: number },
+  at: string,
+): EnrichmentOutcome & { stale: string[] } {
+  const result = enrichmentResultSchema.safeParse(input);
+  if (!result.success) throw new Error("enrichmentInvalid");
+  const stale = [...batch.events]
+    .filter(([eventId, sourceRevision]) => {
+      const event = ledger.events.find((e) => e.id === eventId);
+      const revision = event
+        ? Math.max(
+            ...ledger.sources
+              .filter((s) => event.sourceIds.includes(s.id))
+              .map((s) => s.revision),
+          )
+        : -1;
+      return (
+        !event ||
+        revision !== sourceRevision ||
+        [...batch.rows.values()].some((row) =>
+          row.lines.some(
+            (line) =>
+              line.eventId === eventId &&
+              event.lines.find((l) => l.id === line.lineId)?.label !==
+                line.label,
+          ),
+        )
+      );
+    })
+    .map(([eventId]) => eventId);
+  const annotations: SemanticAnnotation[] = [];
+  const seen = new Set<string>();
+  let rejected = 0;
+  for (const row of result.data.rows) {
+    const sent = batch.rows.get(row.rowId);
+    if (!sent || seen.has(row.rowId)) {
+      rejected++;
+      if (sent) seen.add(row.rowId);
+      continue;
+    }
+    seen.add(row.rowId);
+    let refused = false;
+    for (const line of sent.lines) {
+      if (stale.includes(line.eventId)) continue;
+      // The label of each line is its own evidence for a qualifier.
+      const accepted = acceptedRow(row, line.label);
+      if (!accepted) {
+        refused = true;
+        continue;
+      }
+      annotations.push(
+        semanticAnnotationSchema.parse({
+          eventId: line.eventId,
+          lineId: line.lineId,
+          origin: "model",
+          sourceRevision: batch.events.get(line.eventId)!,
+          ...accepted,
+          model,
+          at,
+        }),
+      );
+    }
+    if (refused) rejected++;
+  }
+  const fresh = [...batch.rows.values()]
+    .flatMap((row) => row.lines)
+    .filter((line) => !stale.includes(line.eventId)).length;
+  return {
+    annotations,
+    rejected,
+    unresolved: fresh - annotations.length,
+    stale,
+  };
+}
+
 /** The shopper's answer for one enrichment action, naming the provider and data scope shown. */
 export const enrichmentConsentSchema = z
   .object({
@@ -269,12 +434,51 @@ export function validateEnrichment(
   let rejected = 0;
   for (const row of result.data.rows) {
     const sent = batch.rows.get(row.rowId);
+    const accepted =
+      sent !== undefined && !seen.has(row.rowId)
+        ? acceptedRow(row, sent.label)
+        : null;
+    if (sent) seen.add(row.rowId);
+    if (!sent || !accepted) {
+      rejected++;
+      continue;
+    }
+    annotations.push(
+      semanticAnnotationSchema.parse({
+        eventId: batch.eventId,
+        lineId: sent.lineId,
+        origin: "model",
+        sourceRevision: batch.sourceRevision,
+        ...accepted,
+        model,
+        at,
+      }),
+    );
+  }
+  return {
+    annotations,
+    rejected,
+    unresolved: batch.rows.size - annotations.length,
+  };
+}
+/**
+ * One row of a model result against the printed label it answers, or null when it must be dropped:
+ * a category outside the taxonomy, a qualifier the category does not carry or the label does not
+ * print, or a name that is not a short plain label.
+ */
+function acceptedRow(
+  row: EnrichmentResult["rows"][number],
+  label: string,
+): Pick<
+  SemanticAnnotation,
+  "name" | "category" | "qualifiers" | "scope"
+> | null {
+  {
+    const sent = { label };
     const category = categorySchema.safeParse(row.category ?? undefined);
     const name = row.name?.trim().replace(/\s+/g, " ") ?? null;
     const kinds = category.success ? categoryQualifierKinds(category.data) : [];
     const valid =
-      sent !== undefined &&
-      !seen.has(row.rowId) &&
       (row.category === null || category.success) &&
       // Qualifiers need a category that carries them and the printed label as evidence.
       row.qualifiers.every((q) => {
@@ -296,31 +500,15 @@ export function validateEnrichment(
           !/https?|www\.|\d{4,}/i.test(name))) &&
       (name !== null || row.category !== null || row.scope !== "unknown") &&
       !(row.scope === "non-food" && row.category !== null);
-    if (sent) seen.add(row.rowId);
-    if (!valid) {
-      rejected++;
-      continue;
-    }
-    annotations.push(
-      semanticAnnotationSchema.parse({
-        eventId: batch.eventId,
-        lineId: sent.lineId,
-        origin: "model",
-        sourceRevision: batch.sourceRevision,
-        name,
-        category: category.success ? category.data : null,
-        qualifiers: row.qualifiers,
-        scope: row.scope,
-        model,
-        at,
-      }),
-    );
+    if (!valid) return null;
+    // The caller's `semanticAnnotationSchema.parse` validates the assembled annotation.
+    return {
+      name,
+      category: category.success ? category.data : null,
+      qualifiers: row.qualifiers as SemanticAnnotation["qualifiers"],
+      scope: row.scope,
+    };
   }
-  return {
-    annotations,
-    rejected,
-    unresolved: batch.rows.size - annotations.length,
-  };
 }
 
 /**
