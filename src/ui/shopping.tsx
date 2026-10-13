@@ -809,16 +809,52 @@ export function ShoppingWorkspace({
   useEffect(() => () => onProgress?.(null), [onProgress]);
   // The unsent replacement draft survives a detour to the current list.
   const savedDraft = useRef("");
-  const startNewList = () => {
+  const newListButton = useRef<HTMLButtonElement>(null);
+  const [resetFailed, setResetFailed] = useState(false);
+  /**
+   * The confirmed New list: a durable local reset of the whole workspace (`resetList`), then
+   * every piece of screen state that belonged to the earlier list is dropped. On failure the
+   * dialog stays open with the prior workspace untouched.
+   */
+  async function resetEverything() {
+    setResetFailed(false);
+    const applied = await call("resetList", { revision: state.revision });
+    if (!applied) {
+      setResetFailed(true);
+      return;
+    }
     setConfirmingNewList(false);
-    setEditFailed(false);
+    try {
+      for (const key of [
+        "shopping-note",
+        "shopping-new-list",
+        "shopping-edit-instruction",
+      ])
+        sessionStorage.removeItem(key);
+    } catch {
+      // Session storage is a convenience.
+    }
+    changeNote("");
+    setInstructionValue("");
     setFocusTarget(null);
-    // An unapplied note typed before the list existed becomes the draft.
-    changeNote(savedDraft.current || (note !== state.note ? note : ""));
+    setNewListDraft(false);
     savedDraft.current = "";
-    setNewList(true);
+    setSelected(null);
+    setOpened(null);
+    setReviewRows(null);
+    setUndo({});
+    setComparing(false);
+    setConfirming(false);
+    setUpdateFailed(false);
+    setCancelled(false);
+    setEditFailed(false);
+    setTransferFailed(false);
+    setQrOpen(false);
+    setConfirmingClear(false);
+    setLivePlanning(null);
+    setShowSavedDuringPlanning(false);
     requestAnimationFrame(() => noteElement.current?.focus());
-  };
+  }
   const leaveNewList = () => {
     savedDraft.current = note;
     changeNote(state.note);
@@ -1111,14 +1147,14 @@ export function ShoppingWorkspace({
             </label>
             {composingEdit ? (
               <button
+                ref={newListButton}
                 className="secondary"
                 type="button"
-                disabled={busy || working || editWorking}
-                onClick={() =>
-                  instruction.trim()
-                    ? setConfirmingNewList(true)
-                    : startNewList()
-                }
+                disabled={busy || working || editWorking || transferring}
+                onClick={() => {
+                  setResetFailed(false);
+                  setConfirmingNewList(true);
+                }}
               >
                 {tr("Uusi lista", "New list")}
               </button>
@@ -1134,6 +1170,23 @@ export function ShoppingWorkspace({
             )}
           </div>
         )}
+        {!hasList && (note.trim() || instruction.trim()) && (
+          <div className="composer-mode" data-mode="create">
+            <span />
+            <button
+              ref={newListButton}
+              className="secondary"
+              type="button"
+              disabled={busy || working || editWorking || transferring}
+              onClick={() => {
+                setResetFailed(false);
+                setConfirmingNewList(true);
+              }}
+            >
+              {tr("Uusi lista", "New list")}
+            </button>
+          </div>
+        )}
         {hasList && !composingEdit && (
           <p className="muted composer-hint">
             {tr(
@@ -1147,14 +1200,33 @@ export function ShoppingWorkspace({
             className="composer-confirm"
             role="alertdialog"
             aria-labelledby="new-list-confirm"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setConfirmingNewList(false);
+                requestAnimationFrame(() => newListButton.current?.focus());
+              }
+            }}
           >
             <p id="new-list-confirm">
               {tr(
-                "Kirjoittamasi muutosohje hylätään. Nykyinen lista säilyy. Aloitetaanko uusi lista?",
-                "Your unapplied instruction will be discarded. The current list stays. Start a new list?",
+                "Uusi lista tyhjentää nykyisen listan, aterioiden tulkinnan ja muistiinpanon sekä kirjoittamasi keskeneräisen tekstin. Reseptit, historia ja asetukset säilyvät. Tätä ei voi kumota.",
+                "A new list clears the current list, the meal interpretation, the note and any text you have not sent. Recipes, history and settings are kept. This cannot be undone.",
               )}
             </p>
-            <button type="button" onClick={startNewList}>
+            {resetFailed && (
+              <p role="alert" className="transfer-error">
+                {tr(
+                  "Listaa ei voitu tyhjentää. Nykyinen lista säilyi ennallaan.",
+                  "The list could not be cleared. The current list is unchanged.",
+                )}
+              </p>
+            )}
+            <button
+              type="button"
+              disabled={busy || transferring}
+              onClick={() => void resetEverything()}
+            >
               {tr("Aloita uusi lista", "Start new list")}
             </button>
             <button
@@ -1163,10 +1235,10 @@ export function ShoppingWorkspace({
               autoFocus
               onClick={() => {
                 setConfirmingNewList(false);
-                noteElement.current?.focus();
+                requestAnimationFrame(() => newListButton.current?.focus());
               }}
             >
-              {tr("Jatka muokkausta", "Keep editing")}
+              {tr("Peruuta", "Cancel")}
             </button>
           </div>
         )}

@@ -14,11 +14,16 @@ export const updateName =
   /^(Taio ostoslista|Taio muutokset|Create my shopping list|Update my shopping list)$/;
 
 /**
- * Opens the replacement draft when a list exists, so a test can plan over a saved list through
- * the New list path. Without a list, or already in the draft, it does nothing.
+ * Starts a new list through the one confirmation, so a test can plan from an empty workspace.
+ * Without a list or text, or in the replacement-draft state, there is nothing to confirm.
  */
 export async function startNewList(page: Page) {
   await composer(page).waitFor();
   const open = page.getByRole("button", { name: /^(Uusi lista|New list)$/ });
-  if (await open.count()) await open.click();
+  if (!(await open.count())) return;
+  await open.click();
+  await page
+    .getByRole("button", { name: /^(Aloita uusi lista|Start new list)$/ })
+    .click();
+  await page.getByRole("alertdialog").waitFor({ state: "detached" });
 }
