@@ -1,6 +1,6 @@
 import { enrichReceipt } from "../ai/receipt-enrichment";
 import { InferenceError, type InferenceSession } from "../ai/provider";
-import { receiptEnrichmentTask } from "../ai/tasks";
+import { receiptEnrichmentTask, receiptNameTask } from "../ai/tasks";
 import type { PurchaseLedger, SemanticAnnotation } from "../domain/purchases";
 import {
   buildCombinedBatch,
@@ -59,17 +59,13 @@ export async function runReceiptEnrichment(options: {
   // Consent names one provider; a session of any other provider is never used.
   if (session.model.providerId !== options.providerId)
     return { status: "unavailable", reason: "unsupportedProvider" };
-  if (
-    !session.model.capabilities.tasks.some(
-      (task) =>
-        task.id === receiptEnrichmentTask.id &&
-        task.version === receiptEnrichmentTask.version,
-    )
-  )
-    return { status: "unavailable", reason: "unsupportedTask" };
+  // Version 2 (readable names) when the model advertises it; version 1 otherwise. One request,
+  // one model, no repair or fallback to another provider either way.
+  const task = receiptTask(session);
+  if (!task) return { status: "unavailable", reason: "unsupportedTask" };
   let result: unknown;
   try {
-    result = await enrichReceipt(session, batch);
+    result = await enrichReceipt(session, batch, task);
   } catch (error) {
     return failure(error);
   }
@@ -82,7 +78,7 @@ export async function runReceiptEnrichment(options: {
       {
         providerId: session.model.providerId,
         modelId: session.model.modelId,
-        taskVersion: receiptEnrichmentTask.version,
+        taskVersion: task.version,
       },
       (options.now?.() ?? new Date()).toISOString(),
     );
@@ -145,17 +141,13 @@ export async function runBatchEnrichment(options: {
   }
   if (session.model.providerId !== options.providerId)
     return { status: "unavailable", reason: "unsupportedProvider" };
-  if (
-    !session.model.capabilities.tasks.some(
-      (task) =>
-        task.id === receiptEnrichmentTask.id &&
-        task.version === receiptEnrichmentTask.version,
-    )
-  )
-    return { status: "unavailable", reason: "unsupportedTask" };
+  // Version 2 (readable names) when the model advertises it; version 1 otherwise. One request,
+  // one model, no repair or fallback to another provider either way.
+  const task = receiptTask(session);
+  if (!task) return { status: "unavailable", reason: "unsupportedTask" };
   let result: unknown;
   try {
-    result = await enrichReceipt(session, batch);
+    result = await enrichReceipt(session, batch, task);
   } catch (error) {
     return failure(error) as BatchEnrichmentRun;
   }
@@ -170,7 +162,7 @@ export async function runBatchEnrichment(options: {
       {
         providerId: session.model.providerId,
         modelId: session.model.modelId,
-        taskVersion: receiptEnrichmentTask.version,
+        taskVersion: task.version,
       },
       (options.now?.() ?? new Date()).toISOString(),
     );
@@ -185,6 +177,18 @@ export async function runBatchEnrichment(options: {
   } catch {
     return { status: "failed", reason: "invalidOutput" };
   }
+}
+
+/** The receipt task version the session's model supports, newest first, or null. */
+function receiptTask(session: InferenceSession) {
+  const supports = (version: number) =>
+    session.model.capabilities.tasks.some(
+      (task) =>
+        task.id === receiptEnrichmentTask.id && task.version === version,
+    );
+  if (supports(receiptNameTask.version)) return receiptNameTask;
+  if (supports(receiptEnrichmentTask.version)) return receiptEnrichmentTask;
+  return null;
 }
 
 function failure(error: unknown): EnrichmentRun {

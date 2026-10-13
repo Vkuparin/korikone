@@ -11,6 +11,8 @@ import {
   RECEIPT_DATA_MARKER,
   RECEIPT_PROMPT_PREFIX,
   receiptFixtureReply,
+  receiptNameFixtureReply,
+  RECEIPT_NAME_PROMPT_PREFIX,
 } from "./receipt-enrichment";
 
 import { aiScenarios } from "./scenarios";
@@ -187,6 +189,12 @@ export class FixtureAI {
         })),
       });
     }
+    if (input.startsWith(RECEIPT_NAME_PROMPT_PREFIX))
+      return JSON.stringify(
+        receiptNameFixtureReply(
+          JSON.parse(input.split(RECEIPT_DATA_MARKER)[1]),
+        ),
+      );
     if (input.startsWith(RECEIPT_PROMPT_PREFIX))
       return JSON.stringify(
         receiptFixtureReply(JSON.parse(input.split(RECEIPT_DATA_MARKER)[1])),

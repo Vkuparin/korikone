@@ -391,7 +391,8 @@ for (const alternative of [false, true]) {
     expect(run.annotations[0].model).toEqual({
       providerId,
       modelId: "fixture-large",
-      taskVersion: 1,
+      // Both adapters advertise version 2, so the readable-name task is the one used (F27.9).
+      taskVersion: 2,
     });
     expect(connection.prompts).toHaveLength(1);
     expect(connection.prompts[0]).not.toMatch(

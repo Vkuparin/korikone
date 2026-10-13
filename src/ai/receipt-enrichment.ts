@@ -4,15 +4,19 @@ import {
   enrichmentResultSchema,
   type EnrichmentBatch,
   type EnrichmentRequest,
+  type EnrichmentNameResult,
   type EnrichmentResult,
 } from "../domain/receipt-semantics";
+import { localDisplayName } from "../domain/receipt-names";
 import { invokeTaskOutput } from "./output";
 import {
   InferenceError,
   type InferenceOutput,
   type InferenceSession,
 } from "./provider";
-import { receiptEnrichmentTask } from "./tasks";
+import { receiptEnrichmentTask, receiptNameTask } from "./tasks";
+
+export { receiptNameTask };
 
 /** One request per explicit action: no repair, no chunking and no retry. */
 export const receiptTaskLimits = Object.freeze({
@@ -52,13 +56,9 @@ export function receiptPrompt(request: EnrichmentRequest): string {
 }
 
 /**
- * Version 2 of the task (F27.6), wired by F27.9. The request is the same rows as version 1, so no
+ * Version 2 of the task (F27.6, wired by F27.9). The request is the same rows as version 1, so no
  * new data leaves the computer; only the answer gains `display`.
  */
-export const receiptNameTask = {
-  id: receiptEnrichmentTask.id,
-  version: 2,
-} as const;
 export const RECEIPT_NAME_PROMPT_PREFIX = "Receipt enrichment v2.\n";
 const { $schema: _nameDialect, ...nameSchema } = z.toJSONSchema(
   enrichmentNameResultSchema,
@@ -96,26 +96,35 @@ export async function enrichReceipt(
   session: InferenceSession,
   /** A batch for one purchase, or the combined batch of one multi-receipt action. */
   batch: Pick<EnrichmentBatch, "request">,
-): Promise<EnrichmentResult> {
+  /** Version 2 asks for a readable name too; version 1 stays for a model that lacks it. */
+  task:
+    | typeof receiptEnrichmentTask
+    | typeof receiptNameTask = receiptEnrichmentTask,
+): Promise<EnrichmentResult | EnrichmentNameResult> {
   if (!batch.request) return { version: 1, rows: [] };
   if (attempted.has(batch)) throw new InferenceError("requestLimit");
   attempted.add(batch);
-  return invokeTaskOutput(session, {
-    task: receiptEnrichmentTask,
-    prompt: receiptPrompt(batch.request),
-    native: receiptNativeOutput,
+  const named = task.version === receiptNameTask.version;
+  return invokeTaskOutput<EnrichmentResult | EnrichmentNameResult>(session, {
+    task,
+    prompt: named
+      ? receiptNamePrompt(batch.request)
+      : receiptPrompt(batch.request),
+    native: named ? receiptNameNativeOutput : receiptNativeOutput,
     // Null name and category are meaningful; never omit them.
     normalizeNative: (raw) => raw,
     validate: (raw) => {
       try {
-        return enrichmentResultSchema.parse(
-          JSON.parse(
-            raw
-              .trim()
-              .replace(/^```(?:json)?\s*/i, "")
-              .replace(/\s*```$/, ""),
-          ),
+        const value = JSON.parse(
+          raw
+            .trim()
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/, ""),
         );
+        // A model that answers a version 2 request in the version 1 shape is still understood;
+        // any other version or an extra field refuses the whole result.
+        const v2 = named ? enrichmentNameResultSchema.safeParse(value) : null;
+        return v2?.success ? v2.data : enrichmentResultSchema.parse(value);
       } catch {
         throw new InferenceError("invalidOutput");
       }
@@ -183,5 +192,22 @@ export function receiptFixtureReply(
         },
       ];
     }),
+  };
+}
+/**
+ * Finite development reply for version 2: the version 1 rows the fixture knows, each with the
+ * readable name the label itself supports (`localDisplayName`) or null. A row the fixture cannot
+ * interpret is left out, as in version 1.
+ */
+export function receiptNameFixtureReply(
+  request: EnrichmentRequest,
+): EnrichmentNameResult {
+  const labels = new Map(request.rows.map((row) => [row.rowId, row.label]));
+  return {
+    version: 2,
+    rows: receiptFixtureReply(request).rows.map((row) => ({
+      ...row,
+      display: localDisplayName(labels.get(row.rowId) ?? "")?.name ?? null,
+    })),
   };
 }

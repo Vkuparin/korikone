@@ -24,6 +24,11 @@ export const receiptEnrichmentTask = {
   id: "receipt-enrichment",
   version: 1,
 } satisfies InferenceTask;
+/** Version 2 of the receipt task adds a grounded readable name per row (F27.6, F27.9). */
+export const receiptNameTask = {
+  id: "receipt-enrichment",
+  version: 2,
+} satisfies InferenceTask;
 export const offerIdeasTask = {
   id: "offer-ideas",
   version: 1,
@@ -34,5 +39,6 @@ export const inferenceTasks = [
   shoppingPlanTask,
   shoppingEditTask,
   receiptEnrichmentTask,
+  receiptNameTask,
   offerIdeasTask,
 ];
