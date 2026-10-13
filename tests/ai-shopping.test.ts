@@ -22,10 +22,10 @@ test("one evaluator measures the released selection corpus through current valid
     wrongCategory: 0,
     unsuitable: 0,
     wrongQuantity: 0,
-    safePriced: 14,
-    unresolved: 18,
+    safePriced: 15,
+    unresolved: 17,
     aiRequests: 32,
-    searches: 50,
+    searches: 49,
     retailerWrites: 0,
     unsupported: ["weighed-pricing"],
     reasons: {
@@ -33,7 +33,7 @@ test("one evaluator measures the released selection corpus through current valid
       "empty-search": 2,
       stock: 2,
       pack: 2,
-      price: 4,
+      price: 3,
       unit: 2,
     },
   });

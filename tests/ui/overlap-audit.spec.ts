@@ -68,6 +68,7 @@ for (const language of ["fi", "en"] as const)
         const state = initialState();
         state.onboarded = state.setupComplete = true;
         state.staples = [];
+        state.reviewBeforeTransfer = true;
         state.meals = [];
         state.extras = [];
         await page.evaluate(
@@ -212,10 +213,19 @@ for (const language of ["fi", "en"] as const)
           window.korikone.developmentScenario("pendingSuccess"),
         );
         await composer(page).press("Control+Enter");
-        await expect(page.locator("#note-update-help")).toBeVisible();
+        await page.locator(".note-actions").scrollIntoViewIfNeeded();
+        const activeStatus = page.locator(
+          '[data-operation-status][role="status"]',
+        );
+        await expect(activeStatus).toHaveCount(1);
+        await expect(activeStatus).toBeVisible();
         await measure("composer-working");
         await page
-          .getByRole("button", { name: tr("Peruuta", "Cancel"), exact: true })
+          .getByRole("button", {
+            name: new RegExp(
+              tr("^(Peruuta muutos|Peruuta)$", "^(Cancel change|Cancel)$"),
+            ),
+          })
           .click();
         await measure("composer-cancelled");
         await composer(page).fill("");

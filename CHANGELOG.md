@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.10.0 — pre-release, 13 October 2026
+
+- Turn vague dish requests into simple meals with sides and selected-store products. Show assumed sides and amounts so they can be inspected or changed. Improve ordinary onion, frozen-pizza and stock-cube matching, with explicit product search and targeted edits for unresolved rows.
+- Use Taio ostoslista for the first list and Taio muutokset for edits, with animated progress and one visible status/Cancel control. Keep startup quiet and display the shopping date as information.
+- Transfer and open the store in one action by default. Show counts, omissions and budget information beside the action; optional review remains in Advanced settings. Reuse verified reads within a transfer, clarify store Back navigation and show comparable-row coverage in store comparisons.
+- Confirm New list once, then reset the entire current shopping workspace, including What I understood and unsent notes. Purchase history, recipes, preferences and retailer baskets remain separate.
+- Choose unit price (default) or enough-pack total cost in Stores. Apply it to automatic selection and alternatives, while showing the actual payable total. Simplify store connection cards and show a disabled Signed in with ChatGPT button when connected.
+- Add a saved meal calendar and week copy, explicit meal ideas from supported offers, and bundled offline Finnish OCR for scanned PDF receipts. Offer availability and personal conditions remain tied to verified retailer evidence.
+
+This is an unsigned Windows x64 pre-release. Export a backup before upgrading; installation and updates are manual. Receipt import still uses the existing review interface; the simpler import and name-learning redesign is planned for v0.11.0. OCR and AI suggestions can need correction. Live offer-source, matching and retailer acceptance remains separate from fixtures. Checkout/payment and S-kaupat's slot-reserving add-all action remain manual. Clean-machine installation, upgrade/uninstall and signing gates remain open.
+
+See [release verification](docs/release-0.10.0.md) for checks, installer checksum and remaining acceptance.
+
 ## 0.9.0 — pre-release, 12 October 2026
 
 - Import local PDF/TXT/CSV receipts into structured purchase history with printed totals, reconciliation, duplicate detection and grouped correction/review. Facts are parsed locally; optional AI enrichment requires consent and sends sanitized ambiguous labels.

@@ -104,6 +104,7 @@ test("removing a row and a meal in the list is immediate, keeps other prices and
       exact: true,
     });
     await page.mouse.move(0, 0);
+    await home.scrollIntoViewIfNeeded();
     const beforeHover = await home.boundingBox();
     await home.hover();
     await expect(home.locator("..").locator(".home-help")).toBeVisible();

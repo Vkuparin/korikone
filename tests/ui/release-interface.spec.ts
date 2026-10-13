@@ -1,4 +1,4 @@
-import { composer, startNewList, updateName } from "./composer-helper";
+import { composer, updateName } from "./composer-helper";
 import {
   test,
   expect,
@@ -81,6 +81,7 @@ for (const language of ["fi", "en"] as const) {
           const state = initialState();
           state.onboarded = state.setupComplete = true;
           state.staples = [];
+          state.reviewBeforeTransfer = true;
           state.meals = [];
           state.extras = [];
           state.appearance = appearance;
@@ -175,7 +176,10 @@ for (const language of ["fi", "en"] as const) {
           await tabTo(page, cancel);
           await page.keyboard.press("Enter");
           await expect(page.locator("#note-update-help")).toHaveText(
-            tr("Listan päivitys peruutettu", "List update cancelled"),
+            tr(
+              "Listan päivitys peruutettu. Aiempi lista säilyy.",
+              "List update cancelled. Your previous list is retained.",
+            ),
           );
           await expect(note).toBeFocused();
           expect((await load()).developmentRequests).toBe(1);
@@ -229,8 +233,8 @@ for (const language of ["fi", "en"] as const) {
             if (!saved.ok) throw new Error(saved.error);
           }, state);
           await page.reload();
-          // The saved list is now the target; the unapplied note is the replacement draft.
-          await startNewList(page);
+          // Keep the current list and leave a note unapplied; New list now clears the workspace.
+          await note.fill("Makaronilaatikko");
           await expect(note).toHaveValue("Makaronilaatikko");
           const meal = page
             .locator(".meal-select")

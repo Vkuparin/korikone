@@ -93,7 +93,9 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await expect(allowance).toContainText("unavailable in Korikone");
     await expect(allowance).not.toContainText("0%");
     await page.getByRole("button", { name: "Continue with ChatGPT" }).click();
-    await expect(page.getByLabel("AI model", { exact: true })).toBeEnabled();
+    await expect(
+      page.locator(".settings-content").getByLabel("AI model", { exact: true }),
+    ).toBeEnabled();
     await page.getByRole("button", { name: "Open ChatGPT usage" }).click();
     await expect(allowance).toContainText("unavailable in Korikone");
     await page.evaluate(async () => {
@@ -103,9 +105,11 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await settingsCategory(page, "ai", "ChatGPT and AI");
     await expect(
-      page.getByText("Could not load models. Open the selector again.", {
-        exact: true,
-      }),
+      page
+        .locator(".settings-content")
+        .getByText("Could not load models. Open the selector again.", {
+          exact: true,
+        }),
     ).toBeVisible();
     await expect(allowance).toContainText("unavailable in Korikone");
     await page.evaluate(async () => {
@@ -121,10 +125,9 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page.evaluate(async () => {
       await window.korikone.developmentScenario("usageLimit");
     });
-    await startNewList(page);
     await composer(page).fill("Pasta");
     await page.getByRole("button", { name: updateName }).click();
-    await expect(page.getByRole("alert")).toContainText(
+    await expect(page.locator("#root > .error")).toContainText(
       "ChatGPT limited this request",
     );
     await page.getByRole("button", { name: "Settings", exact: true }).click();

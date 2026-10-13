@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
 
-test("manual query miss retrieves an unknown onion type for approval and retains the choice after restart", async () => {
+test("a plain onion resolves automatically and survives restart", async () => {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -33,21 +33,25 @@ test("manual query miss retrieves an unknown onion type for approval and retains
       .click();
     const row = page.locator(".grocery-row");
     await expect(row).toHaveCount(1);
-    await expect(row).toHaveClass(/unresolved/);
+    await expect(row).not.toHaveClass(/unresolved/);
     await expect(row).toContainText("400 g");
     const pending = (await page.evaluate(() => window.korikone.load())).value!;
-    expect(pending.developmentCatalogueRequests).toBe(3);
-    expect(pending.basket[0].product).toBeNull();
-    expect(pending.basket[0].matching?.reason).toBe("default-review");
-    await row.getByRole("button", { name: "Sipulia", exact: true }).click();
+    expect(pending.developmentCatalogueRequests).toBe(2);
+    expect(pending.basket[0].product?.id).toBe("onion");
+    await row
+      .getByRole("button", { name: "Kotimaista sipuli 500 g", exact: true })
+      .click();
     await expect(
       page.getByRole("button", { name: /Käytä kerran:.*valkosipuli/i }),
     ).toHaveCount(0);
-    await page
-      .getByRole("button", {
+    await expect(
+      page.getByRole("button", {
         name: "Käytä kerran: Kotimaista sipuli 500 g",
         exact: true,
-      })
+      }),
+    ).toBeDisabled();
+    await row
+      .getByRole("button", { name: "Kotimaista sipuli 500 g", exact: true })
       .click();
     await expect(row).toContainText("Kotimaista sipuli 500 g");
     await expect

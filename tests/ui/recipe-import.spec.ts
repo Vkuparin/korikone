@@ -103,7 +103,9 @@ for (const language of ["fi", "en"] as const) {
       expect((await load()).state.recipes).toEqual(start.state.recipes);
 
       // One amount is edited, then Save stores the recipe.
-      const amount = page.getByLabel(tr("Määrä", "Amount")).first();
+      const amount = page
+        .getByLabel(tr("Määrä", "Amount"), { exact: true })
+        .first();
       await expect(amount).toHaveValue("800");
       await amount.fill("1000");
       await page

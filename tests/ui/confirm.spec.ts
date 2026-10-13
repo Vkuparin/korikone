@@ -60,13 +60,19 @@ test("the transfer is confirmed and reported in the list column", async () => {
     );
     await approveFixtureOnion(page);
     const bar = list.getByRole("region", { name: "Yhteensä ja siirto" });
-    const transfer = bar.getByRole("button", {
-      name: /^Siirrä ja avaa S-kaupat-lista/,
-    });
+    const transfer = bar.locator(".transfer-button");
     const panel = bar.getByRole("region", { name: "Siirron vahvistus" });
     const confirm = panel.getByRole("button", {
       name: /^Vahvista: 7 tuotetta → S-kaupat · \d+,\d\d €$/,
     });
+    const readyTransfer = async () => {
+      const previousResult = bar.getByRole("region", { name: "Siirron tulos" });
+      if (await previousResult.isVisible())
+        await previousResult
+          .getByRole("button", { name: "Sulje", exact: true })
+          .click();
+      await expect(transfer).toBeEnabled({ timeout: 10000 });
+    };
     const setBudget = async (euros: string) => {
       await page
         .getByRole("button", { name: "Asetukset", exact: true })
@@ -81,11 +87,15 @@ test("the transfer is confirmed and reported in the list column", async () => {
       await page
         .getByRole("button", { name: "Ostoslista", exact: true })
         .click();
-      await expect(transfer).toBeEnabled({ timeout: 10000 });
+      await readyTransfer();
     };
 
     // Over budget: the panel says so and asks for a separate acceptance.
     await setBudget("1");
+    await page.evaluate(() =>
+      window.korikone.setReviewBeforeTransfer({ enabled: true }),
+    );
+    await page.reload();
     await transfer.click();
     await expect(panel).toContainText("Viikkobudjetti ylittyy");
     await expect(confirm).toBeDisabled();
@@ -102,6 +112,10 @@ test("the transfer is confirmed and reported in the list column", async () => {
 
     // The initial click approves a normal batch and opens the destination.
     await setBudget("1000");
+    await page.evaluate(() =>
+      window.korikone.setReviewBeforeTransfer({ enabled: false }),
+    );
+    await page.reload();
     await transfer.click();
     await expect(
       page.getByRole("button", { name: "Kauppa", exact: true }),
@@ -168,6 +182,12 @@ test("the transfer is confirmed and reported in the list column", async () => {
     ).toBeVisible();
     await result.getByRole("button", { name: "Sulje" }).click();
     await expect(result).toHaveCount(0);
+    await readyTransfer();
+    await page.evaluate(() =>
+      window.korikone.setReviewBeforeTransfer({ enabled: true }),
+    );
+    await page.reload();
+    await readyTransfer();
 
     // A second transfer names what changed: one new, one dropped and one changed product.
     await page.getByLabel("Lisää tuote", { exact: true }).fill("Kahvi");
@@ -182,7 +202,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
     await page
       .getByRole("button", { name: "Lisää: Makaroni", exact: true })
       .click();
-    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await readyTransfer();
     await transfer.click();
     const changes = panel.locator("details", {
       hasText: "Muutokset edelliseen",
@@ -203,7 +223,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
       await window.korikone.buildBasket();
     });
     await page.reload();
-    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await readyTransfer();
     await transfer.click();
     await expect(panel).toContainText(
       "Hinta noussut: Myllyn Paras Makaroni 400g",
@@ -216,7 +236,7 @@ test("the transfer is confirmed and reported in the list column", async () => {
       await window.korikone.buildBasket();
     });
     await page.reload();
-    await expect(transfer).toBeEnabled({ timeout: 10000 });
+    await readyTransfer();
     await transfer.click();
     await expect(panel).not.toContainText("Hinta noussut");
   } finally {

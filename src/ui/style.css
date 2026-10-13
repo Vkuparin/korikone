@@ -918,6 +918,9 @@ body:has(.app-main) .demo {
 .operation-finished::before {
   display: none;
 }
+.operation-finished {
+  pointer-events: none;
+}
 .operation-fallback[data-planning-activity="settling"]::before {
   animation: none;
 }

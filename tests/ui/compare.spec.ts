@@ -88,13 +88,13 @@ test("comparing stores is read-only and can switch to the other chain", async ()
       "S-kaupat",
       "K-Ruoka",
     ]);
-    // Generic onions do not prove the required yellow-onion type; K-Ruoka also has no salt.
+    // Plain onions resolve in both chains; K-Ruoka still has no salt.
     const basket = (await page.evaluate(() => window.korikone.load())).value
       .basket;
     expect(
-      basket.find((line) => /sipuli/i.test(line.requirement.name))?.product,
-    ).toBeNull();
-    await expect(panel).toContainText("Molemmissa hinnoitellut (5)");
+      basket.find((line) => /sipuli/i.test(line.requirement.name))?.product?.id,
+    ).toBe("onion");
+    await expect(panel).toContainText("Molemmissa hinnoitellut (6)");
     await expect(panel).toContainText("1 ilman hintaa");
     await expect(panel.getByRole("status")).toContainText(
       "S-kaupat on edullisempi",
@@ -116,7 +116,7 @@ test("comparing stores is read-only and can switch to the other chain", async ()
     await expect(panel).toHaveCount(0);
     // The bar keeps the result until the list changes, and reopens the panel from it.
     const summary = bar.getByRole("button", {
-      name: /^S-kaupat \d+,\d\d € halvempi · Vertaa$/,
+      name: /^S-kaupat \d+,\d\d € halvempi yhteisissä 6\/7 rivissä · Vertaa$/,
     });
     await expect(summary).toBeVisible();
     await expect(page.locator(".context")).toContainText(

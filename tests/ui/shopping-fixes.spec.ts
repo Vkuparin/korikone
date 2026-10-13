@@ -209,7 +209,7 @@ for (const language of ["fi", "en"] as const) {
         .getByRole("button", { name: tr("Asetukset", "Settings"), exact: true })
         .click();
       await settingsCategory(page, "household", tr("Kotitalous", "Household"));
-      await page.locator('input[name="servings"]').fill("6");
+      await page.locator('.settings-content input[name="servings"]').fill("6");
       await page
         .getByRole("button", { name: tr("Tallenna", "Save"), exact: true })
         .click();

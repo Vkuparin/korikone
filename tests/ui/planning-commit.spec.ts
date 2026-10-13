@@ -88,6 +88,10 @@ for (const provider of ["chatgpt", "fake-alternative"])
       await expect(
         page.getByText("Tunnettujen hintojen välisumma", { exact: true }),
       ).toBeVisible();
+      await page.evaluate(() =>
+        window.korikone.setReviewBeforeTransfer({ enabled: true }),
+      );
+      await page.reload();
       await page
         .getByRole("button", { name: /Siirrä ja avaa kaupan ostoskori/ })
         .click();

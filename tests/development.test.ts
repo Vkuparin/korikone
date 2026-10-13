@@ -165,7 +165,11 @@ test("AI fixtures cover valid responses and failure cases without a network requ
           expect(
             validateDraft(await ai.generate("auto", prompt), state).meals,
           ).toHaveLength(3);
-      } else if (scenario === "removedModel") {
+      } else if (
+        scenario === "removedModel" ||
+        scenario === "offersPersonal" ||
+        scenario === "offersMixed"
+      ) {
         expect(
           validateDraft(await ai.generate("auto", prompt), state).meals,
         ).toHaveLength(3);
@@ -303,7 +307,7 @@ test("the live acceptance note picks the ingredient itself among store look-alik
   ).toEqual({
     Makaroni: "macaroni",
     Jauheliha: "mince",
-    Sipuli: null,
+    Sipuli: "onion",
     Maito: "milk",
     Kananmuna: "egg",
     Suola: "salt",
@@ -311,7 +315,7 @@ test("the live acceptance note picks the ingredient itself among store look-alik
   });
   const eggs = dev.basket.find((l) => l.requirement.name === "Kananmuna")!;
   expect([eggs.packs, eggs.product!.packAmount]).toEqual([1, 10]);
-  // Unknown onion type can be approved once; garlic remains rejected.
+  // Plain onion is selected automatically; garlic remains rejected.
   expect(
     dev.basket
       .find((l) => l.requirement.name === "Sipuli")!

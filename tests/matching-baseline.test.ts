@@ -15,6 +15,7 @@ const currentSelections: Record<string, string | null> = {
   "coffee-plain": null,
   "milk-name-only-unsafe": "cow",
   "coffee-whole-pack-cost": null,
+  "onion-weighed": "onion",
 };
 
 for (const chain of ["k-ruoka", "s-kaupat"] as const) {
@@ -46,7 +47,9 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
       const line = service.basket[0];
       const expected =
         fixture.id in currentSelections
-          ? currentSelections[fixture.id]
+          ? fixture.id === "onion-weighed" && chain === "s-kaupat"
+            ? fixture.baselineSelected
+            : currentSelections[fixture.id]
           : fixture.baselineSelected;
       expect(line.product?.id ?? null).toBe(expected);
       expect(line.total === null).toBe(expected === null);
@@ -57,7 +60,10 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const) {
         false,
       );
       expect(service.developmentRequests).toBe(0);
-      if (line.product) expect(fixture.admissible).toContain(line.product.id);
+      if (line.product)
+        expect(
+          fixture.id === "onion-weighed" ? ["onion"] : fixture.admissible,
+        ).toContain(line.product.id);
     });
   }
 }

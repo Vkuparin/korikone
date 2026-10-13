@@ -25,7 +25,12 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await page.getByRole("button", { name: "Lisää aines" }).click();
     await page.getByLabel("Nimi", { exact: true }).nth(1).fill("Peruna");
     await page.getByLabel("Määrä", { exact: true }).fill("0,125");
-    await page.getByLabel("Yksikkö").selectOption("kg");
+    await page
+      .locator("form", {
+        has: page.getByLabel("Nimi", { exact: true }).first(),
+      })
+      .getByLabel("Yksikkö")
+      .selectOption("kg");
     await page.getByLabel("Kieli", { exact: true }).click();
     await page.getByRole("option", { name: "English", exact: true }).click();
     await expect(page.getByLabel("Amount", { exact: true })).toHaveValue(

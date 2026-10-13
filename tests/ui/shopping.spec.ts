@@ -532,6 +532,7 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
       window.korikone.developmentScenario("delayedSuccess"),
     );
     await startNewList(page);
+    const resetBaseline = await load();
     await note.fill("pasta");
     await note.press("Control+Enter");
     await expect(page.locator(".note-box")).toHaveClass(/is-working/);
@@ -541,15 +542,17 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
       .click();
     await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
     await expect(
-      page.getByText("Listan päivitys peruutettu", { exact: true }),
+      page.getByText("Listan päivitys peruutettu. Aiempi lista säilyy.", {
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await page.waitForTimeout(2100);
     const cancelled = await load();
     expect(cancelled.developmentRequests).toBe(1);
-    expect(cancelled.state.note).toBe(fullNote);
+    expect(cancelled.state).toEqual(resetBaseline.state);
     expect(cancelled.draft).toBeNull();
-    await expect(page.locator(".interpretation")).toHaveCount(4);
+    await expect(page.locator(".interpretation")).toHaveCount(0);
 
     await startNewList(page);
     await note.fill("700 g pakastepizza");
@@ -561,8 +564,8 @@ test("explicit multi-dish updates, cancellation and usage failure preserve the s
     await page.waitForTimeout(2100);
     const failed = await load();
     expect(failed.developmentRequests).toBe(1);
-    expect(failed.state.note).toBe(fullNote);
-    await expect(page.locator(".interpretation")).toHaveCount(4);
+    expect(failed.state.note).toBe("");
+    await expect(page.locator(".interpretation")).toHaveCount(0);
 
     await page.evaluate(() => window.korikone.developmentScenario("success"));
     await note.press("Control+Enter");
@@ -606,15 +609,16 @@ for (const language of ["fi", "en"] as const) {
         page
           .evaluate(() => window.korikone.load())
           .then((result) => result.value);
-      const baseline = await load();
       await startNewList(page);
+      const baseline = await load();
       await note.fill("Makaronilaatikko");
-      await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveAttribute("aria-atomic", "true");
       await page.evaluate(() =>
         window.korikone.developmentScenario("pendingSuccess"),
       );
       await note.press("Control+Enter");
+      await page.locator(".note-actions").scrollIntoViewIfNeeded();
+      await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveText(
         tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
@@ -627,7 +631,7 @@ for (const language of ["fi", "en"] as const) {
         .click();
       await expect(page.locator(".saved-list-status")).toBeVisible();
       await note.focus();
-      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      await expect(page.locator(".grocery-row")).toHaveCount(0);
       await expect(note).toBeFocused();
       expect(
         await page
@@ -647,7 +651,10 @@ for (const language of ["fi", "en"] as const) {
       await cancel.focus();
       await page.keyboard.press("Enter");
       await expect(status).toHaveText(
-        tr("Listan päivitys peruutettu", "List update cancelled"),
+        tr(
+          "Listan päivitys peruutettu. Aiempi lista säilyy.",
+          "List update cancelled. Your previous list is retained.",
+        ),
       );
       await expect(note).toBeFocused();
       await expect(note).toHaveValue("Makaronilaatikko");
@@ -686,7 +693,7 @@ for (const language of ["fi", "en"] as const) {
         tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
         { timeout: 1000 },
       );
-      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      await expect(page.locator(".grocery-row")).toHaveCount(0);
       await expect(page.locator(".note-box")).not.toHaveClass(/is-working/, {
         timeout: 10000,
       });
@@ -910,8 +917,8 @@ for (const language of ["fi", "en"] as const) {
       await page.reload();
       const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
       const note = composer(page);
-      const before = (await page.evaluate(() => window.korikone.load())).value;
       await startNewList(page);
+      const before = (await page.evaluate(() => window.korikone.load())).value;
       await note.fill("200 ml kermaa ja kahvia");
       await note.press("Control+Enter");
       const preview = page.getByRole("region", {
@@ -930,7 +937,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(saved).toHaveAttribute("aria-pressed", "true");
       await expect(preview).toBeHidden();
       await expect(page.locator(".shopping-panel")).toBeVisible();
-      await expect(page.locator(".grocery-row")).toHaveCount(1);
+      await expect(page.locator(".grocery-row")).toHaveCount(0);
       const forming = page.getByRole("button", {
         name: tr("Muodostuva lista", "List in progress"),
         exact: true,
@@ -949,6 +956,8 @@ for (const language of ["fi", "en"] as const) {
         name: tr("Peruuta listan päivitys", "Cancel list update"),
         exact: true,
       });
+      await page.locator(".note-actions").scrollIntoViewIfNeeded();
+      await expect(cancel).toBeVisible();
       await cancel.focus();
       await cancel.press("Enter");
       await expect(preview).toHaveCount(0);

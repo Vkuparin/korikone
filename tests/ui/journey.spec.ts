@@ -49,6 +49,10 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await list
       .getByRole("button", { name: "Demo: interrupt next transfer" })
       .click();
+    await page.evaluate(() =>
+      window.korikone.setReviewBeforeTransfer({ enabled: true }),
+    );
+    await page.reload();
     const bar = list.getByRole("region", { name: "Total and transfer" });
     await bar
       .getByRole("button", { name: /^Transfer and open store basket/ })

@@ -1,4 +1,4 @@
-import { composer, startNewList } from "./composer-helper";
+import { composer } from "./composer-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -82,6 +82,7 @@ for (const language of ["fi", "en"] as const) {
       state.onboarded = state.setupComplete = true;
       state.meals = [];
       state.staples = [];
+      state.reviewBeforeTransfer = true;
       state.extras = [
         { id: "cream", name: "Kerma", amount: 200, unit: "ml" },
         { id: "onion", name: "Sipuli", amount: 500, unit: "g" },
@@ -114,7 +115,6 @@ for (const language of ["fi", "en"] as const) {
         name: /^(Tarkista ratkaisemattomat rivit|Review unresolved rows)/,
       });
       await expect(review).toHaveCount(0);
-      await startNewList(page);
       await composer(page).fill("A new note that is not applied");
       await expect(review).toHaveCount(0);
       const before = await load();
@@ -125,8 +125,8 @@ for (const language of ["fi", "en"] as const) {
       await entry.focus();
       await entry.press("Enter");
       await expect(review.getByRole("heading", { level: 2 })).toBeFocused();
-      await expect(review.locator(".review-category")).toHaveCount(3);
-      await expect(review.locator(".candidate-reason")).toHaveCount(3);
+      await expect(review.locator(".review-category")).toHaveCount(2);
+      await expect(review.locator(".candidate-reason")).toHaveCount(2);
       expect(
         await review.locator(".candidate").evaluateAll((candidates) =>
           candidates.every((candidate) => {
@@ -175,6 +175,17 @@ for (const language of ["fi", "en"] as const) {
       });
       await cream
         .getByRole("button", {
+          name: /^(Käytä kerran|Use once): Kuohukerma 200 ml$/,
+        })
+        .click();
+      await expect(cream.getByRole("heading", { level: 4 })).toBeFocused();
+      expect((await load()).state.categoryPreferences).toEqual([]);
+      expect(
+        (await load()).basket.find((line) => line.requirement.id === "cream")
+          ?.product?.id,
+      ).toBe("whipping-cream");
+      await cream
+        .getByRole("button", {
           name: /^(Muista tyyppi|Remember type): Ruokakerma 2 dl$/,
         })
         .click();
@@ -204,16 +215,6 @@ for (const language of ["fi", "en"] as const) {
           ? "Tuote valittu nykyiseen listaan"
           : "Product chosen for the current list",
       );
-      const onion = review.getByRole("region", {
-        name: `${fi ? "Tarkista" : "Review"}: Sipuli`,
-        exact: true,
-      });
-      await onion
-        .getByRole("button", {
-          name: /^(Käytä kerran|Use once): Kotimaista sipuli 500 g$/,
-        })
-        .click();
-      await expect(onion.getByRole("heading", { level: 4 })).toBeFocused();
       const approved = await load();
       expect(approved.state.categoryPreferences).toHaveLength(1);
       expect(approved.state.categoryPreferences[0].category).toBe("cream");
