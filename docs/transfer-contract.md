@@ -81,3 +81,7 @@ Not done, because it needs a verified store contract first: sending all rows in 
 ## Fixtures
 
 `tests/one-click-transfer.test.ts` (development stand-ins for both chains): complete one-click success and same-list repeat, existing basket items, budget overrun and rows left out, changed price, changed pack, stale revision and batch, changed account, partial failure and recovery, and the opt-in review with its persistence. `tests/ui/one-click-transfer.spec.ts` clicks the real button in development mode. `tests/service.test.ts` keeps the review behaviour under the setting.
+
+## Non-food rows (F22.7)
+
+A non-food row is never sent unless the provider declares `capabilities.merchandise.cartWrite`; none does. A row with a product is listed in `review.manual` and `snapshot.merchandise.manual` for the shopper to add on the store's own page, apart from `review.unresolved`. A list with nothing else to send stops with `manualOnly`. `unsupportedWrite` is the refusal at the write boundary. Details: [retail expansion](retail-expansion.md#non-food-rows-and-the-store-basket-f227).

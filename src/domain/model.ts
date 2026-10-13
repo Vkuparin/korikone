@@ -259,6 +259,8 @@ export type Review = {
   quotes: BasketLine[];
   unresolved?: Requirement[];
   unresolvedIntents?: IntentResult[];
+  /** Non-food rows with a product that are left for the shopper to add at the store (F22.7). */
+  manual?: import("./merchandise").ManualHandoff[];
   /** Rows whose price the store changed after the list was priced; totals in cents. */
   priceChanges?: {
     productId: string;

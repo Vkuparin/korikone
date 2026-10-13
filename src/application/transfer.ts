@@ -17,6 +17,7 @@ import {
   requirementQueryHints,
   type MatchingOptions,
 } from "../domain/matching";
+import { writesMerchandise } from "../domain/merchandise";
 import { searchCandidates } from "../stores/candidates";
 import type { StoreProvider } from "../stores/provider";
 /** Fresh reads must retain the facts on which the quoted selection depended. */
@@ -110,6 +111,7 @@ export async function createReview(
     lines.some((l) => !transferableLine(l))
   )
     throw new Error("unresolved");
+  assertWritable(provider, lines);
   const baseline = await provider.getCart(context);
   if (!baseline.accountId) throw new Error("loginRequired");
   const targets: Review["targets"] = [];
@@ -219,6 +221,18 @@ export async function createReview(
     ...(priceChanges.length ? { priceChanges } : {}),
   };
 }
+/**
+ * No non-food row reaches a basket write unless the provider declares that write (F22.7). A found
+ * product is not write authority, and neither is a review or journal made earlier: the check is
+ * repeated at each boundary, before any store call.
+ */
+export function assertWritable(provider: StoreProvider, lines: BasketLine[]) {
+  if (
+    !writesMerchandise(provider.capabilities.merchandise) &&
+    lines.some((l) => l.requirement.merchandise)
+  )
+    throw new Error("unsupportedWrite");
+}
 /** How long a review's own product readings stand in for a second reading before the writes. */
 export const FRESH_REVIEW_MS = 30_000;
 const locks = new Set<string>();
@@ -243,6 +257,7 @@ export async function transfer(
   ]);
   if (locks.has(key)) throw new Error("busy");
   if (journal.status !== "ready") throw new Error("reviewRequired");
+  assertWritable(provider, review.quotes);
   if (Date.now() - Date.parse(review.createdAt) > 5 * 60 * 1000)
     throw new Error("quoteExpired");
   locks.add(key);
@@ -323,6 +338,7 @@ export async function resumeReview(
   packSizes: AppState["packSizes"] = {},
   matchingOptions: MatchingOptions = {},
 ): Promise<Review> {
+  assertWritable(provider, journal.review.quotes);
   const baseline = await provider.getCart(journal.review.context);
   if (baseline.accountId !== journal.review.baseline.accountId)
     throw new Error("accountChanged");

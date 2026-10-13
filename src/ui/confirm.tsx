@@ -48,6 +48,7 @@ export function attention(
   return {
     unresolved: review.unresolved ?? [],
     unresolvedIntents: review.unresolvedIntents ?? [],
+    manual: review.manual ?? [],
     overBudget: Math.max(review.total - budget, 0),
     inCart: review.targets.filter((target) => target.before > 0),
     cheaper,
@@ -93,6 +94,7 @@ export function ConfirmPanel({
     !!items &&
     !items.unresolved.length &&
     !items.unresolvedIntents.length &&
+    !items.manual.length &&
     !items.overBudget &&
     !items.inCart.length &&
     !items.cheaper.length &&
@@ -139,6 +141,15 @@ export function ConfirmPanel({
                     )
                     .map((result) => result.intent.label),
                 ].join(", ")}
+              </li>
+            )}
+            {items.manual.length > 0 && (
+              <li className="manual-handoff">
+                {tr(
+                  "Ei siirretä, lisää itse kaupan sivulla:",
+                  "Not transferred, add on the store's own page:",
+                )}{" "}
+                {items.manual.map((m) => m.productName).join(", ")}
               </li>
             )}
             {items.overBudget > 0 && (
@@ -270,6 +281,15 @@ export function ConfirmPanel({
     );
   }
 
+  if (snapshot.transferException === "manualOnly")
+    return (
+      <section className="confirm-panel transfer-exception" role="status">
+        <p>{t("manualOnly")}</p>
+        <button className="text" onClick={onClose}>
+          {tr("Sulje", "Close")}
+        </button>
+      </section>
+    );
   if (
     snapshot.transferException === "priceChanged" ||
     snapshot.transferException === "unresolved"
@@ -318,6 +338,15 @@ export function ConfirmPanel({
             ...left.map((r) => r.name),
             ...leftIntents.map((result) => result.intent.label),
           ].join(", ")}
+        </p>
+      )}
+      {(journal.review.manual?.length ?? 0) > 0 && (
+        <p className="manual-handoff">
+          {tr(
+            "Ei siirretty, lisää itse kaupan sivulla:",
+            "Not transferred, add on the store's own page:",
+          )}{" "}
+          {journal.review.manual!.map((m) => m.productName).join(", ")}
         </p>
       )}
       {journal.uncertain && (

@@ -317,13 +317,13 @@ test("a priced non-food row is never written to the basket: the write is not ver
   await service.buildBasket();
   expect(row(service, "kumisaapas").total).toBe(1990);
   // Only non-food rows on the list: there is nothing that may be sent.
-  await expect(service.prepare()).rejects.toThrow("unresolved");
+  await expect(service.prepare()).rejects.toThrow("manualOnly");
   const clicked = await service.transferDisplayed({
     revision: service.state.revision,
     quotedAt: service.quotedAt!,
     batchKey: service.snapshot().transferBatchKey,
   });
-  expect(clicked.transferException).toBe("unresolved");
+  expect(clicked.transferException).toBe("manualOnly");
   expect(clicked.journal ?? null).toBeNull();
   expect(writes).toEqual([]);
 });

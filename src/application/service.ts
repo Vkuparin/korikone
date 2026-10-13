@@ -1,5 +1,9 @@
 import { lineMerchandiseStatus } from "../domain/matching";
-import { noMerchandise } from "../domain/merchandise";
+import {
+  noMerchandise,
+  writesMerchandise,
+  type ManualHandoff,
+} from "../domain/merchandise";
 import {
   METRICS_KEY,
   METRICS_LIMIT,
@@ -79,7 +83,12 @@ import {
   correctionKey,
   clearRowCorrections,
 } from "../domain/corrections";
-import { createReview, resumeReview, transfer } from "./transfer";
+import {
+  assertWritable,
+  createReview,
+  resumeReview,
+  transfer,
+} from "./transfer";
 import type { AIStatus } from "../ai/connection";
 import type { MealDraft } from "../ai/draft";
 import { appearanceSchema } from "../domain/appearance";
@@ -1228,12 +1237,39 @@ export class Service {
       };
     }
   }
+  /** Non-food rows that have a product and are not written to the store basket (F22.7). */
+  private manualHandoff(): ManualHandoff[] {
+    if (
+      writesMerchandise(
+        this.registry.get(this.state.context.providerId).capabilities
+          .merchandise,
+      )
+    )
+      return [];
+    return this.basket.flatMap((line) =>
+      line.requirement.merchandise && line.product && transferableLine(line)
+        ? [
+            {
+              requirementKey: `${line.requirement.id}:${line.requirement.unit}`,
+              name: line.requirement.name,
+              productId: line.product.id,
+              productName: line.product.name,
+              packs: line.packs,
+              total: line.total,
+              reason: "unsupported-write" as const,
+            },
+          ]
+        : [],
+    );
+  }
   private merchandiseView() {
     const capabilities =
       this.registry.get(this.state.context.providerId).capabilities
         .merchandise ?? noMerchandise;
     return {
       capabilities,
+      /** Non-food rows with a product that no transfer sends; the shopper adds them. */
+      manual: this.manualHandoff(),
       statuses: this.basket.flatMap((line) => {
         const status = lineMerchandiseStatus(line, capabilities);
         return status
@@ -3025,27 +3061,41 @@ export class Service {
         reconcilePrices: z.boolean().default(false),
       })
       .parse(input ?? {});
-    // A non-food row is sent only where a basket write is verified for such products.
+    // A non-food row is sent only where a basket write is verified for such products. One that
+    // has a product is handed to the shopper; it is neither sent nor reported as missing.
+    const manual = this.manualHandoff();
+    const handed = new Set(manual.map((m) => m.requirementKey));
     const writable = (line: BasketLine) =>
       transferableLine(line) &&
+      !handed.has(`${line.requirement.id}:${line.requirement.unit}`) &&
       (!line.requirement.merchandise ||
-        this.registry.get(this.state.context.providerId).capabilities
-          .merchandise?.cartWrite === true);
-    const unresolved = this.basket.filter((line) => !writable(line));
+        writesMerchandise(
+          this.registry.get(this.state.context.providerId).capabilities
+            .merchandise,
+        ));
+    const unresolved = this.basket.filter(
+      (line) =>
+        !writable(line) &&
+        !handed.has(`${line.requirement.id}:${line.requirement.unit}`),
+    );
     const unresolvedIntents = this.snapshot().committedIntents.filter(
       (intent) => intent.status !== "resolved",
     );
-    if (
-      (unresolvedIntents.length ||
-        this.basket.some((l) => transferableLine(l) && !writable(l))) &&
-      !allowMissing
-    )
+    if (unresolvedIntents.length && !allowMissing)
       throw new Error("unresolved");
+    // Nothing on the list may be sent, and the reason is the hand-off, not a missing product.
+    if (manual.length && !this.basket.some(writable) && !unresolved.length)
+      throw new Error("manualOnly");
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
       this.state.revision,
-      allowMissing ? this.basket.filter(writable) : this.basket,
+      allowMissing
+        ? this.basket.filter(writable)
+        : this.basket.filter(
+            (line) =>
+              !handed.has(`${line.requirement.id}:${line.requirement.unit}`),
+          ),
       this.state.packSizes,
       {
         exclusions: exclusionTerms(this.state.household.exclusions),
@@ -3055,6 +3105,7 @@ export class Service {
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
+    if (manual.length) this.review.manual = manual;
     if (this.review.priceChanges?.length)
       await this.reconcileQuote(this.review);
     return this.snapshot();
@@ -3221,7 +3272,7 @@ export class Service {
       } catch (error) {
         if (
           !(error instanceof Error) ||
-          !["priceChanged", "unresolved"].includes(error.message)
+          !["priceChanged", "unresolved", "manualOnly"].includes(error.message)
         )
           throw error;
         this.transferException = error.message;
@@ -3272,6 +3323,8 @@ export class Service {
     this.controller = new AbortController();
     try {
       const provider = this.registry.get(this.review.context.providerId);
+      // Checked before the journal is written, so a refused review leaves no transfer record.
+      assertWritable(provider, this.review.quotes);
       const journal: Journal = {
         batchKey:
           this.journal?.status === "partial"
@@ -3384,6 +3437,8 @@ export class Service {
     this.review.revision = this.state.revision;
     this.review.unresolved = this.journal.review.unresolved;
     this.review.unresolvedIntents = this.journal.review.unresolvedIntents;
+    if (this.journal.review.manual)
+      this.review.manual = this.journal.review.manual;
     return this.snapshot();
   }
   async scenario(value: unknown) {

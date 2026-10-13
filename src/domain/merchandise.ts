@@ -110,6 +110,28 @@ export const noMerchandise: MerchandiseCapabilities = Object.freeze({
   stock: "none",
   cartWrite: false,
 });
+/** Whether this provider may write non-food products to the store basket at all (F22.7). */
+export const writesMerchandise = (
+  capabilities: MerchandiseCapabilities | undefined,
+): boolean => capabilities?.cartWrite === true;
+/**
+ * A non-food row that has an exact product and is not sent to the store basket, because a basket
+ * write is not verified for such products at this provider (F22.7). The shopper adds it on the
+ * store's own page. `total` is the quoted price in cents for `packs`, as last read; it is not
+ * part of any transfer total.
+ */
+export const manualHandoffSchema = z
+  .object({
+    requirementKey: z.string().min(1).max(200),
+    name: z.string().min(1).max(200),
+    productId: z.string().min(1).max(200),
+    productName: z.string().min(1).max(300),
+    packs: z.number().int().positive(),
+    total: z.number().int().nonnegative().nullable(),
+    reason: z.literal("unsupported-write"),
+  })
+  .strict();
+export type ManualHandoff = z.infer<typeof manualHandoffSchema>;
 
 /** Store evidence carried on a product that was read for a non-food row. All of it is optional. */
 export const merchandiseEvidenceSchema = z

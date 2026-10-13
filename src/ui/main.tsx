@@ -149,6 +149,7 @@ function App() {
         stock: "none",
         cartWrite: false,
       },
+      manual: [],
       statuses: [],
     },
     planningIncomplete: false,
