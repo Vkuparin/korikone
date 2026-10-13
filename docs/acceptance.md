@@ -257,3 +257,7 @@ The owner authorized release with minimum testing and reuse of recorded focused 
 ## v0.11.0 non-food acceptance scope (F22.8)
 
 Fixture evidence: variant statuses (not listed here, exact available, variant missing, out of stock, unknown), a missing attribute asked once, hand-off by hand, groceries sent alone with zero non-food writes, retry after a failed read and backup round trip. Owner gates, none run: three read-only live K-store searches (no sign-in, basket call or AI request); one optional live non-food note (1 to 2 ChatGPT requests); any basket write only after a separately authorized live write and read-back. No automatic non-food transfer is claimed.
+
+## v0.11.0 receipt acceptance scope (F27.12)
+
+Fixture evidence: one drop or picker action saves a mixed batch as local history with no row action or modal; every product shows a grounded name or its printed label; no model request without consent and one for a whole import with it; the same trip in two formats is one purchase; shopping, preferences and the store basket are untouched; stale corrections are refused; backup and deletion behave. Details, measurements and what is not covered: [receipt evaluation](receipt-learning-evaluation.md#integration-audit-and-release-evidence-f2712). Owner checks, none run: a development-mode visual check of the History import, and optionally one live import (1 ChatGPT request). The full pre-release flow has not been run for v0.11.0.

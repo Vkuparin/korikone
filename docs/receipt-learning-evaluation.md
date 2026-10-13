@@ -89,3 +89,41 @@ Contracts consumed by F27.8 and F27.9: `nameGoldens` with its `NameGolden` type,
 ## Local resolver baseline (F27.8)
 
 Same 22 bought lines of the goldens, shown through `displayName` with no model and no consent. Before F27.8: exact 0, expanded 0, generic 0, raw 22. With `localDisplayName`: exact 14, expanded 3, generic 0, raw 5 (`tests/receipt-name-goldens.test.ts`). All 17 golden names are produced and none differs from its expectation apart from case; the five raw lines are the two ambiguous abbreviations, the unknown short code, the injected instruction and the injected product line. Inventions accepted: 0 of 56. The three golden `generic` cases need a category from a rule or a model, which is not claimed here. No live-quality claim.
+
+## Integration audit and release evidence (F27.12)
+
+13 October 2026, on `claude/project-thread-q9ucii` after F27.1 to F27.11. This section audits the joined contracts and reuses the focused checks each card recorded; it is not a new full matrix and not a release-readiness claim. No owner receipt, live account or provider call was used.
+
+### Gates and where each is shown
+
+| Gate | Evidence |
+| ---- | -------- |
+| No routine row action or modal | `tests/ui/receipt-integration.spec.ts`: no dialog after a drop, cards collapsed, `issueCount` 0 for rows that only lack a readable name. `tests/ui/receipt-names.spec.ts`: no review list (F27.2) |
+| One action gives durable local history | Integration spec: one real drop of seven files saves four purchases, readable before any request and present after restart. Picker: `tests/ui/receipt-intake-api.spec.ts`, `receipt-import-surface.spec.ts` |
+| Every product has a grounded name or its printed label | Integration spec over all bought rows; `tests/receipt-name-goldens.test.ts` |
+| No invented specificity | Goldens: 0 of 56 inventions accepted by `groundedDisplayName`, 0 produced by `localDisplayName`; 9 ambiguity cases |
+| No unauthorized model request | Integration spec: 0 requests after the drop, exactly 1 after Just this import for four purchases, 0 on the next import. `tests/receipt-intake.test.ts`, `receipt-name-wiring.test.ts` for both adapters |
+| No duplicate exact import, distinct trips kept apart | Integration spec: the same trip as text and as PDF is one purchase; the same rows on another day are a second one; a deleted purchase can be imported again |
+| No retailer read or write from import | Integration spec: store writes 0, catalogue requests unchanged, state, basket, context and journal equal before and after |
+| Scoped failures | A broken PDF and a readable PDF that is no receipt fail alone in the batch (integration spec). Busy shopping, scoped cancel, deadline and a source changed meanwhile: `tests/receipt-intake.test.ts`, `tests/ui/receipt-intake-api.spec.ts` |
+| Stale correction refused, correction is not a preference | Integration spec: a correction with another revision fails, the current one names one row as `user`, preferences unchanged |
+| Backup, deletion and retention copy | Integration spec: the backup holds the purchases and the correction and no original or address; deletion removes one purchase; the details say that neither the source text nor the PDF is kept |
+| Memory and planning context | `tests/memory-names.test.ts` (F27.10), `tests/ui/receipt-readable-views.spec.ts` (F27.11) |
+
+### Measurements
+
+- **Name specificity, goldens (22 bought lines).** Before F27.8: raw 22. Now, with no model: exact 14, expanded 3, generic 0, raw 5. The labels themselves support at most exact 14, expanded 3, generic 3, raw 4 of 24. False specificity: 0 of 56.
+- **Name specificity, integration batch (12 bought lines of four synthetic receipts, one read by OCR).** Local: exact 9, expanded 1, raw 2. After the one development-model request: the same. The two raw lines are an ambiguous abbreviation (`PIRKKA KEVYTM 1L`) and an unknown label; the development model's proposals for them were not accepted as grounded names. This says nothing about a live model's quality.
+- **Requests and writes for one import of seven files.** Before F27 a receipt was imported one file at a time and each enrichment was its own request. Now: one action; model requests 0 without consent and 1 with it, whatever the number of receipts; retailer reads 0; retailer writes 0.
+- **First visible feedback.** In the integration run on the development machine, hidden window: first progress event 6 ms after the drop, all seven files settled after about 0.8 s including one OCR page. Recorded, not gated: the times depend on the machine and the files.
+
+### Not covered
+
+- A PDF that mixes text pages and scanned pages and is also a valid shop receipt. The mixed fixture `ocr-mixed.pdf` proves page order and OCR page numbers at the reader (`tests/receipts.test.ts`) and fails alone in a batch because it is not a receipt. A parsable mixed receipt needs a new synthetic fixture.
+- Restoring a backup into another profile after a multi-file import; restore is covered for the ledger in the existing backup suites, not repeated here.
+- Anything live: real receipts, real OCR quality on photographs, a live model's names.
+
+### Optional owner checks
+
+- **Visual, development mode, no AI allowance used:** drop two or three synthetic receipts from `tests/fixtures/receipts/` on History, read the summary, open one card in Settings, Data.
+- **Live, only if wanted:** import one of your own receipts with ChatGPT connected and answer Just this import. That is 1 ChatGPT request. A later request for "the usual" is 1 to 2 more and sends readable names of usual purchases, as F27.10 records.

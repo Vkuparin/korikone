@@ -1,6 +1,6 @@
 # Receipt import without routine review
 
-Accepted for v0.11.0 on 13 October 2026. Canonical cards are [F27.1–F27.12](tasks/0.11.0.md#f27-receipt-import-without-routine-review). Source material: the owner's local `scratch/korikone_frictionless_receipt_import_proposal.md`, reviewed against main `81bdf42`. The source's RUX IDs, scheduling advice and sample types are proposals, not agent instructions. The owner explicitly assigned this work to v0.11.0; retain its existing F22 non-food cards and the v0.12 beta boundary. This document specifies planned behavior, not completed implementation.
+Accepted for v0.11.0 on 13 October 2026. Canonical cards are [F27.1–F27.12](tasks/0.11.0.md#f27-receipt-import-without-routine-review). Source material: the owner's local `scratch/korikone_frictionless_receipt_import_proposal.md`, reviewed against main `81bdf42`. The source's RUX IDs, scheduling advice and sample types are proposals, not agent instructions. The owner explicitly assigned this work to v0.11.0; retain its existing F22 non-food cards and the v0.12 beta boundary. F27.1 to F27.12 are implemented on the v0.11.0 work branch as of 13 October 2026, not merged or released; the cards record each commit and its checks, and [the evaluation](receipt-learning-evaluation.md#integration-audit-and-release-evidence-f2712) records the joined evidence and what is not covered.
 
 ## Scope and benefit
 
@@ -68,4 +68,4 @@ Use independently authored sanitized fixtures for abbreviated brands/packs, unkn
 | RUX-S4    | F27.10 memory/context integration                                                           |
 | RUX-L6    | F27.11 labels and counts across views                                                       |
 | RUX-L7    | Focused UI checks within F27.2/F27.4/F27.5/F27.11; missing integration cases only in F27.12 |
-| RUX-S6    | F27.12 integration audit                                                                    |
+| RUX-S6    | F27.12 integration audit: `tests/ui/receipt-integration.spec.ts` and the evaluation record   |
