@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReceiptImportCoordinator } from "../application/receipt-import";
 import type { Snapshot } from "../application/service";
 import { categorySchema } from "../domain/categories";
@@ -37,7 +37,6 @@ export function ReceiptsPanel({
   const tr = (a: string, b: string) => (fi ? a : b);
   const [view, setView] = useState<ReceiptsView | null>(null);
   const [keepOriginal, setKeepOriginal] = useState(false);
-  const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     const result = await window.korikone.listPurchases();
@@ -73,13 +72,12 @@ export function ReceiptsPanel({
       unbalanced: tr("Summa ei täsmää", "Total does not match"),
       incomplete: tr("Summa on vajaa", "Total is incomplete"),
     })[purchase.reconciliation.status];
-  const reason = (r: PurchaseLine["review"][number]) =>
+  // Only factual issues are named here; a model-made name or a missing name is never an issue.
+  const reason = (r: PurchaseLine["issues"][number]) =>
     ({
       unreadable: tr("Riviä ei voitu lukea", "Row could not be read"),
       "missing-amount": tr("Hinta puuttuu", "Amount missing"),
       "unknown-quantity": tr("Määrä puuttuu", "Quantity missing"),
-      uninterpreted: tr("Ei tulkintaa", "Not interpreted"),
-      "model-proposal": tr("Ehdotus odottaa", "Proposal waiting"),
     })[r];
   // The provider disclosed and consented to is the one that would receive the labels.
   const providerId = snapshot.developmentAIProvider ?? "chatgpt";
@@ -175,8 +173,8 @@ export function ReceiptsPanel({
             onChange={(e) => setKeepOriginal(e.target.checked)}
           />
           {tr(
-            "Säilytä alkuperäinen tiedosto paikallisesti",
-            "Keep the original file on this device",
+            "Säilytä kuitin lähdeteksti paikallisesti (ei PDF-tiedostoa)",
+            "Keep the receipt's source text on this device (not the PDF file)",
           )}
         </label>
       </div>
@@ -323,107 +321,151 @@ export function ReceiptsPanel({
           {tr("Ei tuotuja kuitteja vielä.", "No imported receipts yet.")}
         </p>
       )}
-      {view?.purchases.map((purchase) => {
-        const review = purchase.lines.filter(
-          (line) => line.review.length && !skipped.has(line.id),
-        );
-        return (
-          <details
-            className="card receipt-card"
-            key={purchase.eventId}
-            open={purchase.reviewCount > 0 ? true : undefined}
-          >
-            <summary>
-              {(purchase.store ?? tr("Tuntematon kauppa", "Unknown store")) +
-                " · " +
-                date(purchase)}{" "}
-              ·{" "}
-              {money(
-                purchase.printed.find((p) => p.role === "total")?.amount ??
-                  null,
-              )}
-              {" · "}
-              <span className={`recon ${purchase.reconciliation.status}`}>
-                {balance(purchase)}
-              </span>
-              {purchase.reviewCount > 0 && (
-                <span className="muted">
-                  {" · "}
-                  {purchase.reviewCount} {tr("tarkistettavaa", "to review")}
-                </span>
-              )}
-            </summary>
-            {!!purchase.ocrPages.length && (
-              <p className="receipt-ocr-notice">
-                {ocrNotice} {tr("Sivut", "Pages")}:{" "}
-                {purchase.ocrPages.join(", ")}.
-              </p>
-            )}
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">{tr("Rivi", "Row")}</th>
-                  <th scope="col">{tr("Määrä", "Quantity")}</th>
-                  <th scope="col">{tr("Maksettu", "Paid")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchase.lines.map((line) => (
-                  <tr key={line.id}>
-                    <td>
-                      {line.label}
-                      {line.interpretation?.name
-                        ? ` → ${line.interpretation.name}`
-                        : ""}
-                    </td>
-                    <td>
-                      {line.quantity.amount === null
-                        ? tr("tuntematon", "unknown")
-                        : `${line.quantity.amount} ${line.quantity.unit === "pcs" ? tr("kpl", "pcs") : line.quantity.unit}`}
-                    </td>
-                    <td>{money(line.net ?? line.gross)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {purchase.reconciliation.difference !== null &&
-              purchase.reconciliation.difference !== 0 && (
-                <p role="status">
-                  {tr(
-                    "Erotus painettuun summaan",
-                    "Difference to printed total",
-                  )}
-                  : {money(purchase.reconciliation.difference)}
-                </p>
-              )}
-            {purchase.printed.map((p) => (
-              <small key={`${p.role}-${p.span.line}`} className="muted">
-                {
-                  {
-                    total: tr("Yhteensä", "Total"),
-                    subtotal: tr("Välisumma", "Subtotal"),
-                    food: tr("Ruoka", "Food"),
-                    "non-food": tr("Muut", "Non-food"),
-                    discounts: tr("Alennukset", "Discounts"),
-                    deposits: tr("Pantit", "Deposits"),
-                    tax: tr("Vero", "Tax"),
-                  }[p.role]
-                }
-                : {money(p.amount)}{" "}
-              </small>
-            ))}
-            {review.length > 0 && (
-              <section
-                className="receipt-review"
-                aria-label={tr("Tarkistettavat rivit", "Rows to review")}
-              >
-                <h4>
-                  {tr("Tarkistettavat rivit", "Rows to review")} (
-                  {review.length})
-                </h4>
-                {review.map((line) => (
-                  <ReviewLine
-                    key={line.id}
+      {view?.purchases.map((purchase) => (
+        <ReceiptCard
+          key={purchase.eventId}
+          fi={fi}
+          purchase={purchase}
+          busy={busy}
+          act={act}
+          money={money}
+          date={date}
+          balance={balance}
+          reason={reason}
+          ocrNotice={ocrNotice}
+          aiReady={aiReady}
+          providerName={providerName}
+          providerId={providerId}
+          scopeOf={scopeOf}
+          enrichment={enrichment}
+        />
+      ))}
+    </section>
+  );
+}
+
+type CardProps = {
+  fi: boolean;
+  purchase: Purchase;
+  busy: boolean;
+  act: (method: string, input?: unknown) => Promise<boolean>;
+  money: (cents: number | null) => string;
+  date: (purchase: Purchase) => string;
+  balance: (purchase: Purchase) => string;
+  reason: (r: PurchaseLine["issues"][number]) => string;
+  ocrNotice: string;
+  aiReady: boolean;
+  providerName: string;
+  providerId: string;
+  scopeOf: number;
+  enrichment: Snapshot["receiptEnrichment"];
+};
+
+/**
+ * One purchase. It stays collapsed after an ordinary import; opened, it shows readable product
+ * names first with the printed rows on request, and keeps evidence, retention and deletion behind
+ * an optional section. Only an item the shopper chooses is corrected, inline.
+ */
+function ReceiptCard({
+  fi,
+  purchase,
+  busy,
+  act,
+  money,
+  date,
+  balance,
+  reason,
+  ocrNotice,
+  aiReady,
+  providerName,
+  providerId,
+  scopeOf,
+  enrichment,
+}: CardProps) {
+  const tr = (a: string, b: string) => (fi ? a : b);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [printed, setPrinted] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const openers = useRef(new Map<string, HTMLButtonElement>());
+  const closeEditing = () => {
+    const id = editing;
+    setEditing(null);
+    // Focus returns to the control that opened the correction.
+    requestAnimationFrame(() => (id ? openers.current.get(id)?.focus() : null));
+  };
+  const names = purchase.names;
+  return (
+    <details className="card receipt-card">
+      <summary>
+        {(purchase.store ?? tr("Tuntematon kauppa", "Unknown store")) +
+          " · " +
+          date(purchase)}{" "}
+        ·{" "}
+        {money(
+          purchase.printed.find((p) => p.role === "total")?.amount ?? null,
+        )}
+        {" · "}
+        <span className={`recon ${purchase.reconciliation.status}`}>
+          {balance(purchase)}
+        </span>
+        {!!purchase.ocrPages.length && (
+          <span className="muted">
+            {" · "}
+            {tr("luettu OCR:llä", "read with OCR")}
+          </span>
+        )}
+        {purchase.issueCount > 0 && (
+          <span className="muted">
+            {" · "}
+            {purchase.issueCount} {tr("huomioitavaa", "to check")}
+          </span>
+        )}
+      </summary>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{tr("Tuote", "Product")}</th>
+            <th scope="col">{tr("Määrä", "Quantity")}</th>
+            <th scope="col">{tr("Maksettu", "Paid")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {purchase.lines.map((line) => (
+            <tr key={line.id}>
+              <td>
+                <span className="receipt-name">{line.display.text}</span>
+                {printed && line.display.text !== line.label && (
+                  <small className="muted receipt-printed">
+                    {" "}
+                    ({tr("painettu", "printed")}: {line.label})
+                  </small>
+                )}
+                {line.issues.length > 0 && (
+                  <small className="warning receipt-issue">
+                    {" · "}
+                    {line.issues.map(reason).join(", ")}
+                  </small>
+                )}
+                {(line.role === "product" || line.role === "non-food") && (
+                  <button
+                    ref={(element) => {
+                      if (element) openers.current.set(line.id, element);
+                      else openers.current.delete(line.id);
+                    }}
+                    className="text receipt-correct"
+                    type="button"
+                    disabled={busy}
+                    aria-expanded={editing === line.id}
+                    aria-label={`${tr("Korjaa rivi", "Correct row")}: ${line.display.text}`}
+                    onClick={() =>
+                      editing === line.id ? closeEditing() : setEditing(line.id)
+                    }
+                  >
+                    {tr("Korjaa", "Correct")}
+                  </button>
+                )}
+                {editing === line.id && (
+                  <LineCorrection
                     fi={fi}
                     line={line}
                     busy={busy}
@@ -434,124 +476,190 @@ export function ReceiptsPanel({
                       revision: purchase.revision,
                     }}
                     act={act}
-                    skip={() => setSkipped(new Set(skipped).add(line.id))}
+                    done={closeEditing}
                   />
-                ))}
-              </section>
-            )}
-            <div className="actions receipt-enrich">
+                )}
+              </td>
+              <td>
+                {line.quantity.amount === null
+                  ? tr("tuntematon", "unknown")
+                  : `${line.quantity.amount} ${line.quantity.unit === "pcs" ? tr("kpl", "pcs") : line.quantity.unit}`}
+              </td>
+              <td>{money(line.net ?? line.gross)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <label className="check receipt-printed-toggle">
+        <input
+          type="checkbox"
+          checked={printed}
+          onChange={(e) => setPrinted(e.target.checked)}
+        />
+        {tr("Näytä kuittiin painetut rivit", "Show the printed rows")}
+      </label>
+      <details className="receipt-more">
+        <summary>{tr("Lisätiedot ja poisto", "Details and deletion")}</summary>
+        {!!purchase.ocrPages.length && (
+          <p className="receipt-ocr-notice">
+            {ocrNotice} {tr("Sivut", "Pages")}: {purchase.ocrPages.join(", ")}.
+          </p>
+        )}
+        {purchase.reconciliation.difference !== null &&
+          purchase.reconciliation.difference !== 0 && (
+            <p role="status">
+              {tr("Erotus painettuun summaan", "Difference to printed total")}:{" "}
+              {money(purchase.reconciliation.difference)}
+            </p>
+          )}
+        {purchase.printed.map((p) => (
+          <small key={`${p.role}-${p.span.line}`} className="muted">
+            {
+              {
+                total: tr("Yhteensä", "Total"),
+                subtotal: tr("Välisumma", "Subtotal"),
+                food: tr("Ruoka", "Food"),
+                "non-food": tr("Muut", "Non-food"),
+                discounts: tr("Alennukset", "Discounts"),
+                deposits: tr("Pantit", "Deposits"),
+                tax: tr("Vero", "Tax"),
+              }[p.role]
+            }
+            : {money(p.amount)}{" "}
+          </small>
+        ))}
+        <p className="muted receipt-names-summary">
+          {tr(
+            `Nimet: ${names.user + names.named} luettavaa, ${names.general + names.raw} näkyy sellaisenaan tai yleisellä nimellä.`,
+            `Names: ${names.user + names.named} readable, ${names.general + names.raw} shown as printed or with a general name.`,
+          )}
+        </p>
+        <p className="muted receipt-retention">
+          {purchase.retention === "original"
+            ? tr(
+                "Tallessa on kuitin lähdeteksti tällä laitteella. PDF-tiedostoa ei ole arkistoitu.",
+                "The receipt's source text is kept on this device. The PDF file is not archived.",
+              )
+            : tr(
+                "Tallessa on vain puhdistettu rivitieto. Lähdetekstiä tai PDF-tiedostoa ei säilytetä.",
+                "Only the sanitized rows are kept. Neither the source text nor the PDF file is retained.",
+              )}
+        </p>
+        <div className="actions receipt-enrich">
+          <button
+            className="secondary"
+            disabled={busy || !aiReady || purchase.status !== "completed"}
+            onClick={() =>
+              void act("enrichPurchase", {
+                eventId: purchase.eventId,
+                consent: { providerId, scope: scopeOf },
+              })
+            }
+          >
+            {enrichment?.eventId === purchase.eventId &&
+            enrichment.status !== "enriched" &&
+            enrichment.status !== "skipped"
+              ? tr("Yritä tarkennusta uudelleen", "Retry enrichment")
+              : tr(
+                  `Tarkenna vain tämä kuitti (${providerName})`,
+                  `Enrich this receipt only (${providerName})`,
+                )}
+          </button>
+          {busy && (
+            <button
+              className="text"
+              onClick={() => void window.korikone.cancelAI()}
+            >
+              {tr("Peruuta pyyntö", "Cancel the request")}
+            </button>
+          )}
+        </div>
+        <div className="actions receipt-delete">
+          {purchase.retention === "original" && (
+            <button
+              className="text"
+              disabled={busy}
+              onClick={() =>
+                void act("deletePurchase", {
+                  eventId: purchase.eventId,
+                  scope: "original",
+                })
+              }
+            >
+              {tr(
+                "Poista tallennettu lähdeteksti",
+                "Delete the saved source text",
+              )}
+            </button>
+          )}
+          <button
+            className="text"
+            disabled={busy}
+            onClick={() =>
+              void act("deletePurchase", {
+                eventId: purchase.eventId,
+                scope: "annotations",
+              })
+            }
+          >
+            {tr("Poista tulkinnat", "Delete interpretations")}
+          </button>
+          {confirmDelete ? (
+            <>
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  await act("deletePurchase", {
+                    eventId: purchase.eventId,
+                    scope: "event",
+                  });
+                }}
+              >
+                {tr(
+                  "Poista kuitti ja sen tiedot",
+                  "Delete receipt and its data",
+                )}
+              </button>
               <button
                 className="secondary"
-                disabled={busy || !aiReady || purchase.status !== "completed"}
-                onClick={() =>
-                  void act("enrichPurchase", {
-                    eventId: purchase.eventId,
-                    consent: { providerId, scope: scopeOf },
-                  })
-                }
+                onClick={() => setConfirmDelete(false)}
               >
-                {enrichment?.eventId === purchase.eventId &&
-                enrichment.status !== "enriched" &&
-                enrichment.status !== "skipped"
-                  ? tr("Yritä tarkennusta uudelleen", "Retry enrichment")
-                  : tr(
-                      `Tarkenna vain tämä kuitti (${providerName})`,
-                      `Enrich this receipt only (${providerName})`,
-                    )}
+                {tr("Säilytä", "Keep")}
               </button>
-              {busy && (
-                <button
-                  className="text"
-                  onClick={() => void window.korikone.cancelAI()}
-                >
-                  {tr("Peruuta pyyntö", "Cancel the request")}
-                </button>
-              )}
-            </div>
-            <div className="actions receipt-delete">
-              {purchase.retention === "original" && (
-                <button
-                  className="text"
-                  disabled={busy}
-                  onClick={() =>
-                    void act("deletePurchase", {
-                      eventId: purchase.eventId,
-                      scope: "original",
-                    })
-                  }
-                >
-                  {tr("Poista alkuperäinen kopio", "Delete the original copy")}
-                </button>
-              )}
-              <button
-                className="text"
-                disabled={busy}
-                onClick={() =>
-                  void act("deletePurchase", {
-                    eventId: purchase.eventId,
-                    scope: "annotations",
-                  })
-                }
-              >
-                {tr("Poista tulkinnat", "Delete interpretations")}
-              </button>
-              {confirmDelete === purchase.eventId ? (
-                <>
-                  <button
-                    disabled={busy}
-                    onClick={async () => {
-                      setConfirmDelete(null);
-                      await act("deletePurchase", {
-                        eventId: purchase.eventId,
-                        scope: "event",
-                      });
-                    }}
-                  >
-                    {tr(
-                      "Poista kuitti ja sen tiedot",
-                      "Delete receipt and its data",
-                    )}
-                  </button>
-                  <button
-                    className="secondary"
-                    onClick={() => setConfirmDelete(null)}
-                  >
-                    {tr("Säilytä", "Keep")}
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="text"
-                  disabled={busy}
-                  onClick={() => setConfirmDelete(purchase.eventId)}
-                >
-                  {tr("Poista ostos", "Delete purchase")}
-                </button>
-              )}
-            </div>
-          </details>
-        );
-      })}
-    </section>
+            </>
+          ) : (
+            <button
+              className="text"
+              disabled={busy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              {tr("Poista ostos", "Delete purchase")}
+            </button>
+          )}
+        </div>
+      </details>
+    </details>
   );
 }
 
-function ReviewLine({
+/** Inline correction of one chosen row: its missing amount or quantity, or what it is. */
+function LineCorrection({
   fi,
   line,
   busy,
   reason,
   bind,
   act,
-  skip,
+  done,
 }: {
   fi: boolean;
   line: PurchaseLine;
   busy: boolean;
-  reason: (r: PurchaseLine["review"][number]) => string;
+  reason: (r: PurchaseLine["issues"][number]) => string;
   bind: { eventId: string; lineId: string; revision: number };
   act: (method: string, input?: unknown) => Promise<boolean>;
-  skip: () => void;
+  done: () => void;
 }) {
   const tr = (a: string, b: string) => (fi ? a : b);
   const [amount, setAmount] = useState("");
@@ -559,28 +667,42 @@ function ReviewLine({
   const [unit, setUnit] = useState<"pcs" | "g" | "ml">("pcs");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const first = useRef<HTMLInputElement>(null);
+  useEffect(() => first.current?.focus(), []);
   const cents = (text: string) => {
     const value = Number(text.replace(",", "."));
     return Number.isFinite(value) && value >= 0
       ? Math.round(value * 100)
       : null;
   };
-  const proposal =
-    line.proposal ??
-    (line.interpretation?.origin === "model" ? line.interpretation : null);
+  const save = async (method: string, input: unknown) => {
+    if (await act(method, input)) done();
+  };
   return (
-    <div className="review-line">
-      <strong>{line.label}</strong>
-      <small className="muted"> · {line.review.map(reason).join(", ")}</small>
+    <div
+      className="review-line receipt-correction"
+      role="group"
+      aria-label={`${tr("Korjaa rivi", "Correct row")}: ${line.display.text}`}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          done();
+        }
+      }}
+    >
+      <small className="muted">
+        {tr("Painettu rivi", "Printed row")}: {line.label}
+        {line.issues.length > 0 && ` · ${line.issues.map(reason).join(", ")}`}
+      </small>
       <div className="actions">
-        {line.review.includes("missing-amount") && (
+        {line.issues.includes("missing-amount") && (
           <form
             className="inline"
             onSubmit={(e) => {
               e.preventDefault();
               const value = cents(amount);
               if (value !== null)
-                void act("correctPurchase", {
+                void save("correctPurchase", {
                   ...bind,
                   field: "gross",
                   amount: value,
@@ -590,6 +712,7 @@ function ReviewLine({
             <label>
               {tr("Hinta (€)", "Amount (€)")}
               <input
+                ref={first}
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -600,14 +723,14 @@ function ReviewLine({
             </button>
           </form>
         )}
-        {line.review.includes("unknown-quantity") && (
+        {line.issues.includes("unknown-quantity") && (
           <form
             className="inline"
             onSubmit={(e) => {
               e.preventDefault();
               const value = Number(quantity);
               if (Number.isInteger(value) && value > 0)
-                void act("correctPurchase", {
+                void save("correctPurchase", {
                   ...bind,
                   field: "quantity",
                   amount: value,
@@ -637,64 +760,48 @@ function ReviewLine({
             </button>
           </form>
         )}
-        {proposal && (
-          <button
-            disabled={busy}
-            onClick={() =>
-              void act("interpretPurchase", {
-                ...bind,
-                name: proposal.name,
-                category: proposal.category,
-                qualifiers: proposal.qualifiers.map((q) => ({
-                  kind: q.kind,
-                  value: q.value,
-                })),
-                scope: proposal.scope,
-              })
-            }
+        <form
+          className="inline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!name.trim()) return;
+            void save("interpretPurchase", {
+              ...bind,
+              name: name.trim(),
+              category: category || null,
+              qualifiers: [],
+              scope: "food",
+            });
+          }}
+        >
+          <label>
+            {tr("Mitä tämä on", "What this is")}
+            <input
+              ref={
+                line.issues.some((i) => i !== "unreadable") ? undefined : first
+              }
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <select
+            aria-label={tr("Ryhmä", "Category")}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
           >
-            {tr("Hyväksy ehdotus", "Accept proposal")}
-            {proposal.name ? `: ${proposal.name}` : ""}
+            <option value="">{tr("Ei ryhmää", "No category")}</option>
+            {categorySchema.options.map((c) => (
+              <option key={c} value={c}>
+                {preferenceCategoryLabel(c, fi ? "fi" : "en")}
+              </option>
+            ))}
+          </select>
+          <button disabled={busy || !name.trim()}>
+            {tr("Tallenna nimi", "Save name")}
           </button>
-        )}
-        {line.review.includes("uninterpreted") && !proposal && (
-          <form
-            className="inline"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!name.trim()) return;
-              void act("interpretPurchase", {
-                ...bind,
-                name: name.trim(),
-                category: category || null,
-                qualifiers: [],
-                scope: "food",
-              });
-            }}
-          >
-            <label>
-              {tr("Mitä tämä on", "What this is")}
-              <input value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <select
-              aria-label={tr("Ryhmä", "Category")}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">{tr("Ei ryhmää", "No category")}</option>
-              {categorySchema.options.map((c) => (
-                <option key={c} value={c}>
-                  {preferenceCategoryLabel(c, fi ? "fi" : "en")}
-                </option>
-              ))}
-            </select>
-            <button disabled={busy || !name.trim()}>
-              {tr("Tallenna tulkinta", "Save interpretation")}
-            </button>
-          </form>
-        )}
-        <button className="text" onClick={skip}>
-          {tr("Ohita", "Skip")}
+        </form>
+        <button className="text" type="button" onClick={done}>
+          {tr("Sulje", "Close")}
         </button>
       </div>
     </div>

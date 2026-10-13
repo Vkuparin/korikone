@@ -89,10 +89,12 @@ for (const language of ["fi", "en"] as const) {
           .filter({ hasText: tr("Kuitti tuotiin", "Receipt imported") }),
       ).toBeVisible();
       await expect(cards).toHaveCount(1);
-      await expect(cards.first().locator("summary")).toContainText(
+      await expect(cards.first().locator(":scope > summary")).toContainText(
         tr("Summa täsmää", "Total matches"),
       );
-      await expect(cards.first().locator("summary")).toContainText(/7[,.]47/);
+      await expect(cards.first().locator(":scope > summary")).toContainText(
+        /7[,.]47/,
+      );
       // The same trip as a PDF is a duplicate and adds nothing.
       await pick(files.basicPdf);
       await expect(
@@ -110,25 +112,43 @@ for (const language of ["fi", "en"] as const) {
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(cards).toHaveCount(1);
 
-      // A missing price is shown in one review group and corrected there.
+      // A missing price is a factual issue: the card stays collapsed, says how many rows need a
+      // look, and the one row is corrected inline when the shopper opens it.
       await pick(files.missing);
       await expect(cards).toHaveCount(2);
-      const review = page.locator(".receipt-review");
-      await expect(review).toHaveCount(1);
-      await expect(review).toContainText(tr("Hinta puuttuu", "Amount missing"));
-      await review.getByLabel(tr("Hinta (€)", "Amount (€)")).fill("1,99");
-      await review
+      const missingCard = cards.filter({ hasText: "OMENA PUNAINEN" });
+      await expect(missingCard.locator(":scope > summary")).toContainText(
+        tr("1 huomioitavaa", "1 to check"),
+      );
+      await expect(missingCard).not.toHaveJSProperty("open", true);
+      await missingCard.locator(":scope > summary").click();
+      await expect(page.locator(".receipt-review")).toHaveCount(0);
+      const issueRow = missingCard.locator("tr", {
+        has: page.locator(".receipt-issue"),
+      });
+      await expect(issueRow).toContainText(
+        tr("Hinta puuttuu", "Amount missing"),
+      );
+      const opener = issueRow.getByRole("button", {
+        name: new RegExp(`^${tr("Korjaa rivi", "Correct row")}`),
+      });
+      await opener.click();
+      const correction = issueRow.getByRole("group", {
+        name: new RegExp(`^${tr("Korjaa rivi", "Correct row")}`),
+      });
+      await correction.getByLabel(tr("Hinta (€)", "Amount (€)")).fill("1,99");
+      await correction
         .getByRole("button", {
           name: tr("Tallenna hinta", "Save amount"),
           exact: true,
         })
         .click();
-      await expect(
-        page
-          .locator(".receipt-card")
-          .filter({ hasText: "OMENA PUNAINEN" })
-          .locator("summary"),
-      ).toContainText(tr("Summa täsmää", "Total matches"));
+      await expect(missingCard.locator(":scope > summary")).toContainText(
+        tr("Summa täsmää", "Total matches"),
+      );
+      await expect(missingCard).not.toContainText(
+        tr("Hinta puuttuu", "Amount missing"),
+      );
 
       // Neither import nor correction touched the shopping list or any request counter.
       const afterLocal = await load();
@@ -149,7 +169,7 @@ for (const language of ["fi", "en"] as const) {
         page
           .locator(".receipt-card")
           .filter({ hasText: "OMENA PUNAINEN" })
-          .locator("summary"),
+          .locator(":scope > summary"),
       ).toContainText(tr("Summa täsmää", "Total matches"));
 
       // Optional enrichment: consent starts off, one receipt is one explicit request.
@@ -174,6 +194,9 @@ for (const language of ["fi", "en"] as const) {
       ).toBeVisible();
       expect((await load()).developmentRequests).toBe(0);
       const kCard = cards.filter({ hasText: "BANAANI" });
+      // Enrichment and deletion sit in the optional details of an opened card.
+      await kCard.locator(":scope > summary").click();
+      await kCard.locator(".receipt-more summary").click();
       await kCard
         .getByRole("button", {
           name: new RegExp(

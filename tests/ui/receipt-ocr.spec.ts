@@ -58,8 +58,8 @@ test("offline scanned receipts show OCR review provenance and persist through re
     await expect(k.locator(".receipt-ocr-notice")).toContainText(
       "Tarkista määrät ja hinnat",
     );
-    await expect(k.locator("summary")).toContainText("Summa täsmää");
-    await expect(k.locator("summary")).toContainText("6,67");
+    await expect(k.locator(":scope > summary")).toContainText("Summa täsmää");
+    await expect(k.locator(":scope > summary")).toContainText("6,67");
     await expect(k.locator(".receipt-ocr-notice")).toContainText("Sivut: 1");
     await pick("ocr-k-clean.pdf");
     await expect(cards()).toHaveCount(1);
@@ -69,7 +69,11 @@ test("offline scanned receipts show OCR review provenance and persist through re
     await pick("ocr-s-uncertain.pdf");
     await expect(cards()).toHaveCount(2);
     const s = cards().filter({ hasText: "S-market Koekylä" });
-    await expect(s.locator("summary")).toContainText("Summa on vajaa");
+    await expect(s.locator(":scope > summary")).toContainText("Summa on vajaa");
+    // The card says it was read by OCR; the full notice sits in the optional details.
+    await expect(s.locator(":scope > summary")).toContainText(/OCR/);
+    await s.locator(":scope > summary").click();
+    await s.locator(".receipt-more summary").click();
     await expect(s.locator(".receipt-ocr-notice")).toBeVisible();
     const after = (await page.evaluate(() => window.korikone.load())).value;
     expect(after.state).toEqual(before.state);
