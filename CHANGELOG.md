@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.11.0 — pre-release, 13 October 2026
+
+- Import several PDF/TXT/CSV receipts with one picker or drop action in History. Save each file locally as it finishes; show a compact summary, duplicates and failed-file retry without routine line-by-line approval.
+- Keep PDF text and Finnish OCR local. Optional sanitized-label enrichment uses one consent-bound, provider-neutral request for the batch; local history remains usable without AI. First-import permission is nonblocking and can be changed in Settings.
+- Show readable names grounded in receipt evidence throughout purchase history, memory and suggestions. Preserve printed labels when specificity cannot be justified. Optional corrections take precedence without silently creating a remembered preference.
+- Add selected-store K-Ruoka non-food discovery, required size/specification questions and explicit variant/stock uncertainty. Non-food items use manual storefront handoff; automatic non-food basket writes and structured variants are unsupported. Grocery transfers keep their existing flow.
+
+Unsigned Windows x64 pre-release. Export a backup before upgrading. Real-receipt/model quality and live non-food catalogue acceptance remain separate. Images are not an intake format. Installation, updates, checkout/payment and S-kaupat's slot-reserving add-all action remain manual. See [release verification](docs/release-0.11.0.md).
+
 ## 0.10.0 — pre-release, 13 October 2026
 
 - Turn vague dish requests into simple meals with sides and selected-store products. Show assumed sides and amounts so they can be inspected or changed. Improve ordinary onion, frozen-pizza and stock-cube matching, with explicit product search and targeted edits for unresolved rows.

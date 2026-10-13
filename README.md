@@ -6,7 +6,7 @@ The current source includes explicit note updates, product matching, contextual 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.10.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.10.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.10.0 verification](docs/release-0.10.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.11.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.0 verification](docs/release-0.11.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -33,7 +33,7 @@ Write meals and groceries in one note. In the current source, press **Taio ostos
 
 Returning to the shopping list or restarting restores compatible products, totals and the time labelled **Viimeksi haetut hinnat** / **Last quoted prices**, without requesting interpretation or catalogue data. Explicit list, product and store changes refresh prices. A list without a compatible quote shows **Ei hinnoiteltu** / **Not priced** and an explicit action to fetch products and prices. If an edit saves but pricing fails, the saved rows stay visible as unpriced with a retry action. Transfer review checks fresh retailer data before any write.
 
-Import PDF, TXT or CSV receipts in Settings. PDF text and Finnish scanned pages are read locally, then stored as purchase evidence with totals and uncertain rows to review. Scanned pages show an OCR notice: check quantities and prices against the original receipt even when the total matches. OCR uses no ChatGPT requests; optional AI enrichment has its own consent. Copy or save the list for manual shopping; direct phone sync is not implemented.
+Pick or drop several PDF, TXT or CSV receipts in History. Each supported receipt is saved locally without routine row approval; a summary shows duplicates, failures and optional corrections. PDF text and Finnish scanned pages are read locally. Optional AI enrichment sends sanitized labels with separate consent, using one request for the batch. Readable names keep their evidence and printed fallback. OCR can need correction even when totals balance. K-Ruoka non-food discovery asks for missing specifications and uses manual storefront handoff; automatic non-food basket writes are unsupported. Copy or save the grocery list for manual shopping; direct phone sync is not implemented.
 
 ## Follow development
 
@@ -66,7 +66,7 @@ npm run package
 - Known pack and price evidence is shown explicitly; missing or ambiguous pack sizes remain unresolved until supported or confirmed. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
 - Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Known prices, deposits, fees and comparable changes are shown; unsupported values remain unknown. See the [roadmap](docs/roadmap.md).
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.10.0 verification](docs/release-0.10.0.md).
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.11.0 verification](docs/release-0.11.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

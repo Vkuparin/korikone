@@ -2,7 +2,7 @@
 
 Agreed direction on 9 October 2026: move from prototype to pre-release while keeping scope focused. The first version is **0.2.0-alpha.1**, distributed as an unsigned Windows x64 installer and marked as a GitHub pre-release.
 
-**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.10.0; deferred product features remain deferred.
+**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.11.0; deferred product features remain deferred.
 
 ## Included
 
@@ -38,3 +38,7 @@ v0.9.0 includes all 51 purchase-learning and usability cards. One canonical loca
 Checkout and payment remain manual. Scanned receipts require OCR outside Korikone. Phone sync, automatic OCR and local-model runners stay deferred. Detailed evidence is in [acceptance.md](acceptance.md).
 
 v0.10.0 includes all 36 Done calendar, offer, OCR and owner-playtest cards. One canonical local full flow and failed-case reruns passed; the completed-operation overlay click fix passed both affected English layouts. A refreshed unsigned package passed a short local OCR smoke. Live matching/offer/retailer and real-receipt checks remain separate; see [release-0.10.0.md](release-0.10.0.md).
+
+## v0.11.0
+
+Published as an unsigned Windows x64 pre-release with all 19 Done cards integrated. Multi-file receipt intake saves locally without routine row approval; optional sanitized-label enrichment and grounded names feed the existing purchase memory. K-Ruoka non-food discovery uses manual handoff; automatic basket writes remain unsupported. [Release verification](release-0.11.0.md) records checks and remaining real-receipt, model and retailer acceptance. Stable installer and pilot gates remain open.

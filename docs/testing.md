@@ -118,3 +118,7 @@ Focused checks, all local fixtures: `npm test -- tests/receipt-fixtures.test.ts 
 ## Non-food shopping fixtures (F22.8)
 
 The K development stand-in (`demo-k`) has a synthetic non-food shelf and declares discovery without a basket write. Use `tests/merchandise-fixtures.test.ts` for status outcomes and `tests/ui/merchandise-transfer.spec.ts` / `tests/ui/merchandise-row.spec.ts` for real IPC. A small store is `demo-alternate`. Never use a live store account for routine checks; see the owner gates in `docs/retail-expansion.md`.
+
+## v0.11.0 release evidence
+
+[Release verification](release-0.11.0.md) records the canonical local flow and short packaged smoke. The smoke now uses importReceipts and reads reconciliation.status from the saved purchase. Matching acceptance submits through the enabled primary action and polls the real planning snapshot, avoiding dependence on keyboard delivery to concurrent hidden windows or a particular progress surface. Reuse recorded passing checks; do not repeat the full flow after publication. Live receipt/model and non-food catalogue acceptance remains separate.

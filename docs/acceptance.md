@@ -261,3 +261,7 @@ Fixture evidence: variant statuses (not listed here, exact available, variant mi
 ## v0.11.0 receipt acceptance scope (F27.12)
 
 Fixture evidence: one drop or picker action saves a mixed batch as local history with no row action or modal; every product shows a grounded name or its printed label; no model request without consent and one for a whole import with it; the same trip in two formats is one purchase; shopping, preferences and the store basket are untouched; stale corrections are refused; backup and deletion behave. Details, measurements and what is not covered: [receipt evaluation](receipt-learning-evaluation.md#integration-audit-and-release-evidence-f2712). Owner checks, none run: a development-mode visual check of the History import, and optionally one live import (1 ChatGPT request). The full pre-release flow has not been run for v0.11.0.
+
+## v0.11.0 release verification, 13 October 2026
+
+All 19 Done cards are integrated and included in the published pre-release. [Release verification](release-0.11.0.md) records the canonical local flow, focused failure corrections, GitHub fast checks and short packaged receipt-intake smoke. No live AI/retailer or private receipt was used. Real-receipt/model quality and live K-Ruoka non-food catalogue acceptance remain open. Structured variants and non-food basket writes are unsupported; manual handoff is the delivered scope. Clean-machine installer, upgrade/uninstall, signing and household gates remain open.
