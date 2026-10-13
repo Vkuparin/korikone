@@ -154,3 +154,30 @@ Only what the F22.2 audit proved is used. There is no second client and the work
 Fixtures: `tests/k-ruoka-nonfood.test.ts` (5) runs the real `KRuokaSite`, `KRuokaProvider` and `Service` over the synthetic store page: exact size chosen with its store evidence, other size, unsized product and sold-out colour not chosen, a pan with unknown availability not chosen over one that reports it, eight batteries as two packs of four and a not-orderable ten-pack left alone, a missing size, an empty small store, sold out, unknown, a store change, a missing required attribute and an unsupporting provider with zero reads, a store error, a changed response, a product of another store, and no basket write. `tests/k-ruoka-nonfood-audit.test.ts` is updated for the three passed-on fields.
 
 For F22.6: read `lineMerchandiseStatus` for the row's statement, `requirement.merchandise.missing` for what to ask, and `product.merchandise` for brand and the shop/online evidence. For F22.7: `capabilities.merchandise.cartWrite` is the one switch; it stays false until a live write and read-back is authorized and passes. For F22.8: the development store stand-ins declare no non-food capability yet; add synthetic non-food products and the capability to `DemoProvider` for the K stand-in only.
+
+## Non-food requests in planning and edits (F22.4)
+
+Both existing tasks carry non-food requests; there is no new task, provider or call. Operation caps are unchanged: one planning interpretation with one repair, one edit request with one repair.
+
+**Planning** (`src/ai/output.ts`, `src/ai/draft.ts`). A direct item may carry `merchandise` (the F22.3 intent); groceries have it null. The planning wire schema's items gain the field, and a reply from before it is still accepted. `validateDraft` checks each such item with `validatedMerchandise(item, note, path)`:
+
+- the unit is pieces;
+- the family is in the note (`namesSameFood`);
+- every attribute has provenance `explicit-note`, its value is printed in the note as whole words (`printedIn`), and it holds no run of four or more digits;
+- a kind the family needs (`requiredMerchandiseKinds`: a size for footwear and clothing) and the shopper did not give is moved to `missing`, whether or not the model listed it;
+- no grocery category is put on the row.
+
+Anything else is `DraftError` reason `merchandise` and follows the one-repair rule. The intent schema is strict, so a model cannot supply stock, a price, a product ID or a capability. A size after "koko" or "size" and a measure such as `28 cm` are not amounts (`withoutAttributeNumbers` in `src/domain/intents.ts`): the amount is the number of pieces, one with quantity provenance `assumed` when no count is written.
+
+**Edits** (`src/domain/edits.ts`, `src/ai/edit.ts`).
+
+- `setItem` and `addItem` by name accept an optional `merchandise` for a new row only; an existing row keeps what it is. The row must be counted in pieces.
+- `setAttribute { rowKey, kind, value }` gives a non-food row one attribute the shopper stated, with provenance `clarified`, and removes that kind from `missing`. The row is searched again; nothing else is read. A row without a merchandise intent refuses it (`invalidEdit`). Undo restores the earlier intent.
+- The edit context lists `merchandise: { attributes, missing }` on such rows so the interpreter can tell what is being answered. Wire fields: `merchandise` on new items and `attribute: { kind, value }` for `setAttribute`, both null otherwise; a reply from before them is still accepted.
+- `validateEditIntent(raw, known, state, instruction)` takes the shopper's instruction as the only evidence: an attribute value or intent not printed in it, a value with four or more digits, or a `setAttribute` without a row target is invalid output.
+
+**Choice.** Nothing about choosing changed: among products evidenced as the exact variant, the existing price basis picks the lowest sufficient-pack total, and `accept` cannot select another variant because it is not a candidate the matcher allows.
+
+Development fixtures: `merchandiseFixture` in `src/ai/merchandise-fixtures.ts` reads rubber boots, a frying pan and batteries in Finnish and English for both the planning and the edit fixture. `tests/merchandise-inference.test.ts` (6) runs them through the real `Service`, K client and synthetic store: stated attributes in both languages with groceries unchanged and one request, a missing size asked and answered with `setAttribute` and undone, attributes, codes and retailer facts a model may not add, the repair limit and a quota error, and one edit adding two non-food items beside an untouched grocery row.
+
+For F22.6: ask for `requirement.merchandise.missing[0]` and send the answer as an ordinary edit with the row as `focusTargetId`; the applied result is `{ op: "setAttribute", name, to: "size: 32" }`. Planning failures name `merchandise` in `planning.failureCause.reason`.
