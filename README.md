@@ -6,7 +6,7 @@ The current source includes explicit note updates, product matching, contextual 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.9.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.9.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.9.0 verification](docs/release-0.9.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.10.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.10.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.10.0 verification](docs/release-0.10.0.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -27,7 +27,7 @@ Settings is divided into General, Household, Stores, ChatGPT and AI, Data, Advan
 
 ## Shopping and receipts
 
-Write meals and groceries in one note. In the current source, press **Päivitä lista** / **Update list** or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. A normal transfer opens the verified retailer destination. Missing products, existing quantities and budget overruns show an exception panel before a write.
+Write meals and groceries in one note. In the current source, press **Taio ostoslista** / **Create my shopping list** (or **Taio muutokset** / **Update my shopping list** for edits), or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. A normal transfer opens the verified retailer destination. Counts, missing rows and budget information are visible before transfer. Normal transfers send and open the store in one action; Review before transfer is optional in Advanced settings. New list confirms once and clears the entire current shopping workspace.
 
 **Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press the update button or Ctrl+Enter to retry. Editing during an update discards its obsolete response without starting another request.
 
@@ -66,7 +66,7 @@ npm run package
 - Known pack and price evidence is shown explicitly; missing or ambiguous pack sizes remain unresolved until supported or confirmed. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
 - Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Known prices, deposits, fees and comparable changes are shown; unsupported values remain unknown. See the [roadmap](docs/roadmap.md).
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.9.0 verification](docs/release-0.9.0.md).
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.10.0 verification](docs/release-0.10.0.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

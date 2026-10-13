@@ -2,7 +2,7 @@
 
 Agreed direction on 9 October 2026: move from prototype to pre-release while keeping scope focused. The first version is **0.2.0-alpha.1**, distributed as an unsigned Windows x64 installer and marked as a GitHub pre-release.
 
-**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.9.0; deferred product features remain deferred.
+**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.10.0; deferred product features remain deferred.
 
 ## Included
 
@@ -23,7 +23,7 @@ Published v0.4.0 includes the accepted smooth-flow roadmap work: U1, U2, U7, U8,
 - K-Ruoka's small cart transfer and signed-in browser handoff passed on 9 October 2026: coffee quantity 0 to 1, verified readback, duplicate-safe reopening and owner-observed destination. The broader two-product and checkout-page check remains roadmap task A.1.
 - Test a clean Windows install, an upgrade with existing data, and uninstall behavior. A packaged executable smoke test does not establish installer acceptance.
 - Observe real multi-dish notes, varied receipts and household use without coaching.
-- Signing is unavailable, as reported by the owner on 9 October 2026. v0.9.0 remains unsigned. Revisit signing and verify the distribution process before broad release.
+- Signing is unavailable, as reported by the owner on 9 October 2026. v0.10.0 remains unsigned. Revisit signing and verify the distribution process before broad release.
 
 v0.5.0 integrates the published v0.4.0 flow with embedded retailer tabs, shared S-kaupat library calls, one-screen setup and second-chain setup in Settings. Source and packaged checks pass. Authorized live acceptance verified remembered sessions, small transfers and duplicate-safe reopening with zero ChatGPT requests. Results and remaining stable-release gates are recorded in [release-0.5.0.md](release-0.5.0.md).
 
@@ -36,3 +36,5 @@ v0.8.0 ships the 21 completed edit, appearance, store-access, recipe-import and 
 v0.9.0 includes all 51 purchase-learning and usability cards. One canonical local release flow ran; failures received focused corrections and affected reruns, followed by one small packaged local-PDF-import/restart smoke. No live account, AI or private receipt was used. Live receipt/order/enrichment and visual owner checks stay separate; see [release-0.9.0.md](release-0.9.0.md).
 
 Checkout and payment remain manual. Scanned receipts require OCR outside Korikone. Phone sync, automatic OCR and local-model runners stay deferred. Detailed evidence is in [acceptance.md](acceptance.md).
+
+v0.10.0 includes all 36 Done calendar, offer, OCR and owner-playtest cards. One canonical local full flow and failed-case reruns passed; the completed-operation overlay click fix passed both affected English layouts. A refreshed unsigned package passed a short local OCR smoke. Live matching/offer/retailer and real-receipt checks remain separate; see [release-0.10.0.md](release-0.10.0.md).
