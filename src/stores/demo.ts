@@ -26,6 +26,9 @@ const catalogue: [
   ["weighed-mince", "Naudan jauheliha irtomyynti", 0, "g", 999],
   ["loose-banana", "Banaani", 0, "g", 40],
   ["oats", "Kaurahiutale 1 kg", 1000, "g", 169],
+  // Two pack sizes: the larger pack has the lower unit price and the higher payable total.
+  ["flour", "Vehnäjauho 1 kg", 1000, "g", 139],
+  ["flour-large", "Vehnäjauho 2 kg", 2000, "g", 229],
   ["milk", "Maito 1 l", 1000, "ml", 119],
   ["coffee", "Kahvi suodatinjauhatus 500 g", 500, "g", 599],
   ["pizza", "Pakastepizza 350 g", 350, "g", 249],

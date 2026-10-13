@@ -308,6 +308,34 @@ export function StoresSettings({
           </button>
         </p>
       )}
+      <fieldset className="price-basis">
+        <legend>{fi ? "Hintavertailu" : "Price comparison"}</legend>
+        {field(
+          fi ? "Edullisin vaihtoehto" : "Best price",
+          <select
+            aria-label={fi ? "Hintaperuste" : "Price basis"}
+            value={state.priceBasis}
+            disabled={busy}
+            onChange={(e) =>
+              void call("setPriceBasis", {
+                priceBasis: e.target.value as "unit" | "total",
+              })
+            }
+          >
+            <option value="unit">
+              {fi ? "Pienin yksikköhinta" : "Lowest unit price"}
+            </option>
+            <option value="total">
+              {fi ? "Pienin kokonaishinta" : "Lowest total cost"}
+            </option>
+          </select>,
+        )}
+        <p className="muted">
+          {fi
+            ? "Sama valinta koskee molempia kauppaketjuja. Parempi yksikköhinta voi maksaa kerralla enemmän. Asetus ei muuta nykyistä listaa; se vaikuttaa seuraavaan hinnoitteluun ja vaihtoehtojen järjestykseen."
+            : "The same choice applies to both chains. A better unit price can cost more at the checkout. The setting does not change the current list; it affects the next pricing and the order of alternatives."}
+        </p>
+      </fieldset>
       <details>
         <summary>{t("advancedSettings")}</summary>
         {field(

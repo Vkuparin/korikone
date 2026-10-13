@@ -16,6 +16,27 @@ import { exclusionTerms } from "../domain/planner";
 import { matchingReasonLabel } from "./matching-reasons";
 import { preferenceAttributeLabel } from "./category-preferences";
 import { approximateCost, pieceQuote } from "../domain/planner";
+import {
+  comparePriceAlternative,
+  type PriceMetrics,
+} from "../domain/price-ranking";
+
+/** A better product for the same row under the chosen price basis, with its verified arithmetic. */
+export type RowAlternative = {
+  product: Product;
+  comparison: NonNullable<ReturnType<typeof comparePriceAlternative>>;
+};
+
+/** A unit value such as `3,00 € / kg`, or null when the evidence cannot support one. */
+export function unitValueText(
+  metrics: PriceMetrics | null,
+  money: (cents: number) => string,
+): string | null {
+  const value = metrics?.unitValue;
+  if (!metrics || !value) return null;
+  const perUnit = Math.round(value.numerator / value.denominator);
+  return `${metrics.estimated || value.estimated ? "~" : ""}${money(perUnit)} / ${value.unit}`;
+}
 
 /**
  * The decision details of one list row: what is needed and bought, why this product,
@@ -43,8 +64,8 @@ export function RowDetails({
     preference: CategoryPreference;
   }) => Promise<boolean>;
   confirmPack: (product: Product, amount: number, unit: Unit) => void;
-  /** A cheaper product for the same ingredient, with its cost for the needed amount. */
-  cheaper: { product: Product; total: number } | null;
+  /** A better-priced product for the same ingredient under the chosen price basis. */
+  cheaper: RowAlternative | null;
 }) {
   const { state } = snapshot;
   const language = state.language;
@@ -163,17 +184,13 @@ export function RowDetails({
         </p>
       )}
       {cheaper && (
-        <p className="row-alternative">
-          {language === "fi" ? "Edullisempi vastaava" : "Cheaper alternative"}:{" "}
-          {cheaper.product.name} · {money(cheaper.total)}{" "}
-          <button
-            className="text"
-            disabled={busy}
-            onClick={() => choose(cheaper.product)}
-          >
-            {language === "fi" ? "Vaihda" : "Swap"}
-          </button>
-        </p>
+        <AlternativeSummary
+          alternative={cheaper}
+          language={language}
+          money={money}
+          busy={busy}
+          choose={choose}
+        />
       )}
       {!!line.excluded && (
         <p className="muted">
@@ -447,5 +464,71 @@ function PackSizeForm({
         {t("confirmPackSize")}
       </button>
     </form>
+  );
+}
+
+/**
+ * The alternative offered for a row: its pack count, unit value and payable cost, and a label
+ * that says only what actually improves. A better unit value that costs more up front is never
+ * described as a saving.
+ */
+function AlternativeSummary({
+  alternative,
+  language,
+  money,
+  busy,
+  choose,
+}: {
+  alternative: RowAlternative;
+  language: string;
+  money: (cents: number) => string;
+  busy: boolean;
+  choose: (product: Product) => void | Promise<unknown>;
+}) {
+  const fi = language === "fi";
+  const tr = (a: string, b: string) => (fi ? a : b);
+  const { comparison, product } = alternative;
+  const saving = comparison.payableDelta < 0;
+  const proposedUnit = unitValueText(comparison.alternative, money);
+  const currentUnit = unitValueText(comparison.current, money);
+  const packs = comparison.alternative.packs;
+  return (
+    <div className="row-alternative">
+      <p>
+        <strong>
+          {saving
+            ? tr("Edullisempi vastaava", "Cheaper alternative")
+            : tr("Edullisempi yksikköhinta", "Lower unit price")}
+        </strong>
+        : {product.name} ·{" "}
+        {comparison.alternative.estimated ? tr("noin ", "about ") : ""}
+        {money(comparison.alternative.payable)}
+        {" · "}
+        {packs}{" "}
+        {tr(
+          packs === 1 ? "pakkaus" : "pakkausta",
+          packs === 1 ? "pack" : "packs",
+        )}
+        {proposedUnit && ` · ${proposedUnit}`}
+      </p>
+      <p className="muted">
+        {saving
+          ? tr(
+              `Säästät ${money(-comparison.payableDelta)} tällä listalla.`,
+              `Saves ${money(-comparison.payableDelta)} on this list.`,
+            )
+          : tr(
+              `Parempi yksikköhinta${currentUnit ? ` (nyt ${currentUnit})` : ""}, mutta maksat nyt ${money(comparison.payableDelta)} enemmän.`,
+              `A better unit price${currentUnit ? ` (now ${currentUnit})` : ""}, but it costs ${money(comparison.payableDelta)} more up front.`,
+            )}{" "}
+        <button
+          className="text"
+          disabled={busy}
+          onClick={() => choose(product)}
+        >
+          {tr("Vaihda", "Swap")}
+        </button>
+      </p>
+    </div>
   );
 }

@@ -1,6 +1,10 @@
-import { candidateSuitability, purchasable } from "../domain/matching";
+import {
+  candidateSuitability,
+  priceAlternatives,
+  purchasable,
+} from "../domain/matching";
 import { packageAmount } from "../domain/package-content";
-import { priceMetrics } from "../domain/price-ranking";
+import { comparePriceAlternative } from "../domain/price-ranking";
 import { currentOffer } from "../domain/prices";
 import { matchingReasonLabel } from "./matching-reasons";
 import { GroupedReview } from "./grouped-review";
@@ -2129,23 +2133,37 @@ export function ShoppingWorkspace({
                         : 100;
                   const count =
                     line?.product && !line.approximate ? line.packs : r.amount;
-                  const cost = (p: Product) =>
-                    priceMetrics(r, p)?.payable ?? Infinity;
-                  const cheaper = line?.candidates
-                    .filter(
-                      (p) =>
-                        purchasable(r, p) &&
-                        candidateSuitability(r, p, {
-                          context: state.context,
-                          preferences: state.categoryPreferences,
-                          exclusions: exclusionTerms(
-                            state.household.exclusions,
-                          ),
-                        }).status === "eligible" &&
-                        line.total !== null &&
-                        cost(p) < line.total,
-                    )
-                    .sort((a, b) => cost(a) - cost(b))[0];
+                  // One shared eligibility filter and sort for the chosen price basis.
+                  const best =
+                    line?.product && line.total !== null
+                      ? priceAlternatives(
+                          r,
+                          line.product,
+                          line.candidates.filter((p) => purchasable(r, p)),
+                          {
+                            context: state.context,
+                            preferences: state.categoryPreferences,
+                            exclusions: exclusionTerms(
+                              state.household.exclusions,
+                            ),
+                            productPreference: state.productPreference,
+                            priceBasis: state.priceBasis,
+                            sourceNote: state.note,
+                            accepted: state.accepted[r.id] ?? [],
+                          },
+                        )[0]
+                      : undefined;
+                  const comparison =
+                    best && line?.product
+                      ? comparePriceAlternative(
+                          r,
+                          line.product,
+                          best,
+                          state.priceBasis,
+                        )
+                      : null;
+                  const cheaper =
+                    best && comparison ? { product: best, comparison } : null;
                   return (
                     <div
                       className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
@@ -2382,8 +2400,12 @@ export function ShoppingWorkspace({
                           className="text row-alternative"
                           onClick={() => setOpened(key)}
                         >
-                          {tr("Edullisempi vaihtoehto", "Cheaper option")}{" "}
-                          {money(line!.total! - cost(cheaper))}
+                          {cheaper.comparison.payableDelta < 0
+                            ? `${tr("Edullisempi vaihtoehto", "Cheaper option")} ${money(-cheaper.comparison.payableDelta)}`
+                            : tr(
+                                "Edullisempi yksikköhinta",
+                                "Lower unit price",
+                              )}
                         </button>
                       )}
                       {undo[key] && (
@@ -2424,11 +2446,7 @@ export function ShoppingWorkspace({
                               });
                             return applied;
                           }}
-                          cheaper={
-                            !home && cheaper
-                              ? { product: cheaper, total: cost(cheaper) }
-                              : null
-                          }
+                          cheaper={!home && cheaper ? cheaper : null}
                           confirmPack={(p, amount, unit) =>
                             void call("setPackSize", {
                               productId: p.id,
