@@ -159,3 +159,14 @@ Audit of the reported "processing" at startup found two causes. The first `load`
 - Genuine conditions stay visible: an interrupted transfer is reported beside the transfer action, and a failed load shows its error.
 
 Fixtures: `tests/ui/startup.spec.ts` launches development Electron with an empty profile, a saved priced list (launch, reload and return to the list) and a profile with an interrupted transfer. Each checks the kept content, the status texts shown from the first moment of the page, and zero AI, catalogue and store-write counters. Launch-to-list time is recorded as a test annotation, not asserted.
+
+## Store view navigation (B2.11)
+
+The Store view has two different ways back and names each for what it does.
+
+- **Previous page (K-Ruoka / S-kaupat)** is the store site's own history. `StoreViews.history(chain)` in `src/main/store-view.ts` reports `{ canGoBack }` from the page's navigation history; it is sent to the window as `app:storeHistoryChanged` (`window.korikone.onStoreHistoryChange`) after every navigation and load, and read once with `window.korikone.storeHistory({ chain })` when a chain's tab is shown. The button is disabled while the page has nothing earlier, with the reason in its description ("Kaupan sivustolla ei ole aiempaa sivua tässä näkymässä."). When enabled its description says it does not leave the Store view. A page opened directly, such as the list Korikone opens after a transfer, starts with no history.
+- **Palaa ostoslistaan / Return to shopping list** leaves the Store view for Korikone's list (`returnToList` on `StorePage`). The list comes back at the scroll position it was left at, for the window and for the list panel. The store page stays loaded, as before. During first setup the existing "back to setup" control is used instead.
+
+Nothing here reads the catalogue, asks a model or writes to a store.
+
+Fixture: `tests/ui/store-back.spec.ts` uses the local development store pages for both chains: a directly opened page with no history, history after the shopper moves on, a reload, walking back until history is exhausted, the toolbar's measured layout at 800 px, and the return to the same place in an unchanged list.

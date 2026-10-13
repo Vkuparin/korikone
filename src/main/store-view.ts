@@ -193,8 +193,31 @@ export class StoreViews {
       event.preventDefault();
       void this.navigate(chain, view, event.url).catch(() => {});
     });
+    // The toolbar's Back is the store page's own history: say when it has somewhere to go.
+    for (const event of [
+      "did-navigate",
+      "did-navigate-in-page",
+      "did-finish-load",
+    ] as const)
+      contents.on(event as "did-finish-load", () =>
+        this.onHistory(chain, this.history(chain)),
+      );
     this.views.set(chain, view);
     return view;
+  }
+
+  /** Called whenever a chain's page history may have changed. */
+  onHistory: (chain: Chain, history: { canGoBack: boolean }) => void = () => {};
+
+  /** Whether the chain's store page has an earlier page of its own to go back to. */
+  history(chain: Chain): { canGoBack: boolean } {
+    const view = this.views.get(chain);
+    return {
+      canGoBack:
+        !!view &&
+        !view.webContents.isDestroyed() &&
+        view.webContents.navigationHistory.canGoBack(),
+    };
   }
 
   /** Shows a chain's tab in the given area of the window, loading its front page the first time. */

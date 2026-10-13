@@ -50,6 +50,7 @@ const methods = [
   "storeView",
   "hideStore",
   "storeAction",
+  "storeHistory",
   "signInAI",
   "cancelAI",
   "cancelPlanning",
@@ -102,6 +103,17 @@ contextBridge.exposeInMainWorld("korikone", {
     ) => callback(value);
     ipcRenderer.on("app:planningChanged", listener);
     return () => ipcRenderer.removeListener("app:planningChanged", listener);
+  },
+  onStoreHistoryChange: (
+    callback: (value: { chain: string; canGoBack: boolean }) => void,
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      value: { chain: string; canGoBack: boolean },
+    ) => callback(value);
+    ipcRenderer.on("app:storeHistoryChanged", listener);
+    return () =>
+      ipcRenderer.removeListener("app:storeHistoryChanged", listener);
   },
   // An update found after the first snapshot was returned.
   onUpdateChange: (

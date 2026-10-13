@@ -71,6 +71,12 @@ declare global {
       onUpdateChange: (
         callback: (value: { version: string; url: string }) => void,
       ) => () => void;
+      onStoreHistoryChange: (
+        callback: (value: { chain: string; canGoBack: boolean }) => void,
+      ) => () => void;
+      storeHistory: (input: {
+        chain: string;
+      }) => Promise<{ ok: boolean; value: { canGoBack: boolean } }>;
       getAppInfo: () => Promise<{
         ok: boolean;
         value: { version: string; developmentLocked: boolean };
@@ -126,6 +132,30 @@ function App() {
     cheaperProductIds: [],
   });
   const [page, setPage] = useState<Key>("week");
+  // Where the shopping list was scrolled when the shopper left it, so the Store view's own
+  // "Return to shopping list" brings them back to the same place.
+  const listScroll = useRef({ window: 0, panel: 0 });
+  const restoreList = useRef(false);
+  useEffect(() => {
+    if (page !== "week") return;
+    const remember = () => {
+      listScroll.current = {
+        window: window.scrollY,
+        panel: document.querySelector(".shopping-panel")?.scrollTop ?? 0,
+      };
+    };
+    if (restoreList.current) {
+      restoreList.current = false;
+      const saved = { ...listScroll.current };
+      requestAnimationFrame(() => {
+        window.scrollTo(0, saved.window);
+        const panel = document.querySelector(".shopping-panel");
+        if (panel) panel.scrollTop = saved.panel;
+      });
+    }
+    window.addEventListener("scroll", remember, true);
+    return () => window.removeEventListener("scroll", remember, true);
+  }, [page]);
   useEffect(
     () =>
       subscribeAppearance((value) => {
@@ -795,6 +825,10 @@ function App() {
                 chain={storeChain}
                 setChain={setStoreChain}
                 settings={() => openSettings("stores")}
+                returnToList={() => {
+                  restoreList.current = true;
+                  setPage("week");
+                }}
               />
             )}
             {page === "recipes" && (

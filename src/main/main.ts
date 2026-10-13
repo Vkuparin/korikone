@@ -300,6 +300,13 @@ else
       () => development,
       () => service.state.language,
     );
+    stores.onHistory = (chain, history) => {
+      if (!window.isDestroyed())
+        window.webContents.send("app:storeHistoryChanged", {
+          chain,
+          ...history,
+        });
+    };
     const chainInput = z.enum(["k-ruoka", "s-kaupat"]);
     const bounds = z.object({
       x: z.number().int().min(0),
@@ -982,6 +989,11 @@ else
         stores.hide();
         return service.snapshot();
       },
+      // The store page's own history, for the toolbar's Back. Not Korikone's navigation.
+      storeHistory: async (input) => {
+        const { chain } = z.object({ chain: chainInput }).strict().parse(input);
+        return stores.history(chain);
+      },
       storeAction: async (input) => {
         const { chain, action } = z
           .object({
@@ -1144,6 +1156,7 @@ else
             name === "storeView" ||
             name === "hideStore" ||
             name === "storeAction" ||
+            name === "storeHistory" ||
             name === "load"
           ) {
             const value = (await handler(input)) as object;

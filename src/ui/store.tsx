@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import { liveProviders } from "../stores/provider";
 
@@ -24,11 +24,14 @@ export function StorePage({
   chain,
   setChain,
   settings,
+  returnToList,
 }: {
   snapshot: Snapshot;
   chain: Chain | null;
   setChain: (chain: Chain) => void;
   settings: () => void;
+  /** Leaves the Store view for Korikone's shopping list. Absent during first setup. */
+  returnToList?: () => void;
 }) {
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -41,6 +44,25 @@ export function StorePage({
         chains[0] ??
         null);
   const frame = useRef<HTMLDivElement>(null);
+  // Whether each chain's store page has an earlier page of its own. Unknown counts as none.
+  const [history, setHistory] = useState<Record<string, boolean>>({});
+  useEffect(
+    () =>
+      window.korikone.onStoreHistoryChange(({ chain, canGoBack }) =>
+        setHistory((known) => ({ ...known, [chain]: canGoBack })),
+      ),
+    [],
+  );
+  useEffect(() => {
+    if (!current) return;
+    void window.korikone.storeHistory({ chain: current }).then((result) => {
+      if (result.ok)
+        setHistory((known) => ({
+          ...known,
+          [current]: result.value.canGoBack,
+        }));
+    });
+  }, [current]);
 
   useLayoutEffect(() => {
     if (!current) return;
@@ -106,9 +128,39 @@ export function StorePage({
             </button>
           ))}
         </div>
-        <button className="text" onClick={() => action("back")}>
-          ← {tr("Takaisin", "Back")}
+        {returnToList && (
+          <button
+            className="secondary"
+            data-store-return="list"
+            onClick={returnToList}
+          >
+            {tr("Palaa ostoslistaan", "Return to shopping list")}
+          </button>
+        )}
+        <button
+          className="text"
+          data-store-action="back"
+          disabled={!history[current]}
+          aria-describedby="store-back-help"
+          onClick={() => action("back")}
+        >
+          ←{" "}
+          {tr(
+            `Edellinen sivu (${NAMES[current]})`,
+            `Previous page (${NAMES[current]})`,
+          )}
         </button>
+        <span id="store-back-help" className="sr-only">
+          {history[current]
+            ? tr(
+                "Siirtyy kaupan sivuston edelliselle sivulle. Ei poistu Kauppa-näkymästä.",
+                "Goes to the previous page of the store site. Does not leave the Store view.",
+              )
+            : tr(
+                "Kaupan sivustolla ei ole aiempaa sivua tässä näkymässä.",
+                "The store site has no earlier page in this view.",
+              )}
+        </span>
         <button className="text" onClick={() => action("reload")}>
           {tr("Lataa uudelleen", "Reload")}
         </button>
