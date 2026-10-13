@@ -53,7 +53,7 @@ const basket = JSON.parse(
 );
 const large = () =>
   client(LARGE_STORE, (query) => ({
-    body: response(LARGE_STORE, query, largeStore[query] ?? []),
+    body: response(LARGE_STORE, query, largeStore[query.toLowerCase()] ?? []),
   }));
 
 test("what the captured response carries, and which of it the site client passes on", async () => {
@@ -78,18 +78,22 @@ test("what the captured response carries, and which of it the site client passes
   ]);
   expect(Object.keys(product.availability).sort()).toEqual(["store", "web"]);
   expect(Object.keys(captured).sort()).toContain("totalHits");
-  // The site client passes on seven fields; brand, the store/web split and the hit count stop there.
+  // Before F22.5 the site client passed on seven fields. It now also passes on the brand and the
+  // store/web availability split, which the captured response shows. The hit count still stops.
   const { site } = large();
   const raw = (await site.call("search_products", {
     store_id: LARGE_STORE,
-    query: "AA paristo",
+    query: "alkaliparisto aa",
     limit: 20,
   })) as { results: Record<string, unknown>[] };
   expect(Object.keys(raw.results[0]).sort()).toEqual([
     "averagePieceWeightKg",
+    "brand",
     "ean",
+    "inStore",
     "isAvailable",
     "name",
+    "online",
     "price",
     "priceIsApproximate",
     "priceUnit",
@@ -101,12 +105,12 @@ test("a search is bound to the selected store and needs no sign-in; the basket d
   const { provider, sent } = large();
   const found = await provider.searchProducts(
     store(LARGE_STORE),
-    "kumisaappaat 32",
+    "kumisaapas 32",
     "boots",
   );
   expect(sent[0]).toMatchObject({
     method: "POST",
-    path: `/kr-api/v2/product-search/${encodeURIComponent("kumisaappaat 32")}?language=fi&storeId=${LARGE_STORE}&offset=0&limit=20`,
+    path: `/kr-api/v2/product-search/${encodeURIComponent("kumisaapas 32")}?language=fi&storeId=${LARGE_STORE}&offset=0&limit=20`,
   });
   expect(found.every((p) => p.storeId === LARGE_STORE)).toBe(true);
   // Signed out: discovery still answers, the basket refuses.
@@ -124,11 +128,7 @@ test("a search is bound to the selected store and needs no sign-in; the basket d
     ]),
   }));
   await expect(
-    other.provider.searchProducts(
-      store(LARGE_STORE),
-      "kumisaappaat 32",
-      "boots",
-    ),
+    other.provider.searchProducts(store(LARGE_STORE), "kumisaapas 32", "boots"),
   ).rejects.toThrow("contextChanged");
 });
 
@@ -136,7 +136,7 @@ test("the exact variant is an EAN and a name: size and colour exist only as prin
   const { provider } = large();
   const boots = await provider.searchProducts(
     store(LARGE_STORE),
-    "kumisaappaat 32",
+    "kumisaapas 32",
     "boots",
   );
   expect(boots.map((p) => [p.id, p.name, p.price, p.available])).toEqual([
@@ -154,14 +154,14 @@ test("the exact variant is an EAN and a name: size and colour exist only as prin
   // Nothing structured describes the variant: no size, colour or brand reaches the product.
   for (const product of boots) {
     expect(Object.keys(product)).not.toEqual(
-      expect.arrayContaining(["size", "colour", "brand", "attributes"]),
+      expect.arrayContaining(["size", "colour", "attributes"]),
     );
     expect(product.evidence).toMatchObject({ category: null, family: null });
   }
   // The requested size is absent from this answer: sizes 31 only.
   const missing = await provider.searchProducts(
     store(LARGE_STORE),
-    "kumisaappaat 34",
+    "kumisaapas 34",
     "boots",
   );
   expect(missing.map((p) => p.name)).toEqual([
@@ -169,7 +169,7 @@ test("the exact variant is an EAN and a name: size and colour exist only as prin
   ]);
 });
 
-test("today's mapping of single items, multipacks, missing price and unknown stock", async () => {
+test("the adapter's own mapping of single items, multipacks, missing price and unknown stock", async () => {
   const { provider } = large();
   const facts = async (query: string) =>
     (await provider.searchProducts(store(LARGE_STORE), query, "item")).map(
@@ -183,7 +183,7 @@ test("today's mapping of single items, multipacks, missing price and unknown sto
     );
   // A single item sold by the piece has no count in its name, so its pack is unknown today and
   // the row would wait for the shopper to confirm a pack size. "28 cm" is not a pack.
-  expect(await facts("paistinpannu")).toEqual([
+  expect(await facts("paistinpannu 28 cm")).toEqual([
     {
       id: "6400000001004",
       pack: [0, "pcs"],
@@ -209,7 +209,7 @@ test("today's mapping of single items, multipacks, missing price and unknown sto
     },
   ]);
   // A printed count is read as the pack.
-  expect(await facts("AA paristo")).toEqual([
+  expect(await facts("alkaliparisto aa")).toEqual([
     {
       id: "6400000002001",
       pack: [4, "pcs"],
@@ -244,7 +244,7 @@ test("a small store's empty answer, an error and a changed site are three differ
   expect(
     await small.provider.searchProducts(
       store(SMALL_STORE),
-      "kumisaappaat 32",
+      "kumisaapas 32",
       "boots",
     ),
   ).toEqual([]);
@@ -267,7 +267,7 @@ test("a basket write is by EAN and piece count, only for a product this session'
   const { site } = large();
   await site.call("search_products", {
     store_id: LARGE_STORE,
-    query: "AA paristo",
+    query: "alkaliparisto aa",
     limit: 20,
   });
   // An EAN the search did not return in this session is refused before any request.

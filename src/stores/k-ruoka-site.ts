@@ -33,6 +33,18 @@ const searchSchema = z.object({
             ean: z.string().min(1),
             localizedName: localized,
             isAvailable: z.boolean().nullish(),
+            // Seen in the response captured on 9 October 2026; optional everywhere.
+            availability: z
+              .object({
+                store: z.boolean().nullish(),
+                web: z.boolean().nullish(),
+              })
+              .passthrough()
+              .nullish(),
+            brand: z
+              .object({ name: z.string().nullish() })
+              .passthrough()
+              .nullish(),
             store: z.object({ id: z.string() }).nullish(),
             productAttributes: z
               .object({
@@ -368,6 +380,9 @@ export class KRuokaSite {
               averagePieceWeightKg:
                 product.productAttributes?.measurements?.averageWeight ?? null,
               isAvailable: product.isAvailable ?? null,
+              brand: product.brand?.name?.trim().slice(0, 80) || null,
+              inStore: product.availability?.store ?? null,
+              online: product.availability?.web ?? null,
             },
           ];
         }),

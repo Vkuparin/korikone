@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { packageAmount, needsPackageCount } from "./package-content";
 import {
+  merchandiseStatus,
+  variantMatch,
+  type MerchandiseCapabilities,
+  type MerchandiseStatus,
+} from "./merchandise";
+import {
   categorySchema,
   classificationSchema,
   validateAIClassification,
@@ -316,6 +322,14 @@ function assess(
     approximateCost(requirement, product) === null
   )
     return reject("unit");
+  if (requirement.merchandise) {
+    // Only a product whose name prints every required attribute is the requested variant.
+    const variant = variantMatch(product.name, requirement.merchandise);
+    if (variant === "other") return reject("qualifier-conflict");
+    if (variant === "unverified") return reject("qualifier-unknown");
+    // In the shop but not orderable online: never chosen without the shopper's say.
+    if (product.merchandise?.online === false) return review("stock");
+  }
   if (!policy.category) {
     if (!relevant(product.name, requirement.name))
       return matchesSpecifiedQualifiers(product.name, requirement)
@@ -378,6 +392,41 @@ function assess(
     return review("pack");
   if (!purchasable(requirement, product)) return review("price");
   return result("eligible", "resolved");
+}
+/**
+ * The one statement a quoted non-food row supports (F22.3), from the products read for it. Null
+ * for a grocery row. `capabilities` are the provider's; `searched` is false for a row that was
+ * not read, for example because an attribute is still missing.
+ */
+export function lineMerchandiseStatus(
+  line: Pick<BasketLine, "requirement" | "candidates" | "matching">,
+  capabilities: MerchandiseCapabilities | undefined,
+): MerchandiseStatus | null {
+  const intent = line.requirement.merchandise;
+  if (!intent) return null;
+  if (!capabilities?.discovery) return "unsupported";
+  const status = merchandiseStatus(intent, {
+    kind: "results",
+    products: line.candidates
+      .filter((p) => relevant(p.name, line.requirement.name))
+      .map((p) => ({
+        name: p.name,
+        // Not orderable online counts as availability unknown for the order, never as available.
+        available:
+          p.available === true && p.merchandise?.online === false
+            ? null
+            : p.available,
+      })),
+  });
+  // Products refused as another or an unproven variant are not kept as candidates, but their
+  // refusal shows that the family is listed at this store.
+  return status === "not-listed-here" &&
+    line.matching?.decisions.some(
+      (d) =>
+        d.reason === "qualifier-conflict" || d.reason === "qualifier-unknown",
+    )
+    ? "variant-missing"
+    : status;
 }
 export function candidateSuitability(
   requirement: Requirement,

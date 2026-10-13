@@ -31,6 +31,10 @@ const productSchema = z.object({
   priceIsApproximate: z.boolean().nullish(),
   isAvailable: z.boolean().nullish(),
   averagePieceWeightKg: z.number().positive().nullish(),
+  // Passed on by the site client only (F22.5); the worker fallback does not report them.
+  brand: z.string().max(80).nullish(),
+  inStore: z.boolean().nullish(),
+  online: z.boolean().nullish(),
 });
 const cartSchema = z.object({
   basketId: z.string().min(1),
@@ -89,6 +93,14 @@ export class KRuokaProvider implements StoreProvider {
       cart: true,
       orderHistory: false,
       offers: { public: false, personal: !!offerReader },
+      // From the F22.2 audit: store-scoped discovery, variants evidenced by the printed name
+      // only, availability as a flag with unknown, and no verified basket write for non-food.
+      merchandise: {
+        discovery: true,
+        variants: "name",
+        stock: "flag",
+        cartWrite: false,
+      },
     };
   }
   async readOffers(
@@ -197,6 +209,16 @@ export class KRuokaProvider implements StoreProvider {
           deposit: null,
         }),
         ...(ordering ? { pieceOrdering: ordering } : {}),
+        // Store evidence, only when the store reported any of it.
+        ...(p.brand != null || p.inStore != null || p.online != null
+          ? {
+              merchandise: {
+                brand: p.brand ?? null,
+                inStore: p.inStore ?? null,
+                online: p.online ?? null,
+              },
+            }
+          : {}),
       };
     });
   }

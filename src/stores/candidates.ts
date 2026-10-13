@@ -50,7 +50,12 @@ export function candidateQueries(
     requirement.classification?.category ??
     foodNameFacts(requirement.name).category;
   const synonym = synonymQuery(requirement.name);
+  // A non-food row asks for its variant first, then for the family alone.
+  const variant = requirement.merchandise?.attributes
+    .map((a) => a.value)
+    .join(" ");
   const queries = [
+    ...(variant ? [`${requirement.name} ${variant}`] : []),
     requirement.name,
     // The same food under its other common name comes before broader aliases.
     ...(synonym ? [synonym] : []),
@@ -123,6 +128,14 @@ export async function searchCandidates(
       p.unit === request.unit &&
       relevant(p.name, request.name));
   const candidates = new Map<string, Product>();
+  // A non-food row is read only where the provider can discover such products, and only once
+  // every attribute the family needs is known. Otherwise nothing is asked of the store.
+  if (
+    request.merchandise &&
+    (!provider.capabilities.merchandise?.discovery ||
+      request.merchandise.missing.length > 0)
+  )
+    return [];
   for (const query of candidateQueries(request, options.queryHints)) {
     options.signal?.throwIfAborted();
     const release = options.beginRead?.();
@@ -136,6 +149,17 @@ export async function searchCandidates(
     } finally {
       release?.();
     }
+    // A non-food product priced exactly per piece, whose name prints no count, is one piece.
+    if (request.merchandise)
+      products = products.map((product) =>
+        product.packAmount === 0 &&
+        product.nativeUnit === "kpl" &&
+        product.increment === 1 &&
+        product.price !== null &&
+        !product.packageContent
+          ? { ...product, packAmount: 1, unit: "pcs" as const }
+          : product,
+      );
     options.signal?.throwIfAborted();
     if (
       products.length > MAX_SEARCH_RESULTS ||

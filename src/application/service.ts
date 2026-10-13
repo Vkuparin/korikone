@@ -3001,19 +3001,27 @@ export class Service {
         reconcilePrices: z.boolean().default(false),
       })
       .parse(input ?? {});
-    const unresolved = this.basket.filter((line) => !transferableLine(line));
+    // A non-food row is sent only where a basket write is verified for such products.
+    const writable = (line: BasketLine) =>
+      transferableLine(line) &&
+      (!line.requirement.merchandise ||
+        this.registry.get(this.state.context.providerId).capabilities
+          .merchandise?.cartWrite === true);
+    const unresolved = this.basket.filter((line) => !writable(line));
     const unresolvedIntents = this.snapshot().committedIntents.filter(
       (intent) => intent.status !== "resolved",
     );
-    if (unresolvedIntents.length && !allowMissing)
+    if (
+      (unresolvedIntents.length ||
+        this.basket.some((l) => transferableLine(l) && !writable(l))) &&
+      !allowMissing
+    )
       throw new Error("unresolved");
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
       this.state.revision,
-      allowMissing
-        ? this.basket.filter((line) => transferableLine(line))
-        : this.basket,
+      allowMissing ? this.basket.filter(writable) : this.basket,
       this.state.packSizes,
       {
         exclusions: exclusionTerms(this.state.household.exclusions),

@@ -59,9 +59,12 @@ export const response = (storeId: string, query: string, hits: Hit[]) => ({
 
 export const SMALL_STORE = "N301";
 export const LARGE_STORE = "N190";
-/** A large store that lists children's rubber boots in some sizes, a pan and batteries. */
+/**
+ * A large store that lists children's rubber boots in some sizes, a pan and batteries. Keys are
+ * search wordings in lower case; any other wording finds nothing.
+ */
 export const largeStore: Record<string, Hit[]> = {
-  "kumisaappaat 32": [
+  "kumisaapas 32": [
     {
       ean: "6400000000311",
       name: "Lasten kumisaapas sininen koko 31",
@@ -88,14 +91,14 @@ export const largeStore: Record<string, Hit[]> = {
       price: 18.9,
     },
   ],
-  "kumisaappaat 34": [
+  "kumisaapas 34": [
     {
       ean: "6400000000311",
       name: "Lasten kumisaapas sininen koko 31",
       price: 19.9,
     },
   ],
-  paistinpannu: [
+  "paistinpannu 28 cm": [
     {
       ean: "6400000001004",
       name: "Paistinpannu 28 cm induktio",
@@ -111,7 +114,7 @@ export const largeStore: Record<string, Hit[]> = {
       availability: null,
     },
   ],
-  "AA paristo": [
+  "alkaliparisto aa": [
     { ean: "6400000002001", name: "Alkaliparisto AA 4 kpl", price: 3.99 },
     { ean: "6400000002018", name: "Alkaliparisto AAA 4 kpl", price: 3.99 },
     {
