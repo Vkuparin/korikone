@@ -103,3 +103,39 @@ Findings for F22.3 and F22.5:
 Open live gate, for the owner to authorize or decline: three read-only searches in the selected K store (for example boots in a size, a frying pan, AA batteries) to see whether non-food products are returned and with which fields. No sign-in, basket call or AI request is needed for that read. A basket write check is separate and is not requested here.
 
 Fixtures: `tests/fixtures/k-ruoka/non-food.ts` (synthetic, in the captured envelope) and `tests/k-ruoka-nonfood-audit.test.ts` (6): the fields carried and passed on, store binding and signed-out search, boots in sizes 31 and 32 with an unavailable colour and an unsized product, a missing size, a pan without a price and one without availability, batteries in two pack sizes and one not orderable online, an empty small store, a store error, a changed response shape, a stale store and the limits of a basket write.
+
+## Merchandise contract (F22.3)
+
+Implemented in `src/domain/merchandise.ts`, with additions to `src/domain/model.ts`, `src/stores/provider.ts` and `src/application/quotes.ts`. F22.1's compatibility review was not done as a separate card; its question is answered here: the F17 identities, operations and the row model need no change, only the optional field below.
+
+**One row model.** A non-food request is an ordinary shopping row counted in pieces that also carries `merchandise` (`merchandiseIntentSchema`, optional on `ingredientSchema`). The row keeps its ID, its `id:unit` edit target, its amount, sources, undo snapshot and place in backups. Rows without the field, and every profile and backup made before v0.11, parse and behave exactly as before; grams, millilitres and pieces are untouched. A malformed intent in a backup is refused, not repaired.
+
+**Intent.** `{ version: 1, family, attributes, missing }`:
+
+- `family`: the kind of product in the shopper's words, in base form ("kumisaapas").
+- `attributes`: up to six of `{ kind, value, provenance }` with `kind` one of `size`, `colour`, `model`, `material`, `spec` and `provenance` `explicit-note` or `clarified`. Every listed attribute is a hard requirement. Nothing a model assumed can be an attribute: the schema has no such provenance.
+- `missing`: attribute kinds the family cannot be bought without and the shopper has not given. While any is listed the row is not searched or priced. A kind cannot be both given and missing, and each kind appears once.
+
+**Product family versus exact variant.** `attributeEvidence(productName, attribute)` is `printed`, `conflict` or `absent`: a value counts only when the product's name prints it as whole words ("32" is not in "320"); another size after "koko" or another colour word is a conflict; silence proves nothing. `variantMatch(productName, intent)` is `exact` (every required attribute printed), `other` (one conflicts) or `unverified` (silent about one, contradicting none). Only `exact` may be chosen for a row.
+
+**Statements.** `merchandiseStatus(intent, search)` turns one store search into one of nine values (`merchandiseStatusSchema`), and none may be shown as another:
+
+| Status | Meaning |
+| --- | --- |
+| `exact-available` | The requested variant is listed at this store and reported available. |
+| `variant-missing` | The family is listed here, but no listed product is evidenced as the variant. |
+| `not-listed-here` | This store's search returned nothing of the family. It says nothing about other stores. |
+| `out-of-stock` | The variant is listed and reported not available. |
+| `unknown` | The variant is listed and the store did not say whether it is available. Never read as in stock. |
+| `unsupported` | The provider cannot search non-food products. |
+| `signed-out` | The operation needs a sign-in that is not there. |
+| `failed` | The search failed; nothing is known. |
+| `stale` | The answer belongs to another store or an older list and is not used. |
+
+**Store evidence.** `Product.merchandise` (`merchandiseEvidenceSchema`, optional): `{ brand, inStore, online }`, each null when the store does not say. It is kept in saved quotes. There is no stock quantity.
+
+**Capabilities.** `StoreProvider.capabilities.merchandise` (`merchandiseCapabilitiesSchema`, optional): `{ discovery, variants: "structured" | "name" | "none", stock: "flag" | "none", cartWrite }`. Absent means `noMerchandise`. Search results never imply write authority: `cartWrite` is true only where a basket write is verified for such products.
+
+Fixtures: `tests/merchandise.test.ts` (5): schema strictness and versions, old profiles and backups, grocery rows unchanged beside a non-food row, edits and undo keeping the intent, name-only variant evidence, and one statement per store answer with unknown never read as in stock.
+
+For F22.4: produce `merchandise` only from the shopper's words, list a required kind in `missing` instead of guessing, and never add attributes from a catalogue. For F22.5: set `Product.merchandise`, declare the K capabilities from the F22.2 audit, and reject non-`exact` variants in matching. For F22.6: show `merchandiseStatus` values with their own texts and ask for `missing` kinds.

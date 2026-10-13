@@ -7,6 +7,8 @@ export interface StoreProvider {
     cart: boolean;
     orderHistory: boolean;
     offers?: import("../domain/offers").OfferCapabilities;
+    /** Non-food products, per operation (F22.3). Absent means none of it is supported. */
+    merchandise?: import("../domain/merchandise").MerchandiseCapabilities;
   };
   /** Explicit read-only discovery; ordinary product search is not an offer feed. */
   readOffers?(

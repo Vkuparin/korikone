@@ -1,3 +1,7 @@
+import {
+  merchandiseIntentSchema,
+  type MerchandiseEvidence,
+} from "./merchandise";
 import { z } from "zod";
 import { appearanceSchema } from "./appearance";
 import { priceBasisSchema, type PriceBasis } from "./price-ranking";
@@ -18,6 +22,9 @@ export const ingredientSchema = z.object({
   amount: z.number().int().positive().max(10_000_000),
   unit: unitSchema,
   classification: classificationSchema.optional(),
+  // A non-food request: the product family and required attributes (F22.3). Counted in pieces.
+  // Absent on every grocery row and in profiles and backups made before v0.11.
+  merchandise: merchandiseIntentSchema.optional(),
 });
 export const recipeSchema = z.object({
   id: z.string().min(1),
@@ -187,6 +194,8 @@ export type Requirement = Ingredient & {
   specifiedFrom?: string;
 };
 export type Product = {
+  /** Store evidence read for a non-food row (F22.5); absent on grocery products. */
+  merchandise?: MerchandiseEvidence;
   id: string;
   providerId: string;
   storeId: string;

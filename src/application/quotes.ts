@@ -1,3 +1,4 @@
+import { merchandiseEvidenceSchema } from "../domain/merchandise";
 import { z } from "zod";
 import { priceBasisSchema } from "../domain/price-ranking";
 import { packageContentSchema } from "../domain/package-content";
@@ -54,6 +55,7 @@ export function pricingKey(state: AppState): string {
 }
 
 const productSchema = z.object({
+  merchandise: merchandiseEvidenceSchema.optional(),
   id: z.string(),
   providerId: z.string(),
   storeId: z.string(),
