@@ -2089,3 +2089,40 @@ nav button {
   gap: 4px 12px;
   align-items: baseline;
 }
+
+.receipt-drop-overlay {
+  position: fixed;
+  inset: 12px;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  text-align: center;
+  border: 3px dashed var(--accent, currentColor);
+  border-radius: 12px;
+  background: color-mix(in srgb, Canvas 88%, transparent);
+  pointer-events: none;
+}
+.receipt-intake-surface {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.2);
+}
+.receipt-intake-surface p {
+  margin: 0 0 6px;
+}
+.receipt-import-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 0 0 10px;
+}

@@ -22,6 +22,7 @@ import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { ShoppingContext } from "./context";
+import { ReceiptIntakeSurface, useReceiptIntake } from "./receipt-intake";
 import {
   AdvancedSettings,
   AISettings,
@@ -503,6 +504,21 @@ function App() {
     aiRequestLimit,
     developmentLocked,
   };
+  // Receipts from the picker or a drop. They never go through the busy state, so the shopping
+  // composer, drafts and navigation stay usable while files are read.
+  const receiptIntake = useReceiptIntake({
+    snapshot,
+    suppressed: page === "store",
+    apply: (value) =>
+      setSnapshot((current) => ({
+        ...value,
+        state: {
+          ...value.state,
+          language: current.state.language,
+          appearance: current.state.appearance,
+        },
+      })),
+  });
   // Reading the saved list from this computer: no request, search or transfer is running.
   if (!loaded)
     return (
@@ -802,6 +818,23 @@ function App() {
                 }))
               }
             />
+            {page === "history" && (
+              <div className="receipt-import-bar">
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={receiptIntake.running}
+                  onClick={() => void receiptIntake.pick()}
+                >
+                  {state.language === "fi" ? "Tuo kuitteja" : "Import receipts"}
+                </button>
+                <small className="muted">
+                  {state.language === "fi"
+                    ? "Valitse yksi tai useampi PDF-, TXT- tai CSV-tiedosto tai pudota ne ikkunaan."
+                    : "Choose one or more PDF, TXT or CSV files, or drop them on the window."}
+                </small>
+              </div>
+            )}
             <div
               hidden={
                 page !== "week" && page !== "weekPlan" && page !== "history"
@@ -1151,6 +1184,11 @@ function App() {
           </main>
         </>
       )}
+      <ReceiptIntakeSurface
+        intake={receiptIntake}
+        language={state.language}
+        openHistory={() => setPage("history")}
+      />
     </>
   );
 }
