@@ -1,6 +1,8 @@
 # Receipt learning plan
 
-Accepted planning scope, 10 October 2026, after v0.6.0 publication. Reviewed source: `scratch/korikone_receipt_learning_pm_pitch.md`. Its RCP IDs and instructions are proposal material; canonical cards remain in the version task files. This plan describes future behavior, not the released importer.
+Accepted original planning scope, 10 October 2026, after v0.6.0 publication. Reviewed source: `scratch/korikone_receipt_learning_pm_pitch.md`. Its RCP IDs and instructions are proposal material; canonical cards remain in the version task files. [The purchase contract](purchase-contract.md) records implemented APIs and evidence.
+
+13 October update: [receipt import without routine review](frictionless-receipts.md) is accepted for v0.11.0 F27.1–F27.12. It supersedes review-first UX and generic-only display-name enrichment in this original plan. Reuse local reading/OCR and sanitized optional inference; add one-action multi-file intake, no routine row approvals, grounded readable names and optional History corrections. Keep factual authority, provenance, preferences, consent, retention, source linking and learning thresholds. One combined bounded AI call per multi-file action; no full-document upload. F27 statuses are canonical in [v0.11 tasks](tasks/0.11.0.md#f27-receipt-import-without-routine-review); this acceptance is not implementation evidence.
 
 ## Delivery and reuse
 
@@ -51,7 +53,7 @@ AI receives only ambiguous sanitized descriptions, optional verified quantities 
 
 ## Retention and private references
 
-The owner chose sanitized evidence and purchase rows by default, with optional local retention of the original for inspection/reprocessing. Reading the selected file is local; retaining a copy requires an explicit choice. Deleting an app-retained copy does not delete the owner's external file. Explain how deleting source, semantic annotations or the entire purchase event affects dependent memory and dedupe. Backups include sanitized purchase records; original attachments require a separate explicit inclusion choice. Diagnostics contain no receipt contents or identifiers. Restore does not restore cloud consent implicitly.
+The owner chose sanitized evidence and purchase rows by default, with optional local retention of original extracted text. Reading the selected file is local; retaining that text requires an explicit choice. The current implementation does not archive a PDF binary or implement reprocessing from retained text; F27 copy must reflect this. Deleting app-retained text does not delete the owner's external file. Explain how deleting source, semantic annotations or the entire purchase event affects dependent memory and dedupe. Backups include sanitized purchase records; retained original text requires a separate explicit inclusion choice. Diagnostics contain no receipt contents or identifiers. Restore does not restore cloud consent implicitly. Binary attachment retention is separately scoped future work, not approved F27 scope.
 
 Private real examples are under `scratch/receipts/`, already covered by the ignored `scratch/` directory. They are owner-held reference material, not uploadable fixtures. Source control contains independently authored sanitized examples of receipt layouts, without original PDFs, complete receipt transcripts or identifying metadata. This planning review did not upload or analyze the original files.
 
@@ -75,21 +77,21 @@ Receipt enrichment reuses this seam with its own schema and consent/call policy.
 
 ## Pitch mapping and gates
 
-| Pitch | Canonical work |
-| --- | --- |
-| RCP-01 compact context | Extend F16.5; provider foundation F16.16–F16.18 in v0.7.0 |
-| RCP-02 shared evidence | F6.5; F6.1 order import uses the same schema |
-| RCP-03 fixtures | F6.6 |
-| RCP-04 / RCP-05 parsers | F6.7 / F6.8 |
-| RCP-06 accounting | F6.9 |
-| RCP-07 dedupe/import | F6.10; F6.2 integrates local receipt import |
-| RCP-08–RCP-11 enrichment | F6.11–F6.14 |
-| RCP-12 corrections/UX | F6.15–F6.16 local first; F6.21 enrichment controls |
-| RCP-13 aliases | F6.17, F18.1 |
-| RCP-14 quantities | F6.18, F6.3 |
-| RCP-15 context/presentation | Extend F18.2 |
-| RCP-16 source integrity | F6.19, F8.1, U5.1–U5.2 |
-| RCP-17 quality/privacy | F6.20, F6.4, F18.5 |
+| Pitch                           | Canonical work                                                          |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| RCP-01 compact context          | Extend F16.5; provider foundation F16.16–F16.18 in v0.7.0               |
+| RCP-02 shared evidence          | F6.5; F6.1 order import uses the same schema                            |
+| RCP-03 fixtures                 | F6.6                                                                    |
+| RCP-04 / RCP-05 parsers         | F6.7 / F6.8                                                             |
+| RCP-06 accounting               | F6.9                                                                    |
+| RCP-07 dedupe/import            | F6.10; F6.2 integrates local receipt import                             |
+| RCP-08–RCP-11 enrichment        | F6.11–F6.14                                                             |
+| RCP-12 corrections/UX           | F6.15–F6.16 local first; F6.21 enrichment controls                      |
+| RCP-13 aliases                  | F6.17, F18.1                                                            |
+| RCP-14 quantities               | F6.18, F6.3                                                             |
+| RCP-15 context/presentation     | Extend F18.2                                                            |
+| RCP-16 source integrity         | F6.19, F8.1, U5.1–U5.2                                                  |
+| RCP-17 quality/privacy          | F6.20, F6.4, F18.5                                                      |
 | RCP-18 / RCP-19 later providers | Extend F21.2/F21.5/F21.6; optimization remains evidence-driven research |
 
 Strong cards establish actual schemas, file boundaries and fixture contracts before Simple handoff. Proposed paths remain suggestions. Schema then fixtures enable separate K/S parser work; accounting/import and provider/enrichment can progress independently after their contracts. Shared service/main/schema files need a single owner per card.
