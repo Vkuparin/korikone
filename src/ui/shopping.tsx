@@ -23,6 +23,7 @@ import {
 } from "../domain/planner";
 import { addGrocery } from "../domain/groceries";
 import { editTargets, mealTargetId, rowTargetId } from "../domain/edits";
+import { RowFind, type FindResult } from "./row-find";
 import type { Unit } from "../domain/model";
 import { unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
@@ -672,6 +673,60 @@ export function ShoppingWorkspace({
       editRunning.current = false;
       if (active.current) setEditWorking(false);
     }
+  }
+  /**
+   * The explicit Find product action on an unresolved row: one edit request that carries the
+   * row as context. Nothing runs while the shopper types and nothing is remembered.
+   */
+  async function findForRow(key: string, wording: string): Promise<FindResult> {
+    if (editRunning.current || running.current || busy) return "failed";
+    editRunning.current = true;
+    setEditWorking(true);
+    setEditFailed(false);
+    const found = { outcome: "failed" as FindResult };
+    try {
+      const ok = await call(
+        "editList",
+        {
+          revision: state.revision,
+          instruction: wording.trim(),
+          focusTargetId: rowTargetId(key),
+          consent: true,
+        },
+        {
+          onSuccess: (value) => {
+            const line = value.basket.find(
+              (l) => `${l.requirement.id}:${l.requirement.unit}` === key,
+            );
+            found.outcome =
+              value.edit?.status === "clarification"
+                ? "none"
+                : line?.product
+                  ? "resolved"
+                  : line && line.candidates.length > 0
+                    ? "options"
+                    : "none";
+          },
+        },
+      );
+      if (!ok) found.outcome = "failed";
+    } finally {
+      editRunning.current = false;
+      if (active.current) setEditWorking(false);
+    }
+    const outcome = found.outcome;
+    if (active.current) {
+      if (outcome === "options") setOpened(key);
+      if (outcome === "resolved" || outcome === "options")
+        requestAnimationFrame(() =>
+          document
+            .querySelector<HTMLElement>(
+              `[data-row-key="${CSS.escape(key)}"] .row-name`,
+            )
+            ?.focus(),
+        );
+    }
+    return outcome;
   }
   const progressAnchor = useRef<HTMLDivElement>(null);
   const [progressVisible, setProgressVisible] = useState(false);
@@ -2232,6 +2287,16 @@ export function ShoppingWorkspace({
                           <small className="warning">
                             {tr("Tuote puuttuu", "Needs a product")}
                           </small>
+                        )}
+                        {!home && !line?.product && (
+                          <RowFind
+                            language={state.language}
+                            name={r.name}
+                            amountLabel={`${r.amount} ${unitLabel(r.unit, state.language)}`}
+                            busy={busy || working || editWorking}
+                            aiConnected={snapshot.ai.state === "connected"}
+                            find={(wording) => findForRow(key, wording)}
+                          />
                         )}
                       </div>
                       <div className="quantity-control">
