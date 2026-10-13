@@ -419,6 +419,7 @@ export function ShoppingWorkspace({
   const [editCancelled, setEditCancelled] = useState(false);
   const [confirmingNewList, setConfirmingNewList] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [transferFailed, setTransferFailed] = useState(false);
   // The refused-draft cause comes from the last planning event: a failed call returns no snapshot.
   const failureCause =
     livePlanning?.failureCause ?? snapshot.planning?.failureCause ?? null;
@@ -2590,6 +2591,60 @@ export function ShoppingWorkspace({
                 onOpen={() => setComparing(true)}
               />
             )}
+            {!confirming && !!rows.length && (
+              <div
+                className="transfer-summary"
+                role="group"
+                aria-label={tr("Ennen siirtoa", "Before the transfer")}
+              >
+                <p>
+                  <strong>
+                    {transferable}{" "}
+                    {tr("tuotetta siirretään", "products will be sent")}
+                  </strong>
+                  {" · "}
+                  {snapshot.basket
+                    .filter(transferableLine)
+                    .reduce((n, line) => n + line.packs, 0)}{" "}
+                  {tr("pakkausta", "packs")}
+                  {missing.length > 0 &&
+                    ` · ${missing.length} ${tr("riviä jää pois (ei tuotetta)", "rows are left out (no product)")}`}
+                </p>
+                {missing.length > 0 && (
+                  <p className="muted">
+                    {missing
+                      .slice(0, 6)
+                      .map((r) => r.name)
+                      .join(", ")}
+                    {missing.length > 6 ? "…" : ""}
+                  </p>
+                )}
+                {(prices.exact > 0 || estimated.length > 0) && (
+                  <p className="muted">
+                    {tr("Arvio", "Estimate")} {money(total)}
+                    {state.household.budget > 0 &&
+                      ` · ${tr("budjetti", "budget")} ${money(state.household.budget)}`}
+                  </p>
+                )}
+                {state.household.budget > 0 &&
+                  total > state.household.budget && (
+                    <p role="status" className="warning">
+                      {tr(
+                        "Lista ylittää viikkobudjetin. Siirto ei vaadi erillistä vahvistusta.",
+                        "The list is over the weekly budget. The transfer needs no separate confirmation.",
+                      )}
+                    </p>
+                  )}
+                {transferFailed && (
+                  <p role="alert" className="transfer-error">
+                    {tr(
+                      "Siirto ei valmistunut. Katso ilmoitus ja yritä uudelleen.",
+                      "The transfer did not finish. Read the notice and try again.",
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
             {!confirming && (
               <button
                 className="transfer-button"
@@ -2597,6 +2652,7 @@ export function ShoppingWorkspace({
                 onClick={async () => {
                   // An interrupted transfer is shown for recovery instead of a new review.
                   setTransferring(true);
+                  setTransferFailed(false);
                   try {
                     if (
                       snapshot.journal?.status === "partial" ||
@@ -2607,6 +2663,7 @@ export function ShoppingWorkspace({
                       }))
                     )
                       setConfirming(true);
+                    else setTransferFailed(true);
                   } finally {
                     setTransferring(false);
                   }

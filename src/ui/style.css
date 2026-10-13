@@ -2057,3 +2057,12 @@ nav button {
   overflow-wrap: normal;
   word-break: normal;
 }
+.transfer-summary p {
+  margin: 4px 0;
+}
+.transfer-summary .transfer-error {
+  color: var(--kk-error);
+  background: var(--kk-error-bg);
+  padding: 6px 8px;
+  border-radius: 6px;
+}

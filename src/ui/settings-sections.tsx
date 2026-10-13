@@ -39,6 +39,24 @@ export function AdvancedSettings({
         {t("resolverEnabled")}
       </label>
       <p className="muted">{t("resolverInfo")}</p>
+      <label>
+        <input
+          type="checkbox"
+          checked={snapshot.state.reviewBeforeTransfer}
+          disabled={busy}
+          onChange={(e) =>
+            void call("setReviewBeforeTransfer", { enabled: e.target.checked })
+          }
+        />
+        {snapshot.state.language === "fi"
+          ? "Tarkista ennen siirtoa"
+          : "Review before transfer"}
+      </label>
+      <p className="muted">
+        {snapshot.state.language === "fi"
+          ? "Päällä siirto pysähtyy tarkistukseen ennen kuin mitään lisätään kauppaan. Pois päältä lista siirretään yhdellä painalluksella; tarkistus kysytään silti, jos jokin ei täsmää. Asetus ei muuta listaa eikä tee pyyntöjä."
+          : "When on, the transfer stops for a review before anything is added to the store. When off, the list is sent with one click; a review is still asked for when something does not match. The setting changes no list and makes no request."}
+      </p>
       <CategoryPreferences snapshot={snapshot} busy={busy} call={call} />
       <label>
         <input
