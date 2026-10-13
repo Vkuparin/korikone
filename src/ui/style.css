@@ -2066,3 +2066,23 @@ nav button {
   padding: 6px 8px;
   border-radius: 6px;
 }
+
+.proposal-assumptions {
+  margin: 0 0 12px;
+}
+.proposal-assumptions h3 {
+  margin: 0 0 6px;
+}
+.proposal-assumptions ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.proposal-assumptions li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}

@@ -2111,6 +2111,87 @@ export function ShoppingWorkspace({
               </p>
             </div>
           )}
+          {all.length > 0 &&
+            (snapshot.proposal.sides.length > 0 ||
+              snapshot.proposal.quantities.length > 0) && (
+              <section
+                className="proposal-assumptions"
+                aria-label={tr("Mitä oletin", "What I assumed")}
+              >
+                <h3>{tr("Mitä oletin", "What I assumed")}</h3>
+                <ul>
+                  {snapshot.proposal.sides.map((side) => (
+                    <li key={side.mealId}>
+                      <span>
+                        {tr(
+                          `${side.dish}: lisukkeeksi ${side.side}`,
+                          `${side.dish}: with ${side.side} on the side`,
+                        )}
+                      </span>
+                      <button
+                        className="text"
+                        type="button"
+                        disabled={busy || working || editWorking}
+                        aria-label={`${tr("Muuta lisuketta", "Change the side")}: ${side.dish}`}
+                        onClick={() =>
+                          editWithInstruction(mealTargetId(side.mealId))
+                        }
+                      >
+                        {tr("Muuta lisuketta", "Change the side")}
+                      </button>
+                    </li>
+                  ))}
+                  {snapshot.proposal.quantities.map((assumed) => {
+                    const line = snapshot.basket.find(
+                      (l) =>
+                        `${l.requirement.id}:${l.requirement.unit}` ===
+                        assumed.requirementKey,
+                    );
+                    return (
+                      <li key={assumed.requirementKey}>
+                        <span>
+                          {assumed.label}: {tr("oletin", "assumed")}{" "}
+                          {assumed.amount}{" "}
+                          {unitLabel(assumed.unit, state.language)}
+                          {" → "}
+                          {line?.product
+                            ? `${line.product.name}${line.total !== null ? ` · ${money(line.total)}` : ""}`
+                            : tr("tuote puuttuu", "no product yet")}
+                        </span>
+                        <button
+                          className="text"
+                          type="button"
+                          disabled={busy || !line}
+                          aria-label={`${tr("Näytä tuotteet", "Show products")}: ${assumed.label}`}
+                          onClick={() => setOpened(assumed.requirementKey)}
+                        >
+                          {tr("Näytä tuotteet", "Show products")}
+                        </button>
+                        <button
+                          className="text"
+                          type="button"
+                          disabled={busy || working || editWorking}
+                          aria-label={`${tr("Muuta määrää", "Change the amount")}: ${assumed.label}`}
+                          onClick={() =>
+                            editWithInstruction(
+                              rowTargetId(assumed.requirementKey),
+                            )
+                          }
+                        >
+                          {tr("Muuta määrää", "Change the amount")}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="muted">
+                  {tr(
+                    "Oletukset koskevat vain tätä listaa. Mitään ei tallenneta tuleville listoille ilman erillistä valintaasi.",
+                    "Assumptions apply to this list only. Nothing is saved for future lists unless you choose to remember it.",
+                  )}
+                </p>
+              </section>
+            )}
           {categories.map((cat) => (
             <section className="grocery-category" key={cat}>
               <h3>{cat}</h3>
