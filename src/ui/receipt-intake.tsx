@@ -30,6 +30,50 @@ export function useReceiptIntake({
   const [error, setError] = useState("");
   const [answering, setAnswering] = useState(false);
   const running = useRef(false);
+  // How the names of this import read, from the local purchase view: never "all identified".
+  const [names, setNames] = useState<{
+    readable: number;
+    plain: number;
+    issues: number;
+  } | null>(null);
+  const importId = snapshot.receiptIntake?.operationId ?? null;
+  useEffect(() => {
+    const ids = snapshot.receiptIntake?.eventIds ?? [];
+    if (!importId || !ids.length) {
+      setNames(null);
+      return;
+    }
+    let live = true;
+    void window.korikone.listPurchases().then((result) => {
+      if (!live || !result.ok) return;
+      const { purchases } = (
+        result.value as unknown as {
+          receipts: {
+            purchases: {
+              eventId: string;
+              issueCount: number;
+              names: {
+                user: number;
+                named: number;
+                general: number;
+                raw: number;
+              };
+            }[];
+          };
+        }
+      ).receipts;
+      const mine = purchases.filter((p) => ids.includes(p.eventId));
+      setNames({
+        readable: mine.reduce((n, p) => n + p.names.user + p.names.named, 0),
+        plain: mine.reduce((n, p) => n + p.names.general + p.names.raw, 0),
+        issues: mine.reduce((n, p) => n + p.issueCount, 0),
+      });
+    });
+    return () => {
+      live = false;
+    };
+    // The import and its enrichment settle the names; the ID of the import is the key.
+  }, [importId, snapshot.receiptIntake?.enrichment?.status]);
 
   const accept = useCallback(
     (outcome: Outcome) => {
@@ -127,6 +171,7 @@ export function useReceiptIntake({
     dragging,
     progress,
     running: progress !== null || snapshot.receiptIntakeRunning !== null,
+    names,
     result: result && result.operationId !== dismissed ? result : null,
     error,
     answering,
@@ -253,6 +298,20 @@ export function ReceiptIntakeSurface({
                 <p className="muted">
                   {tr("Uudelleen yritettävät", "To try again")}:{" "}
                   {failed.map((f) => f.name).join(", ")}
+                </p>
+              )}
+              {intake.names && saved > 0 && (
+                <p className="muted receipt-intake-names">
+                  {tr(
+                    `Nimet: ${intake.names.readable} luettavaa, ${intake.names.plain} näkyy sellaisenaan tai yleisellä nimellä`,
+                    `Names: ${intake.names.readable} readable, ${intake.names.plain} shown as printed or with a general name`,
+                  )}
+                  {intake.names.issues > 0
+                    ? tr(
+                        `; ${intake.names.issues} riviä vaatii tarkistuksen (hinta tai määrä puuttuu).`,
+                        `; ${intake.names.issues} rows need a look (amount or quantity missing).`,
+                      )
+                    : "."}
                 </p>
               )}
               {enrichment?.status === "enriched" && (

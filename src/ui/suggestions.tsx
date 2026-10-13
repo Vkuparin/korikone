@@ -109,7 +109,7 @@ function SuggestionRow({
   const unitText = (u: string) => (u === "pcs" ? tr("kpl", "pcs") : u);
   return (
     <article className="suggestion card">
-      <strong>{s.label}</strong>
+      <strong>{s.display?.text ?? s.label}</strong>
       <p className="muted">
         {tr(
           `Ostettu ${s.weeksOfLastEight} viikolla viimeisestä kahdeksasta`,

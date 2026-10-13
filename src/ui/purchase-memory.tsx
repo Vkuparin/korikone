@@ -53,23 +53,54 @@ export function PurchaseMemory({
         )}
       </p>
       <ul>
-        {insights.aliases.map((alias) => (
-          <li key={alias.key}>
-            {alias.key.replace(/^category:|^name:/, "").replace(/\|/g, ", ")}
-            {" · "}
-            {alias.observations} {tr("ostoa", "purchases")}
-            {" · "}
-            {alias.confirmed
-              ? tr(
-                  "vahvistettu säännöllä tai sinun valinnallasi",
-                  "confirmed by a rule or by you",
-                )
-              : tr("vain tekoälyn tulkinta", "interpreted by a model only")}
-            {alias.conflictsWithRemembered
-              ? ` · ${tr("eri kuin muistettu mieltymys", "differs from a remembered preference")}`
-              : ""}
-          </li>
-        ))}
+        {insights.aliases.map((alias) => {
+          // How each printed label reads: the shopper's or a rule's grounded name, a model's
+          // proposal, a general name or the label itself. Nothing is called identified.
+          const grounded = alias.labels.filter((l) =>
+            ["user", "exact", "expanded"].includes(l.display.tier),
+          ).length;
+          const plain = alias.labels.length - grounded;
+          const tentative = alias.context.reason === "model-only";
+          return (
+            <li key={alias.key} data-reason={alias.context.reason}>
+              <strong>
+                {alias.display?.text ??
+                  alias.key
+                    .replace(/^category:|^name:/, "")
+                    .replace(/\|/g, ", ")}
+              </strong>
+              {" · "}
+              {alias.observations} {tr("ostoa", "purchases")}
+              {" · "}
+              {tentative
+                ? tr(
+                    "tentatiivinen: vain tekoälyn tulkinta, ei vahvistettu",
+                    "tentative: a model's reading only, not confirmed",
+                  )
+                : alias.confirmed
+                  ? tr(
+                      "vahvistettu säännöllä tai sinun valinnallasi",
+                      "confirmed by a rule or by you",
+                    )
+                  : tr("ei vahvistettu", "not confirmed")}
+              {alias.conflictsWithRemembered
+                ? ` · ${tr("eri kuin muistettu mieltymys", "differs from a remembered preference")}`
+                : ""}
+              <br />
+              <small className="muted">
+                {tr(
+                  `Kuiteissa ${alias.labels.length} painettua nimeä: ${grounded} luettavaksi kirjoitettu, ${plain} näkyy sellaisenaan tai yleisellä nimellä.`,
+                  `${alias.labels.length} printed names in receipts: ${grounded} written out readably, ${plain} shown as printed or with a general name.`,
+                )}
+                {alias.labels.length > 0 &&
+                  `: ${alias.labels
+                    .slice(0, 3)
+                    .map((l) => l.display.text)
+                    .join(" · ")}`}
+              </small>
+            </li>
+          );
+        })}
       </ul>
       <button
         className="secondary"
