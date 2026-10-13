@@ -314,7 +314,8 @@ test("only valid proposals for supplied rows survive, and facts never change", (
   ])
     expect(() => check([{ ...good, ...extra }])).toThrow("enrichmentInvalid");
   expect(() =>
-    validateEnrichment(batch, { version: 2, rows: [] }, l, model, at),
+    // Version 2 is the display-name result (F27.6); any other version is unknown.
+    validateEnrichment(batch, { version: 3, rows: [] }, l, model, at),
   ).toThrow("enrichmentInvalid");
   expect(JSON.stringify(l)).toBe(before);
 

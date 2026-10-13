@@ -254,6 +254,7 @@ test("an annotation made for an older revision of the source is not used", () =>
   expect(displayName({ label: "VALIO JOG 1KG" }, [])).toEqual({
     text: "VALIO JOG 1KG",
     specificity: "raw",
+    tier: "raw",
     nameOrigin: null,
     categoryOrigin: null,
     modelOnly: false,

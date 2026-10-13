@@ -7,6 +7,7 @@ import {
   qualifierSchema,
   qualifierValues,
 } from "./categories";
+import { displayNameLimits, groundedDisplayName } from "./receipt-names";
 import {
   RECEIPT_DATA_SCOPE,
   sanitizeLabel,
@@ -116,6 +117,37 @@ export const enrichmentResultSchema = z
   })
   .strict();
 export type EnrichmentResult = z.infer<typeof enrichmentResultSchema>;
+/**
+ * Version 2 of the result (F27.6): each row may also propose `display`, a readable name for the
+ * printed label. The request is unchanged, so no new field is sent and the data scope stays 1.
+ */
+export const ENRICHMENT_NAME_VERSION = 2;
+export const enrichmentNameResultSchema = z
+  .object({
+    version: z.literal(ENRICHMENT_NAME_VERSION),
+    rows: z
+      .array(
+        enrichmentResultSchema.shape.rows.element
+          .extend({
+            display: z
+              .string()
+              .max(displayNameLimits.proposalCharacters)
+              .nullable(),
+          })
+          .strict(),
+      )
+      .max(enrichmentLimits.rows),
+  })
+  .strict();
+export type EnrichmentNameResult = z.infer<typeof enrichmentNameResultSchema>;
+type ResultRow = EnrichmentResult["rows"][number] & { display?: string | null };
+/** Either version of a model result, as rows. Anything else is invalid. */
+function resultRows(input: unknown): ResultRow[] | null {
+  const named = enrichmentNameResultSchema.safeParse(input);
+  if (named.success) return named.data.rows;
+  const plain = enrichmentResultSchema.safeParse(input);
+  return plain.success ? plain.data.rows : null;
+}
 
 export type EnrichmentBatch = {
   eventId: string;
@@ -288,8 +320,8 @@ export function validateCombined(
   model: { providerId: string; modelId: string; taskVersion: number },
   at: string,
 ): EnrichmentOutcome & { stale: string[] } {
-  const result = enrichmentResultSchema.safeParse(input);
-  if (!result.success) throw new Error("enrichmentInvalid");
+  const result = { data: { rows: resultRows(input) } };
+  if (!result.data.rows) throw new Error("enrichmentInvalid");
   const stale = [...batch.events]
     .filter(([eventId, sourceRevision]) => {
       const event = ledger.events.find((e) => e.id === eventId);
@@ -427,8 +459,8 @@ export function validateEnrichment(
     )
   )
     throw new Error("enrichmentStale");
-  const result = enrichmentResultSchema.safeParse(input);
-  if (!result.success) throw new Error("enrichmentInvalid");
+  const result = { data: { rows: resultRows(input) } };
+  if (!result.data.rows) throw new Error("enrichmentInvalid");
   const annotations: SemanticAnnotation[] = [];
   const seen = new Set<string>();
   let rejected = 0;
@@ -467,11 +499,11 @@ export function validateEnrichment(
  * print, or a name that is not a short plain label.
  */
 function acceptedRow(
-  row: EnrichmentResult["rows"][number],
+  row: ResultRow,
   label: string,
 ): Pick<
   SemanticAnnotation,
-  "name" | "category" | "qualifiers" | "scope"
+  "name" | "category" | "qualifiers" | "scope" | "display"
 > | null {
   {
     const sent = { label };
@@ -498,15 +530,25 @@ function acceptedRow(
           name.length <= enrichmentLimits.nameCharacters &&
           /^[\p{L}][\p{L}\p{N} %.,'-]*$/u.test(name) &&
           !/https?|www\.|\d{4,}/i.test(name))) &&
-      (name !== null || row.category !== null || row.scope !== "unknown") &&
       !(row.scope === "non-food" && row.category !== null);
-    if (!valid) return null;
+    // A display name stands or falls on its own: one the label does not support is dropped and
+    // the rest of the row is kept, so the line falls back to its generic name or printed label.
+    const display = groundedDisplayName(label, row.display);
+    if (
+      !valid ||
+      (name === null &&
+        row.category === null &&
+        row.scope === "unknown" &&
+        !display)
+    )
+      return null;
     // The caller's `semanticAnnotationSchema.parse` validates the assembled annotation.
     return {
       name,
       category: category.success ? category.data : null,
       qualifiers: row.qualifiers as SemanticAnnotation["qualifiers"],
       scope: row.scope,
+      ...(display ? { display } : {}),
     };
   }
 }

@@ -1,3 +1,4 @@
+import { displayNameSchema } from "./receipt-names";
 import { z } from "zod";
 import { categorySchema, qualifierSchema, qualifierValues } from "./categories";
 
@@ -298,6 +299,11 @@ export const semanticAnnotationSchema = z
       .strict()
       .nullable(),
     at: timestamp,
+    /**
+     * A readable name for the line, grounded in its printed label (F27.6). Separate from `name`,
+     * which only says what kind of grocery it is. Absent in records made before display names.
+     */
+    display: displayNameSchema.optional(),
   })
   .strict()
   .refine((a) => (a.origin === "model") === (a.model !== null));

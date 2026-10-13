@@ -289,3 +289,33 @@ Audit: the earlier receipt import advanced the shared `generationRun` counter an
 ### Fixtures
 
 `tests/receipt-intake.test.ts` (8): partial success and duplicates with real stages, count and byte caps, cancellation and stale cancel, no consent with invitation, one-time and enabled consent with exact request counts, decline, a busy connection, a failing model, a purchase deleted during the request, the combined batch's limits and mapping, and path validation. `tests/ui/receipt-intake-api.spec.ts` drives the picker through real IPC and the PDF worker beside a planning request in flight. `tests/ui/receipt-drop.spec.ts` drops real files through the DevTools protocol (`Input.dispatchDragEvent` with `files`) and shows that a script-made file is ignored; F27.4 can reuse that recipe for the overlay.
+
+## Grounded display names (F27.6)
+
+A display name is how a receipt line is shown. It may spell out what the shop abbreviated and nothing more. It is separate from the line's category and qualifiers, from any retailer product identity and from household preferences, and it never changes a quantity, a price, a pack equivalence or a dietary fact.
+
+### Schema
+
+- `SemanticAnnotation.display` (optional, `displayNameSchema` in `src/domain/receipt-names.ts`): `{ version: 1, name, tier }` with `name` 2 to 80 characters and `tier` `exact` or `expanded`. It sits beside the existing `name` (a generic grocery name), `category` and `qualifiers` on the same annotation, so its origin (`rule`, `model`, `user`) and source revision are that annotation's. Records and backups made before display names have no `display` and load unchanged. Deleting a purchase, its interpretations or its retained original works as before; a display name is removed with its annotation.
+- `DISPLAY_NAME_VERSION = 1`, `displayNameLimits = { characters: 80, proposalCharacters: 200, words: 12 }`.
+
+### Evidence rule
+
+`groundedDisplayName(label, proposal)` returns the normalized name with its tier, or null. Every word of the proposal must be a word printed in the label (`exact`), or the full form of one printed abbreviation (`expanded`): the printed token is a prefix of the word, three letters or more and at most fourteen letters shorter, or `printedAbbreviations` maps the token to that word. Each printed token supports one word. A pack size must be printed with the same number and unit (`1KG` supports `1 kg`, `6X33CL` supports `6 x 33 cl`). No other number, no run of four or more digits, no link or markup, at most twelve words. So `VALIO JOG 1KG` may become `Valio jogurtti 1 kg`; `Valio mansikkajogurtti 1 kg`, `Valio jogurtti 2 kg`, a brand before `JOG 1KG` or a product code are refused. `printedAbbreviations` holds the few abbreviations that are not prefixes (`LTON` for laktoositon and similar); add entries only from reviewed evidence.
+
+### Precedence
+
+`displayName(line, annotations)` now resolves, strongest first: the shopper's own name; an `exact` display name; an `expanded` display name; a generic `name`; the sanitized printed label. Within a tier a rule comes before a model. `DisplayName.tier` is `user`, `exact`, `expanded`, `generic` or `raw`; `specificity`, `nameOrigin`, `categoryOrigin` and `modelOnly` keep their F27.1 meaning. The name and the category are still resolved separately, so a rule's broad category can stand beside a model's fuller name without either taking the other's origin.
+
+### Task version 2
+
+`receiptNameTask` is `{ id: "receipt-enrichment", version: 2 }`, with `receiptNamePrompt(request)`, `RECEIPT_NAME_PROMPT_PREFIX` and `receiptNameNativeOutput` in `src/ai/receipt-enrichment.ts`. It is defined here and wired by F27.9; version 1 stays the registered task until then.
+
+- Request: exactly the version 1 request (`EnrichmentRequest`: sanitized label and verified quantity per row, the category list and qualifier values). No new field is sent, so `RECEIPT_DATA_SCOPE` stays 1 and saved consent remains valid. A later request that sends anything more needs a new scope.
+- Result: `enrichmentNameResultSchema`, `{ version: 2, rows: [{ rowId, display, name, category, qualifiers, scope }] }`, strict, at most 40 rows, `display` a string of at most 200 characters or null. Output and time limits are those of version 1 (8 000 characters, 60 seconds, one call, no repair).
+- Validation: `validateEnrichment` and `validateCombined` accept either version. Per row, `display` is checked with `groundedDisplayName` against the printed label of each line the row stands for. An unsupported display name is dropped and the rest of the row is kept, so the line falls back to its generic name or printed label. A row with nothing valid is refused; an unknown version, an extra field or an over-long proposal refuses the whole result (`enrichmentInvalid`) and changes nothing.
+- Batch and alias mapping are those of F27.3: `buildCombinedBatch` sends equal rows once and each accepted name is written to every source-bound line the row stands for, each validated against its own label.
+
+For F27.8: a local resolver should produce `display` only through `groundedDisplayName` (origin `rule`) and include lines whose category a rule already set but which have no display name. For F27.9: register version 2 for providers that support it, send `receiptNamePrompt`, and pass `taskVersion: 2` as the model identity.
+
+Fixtures: `tests/receipt-names.test.ts` covers accepted expansions and pack sizes, refused flavours, brands, origins, sizes, percentages, counts, reused tokens, product codes, links, markup and injected instructions, per-row fallback, the two result versions, one row naming the same label in two purchases, deletion, precedence, old records and the unchanged request.

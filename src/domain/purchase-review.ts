@@ -228,6 +228,12 @@ export type DisplayName = {
    * category is known and the printed label is shown. raw: nothing is known beyond the label.
    */
   specificity: "user" | "named" | "general" | "raw";
+  /**
+   * The evidence behind the text (F27.6), strongest first: the shopper's own name; a name whose
+   * every word is printed (`exact`); one that spells out a printed abbreviation (`expanded`); a
+   * generic grocery name (`generic`); or the printed label itself (`raw`).
+   */
+  tier: "user" | "exact" | "expanded" | "generic" | "raw";
   /** Who gave the name shown, and who gave the category; null when nobody did. */
   nameOrigin: SemanticAnnotation["origin"] | null;
   categoryOrigin: SemanticAnnotation["origin"] | null;
@@ -246,11 +252,18 @@ export function displayName(
   const ordered = [...annotations].sort(
     (a, b) => rank[a.origin] - rank[b.origin],
   );
-  const named = ordered.find((a) => a.name);
+  // The shopper's own name first; then a grounded display name, exact before expanded and a
+  // rule's before a model's within a tier; then a generic name; then the printed label.
+  const own = ordered.find((a) => a.origin === "user" && a.name);
+  const grounded =
+    ordered.find((a) => a.display?.tier === "exact") ??
+    ordered.find((a) => a.display?.tier === "expanded");
+  const generic = ordered.find((a) => a.name);
+  const named = own ?? grounded ?? generic;
   const categorised = ordered.find((a) => a.category);
   const origins = new Set(ordered.map((a) => a.origin));
   return {
-    text: named?.name ?? line.label,
+    text: own?.name ?? grounded?.display!.name ?? generic?.name ?? line.label,
     specificity: named
       ? named.origin === "user"
         ? "user"
@@ -258,6 +271,13 @@ export function displayName(
       : categorised
         ? "general"
         : "raw",
+    tier: own
+      ? "user"
+      : grounded
+        ? grounded.display!.tier
+        : generic
+          ? "generic"
+          : "raw",
     nameOrigin: named?.origin ?? null,
     categoryOrigin: categorised?.origin ?? null,
     modelOnly: origins.has("model") && origins.size === 1,
