@@ -2,7 +2,36 @@
 
 Evidence through 9 October 2026. Current scope is defined in [pre-release.md](pre-release.md). Earlier prototype evidence is retained below; it does not establish stable-release acceptance.
 
+## Windows installation, upgrade and uninstall procedure (F14.3)
+
+This is the procedure for A.3, not evidence that A.3 has passed. Run it in a disposable Windows user account or VM. Use the release's Windows x64 `Korikone-<version>-x64-setup.exe` and published SHA-256 checksum. Record Windows version, installer versions/checksums, install directory and each result. Keep the same Windows account for the upgrade and uninstall checks. Do not use real retailer accounts or ChatGPT; enable Settings > Advanced > Development mode before creating test data. The expected installer behavior comes from `package.json` and the pinned NSIS uninstall template; it still needs the actual A.3 run.
+
+### Clean installation
+
+1. Confirm that Korikone is absent from Windows Installed apps and that the test account has no existing Korikone profile. Download the installer and compare `Get-FileHash -Algorithm SHA256 <installer-path>` with the release checksum. Expected: the hashes match; stop if they differ.
+2. Run the installer. Current pre-releases are unsigned; record any Windows publisher or SmartScreen prompt. Continue only for the verified release file. Choose the installation directory in the wizard and finish. Expected: installation completes, Korikone appears in Installed apps and a desktop shortcut is created. Signing acceptance remains F14.1.
+3. Launch from the shortcut. Expected: the welcome screen appears without a crash, with Finnish as the initial language. Enable Development mode, try the example and open Settings > About. Expected: the displayed version matches the release, the development banner is visible and fixture products appear without signing into a retailer or ChatGPT.
+4. Save a distinctive synthetic recipe, switch the language to English and export a backup from Settings > Data to a folder outside the installation directory and app profile. Close and reopen Korikone. Expected: the recipe, language and development mode survive restart; the exported backup exists. Record the profile location (normally `%APPDATA%\Korikone`); do not set `KORIKONE_TEST_DATA` or `KORIKONE_DATA_DIR` for this installer check.
+
+### Upgrade over existing data
+
+1. Install the previous published version in the disposable account and create the synthetic data above. Export a fresh backup outside the profile and installation directories. Record the recipe, language, shopping list and selected fixture store. Close Korikone, including any remaining app process. Expected: the backup is readable and no instance is running.
+2. Run the new verified installer using the existing installation directory and Windows account. Expected: the wizard completes, Installed apps has one Korikone entry and the shortcut launches the new version. Do not uninstall or delete the profile first.
+3. Open Settings > About and inspect the saved data. Expected: the new version is displayed, the recipe, language, list and selected store remain, development mode remains enabled and no retailer sign-in or AI request is needed. Close and reopen once more. Expected: the upgraded profile remains readable with the same data. New settings may have documented defaults.
+4. In a separate disposable profile, restore the exported backup through Settings > Data. Expected: the synthetic recipe and other backed-up state are restored. This checks backup portability separately from the in-place upgrade; it does not establish retailer session or credential portability.
+
+### Uninstall and reinstall
+
+1. Export a final backup outside the installation and profile directories, then close Korikone. Uninstall through Windows Settings > Apps > Installed apps. Expected: the wizard finishes, the app entry, installed executable and desktop shortcut are removed; the external backup remains.
+2. Check the profile directory before reinstalling. The current installer does not enable automatic app-data deletion; record any removal option shown and leave it off for this check. Expected: the local database/profile remains. Uninstall is not a request to erase purchases, receipts or retailer sessions. Never delete a real owner's profile as part of this procedure.
+3. Reinstall the same verified version and launch it. Expected: the saved synthetic data and development mode return. If a clean-start check is needed, use a new disposable Windows account instead of deleting an existing profile.
+4. Record failures with the step, expected/actual result and a sanitized error code. A packaged executable smoke test alone does not pass A.3. Keep clean-install, upgrade, uninstall and backup-restore results separate; leave unrun steps marked unrun.
+
 ## Current source acceptance preparation
+
+### Keyboard and accessible names (F14.4, 16 October 2026)
+
+`tests/ui/accessibility.spec.ts` passed both real Electron development-profile cases: Finnish at 1280 px in light mode and English at 800 px in dark mode. Native Tab traverses enabled visible controls in DOM order, with a reverse-Tab check, accessible names and a visible focus outline. The check covers welcome/setup, shopping list, expanded product details, calendar, recipes/editor, History, Store, all seven Settings categories, regular items and transfer confirmation. Settings entry/section changes focus the named heading, and the confirmation has a named region. Both cases record zero model requests and zero retailer writes. No application changes were needed. This is automated keyboard and accessibility-tree evidence; spoken output from Narrator or another screen reader was not tested. It does not establish live retailer-page accessibility.
 
 Development mode is the default for automated and agent testing. The current source updates the note only by the labelled button or Ctrl+Enter, supports cancellation and discards obsolete drafts. Fixture request counts check zero automatic generations, the bounded validation retry, cancellation and usage failures. Compatible quotes survive navigation and restart without catalogue requests. The original multi-dish example has cooked-meal, ready-food, breakfast and snack fixtures through the real validation and matching paths.
 
