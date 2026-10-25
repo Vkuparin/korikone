@@ -1597,6 +1597,10 @@ export function ShoppingWorkspace({
             </div>
           </div>
         </div>
+        {/* What the planner assumed or could not do, right under the request that caused it. */}
+        {state.assumptions && (
+          <p className="input-notice">{state.assumptions}</p>
+        )}
         <EditOutcome
           snapshot={snapshot}
           language={state.language}
@@ -1905,9 +1909,6 @@ export function ShoppingWorkspace({
                 })}
               </div>
             </>
-          )}
-          {state.assumptions && (
-            <p className="input-notice">{state.assumptions}</p>
           )}
           <details className="recipe-adder">
             <summary>
