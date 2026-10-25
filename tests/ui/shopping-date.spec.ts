@@ -36,6 +36,16 @@ for (const language of ["fi", "en"] as const)
           height: width === 800 ? 600 : 800,
         });
         await expect(date).toBeVisible();
+        const composerBox = await page.locator(".note-box").boundingBox();
+        const offersButton = await page
+          .locator(".offer-ideas > button")
+          .boundingBox();
+        expect(composerBox).not.toBeNull();
+        expect(offersButton).not.toBeNull();
+        expect(
+          offersButton!.y - (composerBox!.y + composerBox!.height),
+        ).toBeGreaterThanOrEqual(16);
+
         const info = await date.evaluate((element) => ({
           tag: element.tagName,
           tabIndex: (element as HTMLElement).tabIndex,

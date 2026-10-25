@@ -187,3 +187,4 @@ Not changed: comparison speed (accepted by the owner), offer conditions, and pri
 
 The composer has no duplicate store button. Use the store selector at the top of the shopping page to change the selected store.
 Clicking an already-open store or delivery selector cancels its unsaved selection and closes the panel, just like Cancel.
+The offer ideas section has a 16-pixel gap below the composer so their borders and focus outlines remain separate.

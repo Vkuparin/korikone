@@ -735,6 +735,9 @@ body:has(.app-main) .demo {
   border-top: 1px solid var(--kk-border);
   margin-top: 16px;
 }
+.offer-ideas {
+  margin-top: 16px;
+}
 .note-context,
 .note-actions {
   display: flex;
