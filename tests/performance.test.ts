@@ -5,6 +5,7 @@ import { mapConcurrent } from "../src/application/concurrent";
 import { memoryStorage } from "./helpers/purchase-fixtures";
 import { editPlan } from "./helpers/edit-plan";
 import { purchaseInsightsKey } from "../src/ui/insights";
+import { OperationTracker } from "../src/application/operation-progress";
 
 test("bounded reads settle failures, preserve order and stop scheduling new work", async () => {
   const started: number[] = [],
@@ -101,4 +102,17 @@ test("unrelated cloned snapshots do not invalidate purchase views", () => {
   expect(purchaseInsightsKey(next)).toBe(purchaseInsightsKey(before));
   next.state.staples = [];
   expect(purchaseInsightsKey(next)).not.toBe(purchaseInsightsKey(before));
+});
+
+test("pricing an empty list reports valid progress and stores an empty quote", async () => {
+  const service = new Service(memoryStorage().storage);
+  await service.init();
+  await service.newWeek();
+  const tracker = new OperationTracker(() => {});
+  const id = tracker.start("buildBasket");
+  service.onActivity = (step) => tracker.update(id, step);
+  await service.buildBasket();
+  expect(service.basket).toEqual([]);
+  expect(service.quotedAt).not.toBeNull();
+  expect(tracker.current).toMatchObject({ stage: "searching", total: null });
 });

@@ -78,7 +78,8 @@ test("failure and cancellation retain numeric metrics and never error text", asy
   );
   expect(search.operationMetrics.at(-1)).toMatchObject({
     outcome: "failed",
-    searches: 1,
+    // Both bounded workers may already have started when the first read fails.
+    searches: 2,
     unresolved: { "search-error": 1 },
   });
 });

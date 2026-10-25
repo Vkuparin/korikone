@@ -771,9 +771,16 @@ else
         return service.snapshot();
       },
       modelsAI: async () => {
+        if (activeOperation)
+          operations.update(activeOperation.id, { stage: "discovering" });
         await discoverInferenceModels(
           inferenceProvider(),
-          AbortSignal.timeout(30000),
+          activeOperation
+            ? AbortSignal.any([
+                activeOperation.controller.signal,
+                AbortSignal.timeout(30000),
+              ])
+            : AbortSignal.timeout(30000),
         ).catch((error) => {
           throw inferenceAppError(error);
         });

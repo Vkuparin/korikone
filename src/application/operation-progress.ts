@@ -45,6 +45,7 @@ export const terminalOperation = (p: OperationProgress) =>
   ["done", "failed", "cancelled"].includes(p.stage);
 export const aiOperation = (method: string) =>
   [
+    "modelsAI",
     "generate",
     "planShopping",
     "editList",

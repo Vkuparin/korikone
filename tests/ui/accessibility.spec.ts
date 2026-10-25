@@ -97,6 +97,11 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByRole("button", { name: t.setupStart, exact: true })
         .click();
+      // Clicking starts an async save; audit only after the setup controls have replaced welcome.
+      await expect(page.locator(".setup")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: t.search, exact: true }),
+      ).toBeEnabled();
       await auditTabOrder(page, "setup");
       // Populate the ordinary example through the real saved-state boundary.
       await page.evaluate(async () => {

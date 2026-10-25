@@ -161,7 +161,7 @@ for (const language of ["fi", "en"] as const) {
           await tabTo(page, note);
           await page.keyboard.press("Control+Enter");
           await expect(page.locator("#note-update-help")).toHaveText(
-            tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
+            tr("Odotetaan tekoälyn vastausta", "Waiting for the AI response"),
           );
           expect(
             await page

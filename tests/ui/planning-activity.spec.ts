@@ -305,7 +305,7 @@ test("narrow held-pending activity stays readable on the composer and reduced-mo
     const fallback = page.locator(".operation-fallback");
     await expect(statuses).toHaveCount(1);
     await expect(statuses).toHaveAttribute("data-operation-status", "global");
-    await expect(statuses).toHaveText("Interpreting your request…");
+    await expect(statuses).toHaveText("Waiting for the AI response");
     await expect(fallback).toBeInViewport();
     expect(
       await fallback.evaluate(

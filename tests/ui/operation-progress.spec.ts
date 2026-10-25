@@ -131,8 +131,11 @@ test("one request retains one progress/cancel surface across scroll, navigation 
     );
     await page.getByRole("button", { name: "Asetukset", exact: true }).click();
     await settingsCategory(page, "ai", "ChatGPT ja tekoäly");
+    await page
+      .getByRole("button", { name: "Hae mallit uudelleen", exact: true })
+      .click();
     await expect(statuses).toHaveCount(1);
-    await expect(statuses).toHaveText("Käsitellään…");
+    await expect(statuses).toContainText("tekoälyn käytettävyyttä");
     await expect(
       page
         .locator(".operation-fallback")
@@ -141,10 +144,10 @@ test("one request retains one progress/cancel surface across scroll, navigation 
     await expect(page.locator(".operation-fallback")).not.toContainText(
       "peruutettu",
     );
-    await expect(page.locator(".operation-fallback")).toContainText(
-      "peruutettu",
-      { timeout: 10000 },
-    );
+    // Old completion feedback expires instead of returning after an unrelated action.
+    await expect(page.locator(".operation-fallback")).toHaveCount(0, {
+      timeout: 10000,
+    });
     const after = await load();
     expect(after.developmentRequests).toBe(0);
     expect(after.developmentStoreWrites).toBe(0);
@@ -245,14 +248,14 @@ test("current-list edits share cancellation and retain their instruction after n
       '[data-operation-status][role="status"]:visible',
     );
     await expect(statuses).toHaveCount(1);
-    await expect(statuses).toHaveText("Editing the list…");
+    await expect(statuses).toHaveText("Waiting for the AI response");
     await expect(
       page.getByRole("button", { name: "Cancel change", exact: true }),
     ).toBeEnabled();
     await expect(page.locator(".operation-fallback")).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(statuses).toHaveAttribute("data-operation-status", "global");
-    await expect(statuses).toHaveText("Editing the list…");
+    await expect(statuses).toHaveText("Waiting for the AI response");
     await page
       .locator(".operation-fallback")
       .getByRole("button", { name: "Cancel", exact: true })

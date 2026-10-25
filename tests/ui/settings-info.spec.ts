@@ -104,6 +104,8 @@ test("runtime version, language menu and unavailable ChatGPT allowance preserve 
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await settingsCategory(page, "ai", "ChatGPT and AI");
+    // Opening Settings reuses the connection's known models; an explicit reload reads them again.
+    await page.getByRole("button", { name: "Reload models" }).click();
     await expect(
       page
         .locator(".settings-content")

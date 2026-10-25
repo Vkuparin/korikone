@@ -2105,11 +2105,12 @@ export class Service {
       const wanted = requirements(state);
       let completed = 0;
       const signal = this.activitySignal;
-      this.onActivity?.({
-        stage: "searching",
-        completed: 0,
-        total: wanted.length || undefined,
-      });
+      // An empty list has no count to report; a zero total would fail progress validation.
+      this.onActivity?.(
+        wanted.length
+          ? { stage: "searching", completed: 0, total: wanted.length }
+          : { stage: "searching" },
+      );
       return mapConcurrent(wanted, async (requirement) => {
         signal?.throwIfAborted();
         const line = await this.quoteRequirement(

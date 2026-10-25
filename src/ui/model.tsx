@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import { Choice } from "./choice";
 
@@ -23,12 +23,19 @@ export function ModelSelector({
   const connected = snapshot.ai.state === "connected";
   const models = snapshot.ai.models;
   const selected = snapshot.state.aiModel;
+  const requested = useRef(false);
   useEffect(() => {
-    if (connected)
-      void call("modelsAI", undefined, { preserveError: true }).then((ok) =>
-        setError(!ok),
-      );
-  }, [connected]);
+    if (!connected) {
+      requested.current = false;
+      return;
+    }
+    // Reuse this connection's known list; each explicit generation still discovers and pins its model.
+    if (busy || models.length || requested.current) return;
+    requested.current = true;
+    void call("modelsAI", undefined, { preserveError: true }).then((ok) =>
+      setError(!ok),
+    );
+  }, [connected, busy, models.length]);
   const missing =
     selected !== "auto" && !models.some((model) => model.slug === selected);
   return (
@@ -84,7 +91,7 @@ export function ModelSelector({
           )}
         </small>
       )}
-      {connected && (error || !models.length) && (
+      {connected && (error || !models.length || !settings) && (
         <button
           className="text"
           disabled={busy}

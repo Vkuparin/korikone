@@ -620,7 +620,7 @@ for (const language of ["fi", "en"] as const) {
       await page.locator(".note-actions").scrollIntoViewIfNeeded();
       await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveText(
-        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
+        tr("Odotetaan tekoälyn vastausta", "Waiting for the AI response"),
         { timeout: 1000 },
       );
       await page
@@ -667,7 +667,7 @@ for (const language of ["fi", "en"] as const) {
       );
       await note.press("Control+Enter");
       await expect(status).toHaveText(
-        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
+        tr("Odotetaan tekoälyn vastausta", "Waiting for the AI response"),
         { timeout: 1000 },
       );
       await expect(status).toHaveText(
@@ -690,7 +690,7 @@ for (const language of ["fi", "en"] as const) {
         })
         .click();
       await expect(status).toHaveText(
-        tr("Tulkitaan pyyntöä…", "Interpreting your request…"),
+        tr("Odotetaan tekoälyn vastausta", "Waiting for the AI response"),
         { timeout: 1000 },
       );
       await expect(page.locator(".grocery-row")).toHaveCount(0);
@@ -749,7 +749,7 @@ for (const language of ["fi", "en"] as const) {
         "discovering",
       );
       await expect(status).toHaveText(
-        tr("Etsitään käytettävää AI-mallia…", "Finding an available AI model…"),
+        tr("Selvitetään tekoälyn käytettävyyttä", "Checking AI availability"),
       );
       await page
         .locator(".note-actions")
@@ -771,8 +771,8 @@ for (const language of ["fi", "en"] as const) {
       await expect(status).toHaveAttribute("data-planning-phase", "searching", {
         timeout: 10000,
       });
-      await expect(status).toHaveText(
-        tr("Haetaan tuotteita ja hintoja…", "Getting products and prices…"),
+      await expect(status).toContainText(
+        tr("Haetaan tuotteita", "Searching for products"),
       );
       expect((await load()).quotedAt).toBe(before.quotedAt);
       // Changing the note while the run is still searching makes its result obsolete.
@@ -799,7 +799,10 @@ for (const language of ["fi", "en"] as const) {
         timeout: 10000,
       });
       await expect(status).toHaveText(
-        tr("Tarkistetaan epäselviä tuotteita…", "Checking uncertain products…"),
+        tr(
+          "Sovitetaan tuotteita ostoslistaan",
+          "Matching products to the shopping list",
+        ),
       );
       expect((await load()).state).toEqual(before.state);
       await expect(

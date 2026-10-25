@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
 import type { OperationProgress } from "../../src/application/operation-progress";
 import { composer, updateName } from "./composer-helper";
+import { settingsCategory } from "./settings-helper";
 
 async function fixture() {
   const env = Object.fromEntries(
@@ -45,6 +46,54 @@ async function fixture() {
     );
   return { app, page, load, events };
 }
+
+test("opening AI settings reuses known models and leaves the active operation in control", async () => {
+  const { app, page, load } = await fixture();
+  try {
+    await page.evaluate(() =>
+      window.korikone.developmentScenario("pendingSuccess"),
+    );
+    await composer(page).fill("Nakkikeitto");
+    await page.getByRole("button", { name: updateName }).click();
+    await expect
+      .poll(
+        async () =>
+          (await page.evaluate(() => window.korikone.getOperationProgress()))
+            .value?.stage,
+      )
+      .toBe("generating");
+    const operation = (
+      await page.evaluate(() => window.korikone.getOperationProgress())
+    ).value!;
+    const before = await load();
+    await page.getByRole("button", { name: "Asetukset", exact: true }).click();
+    await settingsCategory(page, "ai", "ChatGPT ja tekoäly");
+    await expect(
+      page.getByRole("button", { name: "Hae mallit uudelleen", exact: true }),
+    ).toBeVisible();
+    const active = (
+      await page.evaluate(() => window.korikone.getOperationProgress())
+    ).value!;
+    expect(active.id).toBe(operation.id);
+    expect(active.stage).toBe("generating");
+    expect((await load()).developmentModelCatalogueRequests).toBe(
+      before.developmentModelCatalogueRequests,
+    );
+    await page
+      .locator(".operation-fallback")
+      .getByRole("button", { name: "Peruuta", exact: true })
+      .click();
+    await expect
+      .poll(
+        async () =>
+          (await page.evaluate(() => window.korikone.getOperationProgress()))
+            .value?.stage,
+      )
+      .toBe("cancelled");
+  } finally {
+    await app.close();
+  }
+});
 
 test("AI progress survives long waits and viewport changes with one visible status and bounded cancellation", async () => {
   const { app, page, load, events } = await fixture();

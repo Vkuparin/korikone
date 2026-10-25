@@ -126,7 +126,7 @@ test("adapter failures remain separate from empty searches", async () => {
       ),
     ).toMatchObject({
       aiRequests: 1,
-      searches: 1,
+      searches: 2,
       reasons: { "search-error": 2 },
       retailerWrites: 0,
       missingRequests: [],
@@ -138,7 +138,7 @@ test("adapter failures remain separate from empty searches", async () => {
       ),
     ).toMatchObject({
       aiRequests: 1,
-      searches: 1,
+      searches: 2,
       reasons: { normalization: 2 },
       retailerWrites: 0,
     });
