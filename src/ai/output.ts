@@ -18,6 +18,7 @@ import { requestIntentSchema } from "../domain/intents";
 import { merchandiseAttributeKinds } from "../domain/merchandise";
 import type { OfferIdeaProduct } from "./offers";
 import { DraftError } from "../domain/draft-errors";
+import { salvageDraft, salvageNote } from "./salvage";
 import {
   draftPrompt,
   recipePrompt,
@@ -26,6 +27,7 @@ import {
   validateRecipe,
   generateValidated,
   alignPlanningEvidence,
+  type MealDraft,
 } from "./draft";
 
 // Native wire schemas deliberately exclude task refinements/defaults. Domain validation follows.
@@ -163,6 +165,8 @@ export type TaskOutput<T> = {
   native: Extract<InferenceOutput, { mode: "json-schema" }>;
   normalizeNative: (raw: string) => string;
   validate: (raw: string) => T;
+  /** Keeps the usable part of a refused raw reply, or null. Never sees provider errors. */
+  salvage?: (raw: string) => T | null;
   repairLimit: 0 | 1;
   correction: string;
   nativeInstructions?: string;
@@ -202,7 +206,13 @@ export async function invokeTaskOutput<T>(
   const validate = (raw: string) =>
     definition.validate(native ? definition.normalizeNative(raw) : raw);
   return definition.repairLimit === 1
-    ? generateValidated(generate, prompt, validate, definition.correction)
+    ? generateValidated(
+        generate,
+        prompt,
+        validate,
+        definition.correction,
+        definition.salvage,
+      )
     : validate(await generate(prompt));
 }
 
@@ -290,35 +300,24 @@ export function interpretPlanning(
         throw new Error("invalidDraft");
       }
     },
-    validate: (raw) => {
-      const draft = validatePlanningDraft(
+    validate: (raw) =>
+      checkOffers(
+        validatePlanningDraft(alignPlanningEvidence(raw, note), snapshot, note),
+      ),
+    salvage: (raw) => {
+      const result = salvageDraft(
         alignPlanningEvidence(raw, note),
         snapshot,
         note,
       );
-      const uses = draft.offerUses ?? [];
-      const ingredients = [
-        ...draft.items,
-        ...[...draft.recipes, ...snapshot.recipes]
-          .filter((r) =>
-            draft.meals.some((m) => m.recipeId === r.id && !m.leftovers),
-          )
-          .flatMap((r) => r.ingredients),
-      ];
-      if (
-        uses.length !== offers.length ||
-        new Set(uses.map((u) => u.productId)).size !== uses.length ||
-        uses.some(
-          (u) =>
-            !offers.some((p) => p.productId === u.productId) ||
-            new Set(
-              ingredients
-                .filter((i) => i.name === u.ingredientName)
-                .map((i) => `${i.id}:${i.unit}`),
-            ).size !== 1,
-        )
-      )
-        throw new DraftError("offer-selection", "offerUses");
+      if (!result) return null;
+      const notice = salvageNote(snapshot.language, result);
+      const draft = checkOffers(result.draft);
+      if (notice)
+        draft.notes = [draft.notes, notice]
+          .filter(Boolean)
+          .join(" ")
+          .slice(0, 5000);
       return draft;
     },
     repairLimit: 1,
@@ -327,6 +326,32 @@ export function interpretPlanning(
     nativeInstructions:
       " Use the supplied native schema exactly. All fields are required. Preserve meaningful null quantity amounts/units, target indexes and unresolvedReason; classification/evidence/kind/day/leftovers nullable metadata follow their schema.",
   });
+  function checkOffers<D extends MealDraft>(draft: D): D {
+    const uses = draft.offerUses ?? [];
+    const ingredients = [
+      ...draft.items,
+      ...[...draft.recipes, ...snapshot.recipes]
+        .filter((r) =>
+          draft.meals.some((m) => m.recipeId === r.id && !m.leftovers),
+        )
+        .flatMap((r) => r.ingredients),
+    ];
+    if (
+      uses.length !== offers.length ||
+      new Set(uses.map((u) => u.productId)).size !== uses.length ||
+      uses.some(
+        (u) =>
+          !offers.some((p) => p.productId === u.productId) ||
+          new Set(
+            ingredients
+              .filter((i) => i.name === u.ingredientName)
+              .map((i) => `${i.id}:${i.unit}`),
+          ).size !== 1,
+      )
+    )
+      throw new DraftError("offer-selection", "offerUses");
+    return draft;
+  }
 }
 export function extractRecipe(
   session: InferenceSession,

@@ -269,32 +269,26 @@ test("a model cannot add an attribute, a product code or a retailer fact the sho
   });
 });
 
-test("an invalid non-food reply is repaired once and then fails; a quota error leaves the list alone", async () => {
+test("an invented non-food attribute is left out and asked for; a quota error leaves the list alone", async () => {
   const note = "kumisaappaat koko 32";
   const invented = planningFixtureReply(note, 4);
   invented.items[0].merchandise!.attributes[0].value = "33";
   const { service, searches } = await shop();
   const before = structuredClone(service.state);
-  const repaired = ai([JSON.stringify(invented)]);
-  await expect(
-    service.planShopping({ prompt: note, consent: true }, bind(repaired)),
-  ).rejects.toThrow("invalidDraft");
-  // The first reply and one repair, never a third.
-  expect(repaired.calls).toHaveLength(2);
-  expect(service.snapshot().planning?.failureCause).toMatchObject({
-    reason: "merchandise",
-  });
+  // B4.1: the reply is kept without its invented size and without a repair request.
+  const salvaged = await plan(service, note, [JSON.stringify(invented)]);
+  expect(salvaged.provider.calls).toHaveLength(1);
+  expect(
+    service.state.extras.find((i) => i.name === "Kumisaapas")?.merchandise,
+  ).toMatchObject({ attributes: [], missing: ["size"] });
+  expect(searches.filter((q) => q === "Kumisaapas 33")).toEqual([]);
   const limited = ai([new InferenceError("usageLimit")]);
   await expect(
     service.planShopping({ prompt: note, consent: true }, bind(limited)),
   ).rejects.toThrow();
   expect(limited.calls).toHaveLength(1);
-  // A reply that is right on the repair is used.
-  const recovered = await plan(service, note, [
-    JSON.stringify(invented),
-    JSON.stringify(planningFixtureReply(note, 4)),
-  ]);
-  expect(recovered.provider.calls).toHaveLength(2);
+  const exact = await plan(service, note);
+  expect(exact.provider.calls).toHaveLength(1);
   expect(row(service, "Kumisaapas").product?.id).toBe("6400000000328");
   expect(before.extras).toEqual([]);
   expect(searches.filter((q) => q === "Kumisaapas 33")).toEqual([]);

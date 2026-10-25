@@ -304,6 +304,15 @@ function EditOutcome({
           : editSummary(edit.applied, fi)}
       </p>
       <EditDetails delta={edit.delta} fi={fi} />
+      {edit.status === "applied" && !!edit.unsupported?.length && (
+        <p className="muted">
+          {tr(
+            "Tätä osaa ei tehty, kirjoita se tarvittaessa toisin: ",
+            "This part was not done; rephrase it if needed: ",
+          )}
+          {edit.unsupported.join(", ")}
+        </p>
+      )}
       {snapshot.editUndoAvailable && (
         <button
           className="secondary"

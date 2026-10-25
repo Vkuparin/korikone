@@ -80,7 +80,8 @@ test("failure and cancellation retain numeric metrics and never error text", asy
     outcome: "failed",
     // Both bounded workers may already have started when the first read fails.
     searches: 2,
-    unresolved: { "search-error": 1 },
+    // B4.2: each unanswered row, then the operation that no row answered.
+    unresolved: { "search-error": 3 },
   });
 });
 

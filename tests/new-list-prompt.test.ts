@@ -371,40 +371,38 @@ test("the owner's prompt plans and commits through the real coordinator after Ne
   expect(entries.get("state")).toEqual(service.state);
 });
 
-test("a malformed reply is repaired once; a second failure keeps the saved list and says why", async () => {
+test("a refused but usable reply is salvaged; an unusable one is repaired once", async () => {
   const { service, entries } = await saved();
   const before = structuredClone(service.state);
   const basket = structuredClone(service.basket);
   const broken = reply();
   broken.intents.pop();
-  // One repair succeeds.
+  // B4.1: the usable reply is kept without a second request.
   let calls = { count: 0 };
-  const repaired = await service.planShopping(
+  const salvaged = await service.planShopping(
     { prompt, consent: true },
     session([broken, reply()], calls),
+  );
+  expect(salvaged.planning).toMatchObject({ phase: "ready" });
+  expect(calls.count).toBe(1);
+  service.planning.cancel();
+  // One repair succeeds.
+  calls = { count: 0 };
+  const repaired = await service.planShopping(
+    { prompt, consent: true },
+    session(["{", reply()], calls),
   );
   expect(repaired.planning).toMatchObject({ phase: "ready" });
   expect(calls.count).toBe(2);
   service.planning.cancel();
-  // Two refusals: no third request, no commit, and a cause that carries no text.
+  // Two refusals: no third request, nothing saved yet, and the note itself is planned (B4.3).
   calls = { count: 0 };
-  await expect(
-    service.planShopping(
-      { prompt, consent: true },
-      session([broken, "{"], calls),
-    ),
-  ).rejects.toThrow("invalidDraft");
+  const fallback = await service.planShopping(
+    { prompt, consent: true },
+    session(["{", "{"], calls),
+  );
   expect(calls.count).toBe(2);
-  const failed = service.planning.snapshot()!;
-  expect(failed).toMatchObject({
-    phase: "failed",
-    failure: "invalid-output",
-    failureCause: { reason: "json", path: null },
-    provisional: { meals: [], rows: [] },
-  });
-  await expect(
-    service.commitPlanning({ operationId: failed.operationId }),
-  ).rejects.toThrow();
+  expect(fallback.planning).toMatchObject({ phase: "ready", failure: null });
   expect(service.state).toEqual(before);
   expect(service.basket).toEqual(basket);
   expect(entries.get("state")).toEqual(before);

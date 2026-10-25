@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   EDIT_VERSION,
   editIntentSchema,
+  editOperationSchema,
   editLimits,
   editTargetIdSchema,
   editTargets,
@@ -25,8 +26,9 @@ import { shoppingEditTask } from "./tasks";
 /** One edit is one interpretation and at most one validation repair; it never calls the resolver. */
 export const editTaskLimits = Object.freeze({
   aiCalls: 2,
-  maxOutputCharacters: 20_000,
-  timeoutMs: 60_000,
+  // Sized for adding several new dishes in one instruction (B4.5).
+  maxOutputCharacters: 40_000,
+  timeoutMs: 120_000,
   rows: 200,
   meals: 100,
   recipes: 12,
@@ -208,7 +210,7 @@ export function editPrompt(context: EditContext): string {
     "A plain list of dishes and groceries with no verb means: add each dish that is not on the list (addMeal), and for each grocery with an amount state that amount (changeQuantity when the grocery has a row, otherwise setItem). Use addItem only when the shopper says add or more, such as lisää: it increases what is there. Never replace a dish unless the shopper says to replace or swap it. Keep the shopper's own words for a grocery variety, such as kevytmaito or vaniljajäätelö, in name. A number word and a written unit count as an amount: kaksi litraa is 2000 ml and litra jäätelöä is 1000 ml. " +
     'Q is {"kind":"amount","amount":positive integer,"unit":"g"|"ml"|"pcs"} in the row\'s own unit (convert kg and l; never decimals), ' +
     'or {"kind":"packs","count":positive integer} when the shopper counts cartons, packs, bags or jars. Never convert a pack count to an amount and never guess a pack size. ' +
-    'A new recipe is {"id":"unique","name":"Nakkikeitto","kind":"meal","servings":4,"ingredients":[{"id":"nakki","name":"Nakki","amount":400,"unit":"g"}],"instructions":"…"} with plain singular Finnish ingredient names reused from the list where they match. ' +
+    'A new recipe is {"id":"unique","name":"Nakkikeitto","kind":"meal","servings":4,"ingredients":[{"id":"nakki","name":"Nakki","amount":400,"unit":"g"}],"instructions":"one short sentence"} with plain singular Finnish ingredient names reused from the list where they match; instructions is at most 120 characters, not cooking steps. ' +
     "Use a target at most once. Never invent or alter a target, price or store, and never add a product or brand the shopper did not write. " +
     'If part of the instruction fits several targets, do not choose: add {"phrase":"the shopper\'s words","candidates":["row:…","row:…"]} to ambiguities. ' +
     'If part of it is not one of these operations, names nothing on the list where a target is required, or lacks a needed quantity, add {"phrase":"the shopper\'s words"} to unsupported. ' +
@@ -310,7 +312,28 @@ export function validateEditIntent(
   }
   const seen = new Set<string>();
   const recipes = [...state.recipes];
-  const operations = loose.operations.map((wire): unknown => {
+  // B4.4: an operation that fails these checks is left out and reported by name; the reply is
+  // refused only when nothing in it is usable.
+  const dropped: string[] = [];
+  let conflict = false;
+  const operations = loose.operations.flatMap((wire) => {
+    try {
+      const operation = editOperationSchema.safeParse(
+        JSON.parse(JSON.stringify(checkedOperation(wire))),
+      );
+      if (!operation.success) throw invalid();
+      return [operation.data];
+    } catch {
+      const name =
+        wire.name ??
+        (record(wire.recipe) && typeof record(wire.recipe)!.name === "string"
+          ? (record(wire.recipe)!.name as string)
+          : "");
+      if (name.trim()) dropped.push(name.trim().slice(0, 200));
+      return [];
+    }
+  });
+  function checkedOperation(wire: (typeof loose.operations)[number]): unknown {
     if (
       Object.keys(wire).some(
         (key) =>
@@ -326,6 +349,8 @@ export function validateEditIntent(
       wire.op === "removeMeal";
     let target: string | undefined;
     if (wire.target !== undefined) {
+      // Two operations on one row or dish contradict each other: the reply cannot be used.
+      if (seen.has(wire.target)) conflict = true;
       if (
         !known.has(wire.target) ||
         seen.has(wire.target) ||
@@ -471,18 +496,40 @@ export function validateEditIntent(
         };
       }
     }
-  });
-  for (const ambiguity of loose.ambiguities)
-    if (ambiguity.candidates.some((id) => !known.has(id))) throw invalid();
+  }
+  // An ambiguity naming a target that does not exist is a part the shopper must say again.
+  const ambiguities = loose.ambiguities.filter(
+    (a) =>
+      a.candidates.length >= 2 && a.candidates.every((id) => known.has(id)),
+  );
+  const unsupported = [
+    ...loose.unsupported,
+    ...loose.ambiguities
+      .filter((a) => !ambiguities.includes(a))
+      .map((a) => ({ phrase: a.phrase })),
+    ...dropped.map((phrase) => ({ phrase })),
+  ].filter((u) => u.phrase.trim());
+  if (conflict) throw invalid();
+  if (
+    loose.operations.length &&
+    !operations.length &&
+    !ambiguities.length &&
+    !loose.unsupported.length
+  )
+    throw invalid();
   const intent = editIntentSchema.safeParse({
     version: EDIT_VERSION,
-    operations: JSON.parse(JSON.stringify(operations)),
-    ambiguities: loose.ambiguities,
-    unsupported: loose.unsupported,
+    operations,
+    ambiguities,
+    unsupported: unsupported.slice(0, editLimits.ambiguities),
   });
   if (!intent.success) throw invalid();
   return intent.data;
 }
+const record = (value: unknown) =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 /**
  * Interprets one instruction against a snapshot of the plan. Applying it is the caller's separate,

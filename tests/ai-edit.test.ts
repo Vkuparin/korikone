@@ -214,16 +214,12 @@ for (const alternative of [false, true]) {
       reply([{ op: "removeItem", target: "row:saffron:g" }]),
       reply([{ op: "removeItem", target: "pasta:g" }]),
       reply([{ op: "removeItem", target: "meal:m-pasta" }]),
-      reply([{ op: "changeServings", target: "row:pasta:g", servings: 2 }]),
+      // Two operations on one row contradict each other.
       reply([
         { op: "removeItem", target: "row:pasta:g" },
         { op: "markAtHome", target: "row:pasta:g", atHome: true },
       ]),
-      reply([], {
-        ambiguities: [
-          { phrase: "leipä", candidates: ["row:ruisleipä:g", "row:sämpylä:g"] },
-        ],
-      }),
+      reply([{ op: "changeServings", target: "row:pasta:g", servings: 2 }]),
       reply([
         {
           op: "replaceMeal",
@@ -271,6 +267,62 @@ for (const alternative of [false, true]) {
       ).rejects.toThrow("invalidDraft");
       expect(failed.connection.prompts).toHaveLength(editTaskLimits.aiCalls);
     }
+  });
+
+  test(`${label}: a reply with a usable part keeps it without a repair (B4.4)`, async () => {
+    // An ambiguity naming invented rows becomes a part to say again, never a choice.
+    const invented = await setup(alternative, [
+      reply(
+        [
+          {
+            op: "addItem",
+            name: "Kahvi",
+            quantity: { kind: "amount", amount: 500, unit: "g" },
+          },
+        ],
+        {
+          ambiguities: [
+            {
+              phrase: "leipä",
+              candidates: ["row:ruisleipä:g", "row:sämpylä:g"],
+            },
+          ],
+        },
+      ),
+    ]);
+    await expect(
+      interpretEdit(
+        invented.session,
+        { instruction: "lisää kahvia ja leipää" },
+        editPlan(),
+        now,
+      ),
+    ).resolves.toMatchObject({
+      operations: [{ op: "addItem", name: "Kahvi" }],
+      ambiguities: [],
+      unsupported: [{ phrase: "leipä" }],
+    });
+    expect(invented.connection.prompts).toHaveLength(1);
+    // A named operation that fails validation is reported by its name.
+    const named = await setup(alternative, [
+      reply([
+        { op: "removeItem", target: "row:pasta:g" },
+        {
+          op: "replaceMeal",
+          target: "meal:m-pasta",
+          recipeId: "invented",
+          recipe: { name: "Lohikeitto" },
+        },
+      ]),
+    ]);
+    const kept = await interpretEdit(
+      named.session,
+      { instruction: "poista pasta ja vaihda lohikeittoon" },
+      editPlan(),
+      now,
+    );
+    expect(kept.operations).toMatchObject([{ op: "removeItem" }]);
+    expect(kept.unsupported).toEqual([{ phrase: "Lohikeitto" }]);
   });
 
   test(`${label}: usage limit, provider failure and cancellation are not repaired`, async () => {

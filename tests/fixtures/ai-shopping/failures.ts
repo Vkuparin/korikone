@@ -295,6 +295,10 @@ export const failureCases: ShoppingCase[] = inputs.map((c) =>
                 : ["stale-eggs", "change-store-rice"].includes(c.id)
                   ? "obsolete"
                   : undefined,
+    coordinatorKeepsList:
+      c.boundaryFailure !== undefined ||
+      c.completion === "incomplete" ||
+      c.id === "invalid-eggs",
     lifecycle:
       c.id === "cancel-milk"
         ? "cancel-search"

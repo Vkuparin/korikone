@@ -263,7 +263,11 @@ export async function evaluateShoppingCase(
   const count = (value: UnresolvedReason) => {
     result.reasons[value] = (result.reasons[value] ?? 0) + 1;
   };
-  if (execution === "coordinator" && fixture.expectedFailure) {
+  if (
+    execution === "coordinator" &&
+    fixture.expectedFailure &&
+    !fixture.coordinatorKeepsList
+  ) {
     const after = service.snapshot();
     if (
       failure !== fixture.expectedFailure ||

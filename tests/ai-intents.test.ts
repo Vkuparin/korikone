@@ -145,11 +145,11 @@ test.each([false, true])(
     const result = await interpretPlanning(session, source, initialState());
     expect(result.meals).toHaveLength(4);
     expect(result.items).toHaveLength(3);
-    expect(result.intents.map((intent) => intent.label)).toEqual([
+    expect(result.intents!.map((intent) => intent.label)).toEqual([
       ...dishes,
       ...groceries,
     ]);
-    for (const intent of result.intents) {
+    for (const intent of result.intents!) {
       expect(source.slice(intent.evidence.start, intent.evidence.end)).toBe(
         intent.label,
       );
@@ -159,7 +159,7 @@ test.each([false, true])(
 );
 
 test.each([false, true])(
-  "offset alignment does not repair ambiguous, invented, overlapping or mismatched evidence (native=%s)",
+  "offset alignment does not repair ambiguous, invented, overlapping or mismatched evidence; salvage leaves that request out (native=%s)",
   async (native) => {
     for (const change of [
       (r: typeof wire) => {
@@ -189,10 +189,11 @@ test.each([false, true])(
             ),
           };
       const { session, provider } = scripted(native, [payload]);
-      await expect(
-        interpretPlanning(session, note, initialState()),
-      ).rejects.toThrow("invalidDraft");
-      expect(provider.calls).toHaveLength(2);
+      // B4.1: the milk request is kept without a second request; the bad entry is never trusted.
+      const kept = await interpretPlanning(session, note, initialState());
+      expect(kept.items.map((i) => i.name)).toEqual(["Maito"]);
+      expect(kept.intents!.map((i) => i.label)).toEqual(["1 l maitoa"]);
+      expect(provider.calls).toHaveLength(1);
     }
   },
 );
@@ -211,7 +212,7 @@ test("native/text required ledgers preserve meaningful nulls and the same valida
     b = await interpretPlanning(text.session, note, state);
   expect(a).toEqual(b);
   expect(
-    a.intents.map((i) => ({
+    a.intents!.map((i) => ({
       label: i.label,
       amount: i.quantity?.amount,
       reason: i.unresolvedReason,
@@ -238,7 +239,7 @@ test("native/text required ledgers preserve meaningful nulls and the same valida
   inspect(shoppingPlanningNativeOutput.schema);
 });
 test.each([false, true])(
-  "required ledger failures get only one repair in the pinned format (native=%s)",
+  "an unusable ledger is salvaged without a repair and an invented quantity is never kept (native=%s)",
   async (native) => {
     const valid = native
       ? wire
@@ -249,7 +250,17 @@ test.each([false, true])(
           ),
         };
     const { intents: _intents, ...missing } = valid;
-    const repaired = scripted(native, [missing, valid]);
+    const salvaged = scripted(native, [missing, valid]);
+    const withoutLedger = await interpretPlanning(
+      salvaged.session,
+      note,
+      initialState(),
+    );
+    expect(withoutLedger.intents).toBeUndefined();
+    expect(withoutLedger.items.map((i) => i.name)).toEqual(["Maito"]);
+    expect(salvaged.provider.calls).toHaveLength(1);
+    // A reply with nothing usable still gets the single repair in the same format.
+    const repaired = scripted(native, ["not json", valid]);
     expect(
       (await interpretPlanning(repaired.session, note, initialState())).intents,
     ).toHaveLength(2);
@@ -264,10 +275,14 @@ test.each([false, true])(
       provenance: "explicit-note",
     };
     const failed = scripted(native, [fabricated]);
+    const kept = await interpretPlanning(failed.session, note, initialState());
+    expect(kept.intents!.map((i) => i.label)).toEqual(["1 l maitoa"]);
+    expect(failed.provider.calls).toHaveLength(1);
+    const empty = scripted(native, ["not json"]);
     await expect(
-      interpretPlanning(failed.session, note, initialState()),
+      interpretPlanning(empty.session, note, initialState()),
     ).rejects.toThrow("invalidDraft");
-    expect(failed.provider.calls).toHaveLength(2);
+    expect(empty.provider.calls).toHaveLength(2);
   },
 );
 
@@ -360,7 +375,7 @@ test("development planning fixtures preserve count uncertainty and produce no un
   );
   expect(unknown.items).toEqual([]);
   expect(unknown.meals).toEqual([]);
-  expect(unknown.intents[0]).toMatchObject({
+  expect(unknown.intents![0]).toMatchObject({
     quantity: { amount: 3, unit: null },
     unresolvedReason: "unknown-unit",
   });
@@ -371,7 +386,7 @@ test("development planning fixtures preserve count uncertainty and produce no un
     initialState(),
   );
   expect(fractional.items).toEqual([]);
-  expect(fractional.intents[0]).toMatchObject({
+  expect(fractional.intents![0]).toMatchObject({
     quantity: { amount: 1.5, unit: "g", provenance: "explicit-note" },
     unresolvedReason: "unsupported-quantity",
   });

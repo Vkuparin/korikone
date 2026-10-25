@@ -401,14 +401,6 @@ test("model output for the new operations is held to the same rules", () => {
     [{ op: "addMeal" }],
     [{ op: "addMeal", recipeId: "lasagne", recipe: stew }],
     [{ op: "addMeal", recipeId: "lasagne", target: "meal:m-soup" }],
-    [
-      { op: "addMeal", recipeId: "lasagne" },
-      { op: "addMeal", recipeId: "lasagne" },
-    ],
-    [
-      { op: "addMeal", recipe: stew },
-      { op: "addMeal", recipe: { ...stew, id: "b" } },
-    ],
     [{ op: "addMeal", recipeId: "lasagne", price: 5 }],
     [{ op: "setItem", quantity: { kind: "amount", amount: 1, unit: "g" } }],
     [
@@ -438,6 +430,19 @@ test("model output for the new operations is held to the same rules", () => {
     expect(() => check(invalid), JSON.stringify(invalid)).toThrow(
       "invalidDraft",
     );
+  // B4.4: the same dish twice is added once; a repeated new dish is reported by name.
+  expect(
+    check([
+      { op: "addMeal", recipeId: "lasagne" },
+      { op: "addMeal", recipeId: "lasagne" },
+    ]).operations,
+  ).toHaveLength(1);
+  const twice = check([
+    { op: "addMeal", recipe: stew },
+    { op: "addMeal", recipe: { ...stew, id: "b" } },
+  ]);
+  expect(twice.operations).toHaveLength(1);
+  expect(twice.unsupported).toEqual([{ phrase: stew.name }]);
 });
 
 async function shop(state: AppState) {

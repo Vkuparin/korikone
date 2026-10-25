@@ -387,38 +387,124 @@ test.each(["note", "store"] as const)(
     );
   },
 );
-test("catalogue error is terminal and does not become an empty result or alias retry", async () => {
+test("a catalogue error leaves that row unsearched, without an alias retry, and the list still commits", async () => {
   const env = await createFixtureService("k-ruoka", {}, "search-error");
   const note = "1 l maitoa";
-  await expect(
-    env.service.planShopping({ prompt: note, consent: true }, bind(ai(note))),
-  ).rejects.toThrow("storeUnavailable");
-  expect(env.service.planning.snapshot()).toMatchObject({
-    phase: "failed",
-    failure: "search",
-    intents: [],
+  const reply = await env.service.planShopping(
+    { prompt: note, consent: true },
+    bind(ai(note)),
+  );
+  expect(reply.planning).toMatchObject({
+    phase: "ready",
+    coverage: [{ status: "bounded-out" }],
+    provisional: { rows: [{ status: "unresolved", product: null }] },
   });
   expect(env.tools).toEqual(["search_products"]);
+  const committed = await env.service.commitPlanning({
+    operationId: reply.planning!.operationId,
+  });
+  expect(committed.state.extras.map((i) => i.name)).toEqual(["Maito"]);
+  expect(committed.basket).toHaveLength(1);
+  expect(committed.basket[0]).toMatchObject({
+    product: null,
+    matching: { reason: "bounded-out" },
+  });
+  expect(committed.state.assumptions).toMatch(/1 rivillä/);
 });
-test("interpretation failure uses only one repair and performs no searches", async () => {
+test("an account error from the catalogue still ends the request", async () => {
+  const env = await setup();
+  env.service.registry.get("k-ruoka").searchProducts = async () => {
+    throw new Error("loginRequired");
+  };
+  await expect(
+    env.service.planShopping(
+      { prompt: "1 l maitoa", consent: true },
+      bind(ai("1 l maitoa")),
+    ),
+  ).rejects.toThrow("loginRequired");
+  expect(env.service.planning.snapshot()!.phase).toBe("failed");
+  expectUnchanged(env);
+});
+test("one failed row keeps the products found for the other rows", async () => {
+  const env = await setup({ "*": [milk] });
+  const provider = env.service.registry.get("k-ruoka");
+  const real = provider.searchProducts.bind(provider);
+  provider.searchProducts = async (context, query, id) => {
+    if (/kahvi/i.test(query)) throw new Error("storeUnavailable");
+    return real(context, query, id);
+  };
+  const note = "1 l maitoa ja 500 g kahvia";
+  const reply = await env.service.planShopping(
+    { prompt: note, consent: true },
+    bind(ai(note)),
+  );
+  const rows = reply.planning!.provisional.rows;
+  expect(rows.find((r) => r.name === "Maito")).toMatchObject({
+    status: "resolved",
+    product: { id: "milk" },
+  });
+  expect(rows.find((r) => r.name === "Kahvi")).toMatchObject({
+    status: "unresolved",
+    product: null,
+  });
+  const committed = await env.service.commitPlanning({
+    operationId: reply.planning!.operationId,
+  });
+  expect(committed.basket.map((l) => l.product?.id ?? null)).toEqual([
+    "milk",
+    null,
+  ]);
+});
+test("an unusable interpretation gets one repair, then the note itself is searched", async () => {
   const env = await setup();
   const provider = new ScriptedInferenceProvider("invalid", async () => ({
     text: "{}",
     completion: "complete",
   }));
   provider.models[0].capabilities.tasks = inferenceTasks;
+  const reply = await env.service.planShopping(
+    { prompt: "1 l maitoa", consent: true },
+    bind(provider),
+  );
+  expect(provider.calls).toHaveLength(2);
+  expect(reply.planning).toMatchObject({
+    phase: "ready",
+    provisional: {
+      rows: [
+        { name: "Maito", amount: 1000, unit: "ml", product: { id: "milk" } },
+      ],
+    },
+  });
+  expectUnchanged(env);
+  const committed = await env.service.commitPlanning({
+    operationId: reply.planning!.operationId,
+  });
+  expect(committed.state.assumptions).toMatch(/sellaisinaan tuotehakuina/);
+  expect(committed.basket[0].product?.id).toBe("milk");
+  const metrics = await env.service.operationMetrics();
+  expect(metrics.find((m) => m.kind === "planning")).toMatchObject({
+    outcome: "success",
+    aiCalls: 2,
+    unresolved: { "invalid-output": 1 },
+  });
+});
+test("an account or usage error does not fall back to the note", async () => {
+  const env = await setup();
+  const provider = new ScriptedInferenceProvider("limited", async () => {
+    throw new InferenceError("usageLimit");
+  });
+  provider.models[0].capabilities.tasks = inferenceTasks;
   await expect(
     env.service.planShopping(
       { prompt: "1 l maitoa", consent: true },
       bind(provider),
     ),
-  ).rejects.toThrow("invalidDraft");
-  expect(provider.calls).toHaveLength(2);
+  ).rejects.toThrow("usageLimit");
   expect(env.tools).toEqual([]);
-  expect(env.service.planning.snapshot()!.failure).toBe("invalid-output");
+  expect(env.service.planning.snapshot()!.failure).toBe("limit");
   expectUnchanged(env);
 });
-test("search deadline fails honestly and cannot publish late catalogue results", async () => {
+test("the search deadline keeps the list, leaves unread rows unsearched and ignores late results", async () => {
   const env = await setup();
   const controller = new AbortController();
   const timeout = vi
@@ -439,18 +525,19 @@ test("search deadline fails honestly and cannot publish late catalogue results",
       { prompt: "1 l maitoa", consent: true },
       bind(ai("1 l maitoa")),
     );
-    const rejected = expect(pending).rejects.toThrow("timeout");
     await vi.waitFor(() => expect(release).toBeDefined());
     expect(timeout).toHaveBeenCalledWith(coordinatorLimits.searchTimeoutMs);
     controller.abort(new DOMException("Timed out", "TimeoutError"));
-    await rejected;
+    const reply = await pending;
     release!();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(env.service.planning.snapshot()).toMatchObject({
-      phase: "failed",
-      failure: "timeout",
-      intents: [],
+      phase: "ready",
+      coverage: [{ status: "bounded-out" }],
+      provisional: { rows: [{ status: "unresolved", product: null }] },
     });
+    expect(reply.planning!.phase).toBe("ready");
+    // Nothing is saved before the composer commits.
     expectUnchanged(env);
   } finally {
     timeout.mockRestore();

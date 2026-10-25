@@ -201,6 +201,8 @@ export type EditStatus =
       revision: number;
       applied: EditUndo["applied"];
       delta: EditDelta;
+      /** Parts of an applied instruction that were not done (B4.4). */
+      unsupported?: string[];
     }
   | {
       status: "clarification";

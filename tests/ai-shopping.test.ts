@@ -262,13 +262,26 @@ test("coordinator expected failure requires matching outcome and unchanged durab
     const invalid = failureCases.find(
       (fixture) => fixture.id === "failure-invalid-eggs",
     )!;
-    const retained = await evaluateShoppingCase(invalid, chain, "coordinator");
+    // B4.3: an unusable reply now keeps the request on the list as a plain search.
+    const kept = await evaluateShoppingCase(invalid, chain, "coordinator");
+    expect(kept).toMatchObject({
+      missingRequests: [],
+      wrongQuantity: [],
+      outcomeErrors: [],
+      safePriced: 0,
+      unresolved: 1,
+      reasons: { "empty-search": 1 },
+    });
+    const cancel = failureCases.find(
+      (fixture) => fixture.id === "failure-cancel-milk",
+    )!;
+    const retained = await evaluateShoppingCase(cancel, chain, "coordinator");
     expect(retained).toMatchObject({
       missingRequests: [],
       outcomeErrors: [],
       safePriced: 0,
       unresolved: 1,
-      reasons: { "invalid-output": 1 },
+      reasons: { cancelled: 1 },
     });
     const empty = failureCases.find(
       (fixture) => fixture.id === "failure-empty-onion",

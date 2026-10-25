@@ -846,16 +846,46 @@ export function applyEdits(
 }
 
 export type EditIntentOutcome =
-  | { status: "applied"; result: EditResult }
+  | {
+      status: "applied";
+      result: EditResult;
+      /** Parts of the instruction that were not applied; the rest of the edit was (B4.4). */
+      unsupported: string[];
+    }
   | {
       status: "clarification";
       ambiguities: EditAmbiguity[];
       unsupported: string[];
     };
 
+/** Whether a phrase mentions a name, allowing Finnish case endings. */
+function sameFood(name: string, phrase: string) {
+  const text = phrase.toLocaleLowerCase("fi");
+  return name
+    .toLocaleLowerCase("fi")
+    .split(/[^\p{L}]+/u)
+    .filter((word) => word.length >= 4)
+    .some((word) => text.includes(word.slice(0, Math.max(4, word.length - 2))));
+}
+/** What an operation was about, by the shopper's own names, for a part that was not applied. */
+function describeOperation(operation: EditOperation, targets: EditTargets) {
+  const o = operation as Record<string, unknown>;
+  if (typeof o.name === "string") return o.name;
+  const recipe = (o.recipe ?? o.replacement) as
+    { kind: string; recipe?: { name: string } } | undefined;
+  if (recipe?.recipe?.name) return recipe.recipe.name;
+  if (typeof o.rowKey === "string")
+    return targets.rows.find((r) => r.key === o.rowKey)?.name ?? "";
+  if (typeof o.mealId === "string")
+    return targets.meals.find((m) => m.mealId === o.mealId)?.name ?? "";
+  return "";
+}
+
 /**
- * Applies an interpreted instruction only when it is wholly clear. An ambiguous or unsupported
- * part returns a clarification and leaves the plan untouched; its candidates must be real targets.
+ * Applies an interpreted instruction. An ambiguous part returns a clarification and leaves the
+ * plan untouched; its candidates must be real targets. Otherwise every operation that applies is
+ * applied: an unsupported part, or an operation the plan refuses, is reported back instead of
+ * discarding the whole instruction (B4.4). A pack size the shopper must give still asks first.
  */
 export function applyEditIntent(
   state: AppState,
@@ -873,22 +903,57 @@ export function applyEditIntent(
   for (const ambiguity of intent.ambiguities)
     if (ambiguity.candidates.some((id) => !known.has(id)))
       throw new EditError("unknownTarget");
-  if (intent.ambiguities.length || intent.unsupported.length)
+  const skipped = intent.unsupported.map((u) => u.phrase);
+  // A part that was not understood but is about a row or dish this edit changes would leave
+  // that row half-edited, as in "remove the bread and add 200 g of bread": nothing applies.
+  const touched = intent.operations
+    .map((operation) => describeOperation(operation, targets))
+    .filter(Boolean);
+  if (
+    intent.ambiguities.length ||
+    !intent.operations.length ||
+    skipped.some((phrase) => touched.some((name) => sameFood(name, phrase)))
+  )
     return {
       status: "clarification",
       ambiguities: intent.ambiguities,
-      unsupported: intent.unsupported.map((u) => u.phrase),
+      unsupported: skipped,
     };
-  return {
-    status: "applied",
-    result: applyEdits(
-      state,
-      {
-        version: EDIT_VERSION,
-        revision: state.revision,
-        operations: intent.operations,
-      },
-      options,
-    ),
-  };
+  const operations = [...intent.operations];
+  for (;;) {
+    try {
+      return {
+        status: "applied",
+        result: applyEdits(
+          state,
+          { version: EDIT_VERSION, revision: state.revision, operations },
+          options,
+        ),
+        unsupported: skipped,
+      };
+    } catch (error) {
+      if (
+        !(error instanceof EditError) ||
+        error.operation === null ||
+        ["packSizeUnknown", "staleEdit", "duplicateTarget"].includes(
+          error.code,
+        ) ||
+        !operations[error.operation]
+      )
+        throw error;
+      const [dropped] = operations.splice(error.operation, 1);
+      if (error.code !== "noChange") {
+        const name = describeOperation(dropped, targets);
+        if (name) skipped.push(name.slice(0, 200));
+      }
+      if (!operations.length) {
+        if (!skipped.length) throw error;
+        return {
+          status: "clarification",
+          ambiguities: [],
+          unsupported: skipped,
+        };
+      }
+    }
+  }
 }

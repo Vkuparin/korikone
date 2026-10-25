@@ -193,15 +193,19 @@ test("coordinator preview capability renders the actual FI/EN component and bloc
         ...preview,
         boundaryFailure: "search-error",
         expectedFailure: "search-error",
+        coordinatorKeepsList: true,
       },
       chain,
       "coordinator",
     );
+    // B4.2: a failed read leaves the row unsearched; the preview still renders and blocks transfer.
     expect(failed).toMatchObject({
       missingRequests: [],
       outcomeErrors: [],
-      unsupported: ["preview"],
+      unsupported: [],
       safePriced: 0,
+      unresolved: 1,
+      reasons: { "search-error": 1 },
       retailerWrites: 0,
     });
   }

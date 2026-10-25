@@ -168,6 +168,8 @@ import { kGroupStore } from "../receipts/parsers/k-group";
 import { purchaseLedgerSchema } from "../domain/purchases";
 import {
   coordinatePlanning,
+  coordinatorLimits,
+  terminalSearchErrors,
   planningRequestSchema,
   type PlanningDependencies,
   type PlanningResult,
@@ -414,6 +416,10 @@ export class Service {
             metrics.unresolved[reason] = (metrics.unresolved[reason] ?? 0) + 1;
           }
         }
+        if (result.unsearched)
+          metrics.unresolved["search-error"] =
+            (metrics.unresolved["search-error"] ?? 0) + result.unsearched;
+        if (result.fallback) metrics.unresolved["invalid-output"] = 1;
         const missingRequests = result.intents.filter(
           (intent) => intent.intent.unresolvedReason !== null,
         ).length;
@@ -2111,15 +2117,17 @@ export class Service {
           ? { stage: "searching", completed: 0, total: wanted.length }
           : { stage: "searching" },
       );
-      return mapConcurrent(wanted, async (requirement) => {
+      const failures: unknown[] = [];
+      const lines = await mapConcurrent(wanted, async (requirement) => {
         signal?.throwIfAborted();
-        const line = await this.quoteRequirement(
+        const line = await this.quoteRequirementOrLeave(
           provider,
           context,
           state,
           requirement,
           metrics,
           false,
+          failures,
         );
         this.onActivity?.({
           stage: "searching",
@@ -2128,7 +2136,51 @@ export class Service {
         });
         return line;
       });
+      // A store that answers no row at all is reported as itself, not as an unpriced list.
+      if (wanted.length && failures.length === wanted.length) throw failures[0];
+      return lines;
     });
+  }
+  /**
+   * B4.2: a row whose read fails or is slow is left unsearched instead of failing the whole list.
+   * Cancellation and account or store errors still end the operation.
+   */
+  private async quoteRequirementOrLeave(
+    provider: StoreProvider,
+    context: StoreContext,
+    state: AppState,
+    requirement: Requirement,
+    metrics: OperationCounters,
+    reportStage = true,
+    failures: unknown[] = [],
+  ): Promise<BasketLine> {
+    try {
+      return await this.quoteRequirement(
+        provider,
+        context,
+        state,
+        requirement,
+        metrics,
+        reportStage,
+        AbortSignal.timeout(coordinatorLimits.rowTimeoutMs),
+      );
+    } catch (error) {
+      if (
+        this.activitySignal?.aborted ||
+        !(error instanceof Error) ||
+        terminalSearchErrors.includes(error.message)
+      )
+        throw error;
+      failures.push(error);
+      const line = matchRequirement(requirement, [], {
+        context,
+        sourceNote: state.note,
+      });
+      line.matching!.reason = "bounded-out";
+      metrics.unresolved["search-error"] =
+        (metrics.unresolved["search-error"] ?? 0) + 1;
+      return line;
+    }
   }
   /** One requirement's bounded catalogue read and local match. */
   private async quoteRequirement(
@@ -2138,6 +2190,7 @@ export class Service {
     requirement: Requirement,
     metrics: OperationCounters,
     reportStage = true,
+    rowSignal?: AbortSignal,
   ): Promise<BasketLine> {
     if (reportStage)
       this.onActivity?.({ stage: "searching", cancellable: true });
@@ -2156,7 +2209,10 @@ export class Service {
     };
     const products = applyPackSizes(
       await searchCandidates(provider, context, requirement, {
-        signal: this.activitySignal,
+        signal:
+          rowSignal && this.activitySignal
+            ? AbortSignal.any([this.activitySignal, rowSignal])
+            : (rowSignal ?? this.activitySignal),
         queryHints: requirementQueryHints(requirement, options),
         onSearch: () => {
           metrics.searches++;
@@ -2617,24 +2673,37 @@ export class Service {
             const changed = new Set(outcome.result.changedKeys);
             const searched: Product[] = [];
             let reused = 0;
-            const lines: BasketLine[] = [];
-            for (const requirement of requirements(next)) {
+            // B4.4: changed rows are read with the pricing concurrency, and a row whose read
+            // fails or is slow stays unsearched instead of failing the edit.
+            const wanted = requirements(next);
+            const fresh = wanted.filter((requirement) => {
               const old = previous.get(key(requirement));
-              if (old && !changed.has(key(requirement))) {
-                reused++;
-                lines.push({ ...structuredClone(old), requirement });
-                continue;
-              }
-              const line = await this.quoteRequirement(
+              return !old || changed.has(key(requirement));
+            });
+            if (fresh.length)
+              this.onActivity?.({ stage: "searching", cancellable: true });
+            const read = await mapConcurrent(fresh, (requirement) =>
+              this.quoteRequirementOrLeave(
                 provider,
                 context,
                 next,
                 requirement,
                 metrics,
-              );
-              searched.push(...line.candidates);
-              lines.push(line);
-            }
+                false,
+              ),
+            );
+            const lines: BasketLine[] = wanted.map((requirement) => {
+              const index = fresh.indexOf(requirement);
+              if (index >= 0) {
+                searched.push(...read[index].candidates);
+                return read[index];
+              }
+              reused++;
+              return {
+                ...structuredClone(previous.get(key(requirement))!),
+                requirement,
+              };
+            });
             const quotedAt = new Date().toISOString();
             // Retained rows keep their own reading time, so the quote stays as old as its oldest row.
             let quote = restoredQuote(
@@ -2653,19 +2722,19 @@ export class Service {
             );
             if (!quote && reused) {
               // A retained row no longer verifies against the edited plan: read everything again.
-              const fresh: BasketLine[] = [];
-              for (const requirement of requirements(next)) {
-                fresh.push(
-                  await this.quoteRequirement(
+              const fresh = await mapConcurrent(
+                requirements(next),
+                (requirement) =>
+                  this.quoteRequirementOrLeave(
                     provider,
                     context,
                     next,
                     requirement,
                     metrics,
+                    false,
                   ),
-                );
-                searched.push(...fresh.at(-1)!.candidates);
-              }
+              );
+              searched.push(...fresh.flatMap((line) => line.candidates));
               quote = restoredQuote(
                 persistedQuoteSchema.parse({
                   key: pricingKey(next),
@@ -2738,6 +2807,9 @@ export class Service {
               revision: next.revision,
               applied: undo.applied,
               delta,
+              ...(outcome.unsupported.length
+                ? { unsupported: outcome.unsupported }
+                : {}),
             };
             return this.snapshot();
           } finally {

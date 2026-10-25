@@ -57,6 +57,8 @@ export const shoppingCaseSchema = z
         "obsolete",
       ])
       .optional(),
+    // B4.2/B4.3: the coordinator keeps a list where the legacy path ends; false means no terminal outcome.
+    coordinatorKeepsList: z.boolean().default(false),
     lifecycle: z
       .enum(["cancel-search", "invalidate-search", "change-store-search"])
       .optional(),

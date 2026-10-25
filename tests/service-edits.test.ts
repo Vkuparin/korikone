@@ -254,13 +254,22 @@ test("stale, failed, cancelled and invalid edits commit nothing", async () => {
   expect(service.snapshot().editUndoAvailable).toBe(false);
   await service.buildBasket();
 
-  // Catalogue failure while repricing a changed row.
+  // B4.4: a catalogue failure while repricing a changed row keeps the edit; the row is
+  // left unsearched and the next price update reads it again.
   provider.failSearch = true;
-  await unchanged(
-    service.editList(edit(service, "tuplaa keitto"), ai.session),
-    "storeBusy",
+  const kept = await service.editList(
+    edit(service, "tuplaa keitto"),
+    ai.session,
   );
   provider.failSearch = false;
+  expect(kept.edit?.status).toBe("applied");
+  expect(
+    kept.basket.filter((line) => line.matching?.reason === "bounded-out")
+      .length,
+  ).toBeGreaterThan(0);
+  expect(service.busy).toBe(false);
+  await service.undoEdit({ revision: service.state.revision });
+  await service.buildBasket();
   // A pack count with no quoted pack, a unit mismatch and a no-op are typed domain rejections.
   await unchanged(
     service.editList(edit(service, "lisää 2 pakkausta kahvia"), ai.session),
@@ -298,7 +307,8 @@ test("stale, failed, cancelled and invalid edits commit nothing", async () => {
     "cancelled",
   );
   expect(provider.writes).toBe(0);
-  expect(service.snapshot().edit).toBeNull();
+  // Only the kept edit and its undo above set an outcome; no failure replaced it.
+  expect(service.snapshot().edit?.status).toBe("undone");
   const metrics = readMetrics(entries.get("metrics:operations")).filter(
     (m) => m.kind === "edit",
   );

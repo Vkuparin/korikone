@@ -59,6 +59,8 @@ export function unresolvedReason(
   line: BasketLine,
   products: Product[],
 ): UnresolvedReason {
+  // A row left unsearched after a failed or slow read (B4.2), or outside the search budget.
+  if (line.matching?.reason === "bounded-out") return "search-error";
   if (!products.length) return "empty-search";
   const available = products.filter((p) => p.available);
   if (!available.length) return "stock";

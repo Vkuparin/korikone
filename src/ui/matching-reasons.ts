@@ -11,8 +11,8 @@ const reasons: Record<MatchingReason, [string, string]> = {
     "The store search found no alternatives.",
   ],
   "bounded-out": [
-    "Tätä pyyntöä ei ehditty hakea tämän päivityksen hakurajan sisällä.",
-    "This request was not searched within this update's search limit.",
+    "Kaupan haku ei ehtinyt tai onnistunut tälle riville. Päivitä hinnat hakeaksesi sen uudelleen.",
+    "The store search did not reach or answer for this row. Update prices to search it again.",
   ],
   identity: [
     "Tuotteen kauppatiedot eivät vastaa nykyistä kauppaa.",

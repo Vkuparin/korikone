@@ -7,6 +7,7 @@ import type { MealDraft } from "../ai/draft";
 import type { OfferIdeaProduct } from "../ai/offers";
 import { InferenceError, type InferenceSession } from "../ai/provider";
 import { resolveCandidates } from "../ai/resolve";
+import { fallbackDraft } from "../ai/fallback";
 import {
   stateSchema,
   type AppState,
@@ -46,7 +47,18 @@ export const planningRequestSchema = z
   })
   .strict();
 export type PlanningRequest = z.input<typeof planningRequestSchema>;
-export const coordinatorLimits = Object.freeze({ searchTimeoutMs: 60_000 });
+export const coordinatorLimits = Object.freeze({
+  searchTimeoutMs: 60_000,
+  /** One requirement's reads; a slower row is left unsearched instead of holding a worker. */
+  rowTimeoutMs: 20_000,
+});
+/** Search errors that end a request: the shopper must sign in, choose or unblock a store. */
+export const terminalSearchErrors = [
+  "loginRequired",
+  "storeBlocked",
+  "chooseStore",
+  "contextChanged",
+];
 export type PlanningResult = {
   operationId: string;
   draft: MealDraft;
@@ -61,6 +73,10 @@ export type PlanningResult = {
     failure: PlanningFailure | null;
     suggestions: ResolutionSuggestion[];
   };
+  /** Rows left unsearched after a failed or slow read or the catalogue deadline. */
+  unsearched: number;
+  /** The interpretation gave nothing usable and the note was used as it is. */
+  fallback: boolean;
 };
 export type PlanningDependencies = {
   offers?: OfferIdeaProduct[];
@@ -84,17 +100,35 @@ export async function coordinatePlanning(
     const session = await dependencies.session(run);
     run.assertCurrent();
     if (run.inferenceSession() !== session) throw new Error("planningPhase");
-    const interpreted = await interpretPlanning(
-      session,
-      note,
-      {
-        ...source,
-        observedSummaries: observationsApply(note)
-          ? (dependencies.observedSummaries ?? [])
-          : [],
-      },
-      dependencies.offers,
-    );
+    let interpreted: MealDraft;
+    let fallback = false;
+    try {
+      interpreted = await interpretPlanning(
+        session,
+        note,
+        {
+          ...source,
+          observedSummaries: observationsApply(note)
+            ? (dependencies.observedSummaries ?? [])
+            : [],
+        },
+        dependencies.offers,
+      );
+    } catch (error) {
+      run.assertCurrent();
+      // B4.3: a reply that gave nothing usable still puts the note's requests on the list.
+      // Provider, account and usage errors, and offer selections, fail as before.
+      const local =
+        !dependencies.offers?.length &&
+        ["invalid-output", "incomplete", "timeout"].includes(
+          planningFailure(error),
+        )
+          ? fallbackDraft(note, source)
+          : null;
+      if (!local) throw error;
+      interpreted = local;
+      fallback = true;
+    }
     run.publishDraft(interpreted);
     const draft = run.validatedDraft()!;
     const state = stateSchema.parse({
@@ -152,8 +186,10 @@ export async function coordinatePlanning(
     const lines = new Map<string, BasketLine>();
     let position = 0;
     let workerFailure: unknown;
+    // B4.2: a row whose read fails or is slow stays unsearched; the deadline stops new reads.
+    let unsearched = 0;
     const worker = async () => {
-      while (position < active.length && !workerFailure) {
+      while (position < active.length && !workerFailure && !deadline.aborted) {
         const requirement = active[position++];
         const key = `${requirement.id}:${requirement.unit}`;
         const rowOptions = {
@@ -172,7 +208,10 @@ export async function coordinatePlanning(
                 ? { ...requirement, name: requirement.offerProduct.name }
                 : requirement,
               {
-                signal,
+                signal: AbortSignal.any([
+                  signal,
+                  AbortSignal.timeout(coordinatorLimits.rowTimeoutMs),
+                ]),
                 queryHints: requirementQueryHints(requirement, rowOptions),
                 beginRead: () => run.beginSearch(key),
                 isHit: (product) =>
@@ -195,18 +234,17 @@ export async function coordinatePlanning(
             run.boundOutRequirement(key);
             continue;
           }
-          const code =
+          // Account and store errors need the shopper; every other row failure is that row's.
+          if (
             error instanceof Error &&
-            ["loginRequired", "storeBlocked", "chooseStore"].includes(
-              error.message,
-            )
-              ? error.message
-              : "storeUnavailable";
-          workerFailure = deadline.aborted
-            ? new InferenceError("timeout")
-            : new Error(code);
-          run.fail(workerFailure);
-          throw workerFailure;
+            terminalSearchErrors.includes(error.message)
+          ) {
+            workerFailure = new Error(error.message);
+            run.fail(workerFailure);
+            throw workerFailure;
+          }
+          unsearched++;
+          run.boundOutRequirement(key);
         }
       }
     };
@@ -220,6 +258,21 @@ export async function coordinatePlanning(
       throw workerFailure ?? new Error("storeUnavailable");
     }
     run.assertCurrent();
+    // Rows the deadline left unread stay on the list as unsearched rows that pricing can retry.
+    for (const requirement of active.slice(position)) {
+      unsearched++;
+      run.boundOutRequirement(`${requirement.id}:${requirement.unit}`);
+    }
+    if (unsearched)
+      state.assumptions = [
+        state.assumptions,
+        source.language === "fi"
+          ? `Kaupan haku ei ehtinyt tai onnistunut ${unsearched} rivillä. Ne ovat listalla ilman tuotetta; päivitä hinnat hakeaksesi ne uudelleen.`
+          : `The store search did not finish or failed for ${unsearched} rows. They are on the list without a product; update prices to search them again.`,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .slice(0, 5000);
     const resultLines = wanted.flatMap((requirement) => {
       const line = lines.get(`${requirement.id}:${requirement.unit}`);
       return line ? [line] : [];
@@ -241,7 +294,8 @@ export async function coordinatePlanning(
       failure: null,
       suggestions: [],
     };
-    if (dependencies.resolverEnabled !== false && batch.request) {
+    // A local fallback has no usable session left to resolve with.
+    if (!fallback && dependencies.resolverEnabled !== false && batch.request) {
       run.resolving();
       dependencies.onResolverStart?.(session.callCount);
       try {
@@ -272,6 +326,8 @@ export async function coordinatePlanning(
       coverage: preview.coverage,
       intents: preview.intents,
       resolver,
+      unsearched,
+      fallback,
     });
   } catch (error) {
     run.fail(error);

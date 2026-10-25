@@ -81,27 +81,36 @@ for (const alternative of [false, true]) {
     });
 
   for (const [scenario, error, calls] of [
-    ["invalidDraft", "invalidDraft", 2],
-    ["incompleteDraft", "incomplete", 1],
+    ["invalidDraft", null, 2],
+    ["incompleteDraft", null, 1],
     ["usageLimit", "usageLimit", 1],
   ] as const)
-    test(`${label}: ${scenario} never falls back or replaces saved state`, async () => {
+    test(`${label}: ${scenario} never uses the other provider or replaces saved state`, async () => {
       const env = await createFixtureService("k-ruoka", {});
       const ai = await providers(alternative);
       ai.selected.setScenario(scenario);
       const before = env.service.snapshot();
-      await expect(
-        env.service.planShopping(
-          { prompt: "1 l maitoa", consent: true },
-          ai.bind,
-        ),
-      ).rejects.toThrow(error);
+      const pending = env.service.planShopping(
+        { prompt: "1 l maitoa", consent: true },
+        ai.bind,
+      );
+      // B4.3: an unusable reply plans the note itself; an account or usage error still fails.
+      if (error) await expect(pending).rejects.toThrow(error);
+      else
+        expect((await pending).planning?.provisional.rows).toMatchObject([
+          { name: "Maito", amount: 1000, unit: "ml" },
+        ]);
       expect(ai.selected.requestCount).toBe(calls);
       expect(ai.unselected.requestCount).toBe(0);
       expect(ai.unselected.catalogueRequests).toBe(0);
       expect(env.service.snapshot().state).toEqual(before.state);
       expect(env.service.snapshot().basket).toEqual(before.basket);
-      expect(env.tools).toEqual([]);
+      expect(
+        env.tools.every((tool) =>
+          ["search_products", "check_basket"].includes(tool),
+        ),
+      ).toBe(true);
+      if (error) expect(env.tools).toEqual([]);
     });
 
   for (const obsolete of [false, true])
