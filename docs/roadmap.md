@@ -10,6 +10,8 @@ Updated on 13 October 2026 after v0.11.0 publication. This page records release 
 
 [v0.9.0 verification](release-0.9.0.md) retains purchase-learning and B1 evidence; [v0.8.0 verification](release-0.8.0.md) retains edit, appearance and QR evidence; [v0.7.0 verification](release-0.7.0.md) retains matching and provider-foundation evidence; [v0.6.0 verification](release-0.6.0.md) retains its appearance/Settings acceptance; [v0.5.0 verification](release-0.5.0.md) retains earlier retailer acceptance. S-kaupat opens the Korikone shopping list and its add-all slot-reserving flow stays manual. K-Ruoka opens the selected store basket. Stable installer, signing and household gates remain open.
 
+Owner clarification, 25 October 2026: all four starter themes should generate changing AI suggestions, rather than insert category labels or fixed menus. Suggestions populate the visible note/edit draft; the normal Taio action creates or updates the list. See [B3.4](tasks/0.12.0.md#b34-fresh-starter-ideas) for implementation and checks.
+
 ## Delivery sequence
 
 The owner chose design and Settings first for v0.6.0. The former matching milestone moves to v0.7.0; conversational edits get a separate release before purchase-based learning. Later targets shift to keep releases focused. Existing IDs and Done evidence remain unchanged. These are scope targets without dates, subject to release gates.
