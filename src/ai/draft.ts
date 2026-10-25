@@ -44,6 +44,42 @@ function parseJSON(raw: string): unknown {
   );
 }
 
+/** Resolve arithmetic slips against the note, never against model-invented text. */
+export function alignPlanningEvidence(raw: string, note: string): string {
+  let value: unknown;
+  try {
+    value = parseJSON(raw);
+  } catch {
+    return raw;
+  }
+  if (!value || typeof value !== "object" || !("intents" in value)) return raw;
+  if (!Array.isArray(value.intents)) return raw;
+  for (const intent of value.intents) {
+    if (!intent || typeof intent !== "object") continue;
+    const e = intent.evidence;
+    if (
+      !e ||
+      typeof e !== "object" ||
+      typeof e.quote !== "string" ||
+      !e.quote.length ||
+      intent.label !== e.quote ||
+      !Number.isInteger(e.start) ||
+      !Number.isInteger(e.end) ||
+      e.start < 0 ||
+      e.end <= 0 ||
+      e.start > 10_000 ||
+      e.end > 10_000
+    )
+      continue;
+    // Repeated quotations need their original exact positions; do not choose one.
+    const start = note.indexOf(e.quote);
+    if (start < 0 || note.indexOf(e.quote, start + 1) !== -1) continue;
+    e.start = start;
+    e.end = start + e.quote.length;
+  }
+  return JSON.stringify(value);
+}
+
 /** Retry malformed model output once; provider, usage and cancellation errors are not retried. */
 export async function generateValidated<T>(
   generate: (prompt: string) => Promise<string>,

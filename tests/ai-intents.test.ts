@@ -71,6 +71,131 @@ function scripted(native: boolean, replies: unknown[]) {
   );
   return { session, provider };
 }
+
+test.each([false, true])(
+  "reported seven-request note survives offset arithmetic slips (native=%s)",
+  async (native) => {
+    const source =
+      "Perunamuusi, nakkikastike, jauhelihakeitto, lihamakaronilaatikko, kevytmaito, jogurttia ja leipää";
+    const dishes = [
+      "Perunamuusi",
+      "nakkikastike",
+      "jauhelihakeitto",
+      "lihamakaronilaatikko",
+    ];
+    const groceries = ["kevytmaito", "jogurttia", "leipää"];
+    const response = {
+      recipes: dishes.map((name, i) => ({
+        id: `dish-${i}`,
+        name,
+        servings: 5,
+        kind: "meal",
+        ingredients: [
+          {
+            id: "peruna",
+            name: "Peruna",
+            amount: 500,
+            unit: "g",
+            classification: native ? null : undefined,
+          },
+        ],
+        instructions: "Kypsennä.",
+      })),
+      meals: dishes.map((_, i) => ({
+        recipeId: `dish-${i}`,
+        servings: 5,
+        day: native ? null : 0,
+        leftovers: false,
+      })),
+      items: groceries.map((name, i) => ({
+        id: `item-${i}`,
+        name,
+        amount: 1000,
+        unit: i === 0 ? "ml" : "g",
+        classification: native ? null : undefined,
+        merchandise: native ? null : undefined,
+      })),
+      notes: "",
+      sides: [],
+      intents: [...dishes, ...groceries].map((quote, i) => ({
+        id: `intent-${i}`,
+        kind: i < 4 ? "meal" : "grocery",
+        label: quote,
+        // The fourth span fails the same evidence-length refinement as the report.
+        evidence: {
+          start: source.indexOf(quote) + 1,
+          end: source.indexOf(quote) + quote.length + 2,
+          quote,
+        },
+        provenance: "explicit-note",
+        quantity:
+          i < 4
+            ? null
+            : {
+                amount: 1000,
+                unit: i === 4 ? "ml" : "g",
+                provenance: "assumed",
+              },
+        mealIndex: i < 4 ? i : null,
+        itemIndex: i < 4 ? null : i - 4,
+        unresolvedReason: null,
+      })),
+    };
+    const { session, provider } = scripted(native, [response]);
+    const result = await interpretPlanning(session, source, initialState());
+    expect(result.meals).toHaveLength(4);
+    expect(result.items).toHaveLength(3);
+    expect(result.intents.map((intent) => intent.label)).toEqual([
+      ...dishes,
+      ...groceries,
+    ]);
+    for (const intent of result.intents) {
+      expect(source.slice(intent.evidence.start, intent.evidence.end)).toBe(
+        intent.label,
+      );
+    }
+    expect(provider.calls).toHaveLength(1);
+  },
+);
+
+test.each([false, true])(
+  "offset alignment does not repair ambiguous, invented, overlapping or mismatched evidence (native=%s)",
+  async (native) => {
+    for (const change of [
+      (r: typeof wire) => {
+        r.intents[1].evidence.quote = "teetä";
+        r.intents[1].label = "teetä";
+      },
+      (r: typeof wire) => {
+        r.intents[1].label = "teetä";
+      },
+      (r: typeof wire) => {
+        r.intents[1].evidence = { start: 1, end: 3, quote: "a" };
+        r.intents[1].label = "a";
+      },
+      (r: typeof wire) => {
+        r.intents[1].evidence = { ...r.intents[0].evidence };
+        r.intents[1].label = r.intents[0].label;
+      },
+    ]) {
+      const response = structuredClone(wire);
+      change(response);
+      const payload = native
+        ? response
+        : {
+            ...response,
+            items: response.items.map(
+              ({ classification: _classification, ...item }) => item,
+            ),
+          };
+      const { session, provider } = scripted(native, [payload]);
+      await expect(
+        interpretPlanning(session, note, initialState()),
+      ).rejects.toThrow("invalidDraft");
+      expect(provider.calls).toHaveLength(2);
+    }
+  },
+);
 test("native/text required ledgers preserve meaningful nulls and the same validated request semantics", async () => {
   const state = initialState();
   state.recipes = [];

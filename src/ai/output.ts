@@ -23,6 +23,7 @@ import {
   validatePlanningDraft,
   validateRecipe,
   generateValidated,
+  alignPlanningEvidence,
 } from "./draft";
 
 // Native wire schemas deliberately exclude task refinements/defaults. Domain validation follows.
@@ -258,7 +259,7 @@ export function interpretPlanning(
               }),
             ),
           })
-          .parse(JSON.parse(raw));
+          .parse(JSON.parse(alignPlanningEvidence(raw, note)));
         return JSON.stringify({
           ...(omitNulls(shopping) as Record<string, unknown>),
           intents,
@@ -268,7 +269,8 @@ export function interpretPlanning(
         throw new Error("invalidDraft");
       }
     },
-    validate: (raw) => validatePlanningDraft(raw, snapshot, note),
+    validate: (raw) =>
+      validatePlanningDraft(alignPlanningEvidence(raw, note), snapshot, note),
     repairLimit: 1,
     correction:
       " The previous planning response failed validation. Preserve every request with exact source evidence and a unique valid target or explicit unresolved reason. Do not invent unknown quantities. Return the entire JSON draft and intent ledger.",

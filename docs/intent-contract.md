@@ -6,6 +6,8 @@ F16.15 defines identified request coverage in `src/domain/intents.ts`. It does n
 
 ## Interpretation
 
+At the provider boundary, `alignPlanningEvidence` recalculates an intent's integer offsets when its unchanged label and quote match exactly one occurrence in the submitted note. This handles model arithmetic errors before native-schema and domain validation. It never supplies a missing quote, changes a label, selects among repeated quotes or fixes classification evidence. Strict domain validation still rejects overlapping spans, invalid quantities and invalid targets. Both output formats use the same rule and retain the existing request cap.
+
 `shoppingPlanTask` in `src/ai/tasks.ts` is `shopping-plan` v1. Both existing adapters advertise it through `inferenceTasks`. `interpretPlanning(session, note, state)` in `src/ai/output.ts` uses the pinned session, compact context, real draft validation and at most one repair. It requires a ledger; it never falls back to the legacy ledger-optional `interpretShopping`. Native output uses `shoppingPlanningWireSchema` / `shoppingPlanningNativeOutput`, schema name `shopping_plan_v1`. Every wire field is required. Meaningful intent nulls survive normalization in both native and text paths. Provider, incomplete, cancellation and unsupported-capability errors retain the shared terminal behavior.
 
 `validatePlanningDraft` in `src/ai/draft.ts` requires nonempty `intents`. An unresolved-only draft can have no recipes, meals or items. Legacy `validateDraft` accepts drafts without a ledger for existing composer/import compatibility, but validates a ledger whenever one is supplied. The complete composer migration remains F16.10.
