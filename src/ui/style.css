@@ -912,6 +912,45 @@ body:has(.app-main) .demo {
 .operation-fallback button {
   flex-shrink: 0;
 }
+.operation-progress-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+.operation-stage {
+  overflow-wrap: anywhere;
+}
+.operation-meter {
+  width: 100%;
+  min-width: 90px;
+  height: 6px;
+  accent-color: var(--kk-action);
+}
+.operation-wait,
+.operation-elapsed {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--kk-muted);
+}
+.operation-fallback:has(.operation-meter)::before,
+.note-status:has(.operation-meter) > .planning-activity {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .operation-meter:indeterminate {
+    appearance: none;
+    background: var(--kk-subtle);
+    border: 1px solid var(--kk-control-border);
+  }
+  .operation-meter:indeterminate::-webkit-progress-bar {
+    background: var(--kk-subtle);
+  }
+  .operation-meter:indeterminate::-webkit-progress-value {
+    animation: none;
+  }
+}
 .operation-finished::before {
   display: none;
 }

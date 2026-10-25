@@ -1,3 +1,4 @@
+import type { OperationProgress } from "../application/operation-progress";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { AppearanceBootstrap } from "../domain/appearance";
 import type { PlanningSnapshot } from "../application/planning";
@@ -89,6 +90,8 @@ const methods = [
   "storeHistory",
   "signInAI",
   "cancelAI",
+  "cancelOperation",
+  "getOperationProgress",
   "cancelPlanning",
   "invalidatePlanning",
   "signOutAI",
@@ -133,6 +136,14 @@ contextBridge.exposeInMainWorld("korikone", {
     ]),
   ),
   getAppearanceBootstrap: () => ipcRenderer.sendSync("app:appearanceBootstrap"),
+  onOperationProgress: (callback: (value: OperationProgress) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      value: OperationProgress,
+    ) => callback(value);
+    ipcRenderer.on("app:operationProgress", listener);
+    return () => ipcRenderer.removeListener("app:operationProgress", listener);
+  },
   onPlanningChange: (callback: (value: PlanningSnapshot) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,

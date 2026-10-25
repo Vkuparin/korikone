@@ -1,3 +1,5 @@
+import { mapConcurrent } from "./concurrent";
+import type { OperationStep } from "./operation-progress";
 import { starterThemeSchema } from "../domain/starter-ideas";
 import {
   suggestStarterMeals,
@@ -261,6 +263,8 @@ export class Service {
   planning = new PlanningLifecycle(() => this.state);
   private readyPlanning: PlanningResult | null = null;
   private commitUncertain = false;
+  onActivity?: (step: OperationStep) => void;
+  activitySignal?: AbortSignal;
   starterIdeas: StarterIdeas | null = null;
   async suggestStarterIdeas(
     input: unknown,
@@ -946,7 +950,9 @@ export class Service {
     return readMemory(this.state, await this.purchases.ledger());
   }
   /** Derived, read-only views for History, suggestions and spending. Nothing here is saved. */
+  developmentInsightsReads = 0;
   async purchaseInsights(now = new Date()) {
+    if (this.developmentMode) this.developmentInsightsReads++;
     const ledger = await this.purchases.ledger();
     const memory = readMemory(this.state, ledger);
     return {
@@ -1416,6 +1422,9 @@ export class Service {
       : [];
     return {
       developmentMode: this.developmentMode,
+      developmentInsightsReads: this.developmentMode
+        ? this.developmentInsightsReads
+        : 0,
       developmentScenario: this.developmentScenario,
       developmentRequests: this.developmentRequests,
       developmentModel: this.developmentModel,
@@ -2093,18 +2102,31 @@ export class Service {
   ): Promise<BasketLine[]> {
     return this.measureOperation("pricing", async (metrics) => {
       const provider = this.registry.get(context.providerId);
-      const result = [];
-      for (const requirement of requirements(state))
-        result.push(
-          await this.quoteRequirement(
-            provider,
-            context,
-            state,
-            requirement,
-            metrics,
-          ),
+      const wanted = requirements(state);
+      let completed = 0;
+      const signal = this.activitySignal;
+      this.onActivity?.({
+        stage: "searching",
+        completed: 0,
+        total: wanted.length || undefined,
+      });
+      return mapConcurrent(wanted, async (requirement) => {
+        signal?.throwIfAborted();
+        const line = await this.quoteRequirement(
+          provider,
+          context,
+          state,
+          requirement,
+          metrics,
+          false,
         );
-      return result;
+        this.onActivity?.({
+          stage: "searching",
+          completed: ++completed,
+          total: wanted.length,
+        });
+        return line;
+      });
     });
   }
   /** One requirement's bounded catalogue read and local match. */
@@ -2114,7 +2136,10 @@ export class Service {
     state: AppState,
     requirement: Requirement,
     metrics: OperationCounters,
+    reportStage = true,
   ): Promise<BasketLine> {
+    if (reportStage)
+      this.onActivity?.({ stage: "searching", cancellable: true });
     const accepted =
       state.accepted[
         `${context.providerId}:${context.storeId}:${requirement.id}`
@@ -2130,6 +2155,7 @@ export class Service {
     };
     const products = applyPackSizes(
       await searchCandidates(provider, context, requirement, {
+        signal: this.activitySignal,
         queryHints: requirementQueryHints(requirement, options),
         onSearch: () => {
           metrics.searches++;
@@ -3027,6 +3053,7 @@ export class Service {
       applied,
       delta,
     });
+    this.onActivity?.({ stage: "saving", cancellable: false });
     await this.writeAtomically([
       { key: "state", value: next },
       ...(quote
@@ -3215,6 +3242,7 @@ export class Service {
     // Nothing on the list may be sent, and the reason is the hand-off, not a missing product.
     if (manual.length && !this.basket.some(writable) && !unresolved.length)
       throw new Error("manualOnly");
+    this.onActivity?.({ stage: "checking", cancellable: true });
     this.review = await createReview(
       this.registry.get(this.state.context.providerId),
       this.state.context,
@@ -3231,6 +3259,16 @@ export class Service {
         preferences: this.state.categoryPreferences,
       },
       reconcilePrices,
+      {
+        signal: this.activitySignal,
+        onProgress: (completed, total) =>
+          this.onActivity?.({
+            stage: "checking",
+            completed,
+            total,
+            cancellable: true,
+          }),
+      },
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
@@ -3478,13 +3516,16 @@ export class Service {
           if (provider instanceof DemoProvider)
             await this.db.set(provider.id, [...provider.carts]);
         },
-        this.controller.signal,
+        this.activitySignal
+          ? AbortSignal.any([this.controller.signal, this.activitySignal])
+          : this.controller.signal,
         this.state.packSizes,
         {
           exclusions: exclusionTerms(this.state.household.exclusions),
           preferences: this.state.categoryPreferences,
         },
         sameClick,
+        this.onActivity,
       );
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)

@@ -1,3 +1,5 @@
+import { mapConcurrent } from "./concurrent";
+import type { OperationStep } from "./operation-progress";
 import type {
   AppState,
   BasketLine,
@@ -104,6 +106,10 @@ export async function createReview(
   matchingOptions: MatchingOptions = {},
   /** Accept a changed price for the same product and pack, and report it in `priceChanges`. */
   reconcilePrices = false,
+  readOptions: {
+    signal?: AbortSignal;
+    onProgress?: (completed: number, total: number) => void;
+  } = {},
 ): Promise<Review> {
   if (
     !provider.capabilities.cart ||
@@ -112,12 +118,17 @@ export async function createReview(
   )
     throw new Error("unresolved");
   assertWritable(provider, lines);
+  readOptions.signal?.throwIfAborted();
   const baseline = await provider.getCart(context);
+  readOptions.signal?.throwIfAborted();
   if (!baseline.accountId) throw new Error("loginRequired");
   const targets: Review["targets"] = [];
   const priceChanges: NonNullable<Review["priceChanges"]> = [];
   const quotes = structuredClone(lines);
-  for (const line of quotes) {
+  let completed = 0;
+  readOptions.onProgress?.(0, quotes.length);
+  const freshProducts = await mapConcurrent(quotes, async (line) => {
+    readOptions.signal?.throwIfAborted();
     const p = line.product!;
     if (p.providerId !== context.providerId || p.storeId !== context.storeId)
       throw new Error("contextChanged");
@@ -126,9 +137,16 @@ export async function createReview(
       context,
       line,
       packSizes,
-      undefined,
+      readOptions.signal,
       matchingOptions,
     );
+    readOptions.onProgress?.(++completed, quotes.length);
+    return fresh;
+  });
+  readOptions.signal?.throwIfAborted();
+  for (const [index, line] of quotes.entries()) {
+    const p = line.product!;
+    const fresh = freshProducts[index];
     // The product, its pack and its availability must be what was shown. Only its price may
     // differ, and only when the caller reconciles: the same product and quantity are sent.
     if (
@@ -248,6 +266,7 @@ export async function transfer(
    * shopper looked at first is always checked again, whatever its age.
    */
   reviewJustRead = false,
+  onProgress?: (step: OperationStep) => void,
 ): Promise<Journal> {
   const review = journal.review;
   const key = JSON.stringify([
@@ -294,6 +313,7 @@ export async function transfer(
         )
           throw new Error("priceChanged");
       }
+    onProgress?.({ stage: "checking", cancellable: true });
     if (
       fingerprint(await provider.getCart(review.context)) !==
       fingerprint(expected)
@@ -307,7 +327,19 @@ export async function transfer(
       if (signal?.aborted) throw new Error("cancelled");
       journal.uncertain = target.productId;
       await record();
+      onProgress?.({
+        stage: "transferring",
+        completed: journal.verified.length,
+        total: review.targets.length,
+        cancellable: true,
+      });
       await provider.setQuantity(review.context, target);
+      onProgress?.({
+        stage: "verifying",
+        completed: journal.verified.length,
+        total: review.targets.length,
+        cancellable: true,
+      });
       const line = expected.lines.find((l) => l.productId === target.productId);
       if (line) line.quantity = target.quantity;
       else expected.lines.push({ ...target });
@@ -317,6 +349,12 @@ export async function transfer(
       )
         throw new Error("verificationFailed");
       journal.verified.push(target.productId);
+      onProgress?.({
+        stage: "transferring",
+        completed: journal.verified.length,
+        total: review.targets.length,
+        cancellable: true,
+      });
       journal.uncertain = null;
       await record();
     }

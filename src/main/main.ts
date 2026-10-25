@@ -1,4 +1,11 @@
 import {
+  OperationTracker,
+  trackedOperation,
+  aiOperation,
+  terminalOperation,
+  type OperationStep,
+} from "../application/operation-progress";
+import {
   app,
   BrowserWindow,
   ipcMain,
@@ -323,10 +330,46 @@ else
       height: z.number().int().min(0),
     });
     let generationRun = 0;
+    const operations = new OperationTracker((value) => {
+      if (!window.isDestroyed())
+        window.webContents.send("app:operationProgress", value);
+    });
+    let activeOperation: { id: string; controller: AbortController } | null =
+      null;
+    const pendingOperations = new Map<string, AbortController>();
     const publishPlanning = () => {
       service.planning.onChange = (value) => {
         if (!window.isDestroyed())
           window.webContents.send("app:planningChanged", value);
+        if (activeOperation) {
+          const stages: Record<string, OperationStep["stage"] | undefined> = {
+            discovering: "discovering",
+            interpreting: "generating",
+            interpreted: "searching",
+            searching: "searching",
+            resolving: "resolving",
+            ready: "saving",
+            committing: "saving",
+          };
+          const stage = stages[value.phase];
+          if (stage) {
+            const count = value.coverage.filter(
+              (r) => r.status === "searched",
+            ).length;
+            operations.update(activeOperation.id, {
+              stage,
+              ...(value.phase === "searching" && value.coverage.length
+                ? {
+                    completed: count,
+                    total:
+                      value.coverage.filter((r) => r.status !== "bounded-out")
+                        .length || value.coverage.length,
+                  }
+                : {}),
+              cancellable: !["ready", "committing"].includes(value.phase),
+            });
+          }
+        }
       };
     };
     publishPlanning();
@@ -338,6 +381,8 @@ else
       maxCalls = 2,
       signal?: AbortSignal,
     ) => {
+      const progressId = activeOperation?.id;
+      if (progressId) operations.update(progressId, { stage: "discovering" });
       const preference =
         operation?.sourceState().aiModel ?? service.state.aiModel;
       const controller = new AbortController();
@@ -362,19 +407,33 @@ else
           models.map((m) => ({ slug: m.modelId, name: m.name })),
           preference,
         );
-        if (operation)
-          return operation.bindInference(
-            provider,
-            models.find((model) => model.modelId === id)!,
-          );
-        return new InferenceSession(
-          provider,
-          models.find((m) => m.modelId === id)!,
-          { maxCalls, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
-          signal
-            ? AbortSignal.any([controller.signal, signal])
-            : controller.signal,
-        );
+        const session = operation
+          ? operation.bindInference(
+              provider,
+              models.find((model) => model.modelId === id)!,
+            )
+          : new InferenceSession(
+              provider,
+              models.find((m) => m.modelId === id)!,
+              { maxCalls, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
+              signal
+                ? AbortSignal.any([controller.signal, signal])
+                : controller.signal,
+            );
+        let previousTask = "";
+        session.onInvocation = (task) => {
+          if (progressId)
+            operations.update(progressId, {
+              stage:
+                task.id === "candidate-resolution"
+                  ? "resolving"
+                  : previousTask === task.id
+                    ? "repairing"
+                    : "generating",
+            });
+          previousTask = task.id;
+        };
+        return session;
       } catch (error) {
         if (run !== generationRun) throw new Error("aiCancelled");
         throw inferenceAppError(error);
@@ -471,6 +530,11 @@ else
       return result;
     };
     const handoff = async () => {
+      if (activeOperation)
+        operations.update(activeOperation.id, {
+          stage: "opening",
+          cancellable: false,
+        });
       try {
         const result = await handlers.openStoreCart(undefined);
         service.handoffError = null;
@@ -620,6 +684,31 @@ else
       setReviewBeforeTransfer: (input) =>
         service.setReviewBeforeTransfer(input),
       setReceiptText: (input) => service.setReceiptText(input),
+      getOperationProgress: async () => operations.current,
+      cancelOperation: async (input) => {
+        const { operationId } = z
+          .object({ operationId: z.uuid() })
+          .strict()
+          .parse(input);
+        const current = operations.current;
+        if (
+          !current ||
+          current.id !== operationId ||
+          !current.cancellable ||
+          terminalOperation(current)
+        )
+          return service.snapshot();
+        pendingOperations.get(operationId)?.abort();
+        operations.update(operationId, {
+          stage: "cancelling",
+          cancellable: false,
+        });
+        if (activeOperation?.id === operationId) {
+          service.controller?.abort();
+          if (aiOperation(current.method)) await handlers.cancelAI(undefined);
+        } else operations.finish(operationId, "cancelled");
+        return service.snapshot();
+      },
       cancelTransfer: async () => {
         service.controller?.abort();
         return service.snapshot();
@@ -629,6 +718,17 @@ else
         return service.snapshot();
       },
       cancelAI: async () => {
+        if (
+          activeOperation &&
+          operations.current?.id === activeOperation.id &&
+          aiOperation(operations.current.method)
+        ) {
+          activeOperation.controller.abort();
+          operations.update(activeOperation.id, {
+            stage: "cancelling",
+            cancellable: false,
+          });
+        }
         service.cancelOfferIdeas();
         service.planning.cancel();
         generationRun++;
@@ -643,6 +743,13 @@ else
       },
       cancelPlanning: async (input) => {
         service.planning.control(input);
+        if (activeOperation) {
+          activeOperation.controller.abort();
+          operations.update(activeOperation.id, {
+            stage: "cancelling",
+            cancellable: false,
+          });
+        }
         service.draft = null;
         service.draftRevision = null;
         return service.snapshot();
@@ -1229,8 +1336,14 @@ else
           event.senderFrame !== window.webContents.mainFrame
         )
           throw new Error("forbidden");
+        let progressId: string | null = null;
+        const requestController = new AbortController();
         try {
           if (closing) throw new Error("busy");
+          if (trackedOperation(name)) {
+            progressId = operations.start(name);
+            pendingOperations.set(progressId, requestController);
+          }
           if (["prepare", "transferDisplayed", "execute"].includes(name))
             service.assertNoProvisionalTransfer();
           if (name === "save") {
@@ -1258,6 +1371,8 @@ else
           )
             service.planning.invalidate();
           if (
+            name === "getOperationProgress" ||
+            name === "cancelOperation" ||
             name === "setLanguage" ||
             name === "setAppearance" ||
             name === "cancelTransfer" ||
@@ -1276,10 +1391,13 @@ else
           ) {
             const value = (await handler(input)) as object;
             service.ai = ai.status();
-            return { ok: true, value: { ...value, ai: service.ai } };
+            return name === "getOperationProgress"
+              ? { ok: true, value }
+              : { ok: true, value: { ...value, ai: service.ai } };
           }
           const submittedRun = generationRun;
-          const pending = queue.then(() => {
+          const pending = queue.then(async () => {
+            if (requestController.signal.aborted) throw new Error("cancelled");
             if (
               (name === "generate" ||
                 name === "planShopping" ||
@@ -1290,22 +1408,51 @@ else
               submittedRun !== generationRun
             )
               throw new Error("aiCancelled");
-            return handler(input);
+            if (!progressId) return handler(input);
+            activeOperation = { id: progressId, controller: requestController };
+            service.activitySignal = requestController.signal;
+            service.onActivity = (step) => operations.update(progressId!, step);
+            operations.update(progressId, { stage: "working" });
+            try {
+              const result = await handler(input);
+              operations.finish(
+                progressId,
+                requestController.signal.aborted ? "cancelled" : "done",
+              );
+              return result;
+            } finally {
+              if (activeOperation?.id === progressId) {
+                activeOperation = null;
+                service.onActivity = undefined;
+                service.activitySignal = undefined;
+              }
+            }
           });
           queue = pending.catch(() => {});
           const value = (await pending) as object;
           service.ai = ai.status();
           return { ok: true, value: { ...value, ai: service.ai } };
         } catch (error) {
+          if (progressId)
+            operations.finish(
+              progressId,
+              requestController.signal.aborted ||
+                (error instanceof Error &&
+                  ["aiCancelled", "cancelled"].includes(error.message))
+                ? "cancelled"
+                : "failed",
+            );
           return {
             ok: false,
             ...(name === "suggestOffers" ? { value: service.snapshot() } : {}),
-            error:
-              error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+            error: requestController.signal.aborted
+              ? "aiCancelled"
+              : error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
                 ? error.message
                 : "operationFailed",
           };
         } finally {
+          if (progressId) pendingOperations.delete(progressId);
           // Every path that can commit a preference or shopping context ends here, including one
           // that failed after saving. Unchanged values publish nothing.
           publishAppearance();

@@ -153,6 +153,7 @@ export class InferenceSession {
   get payloadCharacters() {
     return this.payloadSize;
   }
+  onInvocation?: (task: InferenceTask, call: number) => void;
   private inFlight = false;
   private stopped = false;
   private readonly bounds: InferenceBounds;
@@ -231,6 +232,7 @@ export class InferenceSession {
     );
 
     this.calls++;
+    this.onInvocation?.(selectedTask, this.calls);
     this.payloadSize += prompt.length;
     this.inFlight = true;
     const controller = new AbortController();

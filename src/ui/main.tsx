@@ -1,3 +1,7 @@
+import { useOperationProgress } from "./use-operation-progress";
+import { OperationProgressBody } from "./operation-progress";
+import type { OperationProgress } from "../application/operation-progress";
+import { terminalOperation } from "../application/operation-progress";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { IntakeProgress } from "../application/receipt-intake";
@@ -58,6 +62,13 @@ declare global {
       planShopping: (
         input: PlanningRequest,
       ) => Promise<{ ok: boolean; value: Snapshot; error?: string }>;
+      getOperationProgress: () => Promise<{
+        ok: boolean;
+        value: OperationProgress | null;
+      }>;
+      onOperationProgress: (
+        callback: (value: OperationProgress) => void,
+      ) => () => void;
       onPlanningChange: (
         callback: (value: PlanningSnapshot) => void,
       ) => () => void;
@@ -101,6 +112,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>({
     developmentMode: false,
     offerDiscoverySupported: false,
+    developmentInsightsReads: 0,
     developmentScenario: "success",
     developmentRequests: 0,
     developmentModel: null,
@@ -203,6 +215,11 @@ function App() {
   const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const operationStatus = useOperationProgress();
+  const activeProgress =
+    operationStatus.operation && !terminalOperation(operationStatus.operation)
+      ? operationStatus.operation
+      : null;
   const [busyMethod, setBusyMethod] = useState<string | null>(null);
   const [composerProgress, setComposerProgress] =
     useState<ComposerProgress | null>(null);
@@ -640,7 +657,15 @@ function App() {
                 data-operation-status="global"
                 data-planning-phase={composerProgress.phase}
               >
-                {composerProgress.label}
+                {activeProgress ? (
+                  <OperationProgressBody
+                    progress={activeProgress}
+                    language={state.language}
+                    elapsedSeconds={operationStatus.elapsedSeconds}
+                  />
+                ) : (
+                  composerProgress.label
+                )}
               </span>
               {composerProgress.active && (
                 <small aria-hidden="true">{composerProgress.elapsed} s</small>
@@ -656,29 +681,36 @@ function App() {
               )}
             </div>
           )
-        : busy &&
-          // Reading saved data back is local and instant: it is not shown as work in progress.
-          !["planShopping", "commitPlanning", "editList", "load"].includes(
-            busyMethod ?? "",
-          ) && (
-            <div className="progress operation-fallback">
+        : operationStatus.visible &&
+          activeProgress && (
+            <div
+              className="progress operation-fallback"
+              data-operation-id={activeProgress.id}
+            >
               <span
                 role="status"
                 aria-atomic="true"
                 data-operation-status="global"
               >
-                {t("working")}
+                <OperationProgressBody
+                  progress={activeProgress}
+                  language={state.language}
+                  elapsedSeconds={operationStatus.elapsedSeconds}
+                  showElapsed
+                />
               </span>
-              <button
-                className="text"
-                onClick={() => {
-                  void window.korikone.cancelTransfer();
-                  window.dispatchEvent(new Event("korikone:cancel-ai"));
-                  void window.korikone.cancelAI();
-                }}
-              >
-                {t("cancel")}
-              </button>
+              {activeProgress.cancellable && (
+                <button
+                  className="text"
+                  onClick={() =>
+                    void window.korikone.cancelOperation({
+                      operationId: activeProgress.id,
+                    })
+                  }
+                >
+                  {t("cancel")}
+                </button>
+              )}
             </div>
           )}
       {state.onboarded && !state.setupComplete && setupStore ? (
@@ -871,8 +903,9 @@ function App() {
                   page === "week" || page === "weekPlan" || page === "history"
                 }
                 onProgress={setComposerProgress}
+                operationProgress={activeProgress}
                 snapshot={snapshot}
-                busy={busy}
+                busy={busy || !!activeProgress}
                 call={call}
                 save={save}
                 settings={openSettings}

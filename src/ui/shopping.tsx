@@ -1,3 +1,8 @@
+import {
+  OperationProgressBody,
+  operationStageLabel,
+} from "./operation-progress";
+import type { OperationProgress } from "../application/operation-progress";
 import { starterThemes, type StarterTheme } from "../domain/starter-ideas";
 import {
   candidateSuitability,
@@ -339,6 +344,7 @@ export function ShoppingWorkspace({
   view = "list",
   visible = true,
   onProgress,
+  operationProgress,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -357,6 +363,7 @@ export function ShoppingWorkspace({
   view?: "list" | "schedule" | "history";
   visible?: boolean;
   onProgress?: (progress: ComposerProgress | null) => void;
+  operationProgress?: OperationProgress | null;
 }) {
   const state = snapshot.state;
   const all = requirements(state, new Date(), true);
@@ -425,7 +432,10 @@ export function ShoppingWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const { insights, refresh: refreshInsights } = useInsights(snapshot);
+  const { insights, refresh: refreshInsights } = useInsights(
+    snapshot,
+    visible && view !== "schedule",
+  );
   const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
@@ -869,7 +879,7 @@ export function ShoppingWorkspace({
     (working && cancelled) || (editWorking && editCancelled);
   const progressCancellable =
     (requesting && livePlanning?.phase !== "committing") || editWorking;
-  const progressFinished =
+  const rawProgressFinished =
     cancelled ||
     updateFailed ||
     editFailed ||
@@ -880,40 +890,54 @@ export function ShoppingWorkspace({
         livePlanning.phase,
       )
     );
+  const [completionVisible, setCompletionVisible] = useState(false);
+  useEffect(() => {
+    if (!rawProgressFinished || progressActive) {
+      setCompletionVisible(false);
+      return;
+    }
+    setCompletionVisible(true);
+    const timer = setTimeout(() => setCompletionVisible(false), 4000);
+    return () => clearTimeout(timer);
+  }, [rawProgressFinished, progressActive]);
+  const progressFinished = rawProgressFinished && completionVisible;
   const progressPhase = editWorking
     ? "editing"
     : (livePlanning?.phase ?? (working ? "starting" : "idle"));
-  const progressLabel = editWorking
-    ? editCancelled
-      ? tr("Peruutetaan muutosta…", "Cancelling the change…")
-      : tr("Muokataan listaa…", "Editing the list…")
-    : working
-      ? cancelled
-        ? tr("Peruutetaan listan päivitystä…", "Cancelling list update…")
-        : livePlanning
-          ? planningPhaseLabel(livePlanning.phase, state.language)
-          : tr("Aloitetaan listan päivitystä…", "Starting list update…")
-      : editCancelled
-        ? tr(
-            "Muutos peruutettu. Aiempi lista säilyy.",
-            "Change cancelled. Your previous list is retained.",
-          )
-        : composingEdit && editFailed
-          ? tr("Listaa ei muutettu", "The list was not changed")
-          : cancelled
+  const progressLabel =
+    (working || editWorking) && operationProgress
+      ? operationStageLabel(operationProgress, state.language)
+      : editWorking
+        ? editCancelled
+          ? tr("Peruutetaan muutosta…", "Cancelling the change…")
+          : tr("Muokataan listaa…", "Editing the list…")
+        : working
+          ? cancelled
+            ? tr("Peruutetaan listan päivitystä…", "Cancelling list update…")
+            : livePlanning
+              ? planningPhaseLabel(livePlanning.phase, state.language)
+              : tr("Aloitetaan listan päivitystä…", "Starting list update…")
+          : editCancelled
             ? tr(
-                "Listan päivitys peruutettu. Aiempi lista säilyy.",
-                "List update cancelled. Your previous list is retained.",
+                "Muutos peruutettu. Aiempi lista säilyy.",
+                "Change cancelled. Your previous list is retained.",
               )
-            : updateFailed
-              ? planningPhaseLabel("failed", state.language)
-              : livePlanning &&
-                  ["committed", "obsolete"].includes(livePlanning.phase)
-                ? planningPhaseLabel(livePlanning.phase, state.language)
-                : tr(
-                    "Ctrl + Enter päivittää listan",
-                    "Ctrl + Enter to update the list",
-                  );
+            : composingEdit && editFailed
+              ? tr("Listaa ei muutettu", "The list was not changed")
+              : cancelled
+                ? tr(
+                    "Listan päivitys peruutettu. Aiempi lista säilyy.",
+                    "List update cancelled. Your previous list is retained.",
+                  )
+                : updateFailed
+                  ? planningPhaseLabel("failed", state.language)
+                  : livePlanning &&
+                      ["committed", "obsolete"].includes(livePlanning.phase)
+                    ? planningPhaseLabel(livePlanning.phase, state.language)
+                    : tr(
+                        "Ctrl + Enter päivittää listan",
+                        "Ctrl + Enter to update the list",
+                      );
   const cancelProgressRef = useRef(() => {});
   cancelProgressRef.current = () => {
     if (!progressCancellable || progressCancelling) return;
@@ -1505,7 +1529,15 @@ export function ShoppingWorkspace({
                 }
               >
                 <span className="planning-activity" aria-hidden="true" />
-                <span>{progressLabel}</span>
+                {progressActive && operationProgress ? (
+                  <OperationProgressBody
+                    progress={operationProgress}
+                    language={state.language}
+                    elapsedSeconds={elapsed}
+                  />
+                ) : (
+                  <span>{progressLabel}</span>
+                )}
               </span>
               {progressActive && (
                 <small
