@@ -75,6 +75,8 @@ export type PlanningResult = {
   };
   /** Rows left unsearched after a failed or slow read or the catalogue deadline. */
   unsearched: number;
+  /** The store answered no row: the first read error, shown with the saved list. */
+  searchFailure: string | null;
   /** The interpretation gave nothing usable and the note was used as it is. */
   fallback: boolean;
 };
@@ -188,6 +190,7 @@ export async function coordinatePlanning(
     let workerFailure: unknown;
     // B4.2: a row whose read fails or is slow stays unsearched; the deadline stops new reads.
     let unsearched = 0;
+    let readFailure: string | null = null;
     const worker = async () => {
       while (position < active.length && !workerFailure && !deadline.aborted) {
         const requirement = active[position++];
@@ -244,6 +247,10 @@ export async function coordinatePlanning(
             throw workerFailure;
           }
           unsearched++;
+          readFailure ??=
+            error instanceof Error && /^[a-zA-Z]+$/.test(error.message)
+              ? error.message
+              : "storeUnavailable";
           run.boundOutRequirement(key);
         }
       }
@@ -327,6 +334,7 @@ export async function coordinatePlanning(
       intents: preview.intents,
       resolver,
       unsearched,
+      searchFailure: lines.size === 0 ? readFailure : null,
       fallback,
     });
   } catch (error) {

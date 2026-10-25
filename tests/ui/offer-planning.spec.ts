@@ -65,12 +65,22 @@ test("selected offers reach planning after reload and store failures point to st
     await page
       .getByRole("button", { name: "Taio ostoslista", exact: true })
       .click();
+    // B4.2: the dish is still saved, unpriced, and the store failure points to store settings.
     const error = page.getByRole("alert");
-    await expect(error).toContainText("Kaupan pyyntö epäonnistui");
+    await expect(error).toContainText(
+      "Tuotteiden ja hintojen haku epäonnistui",
+      {
+        timeout: 20000,
+      },
+    );
     await expect(error).not.toContainText("Tarkista kirjautuminen");
     await expect(error).not.toContainText("ChatGPT");
-    await expect(error.getByRole("button")).toContainText("Kaupat");
-    await expect(composer(page)).toHaveValue("Nakkikeitto");
+    await expect(error.getByRole("button")).toContainText(
+      "kauppojen asetukset",
+    );
+    const saved = await load();
+    expect(saved.state.note).toBe("Nakkikeitto");
+    expect(saved.basket.every((line) => !line.product)).toBe(true);
     expect((await load()).ai.state).toBe("connected");
   } finally {
     await app.close();

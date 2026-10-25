@@ -410,6 +410,8 @@ test("a catalogue error leaves that row unsearched, without an alias retry, and 
     matching: { reason: "bounded-out" },
   });
   expect(committed.state.assumptions).toMatch(/1 rivillä/);
+  // No row answered, so the store failure is shown with the saved list.
+  expect(committed.pricingError).toBe("storeUnavailable");
 });
 test("an account error from the catalogue still ends the request", async () => {
   const env = await setup();
@@ -454,6 +456,7 @@ test("one failed row keeps the products found for the other rows", async () => {
     "milk",
     null,
   ]);
+  expect(committed.pricingError).toBeNull();
 });
 test("an unusable interpretation gets one repair, then the note itself is searched", async () => {
   const env = await setup();

@@ -561,7 +561,8 @@ export class Service {
         this.basket = quote.basket;
         this.quotedAt = quote.quotedAt;
         this.pickupFee = quote.pickupFee;
-        this.pricingError = null;
+        // B4.2: a store that answered no row is reported next to the saved, unpriced list.
+        this.pricingError = result.searchFailure;
         this.review = null;
         this.comparison = null;
         this.transferException = null;

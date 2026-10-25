@@ -12,11 +12,19 @@ F16.10 implements `coordinatePlanning(run, dependencies)` in `src/application/co
 
 The coordinator uses `interpretPlanning`, publishes its draft, then derives requirements from `run.validatedDraft()`. Its prospective AppState retains source revision, replaces the plan/note/extras and clears old quantities/removals/skips. It remains local. It does not install a quote, save AppState, read a retailer cart or write a retailer quantity. Cancellation, replacement and source changes abort bound work; late output cannot replace a newer result.
 
+## Partial interpretation (v0.11.2)
+
+B4.1: `interpretPlanning` salvages a parseable reply that strict validation refuses (`src/ai/salvage.ts`) before spending its single repair. Salvage only removes or downgrades: written kg/l/dl units are converted, an invalid classification becomes an inferred one, an invented non-food attribute is dropped so the row asks for it, and a meal, item, ingredient, side or ledger entry that still fails is left out. Ledger and side positions are shifted past a removed meal or item; a ledger that no longer covers the reply is dropped whole. The result passes the same `validateDraft` and its notes name what was left out. A reply with nothing usable is repaired once, and a refused repair is salvaged before it fails.
+
+B4.3: when interpretation still yields nothing usable (`invalid-output`, `incomplete` or `timeout`) and no offer ideas were selected, `fallbackDraft` (`src/ai/fallback.ts`) turns each request phrase of the note into one plain direct item: the note's amount when it states one, otherwise one ordinary purchase. No recipe, brand, product, price or explicit claim is invented, the resolver is skipped, notes explain it, and planning metrics record `invalid-output` on a successful operation. Provider, account and usage errors still fail.
+
 ## Searches and coverage
 
 Two workers process up to 100 active requirements from at most 500 inputs. Each `searchCandidates` actual read acquires `CandidateSearchOptions.beginRead` through `run.beginSearch(key)` and releases in `finally`, including synchronous provider errors, telemetry errors, cancellation and timeout. Existing deterministic aliases retain their three-query maximum and expand only after a miss. Stock readback performed inside a retailer adapter remains part of that adapter's search read. It does not imply a cart write.
 
-The run allows 200 search reads and three per requirement. Exhaustion marks remaining rows and corresponding intents `bounded-out`; it never calls them empty search results. `coordinatorLimits.searchTimeoutMs` is 60,000 for the complete catalogue phase, separate from inference task timeouts. A cancelled/stale run remains terminal; a catalogue error fails as `search`, and the catalogue deadline fails as `timeout`. Both workers settle before ready or failure returns. Safe local rows and all identified requests receive validated progress while work proceeds.
+The run allows 200 search reads and three per requirement. Exhaustion marks remaining rows and corresponding intents `bounded-out`; it never calls them empty search results. `coordinatorLimits.searchTimeoutMs` is 60,000 for the complete catalogue phase, separate from inference task timeouts. A cancelled/stale run remains terminal.
+
+Since v0.11.2 (B4.2) a catalogue failure no longer discards the request. A row whose read fails, or takes longer than `coordinatorLimits.rowTimeoutMs` (20,000), is marked `bounded-out` and the other rows continue. At the catalogue deadline no new read starts, rows in flight and rows not yet read are `bounded-out`, and the result is ready with what was found. The committed basket shows these rows unsearched, `state.assumptions` says how many there were, and pricing reads them again. Only `terminalSearchErrors` (`loginRequired`, `storeBlocked`, `chooseStore`, `contextChanged`) still fail the request. `PlanningResult.unsearched` counts the rows; planning metrics record them as `search-error`. Both workers settle before ready or failure returns. Safe local rows and all identified requests receive validated progress while work proceeds.
 
 ## Optional resolution
 

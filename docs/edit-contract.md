@@ -44,7 +44,9 @@ Errors are `EditError` with `code` (also the message) and `operation`, the zero-
 
 ## Semantics (F17.1)
 
-**Ambiguity.** `applyEditIntent` applies operations only when `ambiguities` and `unsupported` are both empty. Otherwise it returns `{ status: "clarification", ambiguities, unsupported }` and the plan is untouched, including for the clear operations of the same instruction. Candidates must be current targets; an invented candidate is `unknownTarget`.
+**Ambiguity.** An ambiguity returns `{ status: "clarification", ambiguities, unsupported }` and the plan is untouched, including for the clear operations of the same instruction, because a resubmitted choice replays the whole instruction. Candidates must be current targets; an invented candidate is `unknownTarget`.
+
+**Partial edits (v0.11.2, B4.4).** Without ambiguities, `applyEditIntent` applies the operations it can and returns `{ status: "applied", result, unsupported }`: an `unsupported` phrase from the model, or an operation the plan refuses with an indexed `EditError`, is reported back by the shopper's own name. Nothing applies, and a clarification is returned, when an unsupported phrase names a row or dish that one of the operations changes ("poista ruisleipä ja lisää 200 g ruisleipää"), when two operations target one row (`duplicateTarget`), or when no operation is left. `packSizeUnknown` and `staleEdit` still end the edit. `validateEditIntent` likewise leaves out an operation that fails its checks and reports it by name; a reply is refused (and repaired once) only when two operations name one target or nothing in it is usable. An ambiguity naming an invented target becomes an unsupported phrase, never a choice.
 
 **Shared ingredients.** A row operation acts on the whole combined row, whatever meals and extras feed it. A meal operation changes only that meal's contribution: other meals' shares, extras and due recurring items stay. When a meal operation changes what feeds a row that has an explicit quantity, the explicit quantity moves by the same difference; if that leaves nothing, the override is dropped. When a row loses its last source, its `skipped`, `removed` and `quantities` entries are dropped so they cannot attach to a later row with the same key. Flags of every other row, product choices in `accepted`, corrections, extras and the calendar are preserved.
 
@@ -99,7 +101,7 @@ IPC `editList({ revision, instruction, focusTargetId?, consent: true })` calls `
 1. A wrong revision, a list with no targets (`nothingToEdit`), a running planning operation (`planningPending`) or a pending transfer (`busy`) is rejected before any AI request.
 2. The instruction is interpreted against a snapshot. If the list revision changed meanwhile, the result is discarded as `draftStale`.
 3. `applyEditIntent` runs with pack sizes taken from the current quote: only rows whose selected product has an exact, positive pack of the row's unit. A clarification is returned in the snapshot and nothing else changes.
-4. Only requirement keys in `changedKeys` are read from the catalogue again. Every other row keeps its quoted line, candidates and reading time, and the whole quote is then re-verified against the edited plan (`restoredQuote`). If a retained row no longer verifies, every row is read again. Removed and at-home rows need no read.
+4. Only requirement keys in `changedKeys` are read from the catalogue again, with the pricing concurrency of two. A row whose read fails or takes over 20 seconds keeps the edit and is saved unsearched (`matching.reason: "bounded-out"`); the next price update reads it again. Account and store-selection errors still end the edit. Every other row keeps its quoted line, candidates and reading time, and the whole quote is then re-verified against the edited plan (`restoredQuote`). If a retained row no longer verifies, every row is read again. Removed and at-home rows need no read.
 5. State, quote, undo snapshot and observed prices are written in one `setMany`. A failed write leaves all four as they were; a lost acknowledgement is detected by reading back and is not retried.
 
 **Timestamps.** `quotedAt` stays at the earlier time whenever any row is retained, because the quote is only as fresh as its oldest row. Rows read during the edit carry their own `observedAt`. A quote in which every row was read gets the new time.
@@ -108,7 +110,7 @@ IPC `editList({ revision, instruction, focusTargetId?, consent: true })` calls `
 
 Snapshot fields: `edit` and `editUndoAvailable`. `edit` is `null` or an `EditStatus` for the current revision only:
 
-- `{ status: "applied" | "undone", revision, applied, delta }`
+- `{ status: "applied" | "undone", revision, applied, delta, unsupported? }`; `unsupported` lists the parts of an applied instruction that were not done.
 - `{ status: "clarification", revision, ambiguities: [{ phrase, candidates: [{ targetId, name, detail }] }], unsupported: string[] }`, where `detail` is `"<amount> <unit>"` for a row and the servings for a meal.
 
 Errors reach the renderer as codes: the `EditError` codes above, `draftStale`, `nothingToEdit`, `planningPending`, `busy`, `contextTooLarge`, `invalidDraft`, and the existing AI codes (`usageLimit`, `incompleteDraft`, `aiCancelled`, `notConnected`, `modelUnavailable`, `aiFailed`). Metrics record kind `edit` with AI, repair and search counts.
