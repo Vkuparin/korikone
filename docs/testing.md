@@ -122,3 +122,7 @@ The K development stand-in (`demo-k`) has a synthetic non-food shelf and declare
 ## v0.11.0 release evidence
 
 [Release verification](release-0.11.0.md) records the canonical local flow and short packaged smoke. The smoke now uses importReceipts and reads reconciliation.status from the saved purchase. Matching acceptance submits through the enabled primary action and polls the real planning snapshot, avoiding dependence on keyboard delivery to concurrent hidden windows or a particular progress surface. Reuse recorded passing checks; do not repeat the full flow after publication. Live receipt/model and non-food catalogue acceptance remains separate.
+
+## v0.11.1 release evidence
+
+[Release verification](release-0.11.1.md) records the canonical local flow. Progress assertions now read the stage texts from the shared operation tracker. Two bounded catalogue workers mean a failed pricing run can record two started reads. Settings reuses known models, so checks that need a fresh model read press Reload models.

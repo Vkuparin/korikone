@@ -2,7 +2,7 @@
 
 Agreed direction on 9 October 2026: move from prototype to pre-release while keeping scope focused. The first version is **0.2.0-alpha.1**, distributed as an unsigned Windows x64 installer and marked as a GitHub pre-release.
 
-**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.11.0; deferred product features remain deferred.
+**0.2.0-alpha.3** was an earlier published pre-release. It added cancellation of a pending note interpretation and wider fixture and receipt-PDF checks on top of alpha.2's development mode. Its source and packaged checks passed. The current version is v0.11.1; deferred product features remain deferred.
 
 ## Included
 
@@ -42,3 +42,7 @@ v0.10.0 includes all 36 Done calendar, offer, OCR and owner-playtest cards. One 
 ## v0.11.0
 
 Published as an unsigned Windows x64 pre-release with all 19 Done cards integrated. Multi-file receipt intake saves locally without routine row approval; optional sanitized-label enrichment and grounded names feed the existing purchase memory. K-Ruoka non-food discovery uses manual handoff; automatic basket writes remain unsupported. [Release verification](release-0.11.0.md) records checks and remaining real-receipt, model and retailer acceptance. Stable installer and pilot gates remain open.
+
+## v0.11.1
+
+Patch pre-release with the planning recovery, offer handoff, upgrade-session, performance and progress fixes completed on main after v0.11.0. One canonical local flow ran; failures were fixed and rerun with affected checks only, followed by the short packaged OCR smoke. [Release verification](release-0.11.1.md) records checks and remaining live acceptance.

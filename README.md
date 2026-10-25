@@ -6,7 +6,7 @@ The current source includes explicit note updates, product matching, contextual 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.11.0 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.0). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.0 verification](docs/release-0.11.0.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.11.1 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.1). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.1 verification](docs/release-0.11.1.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -66,7 +66,7 @@ npm run package
 - Known pack and price evidence is shown explicitly; missing or ambiguous pack sizes remain unresolved until supported or confirmed. Check dietary suitability, pack labels, fees and deposits in the retailer. The adapters cannot certify dietary suitability from catalogue data.
 - ChatGPT uses the documented local-app authorization flow and Windows-protected credentials. The note input explains which data is sent. Earlier owner acceptance verified Automatic and explicit-model requests; current fixtures cover model selection and cancellation. The app retains one registration per app profile. Manual planning works without it.
 - Catalogue quotes can differ from retailer basket prices; check the retailer's final total. Known prices, deposits, fees and comparable changes are shown; unsupported values remain unknown. See the [roadmap](docs/roadmap.md).
-- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.11.0 verification](docs/release-0.11.0.md).
+- The installer is unsigned; clean-machine and household usability checks remain outstanding. Embedded tabs have fixture coverage for sign-in rejection, expiry and restart. Results and stable-release gates are listed in [v0.11.1 verification](docs/release-0.11.1.md).
 
 See [dependency decisions](docs/dependency-decisions.md) for versions and evidence.
 

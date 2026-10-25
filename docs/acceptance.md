@@ -298,3 +298,7 @@ Fixture evidence: one drop or picker action saves a mixed batch as local history
 ## v0.11.0 release verification, 13 October 2026
 
 All 19 Done cards are integrated and included in the published pre-release. [Release verification](release-0.11.0.md) records the canonical local flow, focused failure corrections, GitHub fast checks and short packaged receipt-intake smoke. No live AI/retailer or private receipt was used. Real-receipt/model quality and live K-Ruoka non-food catalogue acceptance remain open. Structured variants and non-food basket writes are unsupported; manual handoff is the delivered scope. Clean-machine installer, upgrade/uninstall, signing and household gates remain open.
+
+## v0.11.1 release verification, 25 October 2026
+
+B3.1–B3.7, P1.1–P1.2, F14.3–F14.4 and the owner interface fixes are released. [Release verification](release-0.11.1.md) records the canonical local flow, failed-case reruns and the short packaged smoke. No live AI/retailer account or private receipt was used. Live model quality, progress feel and the two-version installer upgrade remain open.

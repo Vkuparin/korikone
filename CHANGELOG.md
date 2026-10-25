@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.11.1 — pre-release, 25 October 2026
+
+- Show one progress and Cancel surface for long actions, with the real stage, row counts where known and long-wait feedback. AI model discovery, list generation and repair, pricing, checks before transfer and store opening all report through it. Completion messages expire instead of lingering.
+- Price lists faster by running at most two catalogue reads at once, without changing selected-store evidence, retailer pacing, fresh transfer checks or write order. Opening AI settings reuses the known model list; Reload models still reads it again.
+- Recover more often from model replies: exact quotes with wrong offsets are aligned before validation, and the single repair receives the rejected reply and validation feedback. Starter themes ask for fresh dish names and fill the visible composer.
+- Carry selected offer ideas and their verified products into planning. Unsupported S-kaupat offer discovery is explained before the button is pressed. Store errors lead to store settings and no longer claim a lost sign-in.
+- Keep ChatGPT credentials and both retailer sessions when installing over an existing version. Remove the duplicate composer store button and document install, upgrade and uninstall steps with a keyboard pass over every view.
+
+Unsigned Windows x64 pre-release. Export a backup before upgrading. Live model quality, starter variety and the two-version installer upgrade remain owner acceptance. See [release verification](docs/release-0.11.1.md).
+
 ## 0.11.0 — pre-release, 13 October 2026
 
 - Import several PDF/TXT/CSV receipts with one picker or drop action in History. Save each file locally as it finishes; show a compact summary, duplicates and failed-file retry without routine line-by-line approval.

@@ -1,10 +1,10 @@
 # Korikone roadmap to 1.0.0
 
-Updated on 13 October 2026 after v0.11.0 publication. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
+Updated on 25 October 2026 after v0.11.1 publication. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
 
 ## Current release
 
-[v0.11.0](https://github.com/Vkuparin/korikone/releases/tag/v0.11.0) is published as an unsigned Windows pre-release and integrated into main. All 19 Done cards are included: one-action multi-file receipt intake, optional grounded name enrichment, readable purchase memory and selected-store K-Ruoka non-food discovery with manual handoff. Automatic non-food basket writes remain unsupported. [Release verification](release-0.11.0.md) records the single canonical flow and short packaged intake smoke; real-receipt/model and live non-food catalogue acceptance remains separate.
+[v0.11.1](https://github.com/Vkuparin/korikone/releases/tag/v0.11.1) is the current pre-release: planning recovery, offer handoff, session retention, bounded pricing reads and one progress surface, completed as v0.12 fix cards ([verification](release-0.11.1.md)). [v0.11.0](https://github.com/Vkuparin/korikone/releases/tag/v0.11.0) is published as an unsigned Windows pre-release and integrated into main. All 19 Done cards are included: one-action multi-file receipt intake, optional grounded name enrichment, readable purchase memory and selected-store K-Ruoka non-food discovery with manual handoff. Automatic non-food basket writes remain unsupported. [Release verification](release-0.11.0.md) records the single canonical flow and short packaged intake smoke; real-receipt/model and live non-food catalogue acceptance remains separate.
 
 [v0.10.0 verification](release-0.10.0.md) retains predictive shopping, transfer, calendar, offer and OCR evidence.
 
