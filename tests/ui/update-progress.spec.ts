@@ -8,7 +8,7 @@ for (const language of ["fi", "en"] as const) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
 
-  test(`a new list shows activity while it runs and a refused draft is explained without an authentication link in ${language}`, async () => {
+  test(`a new list shows activity while it runs and a refused draft still plans the note without an authentication link in ${language}`, async () => {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         (e): e is [string, string] => typeof e[1] === "string",
@@ -57,7 +57,8 @@ for (const language of ["fi", "en"] as const) {
         timeout: 20000,
       });
 
-      // A refused draft: the note is kept, the cause is named and no sign-in link is offered.
+      // B4.3: a refused draft no longer ends in a failure. The note's requests are planned as
+      // plain product searches, the reason is shown and no sign-in link is offered.
       await startNewList(page);
       await page.evaluate(() =>
         window.korikone.developmentScenario("invalidDraft"),
@@ -69,25 +70,22 @@ for (const language of ["fi", "en"] as const) {
           exact: true,
         })
         .click();
-      await expect(page.getByRole("alert")).toBeVisible({ timeout: 20000 });
-      await expect(page.getByRole("alert")).not.toContainText(
-        tr("ChatGPT ja tekoäly", "ChatGPT and AI"),
-      );
-      await expect(note).toHaveValue(text);
-      await expect(page.getByTestId("failure-cause")).toContainText(
-        tr(
-          "Muistiinpanosi ja aiempi listasi säilyivät",
-          "Your note and previous list were kept",
-        ),
-      );
-      await expect(page.getByTestId("failure-cause")).not.toContainText(
-        /JSON|intents\[|recipeId|validation|rakenne/,
-      );
-      const failed = await load();
-      // The confirmed New list left an empty workspace; the failure changes nothing.
-      expect(failed.state.meals).toEqual([]);
+      await expect(
+        page.locator(".input-notice").filter({
+          hasText: tr("sellaisinaan tuotehakuina", "plain product searches"),
+        }),
+      ).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      const kept = await load();
+      expect(kept.state.extras.map((i: { name: string }) => i.name)).toEqual([
+        "Nakkikeitto",
+        "Kanapasta",
+      ]);
+      expect(kept.state.meals).toEqual([]);
 
-      // Explicit retry after the failure works from the same note.
+      // A new list from the same note works once the model answers.
+      await startNewList(page);
+      await note.fill(text);
       await page.evaluate(() => window.korikone.developmentScenario("success"));
       await page
         .getByRole("button", {
