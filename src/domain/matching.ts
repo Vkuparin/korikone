@@ -296,6 +296,11 @@ function assess(
   )
     return reject("identity");
   if (policy.conflict) return reject("constraint-conflict");
+  if (
+    requirement.offerProduct &&
+    product.id !== requirement.offerProduct.productId
+  )
+    return reject("identity");
   if (policy.unsupported) return reject("unsupported-request");
   const parsed =
     product.evidence && productEvidenceSchema.safeParse(product.evidence);

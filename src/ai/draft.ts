@@ -164,6 +164,17 @@ const draftSchema = z
     items: z.array(ingredientSchema).max(200).default([]),
     notes: z.string().max(5000).default(""),
     intents: z.array(requestIntentSchema).max(100).optional(),
+    offerUses: z
+      .array(
+        z
+          .object({
+            productId: z.string(),
+            ingredientName: z.string().min(1).max(200),
+          })
+          .strict(),
+      )
+      .max(16)
+      .optional(),
     // Sides the planner added to dishes named alone: the meal's position and the side's name.
     sides: z
       .array(

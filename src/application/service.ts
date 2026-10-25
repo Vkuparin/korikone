@@ -313,7 +313,80 @@ export class Service {
       } = { session: null };
       let resolverBase: number | null = null;
       try {
+        let selectedProducts: import("../ai/offers").OfferIdeaProduct[] = [];
+        if (request.offerIdeaIds.length) {
+          if (
+            new Set(request.offerIdeaIds).size !==
+              request.offerIdeaIds.length ||
+            this.offerIdeas?.status !== "ready" ||
+            this.offerIdeasContext !== JSON.stringify(run.sourceState().context)
+          )
+            throw new Error("offerSelectionExpired");
+          const ideas = request.offerIdeaIds.map((id) =>
+            this.offerIdeas?.status === "ready"
+              ? this.offerIdeas.ideas.find((idea) => idea.id === id)
+              : undefined,
+          );
+          if (
+            ideas.some((idea) => !idea || !request.prompt.includes(idea.name))
+          )
+            throw new Error("offerSelectionExpired");
+          const fresh = await collectOffers(
+            this.registry.get(run.sourceState().context.providerId),
+            run.sourceState().context,
+            { signal: run.signal },
+          );
+          run.assertCurrent();
+          if (
+            fresh.status !== "ready" ||
+            fresh.accountKey !== this.offerIdeasAccountKey
+          )
+            throw new Error("offerSelectionExpired");
+          const facts = offerIdeaFacts(fresh.offers);
+          selectedProducts = [
+            ...new Map(
+              ideas
+                .flatMap((idea) => idea!.products)
+                .map((p) => [p.productId, p]),
+            ).values(),
+          ];
+          if (
+            selectedProducts.some(
+              (p) =>
+                !facts.some(
+                  (fresh) => JSON.stringify(fresh) === JSON.stringify(p),
+                ),
+            )
+          )
+            throw new Error("offerSelectionExpired");
+        }
         const result = await coordinatePlanning(run, {
+          offers: selectedProducts,
+          verifyOffers: selectedProducts.length
+            ? async () => {
+                const fresh = await collectOffers(
+                  this.registry.get(run.sourceState().context.providerId),
+                  run.sourceState().context,
+                  { signal: run.signal },
+                );
+                run.assertCurrent();
+                if (
+                  fresh.status !== "ready" ||
+                  fresh.accountKey !== this.offerIdeasAccountKey
+                )
+                  throw new Error("offerSelectionExpired");
+                const facts = offerIdeaFacts(fresh.offers);
+                if (
+                  selectedProducts.some(
+                    (p) =>
+                      !facts.some(
+                        (fresh) => JSON.stringify(fresh) === JSON.stringify(p),
+                      ),
+                  )
+                )
+                  throw new Error("offerSelectionExpired");
+              }
+            : undefined,
           session: async (operation) => {
             inference.session = await session(operation);
             return inference.session;
@@ -510,6 +583,7 @@ export class Service {
   recipeDraft: Recipe | null = null;
   private offerIdeas: OfferIdeasView | null = null;
   private offerIdeasContext = "";
+  private offerIdeasAccountKey: string | null = null;
   private offerIdeasController: AbortController | null = null;
   cancelOfferIdeas() {
     this.offerIdeasController?.abort();
@@ -600,6 +674,7 @@ export class Service {
             ideas,
             truncated: result.truncated,
           };
+          this.offerIdeasAccountKey = fresh.accountKey;
         }
         return this.snapshot();
       } catch (error) {
@@ -1360,6 +1435,12 @@ export class Service {
             )
         : 0,
       state: this.state,
+      offerDiscoverySupported: !!(
+        this.registry.get(this.state.context.providerId).capabilities.offers
+          ?.public ||
+        this.registry.get(this.state.context.providerId).capabilities.offers
+          ?.personal
+      ),
       // empty: nothing to buy. quoted: prices are shown. failed: the last read failed.
       // unpriced: rows exist and nothing has been read for them; only the shopper starts that.
       pricingState: !requirements(this.state).length
@@ -1849,6 +1930,7 @@ export class Service {
       meals: [],
       skipped: [],
       note: "",
+      offerBindings: {},
       assumptions: "",
       extras: [],
       removed: [],
@@ -1867,6 +1949,7 @@ export class Service {
     return this.saveNewList({
       ...this.state,
       meals: meals.map((m) => ({ ...m, id: crypto.randomUUID() })),
+      offerBindings: {},
       note: "",
       assumptions: "",
       extras: [],
@@ -2700,6 +2783,7 @@ export class Service {
           quantities: {},
           specifications: {},
           requestIntents: [],
+          offerBindings: {},
           calendar: {},
           note: "",
           assumptions: "",

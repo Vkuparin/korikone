@@ -12,7 +12,7 @@ export function OfferIdeas({
   snapshot: Snapshot;
   busy: boolean;
   call: (method: string, input?: unknown) => Promise<unknown>;
-  append: (name: string) => void;
+  append: (idea: OfferIdea) => void;
   canAppend: (name: string) => boolean;
 }) {
   const [running, setRunning] = useState(false);
@@ -59,7 +59,7 @@ export function OfferIdeas({
       <button
         type="button"
         className="secondary"
-        disabled={busy || running}
+        disabled={busy || running || !snapshot.offerDiscoverySupported}
         onClick={async () => {
           setRunning(true);
           try {
@@ -72,10 +72,15 @@ export function OfferIdeas({
         {tr("Ideoita tarjouksista", "Ideas from offers")}
       </button>
       <p className="muted">
-        {tr(
-          "Tekoäly ehdottaa aterioita nykyisen kaupan tarjouksista, kun painat painiketta. Muut ainekset voivat maksaa normaalihinnan.",
-          "Press the button to ask AI for meals using this store’s offers. Other ingredients may cost their normal price.",
-        )}
+        {!snapshot.offerDiscoverySupported
+          ? tr(
+              "Tarjousideoita ei vielä tueta tässä kaupassa. Voit silti luoda tavallisen ostoslistan.",
+              "Offer ideas are not yet supported for this retailer. You can still create a regular shopping list.",
+            )
+          : tr(
+              "Tekoäly ehdottaa aterioita nykyisen kaupan tarjouksista, kun painat painiketta. Muut ainekset voivat maksaa normaalihinnan.",
+              "Press the button to ask AI for meals using this store’s offers. Other ingredients may cost their normal price.",
+            )}
       </p>
       {running && (
         <div role="status">
@@ -161,7 +166,7 @@ export function OfferIdeas({
                 type="button"
                 className="secondary"
                 disabled={busy || !canAppend(idea.name)}
-                onClick={() => append(idea.name)}
+                onClick={() => append(idea)}
               >
                 {tr("Lisää muistiinpanoon", "Add to note")}
               </button>
@@ -169,8 +174,8 @@ export function OfferIdeas({
           ))}
           <p className="muted">
             {tr(
-              "Lisääminen muuttaa vain muistiinpanoa. Päivitä ostoslista erikseen.",
-              "Adding changes only the note. Update the shopping list separately.",
+              "Valitut tarjousainekset säilyvät mukana, kun luot listan. Puuttuva tuote jää ratkaistavaksi. Ehdollista alennusta ei luvata.",
+              "Selected offer ingredients carry into list creation. An unavailable product stays unresolved. Conditional discounts are not guaranteed.",
             )}
           </p>
         </>

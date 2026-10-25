@@ -1,5 +1,19 @@
 # Offer discovery and eligibility contract
 
+## Selected ideas and shopping lists (25 October 2026)
+
+Selecting an idea now retains its ID beside the composer draft, scoped to the retailer/store. Creating a list submits those IDs through `planningRequestSchema.offerIdeaIds`. Removing the meal name or clearing selections removes its link; draft selections survive renderer reloads. A fresh app process must fetch/select current ideas again because verified discovery results are transient.
+
+`Service.planShopping` resolves IDs only from its own verified idea view and rechecks account/context, expiry and referenced facts before inference and before readiness (at most two discovery reads for a selected-offer plan). It passes allowlisted product IDs/names to `interpretPlanning`. The selected-offer native schema requires `offerUses` entries mapping every selected product exactly once to a shopping ingredient; text output follows the same validation and repair cap. Missing, unknown or ambiguous mappings fail validation. Model-written prices and eligibility remain unused.
+
+The coordinator stores `AppState.offerBindings` by normalized requirement key. `requirements` applies a binding only in its retailer/store; candidate discovery searches the referenced product name first and matching rejects other product IDs. Ordinary dietary, suitability, package and price rules still apply. Unavailable or unsuitable selected products stay unresolved. Quote identity, persistence and restoration include the binding, so a cheaper substitute cannot replace it on restart or explicit repricing. New/cleared/reused lists discard old bindings; explicit row specifications supersede them. Existing profiles/backups default to no bindings. This selects the product, not a guaranteed promotional price: actual catalogue prices remain authoritative and personal/bundle discounts retain their conditions.
+
+S-kaupat 1.3.0 still has no verified offer-discovery source. `snapshot.offerDiscoverySupported` exposes the adapter capability; the offer button is disabled with an explanation for unsupported retailers. Campaign metadata on ordinary search hits is not presented as comprehensive offer discovery. This correction does not add S-kaupat discovery.
+
+Store-search errors are routed to store settings by their error codes, including when they arise during AI planning. Generic store failures no longer claim the shopper is signed out. Known `loginRequired`/`storeBlocked`/`chooseStore` failures survive the coordinator boundary. The original screenshot's underlying live K-Ruoka failure has not been reproduced or identified; fixture error routing does not establish that its retailer request now succeeds.
+
+Owner-approved live read-only check, 25 October 2026: the installed app successfully fetched catalogue products/prices for its existing coffee row. A bacon search also returned products on the retailer's own embedded page. This used zero ChatGPT requests and made no cart-item writes; the coffee price quote was refreshed locally. The website's selected store differed from the app header, so its bacon results do not prove that Korikone's normalized search for the active store succeeds. No account identifiers, personal offer captures or original private receipts are included in fixtures. The exact earlier generation failure remains unconfirmed.
+
 F11.4 audit, 12 October 2026. Baseline Korikone e7a077a and its exact installed S-kaupat 1.3.0 library were inspected. The K-Ruoka reference is newer upstream source revision 4c3ad7d751c709aa462fbfea601b298572d13257, fetched read-only from GitHub. No retailer account, session, live AI call, activation or cart write was used. Upstream code was not run or copied into the app; independently authored source-shaped fixtures are in tests/fixtures/offers.ts.
 
 ## Verified capabilities

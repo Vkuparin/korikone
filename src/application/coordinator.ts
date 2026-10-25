@@ -4,6 +4,7 @@ import { interpretPlanning } from "../ai/output";
 import type { ObservedSummary } from "../ai/context";
 import { observationsApply } from "../domain/memory";
 import type { MealDraft } from "../ai/draft";
+import type { OfferIdeaProduct } from "../ai/offers";
 import { InferenceError, type InferenceSession } from "../ai/provider";
 import { resolveCandidates } from "../ai/resolve";
 import {
@@ -41,9 +42,10 @@ export const planningRequestSchema = z
   .object({
     prompt: z.string().trim().min(1).max(10_000),
     consent: z.literal(true),
+    offerIdeaIds: z.array(z.string().max(100)).max(4).default([]),
   })
   .strict();
-export type PlanningRequest = z.infer<typeof planningRequestSchema>;
+export type PlanningRequest = z.input<typeof planningRequestSchema>;
 export const coordinatorLimits = Object.freeze({ searchTimeoutMs: 60_000 });
 export type PlanningResult = {
   operationId: string;
@@ -61,6 +63,8 @@ export type PlanningResult = {
   };
 };
 export type PlanningDependencies = {
+  offers?: OfferIdeaProduct[];
+  verifyOffers?: () => Promise<void>;
   session: (run: PlanningRun) => Promise<InferenceSession>;
   provider: StoreProvider;
   resolverEnabled?: boolean;
@@ -80,12 +84,17 @@ export async function coordinatePlanning(
     const session = await dependencies.session(run);
     run.assertCurrent();
     if (run.inferenceSession() !== session) throw new Error("planningPhase");
-    const interpreted = await interpretPlanning(session, note, {
-      ...source,
-      observedSummaries: observationsApply(note)
-        ? (dependencies.observedSummaries ?? [])
-        : [],
-    });
+    const interpreted = await interpretPlanning(
+      session,
+      note,
+      {
+        ...source,
+        observedSummaries: observationsApply(note)
+          ? (dependencies.observedSummaries ?? [])
+          : [],
+      },
+      dependencies.offers,
+    );
     run.publishDraft(interpreted);
     const draft = run.validatedDraft()!;
     const state = stateSchema.parse({
@@ -106,8 +115,27 @@ export async function coordinatePlanning(
       removed: [],
       skipped: [],
       recurringPaused: false,
+      offerBindings: {},
       ...clearRowCorrections(source),
     });
+    for (const use of draft.offerUses ?? []) {
+      const product = dependencies.offers?.find(
+        (p) => p.productId === use.productId,
+      );
+      const rows = requirements(state).filter(
+        (r) => r.name === use.ingredientName,
+      );
+      if (!product || rows.length !== 1)
+        throw new Error("offerSelectionExpired");
+      const key = `${rows[0].id}:${rows[0].unit}`;
+      if (state.offerBindings[key]) throw new Error("offerSelectionExpired");
+      state.offerBindings[key] = {
+        providerId: source.context.providerId,
+        storeId: source.context.storeId,
+        productId: product.productId,
+        name: product.name,
+      };
+    }
     const wanted = requirements(state);
     run.setRequirements(wanted);
     const active = wanted.slice(0, planningLimits.requirements);
@@ -140,7 +168,9 @@ export async function coordinatePlanning(
             await searchCandidates(
               dependencies.provider,
               source.context,
-              requirement,
+              requirement.offerProduct
+                ? { ...requirement, name: requirement.offerProduct.name }
+                : requirement,
               {
                 signal,
                 queryHints: requirementQueryHints(requirement, rowOptions),
@@ -165,13 +195,18 @@ export async function coordinatePlanning(
             run.boundOutRequirement(key);
             continue;
           }
-          workerFailure = error;
-          run.fail(
-            deadline.aborted
-              ? new InferenceError("timeout")
-              : new Error("storeUnavailable"),
-          );
-          throw error;
+          const code =
+            error instanceof Error &&
+            ["loginRequired", "storeBlocked", "chooseStore"].includes(
+              error.message,
+            )
+              ? error.message
+              : "storeUnavailable";
+          workerFailure = deadline.aborted
+            ? new InferenceError("timeout")
+            : new Error(code);
+          run.fail(workerFailure);
+          throw workerFailure;
         }
       }
     };
@@ -182,9 +217,7 @@ export async function coordinatePlanning(
     if (settled.some((result) => result.status === "rejected")) {
       if (run.snapshot().phase === "obsolete") throw new Error("draftStale");
       if (run.snapshot().phase === "cancelled") throw new Error("aiCancelled");
-      throw deadline.aborted
-        ? new InferenceError("timeout")
-        : new Error("storeUnavailable");
+      throw workerFailure ?? new Error("storeUnavailable");
     }
     run.assertCurrent();
     const resultLines = wanted.flatMap((requirement) => {
@@ -226,6 +259,8 @@ export async function coordinatePlanning(
         resolver.failure = planningFailure(error);
       }
     }
+    await dependencies.verifyOffers?.();
+    run.assertCurrent();
     run.ready();
     const preview = run.snapshot();
     return structuredClone({

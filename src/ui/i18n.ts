@@ -154,7 +154,9 @@ export const en = {
   workerIncompatible:
     "The store component is incompatible. Update the application.",
   storeUnavailable:
-    "The store could not complete the request. Check sign-in and try again.",
+    "The store could not complete the request. Please try again shortly.",
+  offerSelectionExpired:
+    "The selected offers have changed. Refresh the ideas and select them again, or clear the offer selections.",
   closeStoreWindow: "Close the store window before connecting again.",
   unsupportedCart:
     "The cart contains unsupported product identifiers. Review it in the store.",
@@ -462,7 +464,9 @@ export const fi: Record<Key, string> = {
   workerMissing: "Kaupan yhteysosa puuttuu. Asenna sovellus uudelleen.",
   workerIncompatible: "Kaupan yhteysosa ei ole yhteensopiva. Päivitä sovellus.",
   storeUnavailable:
-    "Kaupan pyyntö epäonnistui. Tarkista kirjautuminen ja yritä uudelleen.",
+    "Kaupan pyyntö epäonnistui. Yritä hetken kuluttua uudelleen.",
+  offerSelectionExpired:
+    "Valitut tarjoukset ovat muuttuneet. Hae ideat ja valitse ne uudelleen tai poista tarjousvalinnat.",
   closeStoreWindow: "Sulje kaupan ikkuna ennen uutta yhteyttä.",
   unsupportedCart:
     "Korissa on tuotetunnisteita, joita ei tueta. Tarkista kori kaupassa.",

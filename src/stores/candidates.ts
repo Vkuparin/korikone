@@ -55,6 +55,7 @@ export function candidateQueries(
     .map((a) => a.value)
     .join(" ");
   const queries = [
+    ...(requirement.offerProduct ? [requirement.offerProduct.name] : []),
     ...(variant ? [`${requirement.name} ${variant}`] : []),
     requirement.name,
     // The same food under its other common name comes before broader aliases.

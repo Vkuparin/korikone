@@ -222,13 +222,28 @@ export class FixtureAI {
       return JSON.stringify(structuredClone(recipe));
     }
     const note = input.match(/User note: ("(?:[^"\\]|\\.)*")/)?.[1];
-    if (input.startsWith("Planning intent ledger v1.\n"))
-      return JSON.stringify(
-        planningFixtureReply(
-          note ? JSON.parse(note) : "",
-          Number(input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4),
-        ),
+    if (input.startsWith("Planning intent ledger v1.\n")) {
+      const draft = planningFixtureReply(
+        note ? JSON.parse(note) : "",
+        Number(input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4),
       );
+      const selected = input.match(
+        /Selected offer products JSON:\n([^\n]+)/,
+      )?.[1];
+      if (selected) {
+        const products = JSON.parse(selected);
+        // Finite, independently authored tomato-offer fixture; no arbitrary recipe synthesis.
+        if (
+          products.length === 1 &&
+          products[0].productId === "2000000000011" &&
+          products[0].name === "Tomaattimurska 400 g"
+        )
+          draft.offerUses = [
+            { productId: "2000000000011", ingredientName: "Tomaattimurska" },
+          ];
+      }
+      return JSON.stringify(draft);
+    }
     const request = note ? JSON.parse(note).toLocaleLowerCase("fi") : "";
     const servings = Number(
       input.match(/Household: .*?"servings":(\d+)/)?.[1] ?? 4,

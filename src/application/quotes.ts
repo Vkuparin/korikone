@@ -5,6 +5,7 @@ import { packageContentSchema } from "../domain/package-content";
 import {
   contextSchema,
   ingredientSchema,
+  offerBindingSchema,
   unitSchema,
   type AppState,
 } from "../domain/model";
@@ -26,13 +27,14 @@ export function pricingKey(state: AppState): string {
     matchingVersion: 2,
     context: state.context,
     requirements: requirements(state).map(
-      ({ id, name, amount, unit, sources, classification }) => ({
+      ({ id, name, amount, unit, sources, classification, offerProduct }) => ({
         id,
         name,
         amount,
         unit,
         sources,
         classification,
+        ...(offerProduct ? { offerProduct } : {}),
       }),
     ),
     accepted: state.accepted,
@@ -91,6 +93,7 @@ export const persistedQuoteSchema = z.object({
       requirement: ingredientSchema.extend({
         sources: z.array(z.string()),
         specifiedFrom: z.string().optional(),
+        offerProduct: offerBindingSchema.optional(),
       }),
       product: productSchema.nullable(),
       packs: z.number().nonnegative(),

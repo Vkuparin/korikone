@@ -100,6 +100,7 @@ declare global {
 function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>({
     developmentMode: false,
+    offerDiscoverySupported: false,
     developmentScenario: "success",
     developmentRequests: 0,
     developmentModel: null,
@@ -271,7 +272,7 @@ function App() {
     }
     try {
       const result = await window.korikone[method](input);
-      if (method === "suggestOffers")
+      if (method === "suggestOffers" && result.value)
         setSnapshot((current) => ({
           ...current,
           offerIdeas: result.value.offerIdeas,
@@ -333,55 +334,66 @@ function App() {
         "contextTooLarge",
         "incompleteDraft",
       ].includes(code);
-      const target: SettingsSection | null = notAuthentication
-        ? null
-        : /AI$/.test(method) ||
-            [
-              "generate",
-              "planShopping",
-              "editList",
-              "importRecipe",
-              "suggestOffers",
-              "suggestStarterIdeas",
-              "openAIUsage",
-            ].includes(method)
-          ? "ai"
-          : [
-                "buildBasket",
-                "transferDisplayed",
-                "prepare",
-                "execute",
-                "recover",
-                "openStoreCart",
-                "searchStores",
-                "selectStore",
-                "signInStore",
-                "signOutStore",
+      const retailerFailure = [
+        "storeUnavailable",
+        "storeBlocked",
+        "loginRequired",
+        "chooseStore",
+        "storeBusy",
+        "workerMissing",
+        "workerIncompatible",
+      ].includes(code);
+      const target: SettingsSection | null = retailerFailure
+        ? "stores"
+        : notAuthentication || code === "offerSelectionExpired"
+          ? null
+          : /AI$/.test(method) ||
+              [
+                "generate",
+                "planShopping",
+                "editList",
+                "importRecipe",
+                "suggestOffers",
+                "suggestStarterIdeas",
+                "openAIUsage",
               ].includes(method)
-            ? "stores"
+            ? "ai"
             : [
-                  "exportDiagnostics",
-                  "setDevelopmentMode",
-                  "developmentScenario",
-                  "restartSetup",
+                  "buildBasket",
+                  "transferDisplayed",
+                  "prepare",
+                  "execute",
+                  "recover",
+                  "openStoreCart",
+                  "searchStores",
+                  "selectStore",
+                  "signInStore",
+                  "signOutStore",
                 ].includes(method)
-              ? "advanced"
+              ? "stores"
               : [
-                    "importReceipt",
-                    "importPurchaseReceipt",
-                    "importLegacyReceipts",
-                    "correctPurchase",
-                    "interpretPurchase",
-                    "deletePurchase",
-                    "enrichPurchase",
-                    "setReceiptConsent",
-                    "importData",
-                    "exportData",
+                    "exportDiagnostics",
+                    "setDevelopmentMode",
+                    "developmentScenario",
+                    "restartSetup",
                   ].includes(method)
-                ? "data"
-                : page === "settings"
-                  ? settingsSection
-                  : null;
+                ? "advanced"
+                : [
+                      "importReceipt",
+                      "importPurchaseReceipt",
+                      "importLegacyReceipts",
+                      "correctPurchase",
+                      "interpretPurchase",
+                      "deletePurchase",
+                      "enrichPurchase",
+                      "setReceiptConsent",
+                      "importData",
+                      "exportData",
+                    ].includes(method)
+                  ? "data"
+                  : page === "settings"
+                    ? settingsSection
+                    : null;
       setErrorSettings((current) =>
         options?.preserveError && current ? current : target,
       );

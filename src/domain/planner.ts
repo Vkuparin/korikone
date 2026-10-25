@@ -93,7 +93,18 @@ export function requirements(
     const key = `${item.id}:${item.unit}`;
     const amount = state.quantities[key] ?? item.amount;
     const specified = state.specifications?.[key];
-    if (!specified) return { ...item, amount };
+    if (!specified) {
+      const binding = state.offerBindings[key];
+      return {
+        ...item,
+        amount,
+        ...(binding &&
+        binding.providerId === state.context.providerId &&
+        binding.storeId === state.context.storeId
+          ? { offerProduct: binding }
+          : {}),
+      };
+    }
     // The shopper's own wording replaces the name and whatever was inferred about the old one.
     const { classification: _inferred, ...row } = item;
     return { ...row, amount, name: specified, specifiedFrom: item.name };

@@ -623,7 +623,10 @@ export class DemoProvider implements StoreProvider {
       )
       .flatMap(([id, name, packAmount, unit, price]) => [
         {
-          id,
+          id:
+            id === "tomato" && query === "Tomaattimurska 400 g"
+              ? "2000000000011"
+              : id,
           providerId: this.id,
           storeId: context.storeId,
           ingredientId,

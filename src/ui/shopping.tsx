@@ -365,6 +365,53 @@ export function ShoppingWorkspace({
   const [note, setNote] = useState(
     () => sessionStorage.getItem("shopping-note") ?? state.note,
   );
+  const offerContext = `${state.context.providerId}:${state.context.storeId}`;
+  const [offerSelection, setOfferSelection] = useState<{
+    context: string;
+    ideas: { id: string; name: string }[];
+  }>(() => {
+    try {
+      const saved = JSON.parse(
+        sessionStorage.getItem("shopping-offer-selection") ?? "null",
+      );
+      if (
+        saved &&
+        typeof saved.context === "string" &&
+        Array.isArray(saved.ideas) &&
+        saved.ideas.length <= 4 &&
+        saved.ideas.every(
+          (idea: { id?: unknown; name?: unknown }) =>
+            typeof idea.id === "string" && typeof idea.name === "string",
+        )
+      )
+        return saved;
+    } catch {
+      /* Ignore malformed local draft metadata. */
+    }
+    return { context: offerContext, ideas: [] };
+  });
+  const offerIdeas =
+    offerSelection.context === offerContext ? offerSelection.ideas : [];
+  const setOfferIdeas = (
+    update:
+      | { id: string; name: string }[]
+      | ((
+          current: { id: string; name: string }[],
+        ) => { id: string; name: string }[]),
+  ) =>
+    setOfferSelection((current) => ({
+      context: offerContext,
+      ideas:
+        typeof update === "function"
+          ? update(current.context === offerContext ? current.ideas : [])
+          : update,
+    }));
+  useEffect(() => {
+    sessionStorage.setItem(
+      "shopping-offer-selection",
+      JSON.stringify(offerSelection),
+    );
+  }, [offerSelection]);
   const [working, setWorking] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [cancelled, setCancelled] = useState(false);
@@ -597,6 +644,9 @@ export function ShoppingWorkspace({
     }
   };
   const changeNote = (value: string) => {
+    setOfferIdeas((current) =>
+      current.filter((idea) => value.includes(idea.name)),
+    );
     if (
       running.current &&
       planningOperation.current &&
@@ -641,6 +691,9 @@ export function ShoppingWorkspace({
         {
           prompt: requested,
           consent: true,
+          offerIdeaIds: offerIdeas
+            .filter((idea) => requested.includes(idea.name))
+            .map((idea) => idea.id),
         },
         {
           onSuccess: (value) => {
@@ -1517,13 +1570,41 @@ export function ShoppingWorkspace({
           snapshot={snapshot}
           busy={busy || working || editWorking}
           call={call}
-          canAppend={(name) => note.trimEnd().length + name.length + 1 <= 10000}
-          append={(name) => {
+          canAppend={(name) =>
+            (offerIdeas.length < 4 ||
+              offerIdeas.some((idea) => idea.name === name)) &&
+            note.trimEnd().length + name.length + 1 <= 10000
+          }
+          append={(idea) => {
             setNewListDraft(true);
-            changeNote(`${note.trimEnd()}${note.trim() ? "\n" : ""}${name}`);
+            setOfferIdeas((current) => [
+              ...current.filter(
+                (item) => item.id !== idea.id && item.name !== idea.name,
+              ),
+              { id: idea.id, name: idea.name },
+            ]);
+            if (!note.includes(idea.name))
+              changeNote(
+                `${note.trimEnd()}${note.trim() ? "\n" : ""}${idea.name}`,
+              );
             requestAnimationFrame(() => noteElement.current?.focus());
           }}
         />
+        {offerIdeas.some((idea) => note.includes(idea.name)) && (
+          <p role="status">
+            {tr(
+              "Tarjoustuotteet valittu listan luontiin.",
+              "Offer products selected for list creation.",
+            )}{" "}
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setOfferIdeas([])}
+            >
+              {tr("Poista tarjousvalinnat", "Clear offer selections")}
+            </button>
+          </p>
+        )}
         {updateFailed && !working && failureCause && !composingEdit && (
           <p className="muted" role="status" data-testid="failure-cause">
             {tr(

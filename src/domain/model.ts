@@ -16,6 +16,12 @@ import {
 
 export const unitSchema = z.enum(["g", "ml", "pcs"]);
 export type Unit = z.infer<typeof unitSchema>;
+export const offerBindingSchema = z.object({
+  providerId: z.string(),
+  storeId: z.string(),
+  productId: z.string(),
+  name: z.string().max(200),
+});
 export const ingredientSchema = z.object({
   id: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
@@ -83,6 +89,7 @@ export const stateSchema = z
     note: z.string().max(10000).default(""),
     assumptions: z.string().max(5000).default(""),
     requestIntents: z.array(intentMappingSchema).max(100).default([]),
+    offerBindings: z.record(z.string(), offerBindingSchema).default({}),
     extras: z.array(ingredientSchema).max(500).default([]),
     removed: z.array(z.string()).max(1000).default([]),
     // What the shopper said a row should be, by requirement key: a product, brand or type name
@@ -189,6 +196,7 @@ export type Recipe = z.infer<typeof recipeSchema>;
 export type Ingredient = z.infer<typeof ingredientSchema>;
 export type StoreContext = z.infer<typeof contextSchema>;
 export type Requirement = Ingredient & {
+  offerProduct?: z.infer<typeof offerBindingSchema>;
   sources: string[];
   /** The row's own name when the shopper specified another one for it. */
   specifiedFrom?: string;
