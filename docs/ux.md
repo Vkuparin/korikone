@@ -184,3 +184,6 @@ Changes:
 Fixture explained: eleven rows; this store prices all for 30,00 €, the other prices five for 14,00 €. The raw totals differ by 16,00 € in the other chain's favour. On the five rows both sell, this store costs 13,00 € against 14,00 €, so the truthful statement is "this store is 1,00 € cheaper on 5 of 11 rows". `tests/compare.test.ts` checks this result, the four coverage counts, whole-pack and deposit reconciliation to the cent, and the rendered Finnish and English texts.
 
 Not changed: comparison speed (accepted by the owner), offer conditions, and prices themselves. No live price survey was made.
+
+The composer has no duplicate store button. Use the store selector at the top of the shopping page to change the selected store.
+Clicking an already-open store or delivery selector cancels its unsaved selection and closes the panel, just like Cancel.

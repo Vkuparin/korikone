@@ -86,6 +86,10 @@ export function ShoppingContext({
     }
   }
   function open(kind: "store" | "fulfillment", button: HTMLButtonElement) {
+    if (opened === kind) {
+      close();
+      return;
+    }
     trigger.current = button;
     setChoice(current);
     setRevision(snapshot.state.revision);

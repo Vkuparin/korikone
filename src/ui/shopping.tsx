@@ -1382,12 +1382,6 @@ export function ShoppingWorkspace({
                   month: "long",
                 })}
               </time>
-              <button
-                className="chip store-chip"
-                onClick={() => settings("stores")}
-              >
-                {state.context.storeName}
-              </button>
             </div>
             <ModelSelector
               snapshot={snapshot}

@@ -56,10 +56,14 @@ for (const language of ["fi", "en"] as const)
             (element) => getComputedStyle(element).backgroundColor,
           ),
         ).toBe(info.background);
+        await expect(page.locator(".store-chip")).toHaveCount(0);
+        await expect(
+          page.locator(".context").getByRole("button").first(),
+        ).toBeVisible();
         const controls = page.locator(".note-context button");
         await controls.first().focus();
         await page.keyboard.press("Tab");
-        await expect(page.locator(".store-chip")).toBeFocused();
+        await expect(date).not.toBeFocused();
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,

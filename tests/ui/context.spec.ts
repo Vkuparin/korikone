@@ -36,6 +36,22 @@ test("header selectors cancel, search, confirm and preserve the typed note witho
     const fulfillment = page.getByRole("button", {
       name: /Vaihda toimitustapaa/,
     });
+    for (const selector of [store, fulfillment]) {
+      await selector.click();
+      await expect(selector).toHaveAttribute("aria-expanded", "true");
+      const panel = page.getByRole("dialog");
+      await expect(panel).toBeVisible();
+      const radios = panel.getByRole("radio");
+      await expect(radios.last()).toBeEnabled();
+      await radios.last().check();
+      await selector.click();
+      await expect(panel).toHaveCount(0);
+      await expect(selector).toHaveAttribute("aria-expanded", "false");
+      await expect(selector).toBeFocused();
+      expect((await load()).state).toEqual(before.state);
+      expect((await load()).basket).toEqual(before.basket);
+      await expect(note).toHaveValue("Nakkikeitto, edited but not applied");
+    }
     await store.focus();
     await page.keyboard.press("Enter");
     let dialog = page.getByRole("dialog", {

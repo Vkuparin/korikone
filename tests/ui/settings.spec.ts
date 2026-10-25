@@ -69,9 +69,6 @@ for (const language of ["fi", "en"] as const) {
       );
       await budget.fill("123.45");
       await nav(tr("Ostoslista", "Shopping list")).click();
-      await page.locator(".store-chip").click();
-      await expect(heading("stores")).toBeFocused();
-      await nav(tr("Ostoslista", "Shopping list")).click();
       await expect(note).toHaveValue("Retained contextual note");
       await page
         .getByRole("button", {
