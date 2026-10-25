@@ -37,6 +37,7 @@ AI cards from v0.7.0 consume F16.16/F16.17 provider-neutral contracts; live loca
 | [0.9.0](0.9.0.md)   | Purchases, memory, repetition and v0.8 owner-testing fixes (B1)             |
 | [0.10.0](0.10.0.md) | Calendar, offers, receipt OCR and owner-playtest fixes (B2)                 |
 | [0.11.0](0.11.0.md) | Receipt import without routine review and gated K-Ruoka non-food capability |
+| [0.11.2](0.11.2.md) | Composer-to-cart reliability patch                                          |
 | [0.12.0](0.12.0.md) | Beta gates; F14 IDs/evidence retained                                       |
 | [Later](later.md)   | Unassigned work                                                             |
 
