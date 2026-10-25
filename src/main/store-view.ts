@@ -386,14 +386,16 @@ export class StoreViews {
 
   async flush() {
     await Promise.all(
-      [...this.views.keys()].map((chain) =>
-        session
-          .fromPartition(
+      [...new Set([...this.views.keys(), ...this.backgrounds.keys()])].map(
+        (chain) => {
+          const storeSession = session.fromPartition(
             this.development()
               ? `persist:development-${chain}`
               : `persist:${chain}`,
-          )
-          .cookies.flushStore(),
+          );
+          storeSession.flushStorageData();
+          return storeSession.cookies.flushStore();
+        },
       ),
     );
   }

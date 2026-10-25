@@ -57,6 +57,11 @@ if (process.env.KORIKONE_TEST_DATA)
   app.setPath("userData", process.env.KORIKONE_TEST_DATA);
 else if (process.env.KORIKONE_DATA_DIR)
   app.setPath("userData", process.env.KORIKONE_DATA_DIR);
+else
+  // This is the existing Windows release profile. Never version it or derive it from
+  // the installer location: upgrades must reuse credentials and retailer sessions.
+  app.setPath("userData", join(app.getPath("appData"), "Korikone"));
+app.setPath("sessionData", app.getPath("userData"));
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.whenReady().then(async () => {

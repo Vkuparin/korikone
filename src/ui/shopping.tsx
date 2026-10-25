@@ -1496,65 +1496,8 @@ export function ShoppingWorkspace({
         {updateFailed && !working && failureCause && !composingEdit && (
           <p className="muted" role="status" data-testid="failure-cause">
             {tr(
-              "Tekoälyn vastaus ei läpäissyt tarkistusta",
-              "The reply did not pass validation",
-            )}
-            {": "}
-            {{
-              json: tr(
-                "vastaus ei ollut luettavaa JSONia",
-                "the reply was not readable JSON",
-              ),
-              shape: tr(
-                "vastauksen rakenne oli väärä",
-                "the reply had the wrong structure",
-              ),
-              "recipe-id": tr(
-                "reseptin tunniste oli virheellinen",
-                "a recipe ID was invalid",
-              ),
-              "recipe-reference": tr(
-                "ateria viittasi tuntemattomaan reseptiin",
-                "a meal referred to an unknown recipe",
-              ),
-              classification: tr(
-                "ryhmittely oli virheellinen",
-                "a classification was invalid",
-              ),
-              "intents-missing": tr(
-                "pyyntöjen luettelo puuttui",
-                "the request list was missing",
-              ),
-              "intent-span": tr(
-                "pyynnön kohta muistiinpanossa ei täsmännyt",
-                "a request did not match the note",
-              ),
-              "intent-quantity": tr(
-                "määrä oli virheellinen",
-                "a quantity was invalid",
-              ),
-              "intent-target": tr(
-                "pyyntö viittasi puuttuvaan riviin",
-                "a request pointed at a missing row",
-              ),
-              "intent-coverage": tr(
-                "kaikkia pyyntöjä ei ollut katettu",
-                "not every request was covered",
-              ),
-              "assumed-side": tr(
-                "ehdotettu lisuke ei sopinut pyyntöön",
-                "a suggested side did not fit the request",
-              ),
-              merchandise: tr(
-                "tuotteen ominaisuus ei ollut pyynnössä",
-                "a product attribute was not in the request",
-              ),
-            }[failureCause.reason] ?? ""}
-            {failureCause.path ? ` (${failureCause.path})` : ""}
-            {". "}
-            {tr(
-              "Muistiinpanosi säilyi. Voit yrittää uudelleen tai muokata sitä.",
-              "Your note was kept. You can try again or edit it.",
+              "Listan luominen ei onnistunut. Muistiinpanosi ja aiempi listasi säilyivät. Paina Taio ostoslista yrittääksesi uudelleen.",
+              "We couldn't create the list. Your note and previous list were kept. Press Create my shopping list to try again.",
             )}
           </p>
         )}

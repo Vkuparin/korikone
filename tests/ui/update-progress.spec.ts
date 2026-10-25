@@ -75,7 +75,13 @@ for (const language of ["fi", "en"] as const) {
       );
       await expect(note).toHaveValue(text);
       await expect(page.getByTestId("failure-cause")).toContainText(
-        tr("Muistiinpanosi säilyi", "Your note was kept"),
+        tr(
+          "Muistiinpanosi ja aiempi listasi säilyivät",
+          "Your note and previous list were kept",
+        ),
+      );
+      await expect(page.getByTestId("failure-cause")).not.toContainText(
+        /JSON|intents\[|recipeId|validation|rakenne/,
       );
       const failed = await load();
       // The confirmed New list left an empty workspace; the failure changes nothing.
