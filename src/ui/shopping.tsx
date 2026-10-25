@@ -1,3 +1,4 @@
+import { starterThemes, type StarterTheme } from "../domain/starter-ideas";
 import {
   candidateSuitability,
   priceAlternatives,
@@ -559,6 +560,42 @@ export function ShoppingWorkspace({
     sessionStorage.setItem("shopping-note", state.note);
     currentNote.current = state.note;
   }, [state.note]);
+  const [starterWorking, setStarterWorking] = useState(false);
+  const lastStarter = useRef<{ before: string; inserted: string } | null>(null);
+  const chooseStarter = async (theme: StarterTheme) => {
+    if (busy || starterWorking) return;
+    const previous = noteElement.current?.value ?? "";
+    const wasEdit = composingEdit;
+    setStarterWorking(true);
+    try {
+      await call(
+        "suggestStarterIdeas",
+        { theme, consent: true },
+        {
+          onSuccess: (value) => {
+            if (!active.current || noteElement.current?.value !== previous)
+              return;
+            const names = value.starterIdeas?.names.join(", ");
+            if (!names) return;
+            const suggested = names;
+            const before =
+              previous === lastStarter.current?.inserted
+                ? lastStarter.current.before
+                : previous.trim();
+            const next = [before, suggested].filter(Boolean).join("\n");
+            lastStarter.current = { before, inserted: next };
+            if (wasEdit) {
+              setFocusTarget(null);
+              setInstruction(next);
+            } else changeNote(next);
+            requestAnimationFrame(() => noteElement.current?.focus());
+          },
+        },
+      );
+    } finally {
+      setStarterWorking(false);
+    }
+  };
   const changeNote = (value: string) => {
     if (
       running.current &&
@@ -1576,18 +1613,23 @@ export function ShoppingWorkspace({
           {!groups.length && (
             <section className="starter-ideas">
               <h2>{tr("Ideoita alkuun", "Ideas to start with")}</h2>
-              {[
-                tr("Arkiviikon helpot ruoat", "Easy weekday meals"),
-                tr("Kasvisviikko", "Vegetarian week"),
-                tr("Lapsiperheen viikko", "Family meals"),
-                tr("Aamupalat ja iltapalat", "Breakfast and evening food"),
-              ].map((idea) => (
+              <p className="muted">
+                {tr(
+                  "Valitse aihe: tekoäly ehdottaa uusia ruokia muistiinpanoon. Taio niistä ostoslista, kun olet valmis.",
+                  "Choose a theme: AI suggests fresh dishes in your note. Create the shopping list when you are ready.",
+                )}
+              </p>
+              {starterThemes.map((idea) => (
                 <button
                   className="chip"
-                  key={idea}
-                  onClick={() => changeNote(idea)}
+                  key={idea.id}
+                  type="button"
+                  disabled={
+                    busy || starterWorking || snapshot.ai.state !== "connected"
+                  }
+                  onClick={() => void chooseStarter(idea.id)}
                 >
-                  {idea}
+                  {fi ? idea.fi : idea.en}
                 </button>
               ))}
             </section>

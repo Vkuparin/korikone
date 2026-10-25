@@ -1,3 +1,9 @@
+import { starterThemeSchema } from "../domain/starter-ideas";
+import {
+  suggestStarterMeals,
+  starterIdeasLimits,
+  type StarterIdeas,
+} from "../ai/starter-ideas";
 import { lineMerchandiseStatus } from "../domain/matching";
 import {
   noMerchandise,
@@ -255,6 +261,44 @@ export class Service {
   planning = new PlanningLifecycle(() => this.state);
   private readyPlanning: PlanningResult | null = null;
   private commitUncertain = false;
+  starterIdeas: StarterIdeas | null = null;
+  async suggestStarterIdeas(
+    input: unknown,
+    session: (maxCalls: number) => Promise<InferenceSession>,
+  ) {
+    const { theme } = z
+      .object({ theme: starterThemeSchema, consent: z.literal(true) })
+      .strict()
+      .parse(input);
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const state = structuredClone(this.state);
+    const avoid = [
+      ...(this.starterIdeas?.names ?? []),
+      ...state.meals.map(
+        (m) => state.recipes.find((r) => r.id === m.recipeId)?.name ?? "",
+      ),
+    ]
+      .filter(Boolean)
+      .slice(0, 40);
+    return this.measureOperation("interpretation", async (metrics) => {
+      let inference: InferenceSession | null = null;
+      try {
+        inference = await session(starterIdeasLimits.calls);
+        const names = await suggestStarterMeals(inference, theme, state, avoid);
+        if (
+          this.state.revision !== state.revision ||
+          this.state.language !== state.language
+        )
+          throw new Error("draftStale");
+        this.starterIdeas = { theme, names };
+        return this.snapshot();
+      } finally {
+        metrics.aiCalls = inference?.callCount ?? 0;
+        metrics.repairCalls = Math.max(0, (inference?.callCount ?? 0) - 1);
+        metrics.payloadCharacters = inference?.payloadCharacters ?? 0;
+      }
+    });
+  }
   async planShopping(input: unknown, session: PlanningDependencies["session"]) {
     if (this.commitUncertain) throw new Error("commitUnknown");
     if (this.busy || this.transferPending) throw new Error("busy");
@@ -1359,6 +1403,7 @@ export class Service {
       update: this.update,
       draft: this.draft,
       recipeDraft: this.recipeDraft,
+      starterIdeas: this.starterIdeas,
       offerIdeas:
         this.offerIdeasContext === JSON.stringify(this.state.context)
           ? this.offerIdeas

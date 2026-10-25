@@ -22,6 +22,47 @@ const mash: Side = {
 export const mealFixtures: { pattern: RegExp; recipe: Recipe; side?: Side }[] =
   [
     {
+      pattern: /munakas|omelette/,
+      recipe: {
+        id: "fixture-omelette",
+        name: "Munakas",
+        kind: "breakfast",
+        servings: 4,
+        ingredients: [
+          { id: "egg", name: "Kananmuna", amount: 4, unit: "pcs" },
+          { id: "milk", name: "Maito", amount: 100, unit: "ml" },
+        ],
+        instructions: "Valmista ja jaa annoksiin.",
+      },
+    },
+    {
+      pattern: /marjajogurtti|berry yoghurt/,
+      recipe: {
+        id: "fixture-berry-yoghurt",
+        name: "Marjajogurtti",
+        kind: "breakfast",
+        servings: 4,
+        ingredients: [
+          { id: "yoghurt", name: "Jogurtti", amount: 800, unit: "g" },
+        ],
+        instructions: "Valmista ja jaa annoksiin.",
+      },
+    },
+    {
+      pattern: /juustoleiv|cheese sandwiches/,
+      recipe: {
+        id: "fixture-sandwiches",
+        name: "Juustoleivät",
+        kind: "breakfast",
+        servings: 4,
+        ingredients: [
+          { id: "bread", name: "Leipä", amount: 500, unit: "g" },
+          { id: "cheese", name: "Juusto", amount: 200, unit: "g" },
+        ],
+        instructions: "Valmista ja jaa annoksiin.",
+      },
+    },
+    {
       pattern: /uunimakkara|oven sausage/,
       recipe: {
         id: "fixture-oven-sausage",

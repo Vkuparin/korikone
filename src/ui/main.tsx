@@ -129,6 +129,7 @@ function App() {
     update: null,
     draft: null,
     recipeDraft: null,
+    starterIdeas: null,
     offerIdeas: null,
     planning: null,
     edit: null,
@@ -282,6 +283,7 @@ function App() {
           "editList",
           "importRecipe",
           "suggestOffers",
+          "suggestStarterIdeas",
         ].includes(method)
       )
         setAIRequestLimit(!result.ok && result.error === "usageLimit");
@@ -340,6 +342,7 @@ function App() {
               "editList",
               "importRecipe",
               "suggestOffers",
+              "suggestStarterIdeas",
               "openAIUsage",
             ].includes(method)
           ? "ai"

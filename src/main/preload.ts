@@ -119,6 +119,7 @@ const methods = [
   "repeatList",
   "importRecipe",
   "suggestOffers",
+  "suggestStarterIdeas",
   "approveDraft",
   "confirmPurchase",
   "newWeek",

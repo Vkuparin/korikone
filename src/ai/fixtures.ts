@@ -1,3 +1,5 @@
+import { STARTER_PROMPT } from "./starter-ideas";
+import { starterFixtureReply } from "./starter-fixtures";
 import type { AIStatus } from "./connection";
 import { initialState } from "../domain/model";
 import { chooseModel } from "./models";
@@ -199,6 +201,14 @@ export class FixtureAI {
       return JSON.stringify(
         receiptFixtureReply(JSON.parse(input.split(RECEIPT_DATA_MARKER)[1])),
       );
+    if (input.startsWith(STARTER_PROMPT)) {
+      const data = input.slice(input.indexOf("\n{", STARTER_PROMPT.length) + 1);
+      return JSON.stringify(
+        starterFixtureReply(
+          JSON.parse(data.slice(0, data.lastIndexOf("}") + 1)),
+        ),
+      );
+    }
     const editData = input.startsWith(EDIT_PROMPT_PREFIX)
       ? input.split(EDIT_DATA_MARKER)[1]
       : undefined;

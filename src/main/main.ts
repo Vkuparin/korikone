@@ -855,6 +855,14 @@ else
           }
         });
       },
+      suggestStarterIdeas: async (input) => {
+        const run = ++generationRun;
+        return runAITask(run, () =>
+          service.suggestStarterIdeas(input, (maxCalls) =>
+            requestSession(run, undefined, maxCalls),
+          ),
+        );
+      },
       suggestOffers: async (input) => {
         const run = ++generationRun;
         return runAITask(run, () =>
@@ -1276,6 +1284,7 @@ else
               (name === "generate" ||
                 name === "planShopping" ||
                 name === "editList" ||
+                name === "suggestStarterIdeas" ||
                 name === "suggestOffers" ||
                 name === "importRecipe") &&
               submittedRun !== generationRun

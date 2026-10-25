@@ -33,7 +33,12 @@ export const offerIdeasTask = {
   id: "offer-ideas",
   version: 1,
 } satisfies InferenceTask;
+export const starterIdeasTask = {
+  id: "starter-ideas",
+  version: 1,
+} satisfies InferenceTask;
 export const inferenceTasks = [
+  starterIdeasTask,
   ...interpretationTasks,
   candidateResolutionTask,
   shoppingPlanTask,
