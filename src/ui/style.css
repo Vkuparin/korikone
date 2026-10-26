@@ -897,6 +897,12 @@ body:has(.app-main) .demo {
   border-radius: 10px;
   box-shadow: 0 2px 8px var(--kk-menu-shadow);
 }
+.operation-fallback.in-flow {
+  position: static;
+  max-width: none;
+  margin: 0 16px 8px;
+  box-shadow: none;
+}
 .operation-fallback::before {
   flex-shrink: 0;
 }

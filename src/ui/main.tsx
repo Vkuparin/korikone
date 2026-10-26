@@ -552,6 +552,10 @@ function App() {
   };
   // Receipts from the picker or a drop. They never go through the busy state, so the shopping
   // composer, drafts and navigation stay usable while files are read.
+  // The store site is a native view over the window: a floating progress box would sit under it,
+  // so on the Kauppa view progress takes its place in the page above the store frame (B5.11).
+  const storeVisible =
+    page === "store" || (state.onboarded && !state.setupComplete && setupStore);
   const receiptIntake = useReceiptIntake({
     snapshot,
     suppressed: page === "store",
@@ -644,7 +648,7 @@ function App() {
       (composerProgress.active || (!busy && composerProgress.finished))
         ? !composerProgress.visible && (
             <div
-              className={`progress operation-fallback ${composerProgress.active ? "" : "operation-finished"}`}
+              className={`progress operation-fallback ${storeVisible ? "in-flow" : ""} ${composerProgress.active ? "" : "operation-finished"}`}
               data-planning-activity={
                 composerProgress.active &&
                 !composerProgress.cancelling &&
@@ -690,7 +694,7 @@ function App() {
         : operationStatus.visible &&
           activeProgress && (
             <div
-              className="progress operation-fallback"
+              className={`progress operation-fallback ${storeVisible ? "in-flow" : ""}`}
               data-operation-id={activeProgress.id}
             >
               <span
