@@ -398,7 +398,9 @@ export class Service {
             return inference.session;
           },
           provider: this.registry.get(run.sourceState().context.providerId),
-          resolverEnabled: run.sourceState().resolverEnabled,
+          // Nothing shows resolver suggestions yet, so planning does not spend a request and
+          // a wait on them. The saved setting is kept only for old profiles and backups.
+          resolverEnabled: false,
           // Read fresh for this request only when it asks for the usual: a deleted purchase,
           // interpretation or preference is already gone from this read.
           observedSummaries: observationsApply(request.prompt)

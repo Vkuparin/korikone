@@ -1,5 +1,7 @@
 # Bounded candidate resolution
 
+**Current status (B5.1, 26 October 2026):** planning makes no resolver request. Nothing showed its suggestions, so the request only added a wait (up to a minute) and spent one ChatGPT request. `Service.planShopping` passes `resolverEnabled: false` to the coordinator; Settings > Advanced no longer has the switch, and the planning consent text names at most two requests. `AppState.resolverEnabled` stays in the state schema so older profiles and backups still load. The task, batch rules and coordinator integration below are kept for a later card that shows the suggestions on rows; that card should restore the service-level resolver tests removed by B5.1 (see its commit) along with the request.
+
 ## Saved resolver setting (F15.11)
 
 `AppState.resolverEnabled` is a strict boolean defaulting to true, including old profiles. Settings > Advanced > AI behavior saves it through the existing revision-bound `save` IPC. SQLite state and validated backups retain it. Changing it keeps the saved quote but clears its review through ordinary save rules. It creates no inference or retailer write.

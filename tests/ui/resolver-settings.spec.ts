@@ -5,8 +5,10 @@ import { join } from "node:path";
 import { initialState } from "../../src/domain/model";
 import { settingsCategory } from "./settings-helper";
 
+// Nothing shows resolver suggestions yet, so Advanced has no switch for them and an ambiguous
+// row costs no extra request, even for an older profile that saved the switch on.
 for (const provider of ["chatgpt", "fake-alternative"])
-  test(`${provider}: Advanced resolver switch persists and controls only the optional batch`, async () => {
+  test(`${provider}: an ambiguous row plans with one request and Advanced has no resolver switch`, async () => {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         (e): e is [string, string] => typeof e[1] === "string",
@@ -18,12 +20,13 @@ for (const provider of ["chatgpt", "fake-alternative"])
     );
     env.KORIKONE_TEST_HIDDEN = "1";
     env.KORIKONE_TEST_AI_PROVIDER = provider;
-    let app = await electron.launch({ args: ["."], env });
+    const app = await electron.launch({ args: ["."], env });
     try {
-      let page = await app.firstWindow();
+      const page = await app.firstWindow();
       const state = initialState();
       state.onboarded = state.setupComplete = true;
       state.staples = [];
+      state.resolverEnabled = true;
       await page.evaluate(async (state) => {
         await window.korikone.save(state);
         await window.korikone.signInAI();
@@ -35,61 +38,34 @@ for (const provider of ["chatgpt", "fake-alternative"])
         .getByRole("button", { name: "Asetukset", exact: true })
         .click();
       await settingsCategory(page, "advanced", "Lisäasetukset");
-      const checkbox = page.getByRole("checkbox", {
-        name: "Kysy tekoälyltä epäselvistä tuotevaihtoehdoista",
-      });
-      await expect(checkbox).toBeChecked();
-      await checkbox.click();
-      await expect
-        .poll(
-          async () =>
-            (await page.evaluate(() => window.korikone.load())).value.state
-              .resolverEnabled,
-        )
-        .toBe(false);
-      await app.close();
-      app = await electron.launch({ args: ["."], env });
-      page = await app.firstWindow();
-      const saved = (await page.evaluate(() => window.korikone.load())).value;
-      expect(saved.state.resolverEnabled).toBe(false);
-      await page.evaluate(() => window.korikone.signInAI());
+      await expect(
+        page.getByRole("checkbox", { name: "Tarkista ennen siirtoa" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("checkbox", {
+          name: "Kysy tekoälyltä epäselvistä tuotevaihtoehdoista",
+        }),
+      ).toHaveCount(0);
       await page.evaluate(() => window.korikone.setAIModel("fixture-large"));
-      const off = await page.evaluate(() =>
+      const ambiguous = await page.evaluate(() =>
         window.korikone.planShopping({
           prompt: "200 ml kermaa",
           consent: true,
         }),
       );
-      expect(off.ok, off.error).toBe(true);
-      expect(off.value.planning!.counters.aiCalls).toBe(1);
-      expect(off.value.planning!.model).toMatchObject({
+      expect(ambiguous.ok, ambiguous.error).toBe(true);
+      expect(ambiguous.value.planning!.counters.aiCalls).toBe(1);
+      expect(ambiguous.value.planning!.model).toMatchObject({
         providerId: provider,
         modelId: "fixture-large",
       });
-      expect(off.value.planning!.intents[0].status).toBe("approval-required");
-      await page.evaluate(async (id) => {
-        await window.korikone.cancelPlanning({ operationId: id });
-        const state = (await window.korikone.load()).value.state;
-        await window.korikone.save({ ...state, resolverEnabled: true });
-      }, off.value.planning!.operationId);
-      const on = await page.evaluate(() =>
-        window.korikone.planShopping({
-          prompt: "200 ml kermaa",
-          consent: true,
-        }),
+      expect(ambiguous.value.planning!.intents[0].status).toBe(
+        "approval-required",
       );
-      expect(on.ok, on.error).toBe(true);
-      expect(on.value.planning!.counters.aiCalls).toBe(2);
-      expect(on.value.planning!.model).toMatchObject({
-        providerId: provider,
-        modelId: "fixture-large",
-      });
-      expect(on.value.planning!.intents[0].status).toBe("approval-required");
-      expect(on.value.developmentStoreWrites).toBe(0);
-      expect(on.value.state.note).toBe(saved.state.note);
+      expect(ambiguous.value.developmentStoreWrites).toBe(0);
       await page.evaluate(
         (operationId) => window.korikone.cancelPlanning({ operationId }),
-        on.value.planning!.operationId,
+        ambiguous.value.planning!.operationId,
       );
       const clear = await page.evaluate(() =>
         window.korikone.planShopping({ prompt: "1 l maitoa", consent: true }),

@@ -795,22 +795,6 @@ for (const language of ["fi", "en"] as const) {
       });
       const requestsBeforeRetry = (await load()).developmentRequests;
       await note.press("Control+Enter");
-      await expect(status).toHaveAttribute("data-planning-phase", "resolving", {
-        timeout: 10000,
-      });
-      await expect(status).toHaveText(
-        tr(
-          "Sovitetaan tuotteita ostoslistaan",
-          "Matching products to the shopping list",
-        ),
-      );
-      expect((await load()).state).toEqual(before.state);
-      await expect(
-        page.locator(".note-actions").getByRole("button", {
-          name: tr("Peruuta listan päivitys", "Cancel list update"),
-          exact: true,
-        }),
-      ).toBeEnabled();
       await expect(status).toHaveAttribute("data-planning-phase", "committed", {
         timeout: 10000,
       });
@@ -822,15 +806,16 @@ for (const language of ["fi", "en"] as const) {
         "interpreting",
         "interpreted",
         "searching",
-        "resolving",
         "ready",
         "committing",
         "committed",
       ])
         expect(phases).toContain(phase);
+      // An ambiguous cream row needs approval; no resolver request is spent on it.
+      expect(phases).not.toContain("resolving");
       expect((await load()).state.note).toBe("200 ml kermaa");
-      expect((await load()).developmentRequests).toBe(requestsBeforeRetry + 2);
-      expect((await load()).planning?.counters.aiCalls).toBe(2);
+      expect((await load()).developmentRequests).toBe(requestsBeforeRetry + 1);
+      expect((await load()).planning?.counters.aiCalls).toBe(1);
       expect((await load()).developmentStoreWrites).toBe(0);
       await expect(note).toBeFocused();
       await expect(page.getByRole("alert")).toHaveCount(0);

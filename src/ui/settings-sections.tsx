@@ -30,18 +30,6 @@ export function AdvancedSettings({
       <label>
         <input
           type="checkbox"
-          checked={snapshot.state.resolverEnabled}
-          disabled={busy}
-          onChange={(e) =>
-            void save({ ...snapshot.state, resolverEnabled: e.target.checked })
-          }
-        />
-        {t("resolverEnabled")}
-      </label>
-      <p className="muted">{t("resolverInfo")}</p>
-      <label>
-        <input
-          type="checkbox"
           checked={snapshot.state.reviewBeforeTransfer}
           disabled={busy}
           onChange={(e) =>

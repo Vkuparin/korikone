@@ -30,7 +30,7 @@ async function providers(alternative: boolean) {
 for (const alternative of [false, true]) {
   const label = alternative ? "alternative" : "ChatGPT fixture";
   for (const chain of ["k-ruoka", "s-kaupat"] as const)
-    test(`${label}/${chain}: coordinator and resolver share one repaired pinned session`, async () => {
+    test(`${label}/${chain}: one repaired pinned session plans an ambiguous row without a resolver request`, async () => {
       const env = await createFixtureService(chain, {
         "*": [
           { id: "cooking", name: "Ruokakerma 200 ml", price: 1 },
@@ -47,16 +47,15 @@ for (const alternative of [false, true]) {
       expect(ready.planning).toMatchObject({
         phase: "ready",
         model: { providerId: ai.provider.id, modelId: "fixture-large" },
-        counters: { aiCalls: 3 },
+        counters: { aiCalls: 2 },
       });
       expect(ready.state).toEqual(before.state);
       expect(ready.basket).toEqual(before.basket);
       const result = env.service.planningResult(ready.planning!.operationId);
-      expect(result.resolver.status).toBe("completed");
-      expect(result.resolver.suggestions).toHaveLength(1);
+      expect(result.resolver.status).toBe("skipped");
       expect(result.intents[0].status).toBe("approval-required");
       expect(ai.invoked.mock.calls.map(([request]) => request.task.id)).toEqual(
-        ["shopping-plan", "shopping-plan", "candidate-resolution"],
+        ["shopping-plan", "shopping-plan"],
       );
       expect(
         ai.invoked.mock.calls.every(
@@ -178,61 +177,42 @@ test("equal model names remain scoped and unsupported planning capability consum
 });
 
 for (const alternative of [false, true])
-  for (const mode of ["unsupported", "malformed", "partial"] as const)
-    test(`${alternative ? "alternative" : "ChatGPT fixture"}: ${mode} resolver retains safe deterministic rows without repair or fallback`, async () => {
-      const env = await createFixtureService("k-ruoka", {
-        "*": [
-          { id: "milk", name: "Maito 1 l", price: 1.2 },
-          { id: "cooking", name: "Ruokakerma 200 ml", price: 1 },
-          { id: "whipping", name: "Kuohukerma 200 ml", price: 2 },
-        ],
-      });
-      const ai = await providers(alternative);
-      const original = ai.selected.generatePinned.bind(ai.selected);
-      vi.spyOn(ai.selected, "generatePinned").mockImplementation(
-        async (model, prompt, signal) => {
-          const output = await original(model, prompt, signal);
-          if (!prompt.includes("Resolution data JSON:")) return output;
-          if (mode === "partial") throw new Error("incompleteDraft");
-          if (mode === "malformed") return '{"choices":[';
-          return output;
-        },
-      );
-      const ready = await env.service.planShopping(
-        { prompt: "1 l maitoa ja 200 ml kermaa", consent: true },
-        async (run) => {
-          const model = (await ai.provider.discoverModels(run.signal))[0];
-          if (mode === "unsupported")
-            model.capabilities.tasks = model.capabilities.tasks.filter(
-              (task) => task.id !== "candidate-resolution",
-            );
-          return run.bindInference(ai.provider, model);
-        },
-      );
-      const result = env.service.planningResult(ready.planning!.operationId);
-      expect(result.resolver).toMatchObject({
-        status: "unavailable",
-        suggestions: [],
-      });
-      if (mode === "partial")
-        expect(result.resolver.failure).toBe("incomplete");
-      if (mode === "malformed")
-        expect(result.resolver.failure).toBe("invalid-output");
-      expect(ai.selected.requestCount).toBe(mode === "unsupported" ? 1 : 2);
-      expect(ai.unselected.requestCount).toBe(0);
-      expect(ai.unselected.catalogueRequests).toBe(0);
-      const committed = await env.service.commitPlanning({
-        operationId: ready.planning!.operationId,
-      });
-      expect(
-        committed.basket.find((line) => line.requirement.name === "Maito")
-          ?.product?.id,
-      ).toBe("milk");
-      expect(
-        committed.basket.find((line) => line.requirement.name === "Kerma")
-          ?.product,
-      ).toBeNull();
-      expect(
-        env.tools.some((tool) => /add|set|create|execute/.test(tool)),
-      ).toBe(false);
+  test(`${alternative ? "alternative" : "ChatGPT fixture"}: a model without the resolver task keeps safe rows with one request`, async () => {
+    const env = await createFixtureService("k-ruoka", {
+      "*": [
+        { id: "milk", name: "Maito 1 l", price: 1.2 },
+        { id: "cooking", name: "Ruokakerma 200 ml", price: 1 },
+        { id: "whipping", name: "Kuohukerma 200 ml", price: 2 },
+      ],
     });
+    const ai = await providers(alternative);
+    const ready = await env.service.planShopping(
+      { prompt: "1 l maitoa ja 200 ml kermaa", consent: true },
+      async (run) => {
+        const model = (await ai.provider.discoverModels(run.signal))[0];
+        model.capabilities.tasks = model.capabilities.tasks.filter(
+          (task) => task.id !== "candidate-resolution",
+        );
+        return run.bindInference(ai.provider, model);
+      },
+    );
+    const result = env.service.planningResult(ready.planning!.operationId);
+    expect(result.resolver.status).toBe("skipped");
+    expect(ai.selected.requestCount).toBe(1);
+    expect(ai.unselected.requestCount).toBe(0);
+    expect(ai.unselected.catalogueRequests).toBe(0);
+    const committed = await env.service.commitPlanning({
+      operationId: ready.planning!.operationId,
+    });
+    expect(
+      committed.basket.find((line) => line.requirement.name === "Maito")
+        ?.product?.id,
+    ).toBe("milk");
+    expect(
+      committed.basket.find((line) => line.requirement.name === "Kerma")
+        ?.product,
+    ).toBeNull();
+    expect(env.tools.some((tool) => /add|set|create|execute/.test(tool))).toBe(
+      false,
+    );
+  });

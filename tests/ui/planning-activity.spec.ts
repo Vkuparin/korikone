@@ -107,24 +107,13 @@ test("real planning stages drive one activity surface and read-only previews thr
     const pending = await load();
     expect(pending.state).toEqual(saved.state);
     expect(pending.basket).toEqual(saved.basket);
-    await expect(local).toHaveAttribute("data-planning-phase", "resolving");
-    expect(
-      await activity.evaluate(
-        (element) => getComputedStyle(element).animationName,
-      ),
-    ).toBe("spin");
-    await expect(statuses).toHaveCount(1);
-    await expect(cancels).toHaveCount(1);
-    await page
-      .locator(".note-box")
-      .screenshot({ path: "test-results/planning-activity-resolving.png" });
     await expect(local).toHaveAttribute("data-planning-phase", "committed", {
       timeout: 20000,
     });
     await expect(local).toHaveAttribute("data-planning-activity", "idle");
     await expect(preview).toHaveCount(0);
     const completed = await load();
-    expect(completed.developmentRequests).toBe(2);
+    expect(completed.developmentRequests).toBe(1);
     const events = await page.evaluate(
       () =>
         (window as unknown as { activityEvents: PlanningSnapshot[] })
@@ -134,7 +123,6 @@ test("real planning stages drive one activity surface and read-only previews thr
       expect.arrayContaining([
         "interpreting",
         "searching",
-        "resolving",
         "ready",
         "committing",
         "committed",

@@ -30,7 +30,7 @@ Since v0.11.2 (B4.2) a catalogue failure no longer discards the request. A row w
 
 Only unresolved domain lines enter `buildResolutionBatch`; clear rows, including previously accepted safe choices, skip it. One meaningful batch can use `resolveCandidates` on the same pinned session. Interpretation, at most one repair and at most one resolver share the three-call ceiling. Suggestions remain approval proposals; they do not change deterministic line selection or save an accepted choice.
 
-Resolver output/provider failure records `unavailable` and a fixed `PlanningFailure`, while preserving safe deterministic rows and unresolved/review results. It never repairs a resolver response, switches provider/model or retries a native failure as text. Cancellation and source obsolescence remain terminal. `resolverEnabled:false` skips inference and keeps deterministic matching. F15.11 integrates the saved setting and suggestion presentation.
+Resolver output/provider failure records `unavailable` and a fixed `PlanningFailure`, while preserving safe deterministic rows and unresolved/review results. It never repairs a resolver response, switches provider/model or retries a native failure as text. Cancellation and source obsolescence remain terminal. `resolverEnabled:false` skips inference and keeps deterministic matching. Since B5.1 (26 October 2026) the service always passes `false`, because no UI shows the suggestions; see [resolution-contract.md](resolution-contract.md).
 
 ## Internal commit handoff
 

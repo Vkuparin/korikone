@@ -52,42 +52,17 @@ test.each(["k-ruoka", "s-kaupat"] as const)(
     ).toBe(true);
   },
 );
-function ai(
-  note: string,
-  resolution: "valid" | "error" | "invalid" | "pending" = "valid",
-  repair = false,
-) {
+function ai(note: string, repair = false) {
   let interpretations = 0;
   const provider = new ScriptedInferenceProvider(
     "coordinator-fixture",
-    async (request) => {
-      if (request.task.id === "candidate-resolution") {
-        if (resolution === "error") throw new InferenceError("usageLimit");
-        if (resolution === "pending") return new Promise(() => {});
-        return {
-          completion: "complete",
-          text: JSON.stringify({
-            version: 1,
-            choices: [
-              {
-                rowId: "row-0",
-                candidateId:
-                  resolution === "invalid" ? "invented" : "candidate-0",
-                status: "approval-required",
-                reason: "type-alternative",
-              },
-            ],
-          }),
-        };
-      }
-      return {
-        completion: "complete",
-        text:
-          repair && interpretations++ === 0
-            ? "{}"
-            : JSON.stringify(planningFixtureReply(note, 4)),
-      };
-    },
+    async () => ({
+      completion: "complete",
+      text:
+        repair && interpretations++ === 0
+          ? "{}"
+          : JSON.stringify(planningFixtureReply(note, 4)),
+    }),
   );
   provider.models[0].capabilities.tasks = inferenceTasks;
   return provider;
@@ -208,14 +183,16 @@ test.each(["k-ruoka", "s-kaupat"] as const)(
     ).toEqual([]);
   },
 );
+// Nothing shows resolver suggestions yet, so an ambiguous row never costs a resolver request,
+// whatever an older profile saved. Re-enabling the resolver needs a UI for its suggestions first.
 test.each([false, true])(
-  "resolver enabled=%s: one batch stays an approval proposal and request counters are exact",
+  "saved resolver setting %s: an ambiguous row needs approval without a resolver request",
   async (enabled) => {
     const env = await setup({ "*": creams });
     await env.service.save({ ...env.service.state, resolverEnabled: enabled });
     env.before = structuredClone(env.service.snapshot());
     const note = "200 ml kermaa";
-    const provider = ai(note, "valid", true);
+    const provider = ai(note, true);
     const reply = await env.service.planShopping(
       { prompt: note, consent: true },
       bind(provider),
@@ -223,43 +200,39 @@ test.each([false, true])(
     const result = env.service.planningResult(reply.planning!.operationId);
     expect(result.lines[0].product).toBeNull();
     expect(reply.planning!.intents[0].status).toBe("approval-required");
-    expect(provider.calls.map((call) => call.task.id)).toEqual(
-      enabled
-        ? ["shopping-plan", "shopping-plan", "candidate-resolution"]
-        : ["shopping-plan", "shopping-plan"],
-    );
-    expect(result.resolver.status).toBe(enabled ? "completed" : "skipped");
-    expect(result.resolver.suggestions).toHaveLength(enabled ? 1 : 0);
+    expect(provider.calls.map((call) => call.task.id)).toEqual([
+      "shopping-plan",
+      "shopping-plan",
+    ]);
+    expect(result.resolver).toEqual({
+      status: "skipped",
+      failure: null,
+      suggestions: [],
+    });
     const metric = (await env.service.operationMetrics()).at(-1)!;
-    expect(metric.aiCalls).toBe(enabled ? 3 : 2);
+    expect(metric.aiCalls).toBe(2);
     expect(metric.repairCalls).toBe(1);
-    expect(metric.resolverCalls).toBe(enabled ? 1 : 0);
+    expect(metric.resolverCalls).toBe(0);
     expect(metric.searches).toBe(reply.planning!.counters.searches);
     expectUnchanged(env);
   },
 );
-test.each(["error", "invalid"] as const)(
-  "optional resolver %s preserves safe rows with no retries",
-  async (mode) => {
-    const env = await setup({ "*": [milk, ...creams] });
-    const note = "1 l maitoa ja 200 ml kermaa";
-    const provider = ai(note, mode);
-    const reply = await env.service.planShopping(
-      { prompt: note, consent: true },
-      bind(provider),
-    );
-    expect(reply.planning!.phase).toBe("ready");
-    const result = env.service.planningResult(reply.planning!.operationId);
-    expect(result.resolver).toMatchObject({
-      status: "unavailable",
-      suggestions: [],
-    });
-    expect(result.lines[0].product?.id).toBe("milk");
-    expect(result.lines[1].product).toBeNull();
-    expect(provider.calls).toHaveLength(2);
-    expectUnchanged(env);
-  },
-);
+test("an ambiguous row next to a clear one keeps the clear row with one request", async () => {
+  const env = await setup({ "*": [milk, ...creams] });
+  const note = "1 l maitoa ja 200 ml kermaa";
+  const provider = ai(note);
+  const reply = await env.service.planShopping(
+    { prompt: note, consent: true },
+    bind(provider),
+  );
+  expect(reply.planning!.phase).toBe("ready");
+  const result = env.service.planningResult(reply.planning!.operationId);
+  expect(result.resolver.status).toBe("skipped");
+  expect(result.lines[0].product?.id).toBe("milk");
+  expect(result.lines[1].product).toBeNull();
+  expect(provider.calls).toHaveLength(1);
+  expectUnchanged(env);
+});
 test("empty searches retain every intent; unknown-only requests make no catalogue reads", async () => {
   const env = await setup({});
   let note = "1 l maitoa ja kahvia";
@@ -283,12 +256,12 @@ test("empty searches retain every intent; unknown-only requests make no catalogu
   expect(env.tools).toEqual([]);
   expectUnchanged(env);
 });
-test.each(["discovery", "interpretation", "search", "resolver"] as const)(
+test.each(["discovery", "interpretation", "search"] as const)(
   "cancel during %s discards late output and keeps the saved plan",
   async (phase) => {
     const env = await setup({ "*": creams });
     const note = "200 ml kermaa";
-    const provider = ai(note, phase === "resolver" ? "pending" : "valid");
+    const provider = ai(note);
     let release: (() => void) | undefined;
     if (phase === "interpretation") {
       provider.invoke = async () => {
@@ -335,9 +308,7 @@ test.each(["discovery", "interpretation", "search", "resolver"] as const)(
           ? "discovering"
           : phase === "interpretation"
             ? "interpreting"
-            : phase === "search"
-              ? "searching"
-              : "resolving",
+            : "searching",
       ),
     );
     if (phase === "interpretation" || phase === "search")
