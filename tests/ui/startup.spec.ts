@@ -226,3 +226,31 @@ test("a profile with an interrupted transfer opens truthfully: the list is kept 
     await app.close();
   }
 });
+
+test("a database that cannot be opened ends the process with a startup error log instead of leaving it windowless", async () => {
+  const { writeFile, readFile } = await import("node:fs/promises");
+  const { spawn } = await import("node:child_process");
+  const env = await environment("broken-db");
+  const original = "this is not an SQLite database".repeat(200);
+  await writeFile(join(env.KORIKONE_TEST_DATA, "korikone.sqlite"), original);
+  const electronPath = (await import("electron")).default as unknown as string;
+  const child = spawn(electronPath, [".", "--no-sandbox"], { env, stdio: "ignore" });
+  const code = await new Promise<number | null>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("Korikone kept running after a failed startup"));
+    }, 30000);
+    child.on("exit", (exitCode) => {
+      clearTimeout(timer);
+      resolve(exitCode);
+    });
+  });
+  expect(code).toBe(1);
+  expect(
+    await readFile(join(env.KORIKONE_TEST_DATA, "startup-error.log"), "utf8"),
+  ).not.toBe("");
+  // Nothing is reset or deleted.
+  expect(
+    await readFile(join(env.KORIKONE_TEST_DATA, "korikone.sqlite"), "utf8"),
+  ).toBe(original);
+});
