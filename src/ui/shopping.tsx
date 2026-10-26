@@ -1,4 +1,5 @@
 import {
+  ElapsedSeconds,
   OperationProgressBody,
   operationStageLabel,
 } from "./operation-progress";
@@ -335,7 +336,8 @@ export type ComposerProgress = {
   finished: boolean;
   visible: boolean;
   label: string;
-  elapsed: number;
+  /** When the running operation started, or null; viewers tick the elapsed time themselves. */
+  startedAt: number | null;
   phase: string;
   cancellable: boolean;
   cancelling: boolean;
@@ -501,18 +503,11 @@ export function ShoppingWorkspace({
   const failureCause =
     livePlanning?.failureCause ?? snapshot.planning?.failureCause ?? null;
   // Seconds since the update started: honest activity when the provider returns only a whole reply.
-  const [elapsed, setElapsed] = useState(0);
+  // Only the start is state here: a per-second tick would re-render the whole workspace and,
+  // through onProgress, the app root (B5.10).
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   useEffect(() => {
-    if (!working && !editWorking) {
-      setElapsed(0);
-      return;
-    }
-    const started = Date.now();
-    const timer = setInterval(
-      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
-      1000,
-    );
-    return () => clearInterval(timer);
+    setStartedAt(working || editWorking ? Date.now() : null);
   }, [working, editWorking]);
   const editRunning = useRef(false);
   const targets = editTargets(state, new Date());
@@ -982,7 +977,7 @@ export function ShoppingWorkspace({
       finished: progressFinished,
       visible: progressVisible,
       label: progressLabel,
-      elapsed,
+      startedAt,
       phase: progressPhase,
       cancellable: progressCancellable,
       cancelling: progressCancelling,
@@ -994,7 +989,7 @@ export function ShoppingWorkspace({
     progressFinished,
     progressVisible,
     progressLabel,
-    elapsed,
+    startedAt,
     progressPhase,
     progressCancellable,
     progressCancelling,
@@ -1552,7 +1547,7 @@ export function ShoppingWorkspace({
                   <OperationProgressBody
                     progress={operationProgress}
                     language={state.language}
-                    elapsedSeconds={elapsed}
+                    since={startedAt}
                   />
                 ) : (
                   <span>{progressLabel}</span>
@@ -1563,7 +1558,7 @@ export function ShoppingWorkspace({
                   className={`muted note-elapsed ${!progressVisible ? "offscreen-progress" : ""}`}
                   aria-hidden="true"
                 >
-                  {elapsed} s
+                  <ElapsedSeconds since={startedAt} />
                 </small>
               )}
               {progressCancellable && (

@@ -1,5 +1,5 @@
 import { useOperationProgress } from "./use-operation-progress";
-import { OperationProgressBody } from "./operation-progress";
+import { ElapsedSeconds, OperationProgressBody } from "./operation-progress";
 import type { OperationProgress } from "../application/operation-progress";
 import { terminalOperation } from "../application/operation-progress";
 import React, { useEffect, useRef, useState } from "react";
@@ -665,14 +665,16 @@ function App() {
                   <OperationProgressBody
                     progress={activeProgress}
                     language={state.language}
-                    elapsedSeconds={operationStatus.elapsedSeconds}
+                    since={activeProgress.startedAt}
                   />
                 ) : (
                   composerProgress.label
                 )}
               </span>
               {composerProgress.active && (
-                <small aria-hidden="true">{composerProgress.elapsed} s</small>
+                <small aria-hidden="true">
+                  <ElapsedSeconds since={composerProgress.startedAt} />
+                </small>
               )}
               {composerProgress.cancellable && (
                 <button
@@ -699,7 +701,7 @@ function App() {
                 <OperationProgressBody
                   progress={activeProgress}
                   language={state.language}
-                  elapsedSeconds={operationStatus.elapsedSeconds}
+                  since={activeProgress.startedAt}
                   showElapsed
                 />
               </span>

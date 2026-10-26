@@ -541,3 +541,42 @@ test("B5.8: a backup with many receipt originals restores whole, and a refused o
     await target.close();
   }
 }, 30000);
+
+test("B5.10: a full price history records a large list quickly and with the same result", () => {
+  const now = new Date("2026-10-09T10:00:00Z");
+  const history: PriceObservation[] = Array.from(
+    { length: MAX_PRICE_ENTRIES },
+    (_, i) => ({
+      productId: `p${i % 400}`,
+      providerId: "demo-k",
+      storeId: "demo-helsinki",
+      date: new Date(now.getTime() - (i % 300) * 86_400_000)
+        .toISOString()
+        .slice(0, 10),
+      price: 100 + i,
+      unitPrice: null,
+    }),
+  );
+  const products = Array.from({ length: 80 }, (_, i) =>
+    product(`p${i * 3}`, 300 + i),
+  );
+  const started = performance.now();
+  const recorded = recordPrices(history, products, now);
+  const took = performance.now() - started;
+  const today = "2026-10-09";
+  const naive = limitPrices(
+    [
+      ...history.filter(
+        (old) =>
+          !(
+            old.date === today &&
+            products.some((p) => p.id === old.productId && p.price !== null)
+          ),
+      ),
+      ...recordPrices([], products, now),
+    ],
+    now,
+  );
+  expect(recorded).toEqual(naive);
+  expect(took).toBeLessThan(200);
+});

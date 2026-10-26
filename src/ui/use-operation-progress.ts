@@ -37,19 +37,16 @@ export function useOperationProgress() {
   const running = operation !== null && !terminalOperation(operation);
   useEffect(() => {
     if (!running) return;
+    // One tick decides whether a short operation is shown at all; the elapsed time itself
+    // ticks inside the progress body, not here in the app root (B5.10).
     const first = setTimeout(() => setNow(Date.now()), 160);
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-    };
+    return () => clearTimeout(first);
   }, [running, operation?.id]);
   const elapsedSeconds = operation
     ? Math.max(0, (now - operation.startedAt) / 1000)
     : 0;
   return {
     operation,
-    elapsedSeconds,
     visible:
       running && (aiOperation(operation!.method) || elapsedSeconds >= 0.15),
   };

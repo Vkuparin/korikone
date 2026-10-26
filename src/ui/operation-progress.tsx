@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   terminalOperation,
   type OperationProgress,
@@ -54,17 +54,41 @@ export function operationStageLabel(
     : label;
 }
 
+/**
+ * Seconds since `since`, ticking once a second inside the component that shows it, so a long
+ * wait re-renders only the elapsed text and not the whole workspace (B5.10).
+ */
+export function useElapsed(since: number | null): number {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (since === null) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [since]);
+  return since === null ? 0 : Math.max(0, (now - since) / 1000);
+}
+export function ElapsedSeconds({ since }: { since: number | null }) {
+  return <>{Math.floor(useElapsed(since))} s</>;
+}
+
 export function OperationProgressBody({
   progress,
   language,
-  elapsedSeconds,
+  since = null,
+  elapsedSeconds: fixedSeconds = 0,
   showElapsed = false,
 }: {
   progress: OperationProgress;
   language: string;
-  elapsedSeconds: number;
+  /** When the wait started; the body ticks its own elapsed time. */
+  since?: number | null;
+  /** A fixed elapsed time, used when `since` is not given. */
+  elapsedSeconds?: number;
   showElapsed?: boolean;
 }) {
+  const ticking = useElapsed(since);
+  const elapsedSeconds = since === null ? fixedSeconds : ticking;
   const fi = language === "fi";
   const active = !terminalOperation(progress);
   const waiting =

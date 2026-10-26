@@ -61,11 +61,8 @@ export function cheaperThanUsual(
   return median > 0 && product.price / product.packAmount <= median * 0.9;
 }
 
-const sameDay = (a: PriceObservation, b: PriceObservation) =>
-  a.productId === b.productId &&
-  a.providerId === b.providerId &&
-  a.storeId === b.storeId &&
-  a.date === b.date;
+const dayKey = (o: PriceObservation) =>
+  JSON.stringify([o.productId, o.providerId, o.storeId, o.date]);
 
 const day = (now: Date) => now.toISOString().slice(0, 10);
 
@@ -93,8 +90,11 @@ export function recordPrices(
           },
         ],
   );
+  // Today's observations replace the same product's entry for today. A key set keeps this
+  // linear in history size instead of history × products (B5.10).
+  const replaced = new Set(seen.map(dayKey));
   return limitPrices(
-    [...history.filter((old) => !seen.some((s) => sameDay(old, s))), ...seen],
+    [...history.filter((old) => !replaced.has(dayKey(old))), ...seen],
     now,
   );
 }

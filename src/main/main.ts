@@ -1271,7 +1271,8 @@ else
             .object({ chain: chainInput, area: bounds })
             .parse(input);
           await stores.show(chain, area);
-          return service.snapshot();
+          // Sent on every scroll and resize of the store page; the page needs no snapshot back.
+          return null;
         },
         hideStore: async () => {
           stores.hide();
