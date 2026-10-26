@@ -69,7 +69,20 @@ const stopWords = new Set([
   "make",
   "cook",
 ]);
-/** Local candidate selection; all selected recipe content remains untrusted prompt data. */
+const phrase = (text: string) =>
+  text
+    .toLocaleLowerCase("fi")
+    .normalize("NFKC")
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .join(" ");
+/**
+ * Local candidate selection, best first; all selected recipe content remains untrusted prompt
+ * data. Every plan saves its new recipes, so the same dish can be saved many times: only the
+ * newest recipe of each name is offered. Recipes whose whole name appears in the request come
+ * before ones that share a word with it, newest first within each. Callers take as many as
+ * their prompt allows instead of failing when many recipes match.
+ */
 export function relevantRecipes(
   request: string,
   recipes: readonly Recipe[],
@@ -80,13 +93,22 @@ export function relevantRecipes(
       w,
       ...(/[aä]$/.test(w) && w.length > 4 ? [w.slice(0, -1)] : []),
     ]);
-  return recipes.filter((recipe) =>
-    words(recipe.name).some((name) =>
+  const asked = ` ${phrase(request)} `;
+  const named = new Set<string>();
+  const matched = [...recipes].reverse().filter((recipe) => {
+    const name = phrase(recipe.name);
+    if (named.has(name)) return false;
+    const relevant = words(recipe.name).some((part) =>
       query.some(
-        (q) => q.startsWith(name) || name.startsWith(q) || name.endsWith(q),
+        (q) => q.startsWith(part) || part.startsWith(q) || part.endsWith(q),
       ),
-    ),
-  );
+    );
+    if (relevant) named.add(name);
+    return relevant;
+  });
+  const whole = (recipe: Recipe) =>
+    asked.includes(` ${phrase(recipe.name)} `) ? 0 : 1;
+  return matched.sort((a, b) => whole(a) - whole(b));
 }
 
 export function buildCompactContext(
@@ -96,8 +118,10 @@ export function buildCompactContext(
 ) {
   z.string().min(1).max(10_000).parse(request);
   const inputs = contextOptionsSchema.parse(options);
-  const relevant = relevantRecipes(request, state.recipes);
-  if (relevant.length > MAX_CONTEXT_RECIPES) throw new Error("contextTooLarge");
+  const relevant = relevantRecipes(request, state.recipes).slice(
+    0,
+    MAX_CONTEXT_RECIPES,
+  );
   const recipes = relevant.map((r) => {
     const recipe = recipeSchema.parse(r);
     // Existing recipe references need ingredient amounts, not cooking text or old note spans.

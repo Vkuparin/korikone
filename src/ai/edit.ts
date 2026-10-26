@@ -127,11 +127,9 @@ export function buildEditContext(
   const focus =
     focusTargetId && known.has(focusTargetId) ? focusTargetId : null;
   const used = new Set(targets.meals.map((m) => m.recipeId));
-  const recipes = relevantRecipes(instruction, state.recipes).filter(
-    (r) => !used.has(r.id),
-  );
-  if (recipes.length > editTaskLimits.recipes)
-    throw new Error("contextTooLarge");
+  const recipes = relevantRecipes(instruction, state.recipes)
+    .filter((r) => !used.has(r.id))
+    .slice(0, editTaskLimits.recipes);
   const merchandise = new Map(
     state.extras.flatMap((item) =>
       item.merchandise

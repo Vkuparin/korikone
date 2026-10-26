@@ -144,14 +144,22 @@ test("large recipe stores stay compact, while too many relevant recipes fail ins
   expect(length).toBeLessThan(1000);
   expect(length).toBeLessThan(MAX_CONTEXT_CHARACTERS);
   expect(context.recipes).toHaveLength(1);
-  state.recipes = Array.from({ length: MAX_CONTEXT_RECIPES + 1 }, (_, i) => ({
-    ...unrelated,
-    id: `pasta-${i}`,
-    name: `Tomaattipasta ${i}`,
-  }));
-  expect(() => buildCompactContext("Tomaattipasta", state)).toThrow(
-    "contextTooLarge",
-  );
+  // Many matching recipes no longer stop planning: the newest of each name, whole-name matches
+  // first, up to the limit.
+  state.recipes = [
+    ...Array.from({ length: MAX_CONTEXT_RECIPES + 3 }, (_, i) => ({
+      ...unrelated,
+      id: `pasta-${i}`,
+      name: `Kanapasta ${i}`,
+    })),
+    { ...unrelated, id: "tomato-old", name: "Tomaattipasta" },
+    { ...unrelated, id: "tomato-new", name: "tomaattipasta" },
+  ];
+  const ranked = buildCompactContext("Tomaattipasta ja pasta", state).recipes;
+  expect(ranked).toHaveLength(MAX_CONTEXT_RECIPES);
+  expect(ranked[0].id).toBe("tomato-new");
+  expect(ranked.some((r) => r.id === "tomato-old")).toBe(false);
+  expect(ranked[1].id).toBe(`pasta-${MAX_CONTEXT_RECIPES + 2}`);
 });
 
 test("oversized relevant ingredients stop before inference and do not truncate quantities", async () => {
