@@ -64,6 +64,9 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     await panel.getByRole("button", { name: /^Confirm: / }).click();
     const result = bar.getByRole("region", { name: "Transfer result" });
     await expect(result.getByRole("status")).toHaveText("Transfer interrupted");
+    await expect(
+      result.getByRole("button", { name: "Forget the interrupted transfer" }),
+    ).toBeVisible();
     expect(
       await page.evaluate(
         async () => (await window.korikone.load()).value.developmentHandoffs,

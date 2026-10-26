@@ -32,6 +32,8 @@ Nothing is written and the snapshot says why.
 
 A partial or uncertain write keeps its journal. The next click returns `recoverFirst` and never proposes a second routine approval.
 
+When recovery cannot continue (a product left the catalogue, the cart or the store changed), the result panel offers `forgetTransfer()` (B5.5). It deletes only the journal; the store cart keeps what was already written, and the shopper is told to check the cart before the next transfer, which starts fresh.
+
 ## Changed prices
 
 When only the price or deposit of a shown product changed, the same product and quantity are sent and the change is reconciled:

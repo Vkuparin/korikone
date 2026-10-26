@@ -73,6 +73,7 @@ const methods = [
   "transferDisplayed",
   "execute",
   "recover",
+  "forgetTransfer",
   "scenario",
   "exportList",
   "exportData",

@@ -384,6 +384,7 @@ function App() {
                   "prepare",
                   "execute",
                   "recover",
+                  "forgetTransfer",
                   "openStoreCart",
                   "searchStores",
                   "selectStore",

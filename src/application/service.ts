@@ -3719,6 +3719,20 @@ export class Service {
       this.review.manual = this.journal.review.manual;
     return this.snapshot();
   }
+  /**
+   * The way out when an interrupted transfer cannot be resumed (a product left the catalogue,
+   * the cart or the store changed). Only Korikone's record goes: the store cart keeps what was
+   * already sent, and the next transfer starts fresh.
+   */
+  async forgetTransfer() {
+    if (this.busy) throw new Error("busy");
+    if (this.journal?.status !== "partial") throw new Error("reviewRequired");
+    await this.db.set("journal", null);
+    this.journal = null;
+    this.review = null;
+    this.transferException = null;
+    return this.snapshot();
+  }
   async scenario(value: unknown) {
     if (this.busy) throw new Error("busy");
     const scenario = z

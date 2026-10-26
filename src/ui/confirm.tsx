@@ -433,14 +433,32 @@ export function ConfirmPanel({
           </div>
         </>
       ) : (
-        <div className="actions">
-          <button disabled={busy} onClick={onRecover}>
-            {t("recover")}
-          </button>
-          <button className="text" onClick={onClose}>
-            {tr("Sulje", "Close")}
-          </button>
-        </div>
+        <>
+          <p className="forget-hint">
+            {tr(
+              "Jos siirtoa ei voi jatkaa, unohda se. Kaupan koriin jo lisätyt tuotteet jäävät sinne, joten tarkista kori ennen uutta siirtoa.",
+              "If the transfer cannot continue, forget it. Products already added stay in the store cart, so check the cart before transferring again.",
+            )}
+          </p>
+          <div className="actions">
+            <button disabled={busy} onClick={onRecover}>
+              {t("recover")}
+            </button>
+            <button
+              className="text"
+              disabled={busy}
+              onClick={() => void call("forgetTransfer")}
+            >
+              {tr(
+                "Unohda keskeytynyt siirto",
+                "Forget the interrupted transfer",
+              )}
+            </button>
+            <button className="text" onClick={onClose}>
+              {tr("Sulje", "Close")}
+            </button>
+          </div>
+        </>
       )}
     </section>
   );

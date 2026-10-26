@@ -1029,6 +1029,7 @@ else
         return result;
       },
       recover: () => service.recover(),
+      forgetTransfer: () => service.forgetTransfer(),
       scenario: (input) => service.scenario(input),
       searchStores: async (input) => {
         if (service.busy) throw new Error("busy");

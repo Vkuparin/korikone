@@ -97,6 +97,16 @@ test("F4.3 rejects refused quantities and fractional rounded readback without to
     verified: [],
   });
   expect(refused.provider.writes).toBe(0);
+  // B5.5: a stuck interrupted transfer blocks new ones until it is forgotten.
+  await expect(refused.service.prepare()).rejects.toThrow("recoverFirst");
+  await refused.service.forgetTransfer();
+  expect(refused.service.journal).toBeNull();
+  refused.provider.refusePieces = false;
+  await refused.service.prepare();
+  expect(refused.service.review).not.toBeNull();
+  await expect(refused.service.forgetTransfer()).rejects.toThrow(
+    "reviewRequired",
+  );
   const rounded = await pieceReady("demo-s");
   await rounded.service.prepare();
   rounded.provider.pieceReadbackAdjustment = -0.001;
