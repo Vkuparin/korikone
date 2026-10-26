@@ -1309,7 +1309,7 @@ export class Service {
       ...(await this.purchases.backup(options.includeOriginals === true)),
     };
   }
-  /** Replaces the state and, when the file carries one, the price history. */
+  /** Replaces the state and, when the file carries them, the price history and purchases. */
   async importBackup(raw: unknown) {
     const next = stateSchema.parse(raw);
     // Validate purchase records before anything is replaced; an old backup has none.
@@ -1319,13 +1319,17 @@ export class Service {
       raw && typeof raw === "object" && "priceHistory" in raw
         ? priceObservationsSchema.parse(raw.priceHistory)
         : null;
+    // Every part is validated before anything is written, and all of it commits together: a
+    // refused backup leaves the profile exactly as it was (B5.8).
     await this.writeState(() =>
-      this.saveState({ ...next, revision: this.state.revision }, true),
+      this.purchases.serialize(async () =>
+        this.saveState({ ...next, revision: this.state.revision }, true, [
+          ...(prices ? [{ key: PRICE_KEY, value: limitPrices(prices) }] : []),
+          ...(await this.purchases.restoreEntries(raw)),
+        ]),
+      ),
     );
-    if (prices)
-      await this.writeState(() => this.db.set(PRICE_KEY, limitPrices(prices)));
     this.observedPrices = await this.priceHistory();
-    await this.purchases.restore(raw);
     return this.snapshot();
   }
   async init() {
@@ -1563,7 +1567,11 @@ export class Service {
       ),
     };
   }
-  private async saveState(input: unknown, allowCategoryPreferences = false) {
+  private async saveState(
+    input: unknown,
+    allowCategoryPreferences = false,
+    alongside: { key: string; value: unknown }[] = [],
+  ) {
     if (this.busy || this.transferPending) throw new Error("busy");
     const next = this.validateSaveInput(input, allowCategoryPreferences);
     this.registry.get(next.context.providerId);
@@ -1587,7 +1595,9 @@ export class Service {
     if (changed) next.revision = this.state.revision + 1;
     const pricingChanged = pricingKey(next) !== pricingKey(this.state);
     const priceBasisChanged = next.priceBasis !== this.state.priceBasis;
-    await this.db.set("state", next);
+    if (alongside.length)
+      await this.writeAtomically([{ key: "state", value: next }, ...alongside]);
+    else await this.db.set("state", next);
     this.state = next;
     if (priceBasisChanged) {
       // Alternatives are ranked by the chosen basis; any other save leaves the quote untouched.

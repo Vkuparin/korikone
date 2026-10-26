@@ -483,3 +483,61 @@ test("a profile saved before the calendar existed loads, and a calendar survives
     await database.close();
   }
 }, 30000);
+
+test("B5.8: a backup with many receipt originals restores whole, and a refused one changes nothing", async () => {
+  const { emptyLedger, putPurchase, purchaseOriginalKey } =
+    await import("../src/domain/purchases");
+  const { purchaseEvent, purchaseSource } =
+    await import("./helpers/purchase-fixtures");
+  const directory = await mkdtemp(join(tmpdir(), "korikone-restore-"));
+  const source = new Database(join(directory, "source.sqlite"), workerURL);
+  const target = new Database(join(directory, "target.sqlite"), workerURL);
+  try {
+    const from = new Service(source);
+    await from.init();
+    let ledger = emptyLedger();
+    for (let i = 0; i < 40; i++)
+      ledger = putPurchase(
+        ledger,
+        purchaseSource(`s${i}`, { retention: "original" }),
+        purchaseEvent(`e${i}`, `s${i}`),
+      );
+    await from.purchases.write(
+      ledger,
+      Array.from({ length: 40 }, (_, i) => ({
+        sourceId: `s${i}`,
+        text: `KUITTI ${i}`,
+      })),
+    );
+    await from.save({ ...from.state, note: "from the backup" });
+    const backup = JSON.parse(
+      JSON.stringify(await from.exportBackup({ includeOriginals: true })),
+    );
+    expect(Object.keys(backup.purchaseOriginals)).toHaveLength(40);
+
+    const to = new Service(target);
+    await to.init();
+    await to.save({ ...to.state, note: "kept" });
+    await to.importBackup(backup);
+    expect(to.state.note).toBe("from the backup");
+    expect((await to.purchases.ledger()).events).toHaveLength(40);
+    expect(await target.get(purchaseOriginalKey("s39"))).toBe("KUITTI 39");
+
+    await to.save({ ...to.state, note: "kept" });
+    const prices = await to.priceHistory();
+    await expect(
+      to.importBackup({
+        ...backup,
+        note: "changed",
+        purchases: { ...backup.purchases, events: "broken" },
+      }),
+    ).rejects.toThrow();
+    expect(to.state.note).toBe("kept");
+    expect((await target.get("state")).note).toBe("kept");
+    expect(await to.priceHistory()).toEqual(prices);
+    expect((await to.purchases.ledger()).events).toHaveLength(40);
+  } finally {
+    await source.close();
+    await target.close();
+  }
+}, 30000);

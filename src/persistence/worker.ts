@@ -3,6 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 mkdirSync(dirname(workerData.path), { recursive: true });
+// One transaction may replace a whole restore: state, prices, the purchase ledger and up to
+// 2,000 kept plus the replaced receipt originals.
+const MAX_BATCH = 5000;
 const existed = existsSync(workerData.path);
 const db = new DatabaseSync(workerData.path);
 const version = (
@@ -36,7 +39,7 @@ parentPort!.on("message", ({ id, op, key, value }) => {
       if (
         !Array.isArray(value) ||
         value.length < 1 ||
-        value.length > 32 ||
+        value.length > MAX_BATCH ||
         value.some(
           (entry) =>
             !entry ||

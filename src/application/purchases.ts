@@ -98,6 +98,22 @@ const originalsSchema = z
  * The purchase ledger document and the optional retained originals. Separate from `AppState`, so
  * ordinary saves, quotes and diagnostics never carry receipt contents.
  */
+/** The storage writes for a ledger and the originals to keep (text) or remove (null). */
+function ledgerEntries(
+  ledger: PurchaseLedger,
+  originals: { sourceId: string; text: string | null }[],
+): { key: string; value: unknown }[] {
+  return [
+    { key: PURCHASES_KEY, value: purchaseLedgerSchema.parse(ledger) },
+    ...originals.map(({ sourceId, text }) => ({
+      key: purchaseOriginalKey(sourceId),
+      value:
+        text === null
+          ? null
+          : z.string().max(purchaseLimits.originalCharacters).parse(text),
+    })),
+  ];
+}
 export class PurchaseStore {
   private writes: Promise<void> = Promise.resolve();
   constructor(private db: Storage) {}
@@ -126,17 +142,8 @@ export class PurchaseStore {
     ledger: PurchaseLedger,
     originals: { sourceId: string; text: string | null }[] = [],
   ) {
-    const validated = purchaseLedgerSchema.parse(ledger);
-    const entries = [
-      { key: PURCHASES_KEY, value: validated as unknown },
-      ...originals.map(({ sourceId, text }) => ({
-        key: purchaseOriginalKey(sourceId),
-        value:
-          text === null
-            ? null
-            : z.string().max(purchaseLimits.originalCharacters).parse(text),
-      })),
-    ];
+    const entries = ledgerEntries(ledger, originals);
+    const validated = entries[0].value as PurchaseLedger;
     // The SQLite store always commits these together. A store without `setMany` can hold only
     // the ledger itself, so it is never left pointing at an original that was not written.
     if (!this.db.setMany) {
@@ -312,30 +319,31 @@ export class PurchaseStore {
       ...(includeOriginals ? { purchaseOriginals: originals } : {}),
     };
   }
-  /** Replaces the ledger from a backup that carries one; a backup without one changes nothing. */
-  restore(raw: unknown) {
-    if (!raw || typeof raw !== "object" || !("purchases" in raw))
-      return Promise.resolve(null);
+  /**
+   * The validated writes that replace the ledger from a backup, for the caller to commit with
+   * the rest of the restore in one batch (B5.8). A backup without records needs none. Run it
+   * inside `serialize` so no other ledger change lands between the read and the commit.
+   */
+  async restoreEntries(raw: unknown) {
+    if (!raw || typeof raw !== "object" || !("purchases" in raw)) return [];
     const originals =
       "purchaseOriginals" in raw
         ? originalsSchema.parse(raw.purchaseOriginals)
         : {};
     const next = restoreLedger(raw.purchases, new Set(Object.keys(originals)));
-    return this.serialize(async () => {
-      const previous = await this.ledger();
-      const kept = new Set(
-        next.sources.filter((s) => s.retention === "original").map((s) => s.id),
-      );
-      return this.write(next, [
-        // Originals of the replaced ledger do not outlive it.
-        ...previous.sources
-          .filter((s) => s.retention === "original" && !kept.has(s.id))
-          .map((s) => ({ sourceId: s.id, text: null })),
-        ...[...kept].map((sourceId) => ({
-          sourceId,
-          text: originals[sourceId],
-        })),
-      ]);
-    });
+    const previous = await this.ledger();
+    const kept = new Set(
+      next.sources.filter((s) => s.retention === "original").map((s) => s.id),
+    );
+    return ledgerEntries(next, [
+      // Originals of the replaced ledger do not outlive it.
+      ...previous.sources
+        .filter((s) => s.retention === "original" && !kept.has(s.id))
+        .map((s) => ({ sourceId: s.id, text: null })),
+      ...[...kept].map((sourceId) => ({
+        sourceId,
+        text: originals[sourceId],
+      })),
+    ]);
   }
 }
