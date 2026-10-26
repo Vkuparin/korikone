@@ -1,4 +1,5 @@
 import type { PlanningSnapshot } from "../application/planning";
+import { unitLabel } from "./i18n";
 import { matchingReasonLabel } from "./matching-reasons";
 import { planningActivityPending } from "./planning-status";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
@@ -70,7 +71,8 @@ export function PlanningPreview({
         <ul>
           {planning?.provisional.rows.map((row) => (
             <li key={row.requirementKey} data-preview-status={row.status}>
-              <strong>{row.name}</strong> · {row.amount} {row.unit}
+              <strong>{row.name}</strong> · {row.amount}{" "}
+              {unitLabel(row.unit, language)}
               <span>
                 {row.status === "pending"
                   ? tr("Tuotehaku odottaa", "Product search pending")

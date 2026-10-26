@@ -780,6 +780,8 @@ for (const language of ["fi", "en"] as const) {
       await expect(page.locator(".note-box")).not.toHaveClass(/is-working/);
       await expect(status).toHaveAttribute("data-planning-phase", "obsolete");
       await page.waitForTimeout(1500); // The fixture's outstanding catalogue read must settle.
+      // The shopper stopped the run on purpose, so nothing is reported as an error.
+      await expect(page.getByRole("alert")).toHaveCount(0);
       expect((await load()).state).toEqual(before.state);
       expect((await load()).basket).toEqual(before.basket);
       await expect(note).toHaveValue("1 l maitoa");

@@ -261,6 +261,8 @@ function App() {
     input?: unknown,
     options?: {
       preserveError?: boolean;
+      /** An expected outcome for this call: return false without an alert or error log. */
+      quietError?: (code: string) => boolean;
       onSuccess?: (value: Snapshot) => void;
     },
   ) {
@@ -341,6 +343,7 @@ function App() {
       // The pack-size message for an edit differs from the one shown on a product row.
       if (method === "editList" && code === "packSizeUnknown")
         code = "editPackSizeUnknown";
+      if (options?.quietError?.(code)) return false;
       setError((current) =>
         options?.preserveError && current ? current : code,
       );

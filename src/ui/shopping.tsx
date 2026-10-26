@@ -362,6 +362,7 @@ export function ShoppingWorkspace({
     input?: unknown,
     options?: {
       preserveError?: boolean;
+      quietError?: (code: string) => boolean;
       onSuccess?: (value: Snapshot) => void;
     },
   ) => Promise<boolean>;
@@ -479,7 +480,9 @@ export function ShoppingWorkspace({
   const [instruction, setInstructionValue] = useState(
     () => sessionStorage.getItem("shopping-edit-instruction") ?? "",
   );
+  const currentInstruction = useRef(instruction);
   const setInstruction = (value: string) => {
+    currentInstruction.current = value;
     try {
       sessionStorage.setItem("shopping-edit-instruction", value);
     } catch {
@@ -715,6 +718,8 @@ export function ShoppingWorkspace({
             .map((idea) => idea.id),
         },
         {
+          // Editing the note stops the run on purpose: that is not an error to show.
+          quietError: (code) => code === "draftStale" && stopRequested.current,
           onSuccess: (value) => {
             operationId = value.planning?.operationId ?? null;
           },
@@ -780,7 +785,11 @@ export function ShoppingWorkspace({
       );
       if (!active.current) return;
       if (!ok) setEditFailed(true);
-      else if (!clarification) {
+      // Text typed while the edit ran is a new instruction: keep it.
+      else if (
+        !clarification &&
+        currentInstruction.current.trim() === requested
+      ) {
         setInstruction("");
         setFocusTarget(null);
       }
@@ -798,6 +807,7 @@ export function ShoppingWorkspace({
     editRunning.current = true;
     setEditWorking(true);
     setEditFailed(false);
+    setEditCancelled(false);
     const found = { outcome: "failed" as FindResult };
     try {
       const ok = await call(

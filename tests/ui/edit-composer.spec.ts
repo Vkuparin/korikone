@@ -201,3 +201,54 @@ test("a failed edit keeps the instruction and the list", async () => {
     await app.close();
   }
 });
+
+test("text typed while an edit runs stays in the composer", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    await page.evaluate(async () => {
+      const state = (await window.korikone.load()).value.state;
+      await window.korikone.save({
+        ...state,
+        onboarded: true,
+        setupComplete: true,
+        language: "en",
+        staples: [],
+        meals: [
+          {
+            id: "m-soup",
+            recipeId: "soup",
+            day: 0,
+            servings: 4,
+            leftovers: false,
+          },
+        ],
+      });
+      await window.korikone.setLanguage("en");
+      await window.korikone.signInAI();
+      await window.korikone.developmentScenario("delayedSuccess");
+    });
+    await page.reload();
+    const composer = page.getByLabel("Edit current list");
+    await composer.fill("double the soup");
+    await page
+      .getByRole("button", { name: "Update my shopping list", exact: true })
+      .click();
+    await composer.fill("add milk");
+    await expect
+      .poll(
+        async () =>
+          (
+            await page.evaluate(
+              async () => (await window.korikone.load()).value,
+            )
+          ).state.meals[0].servings,
+        { timeout: 15000 },
+      )
+      .toBe(8);
+    await page.waitForTimeout(300);
+    await expect(composer).toHaveValue("add milk");
+  } finally {
+    await app.close();
+  }
+});

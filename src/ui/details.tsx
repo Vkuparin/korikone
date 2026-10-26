@@ -31,11 +31,12 @@ export type RowAlternative = {
 export function unitValueText(
   metrics: PriceMetrics | null,
   money: (cents: number) => string,
+  language = "en",
 ): string | null {
   const value = metrics?.unitValue;
   if (!metrics || !value) return null;
   const perUnit = Math.round(value.numerator / value.denominator);
-  return `${metrics.estimated || value.estimated ? "~" : ""}${money(perUnit)} / ${value.unit}`;
+  return `${metrics.estimated || value.estimated ? "~" : ""}${money(perUnit)} / ${unitLabel(value.unit, language)}`;
 }
 
 /**
@@ -489,8 +490,8 @@ function AlternativeSummary({
   const tr = (a: string, b: string) => (fi ? a : b);
   const { comparison, product } = alternative;
   const saving = comparison.payableDelta < 0;
-  const proposedUnit = unitValueText(comparison.alternative, money);
-  const currentUnit = unitValueText(comparison.current, money);
+  const proposedUnit = unitValueText(comparison.alternative, money, language);
+  const currentUnit = unitValueText(comparison.current, money, language);
   const packs = comparison.alternative.packs;
   return (
     <div className="row-alternative">
