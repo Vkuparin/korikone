@@ -488,8 +488,10 @@ test("confirming is the approval for a live store unless the budget is exceeded"
     acknowledged: false,
   });
   expect(done.journal!.status).toBe("verified");
+  // One more milk: the earlier one is already sent, and the new one alone exceeds the budget.
   await service.save({
     ...service.state,
+    extras: [{ id: "milk", name: "Maito", amount: 2000, unit: "ml" }],
     household: { ...service.state.household, budget: 100 },
   });
   await service.buildBasket();

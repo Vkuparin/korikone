@@ -110,6 +110,8 @@ export async function createReview(
     signal?: AbortSignal;
     onProgress?: (completed: number, total: number) => void;
   } = {},
+  /** The last verified transfer of this same list, to the same store. */
+  earlier?: { accountId: string; listSent: NonNullable<Review["listSent"]> },
 ): Promise<Review> {
   if (
     !provider.capabilities.cart ||
@@ -217,6 +219,11 @@ export async function createReview(
         price: line.total!,
       });
   }
+  const { listSent, alreadySent } = creditEarlierTransfer(
+    targets,
+    baseline,
+    earlier,
+  );
   if (
     targets.some(
       (t) =>
@@ -237,7 +244,51 @@ export async function createReview(
     total: targets.reduce((sum, t) => sum + t.price, 0),
     quotes,
     ...(priceChanges.length ? { priceChanges } : {}),
+    ...(alreadySent.length ? { alreadySent } : {}),
+    listSent,
   };
+}
+/**
+ * A second transfer of the same list sends only what the first did not. Korikone's earlier part
+ * counts only while the basket still holds it: after a checkout or an emptied basket it is gone
+ * and the row is sent in full. Nothing is ever taken out of the basket, so a row the shopper
+ * reduced or removed keeps what was sent. Changes `targets` in place.
+ */
+export function creditEarlierTransfer(
+  targets: Review["targets"],
+  baseline: Cart,
+  earlier?: { accountId: string; listSent: NonNullable<Review["listSent"]> },
+) {
+  const listSent: NonNullable<Review["listSent"]> = {};
+  const alreadySent: NonNullable<Review["alreadySent"]> = [];
+  const held = (id: string) =>
+    baseline.lines.find((l) => l.productId === id)?.quantity ?? 0;
+  if (earlier && earlier.accountId === baseline.accountId)
+    for (const [id, entry] of Object.entries(earlier.listSent)) {
+      const still = Math.min(entry.sent, Math.max(0, held(id) - entry.before));
+      if (still > 0) listSent[id] = { before: held(id) - still, sent: still };
+    }
+  for (const target of [...targets]) {
+    const wanted = target.quantity - target.before;
+    const credit = Math.min(wanted, listSent[target.productId]?.sent ?? 0);
+    const send = wanted - credit;
+    listSent[target.productId] = {
+      before: target.before - (listSent[target.productId]?.sent ?? 0),
+      sent: (listSent[target.productId]?.sent ?? 0) + send,
+    };
+    if (!credit) continue;
+    alreadySent.push({
+      productId: target.productId,
+      name: target.name,
+      quantity: credit,
+    });
+    if (!send) targets.splice(targets.indexOf(target), 1);
+    else {
+      target.price = Math.round((target.price * send) / wanted);
+      target.quantity = target.before + send;
+    }
+  }
+  return { listSent, alreadySent };
 }
 /**
  * No non-food row reaches a basket write unless the provider declares that write (F22.7). A found

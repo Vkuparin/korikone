@@ -56,7 +56,7 @@ import {
   type StoreProvider,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
-import { storeKey } from "../domain/changes";
+import { reviewLines, storeKey } from "../domain/changes";
 import {
   ERROR_KEY,
   ERROR_LIMIT,
@@ -1666,8 +1666,8 @@ export class Service {
     return this.writeState(() => this.saveState({ ...this.state, priceBasis }));
   }
   private saveNewList(state: AppState) {
-    return this.writeState(() =>
-      this.saveState(
+    return this.writeState(async () => {
+      const result = await this.saveState(
         {
           ...state,
           requestIntents: [],
@@ -1675,8 +1675,13 @@ export class Service {
           ...clearRowCorrections(this.state),
         },
         true,
-      ),
-    );
+      );
+      for (const { key, value } of this.closedTransferList()) {
+        await this.db.set(key, value);
+        this.journal = value;
+      }
+      return result;
+    });
   }
   /** Memory changes are explicit, revision-bound operations; ordinary save cannot write them. */
   private changeCategoryPreferences(
@@ -2911,7 +2916,7 @@ export class Service {
    * interpretation, row choices, the week plan's links to these meals, prices, comparison, any
    * unfinished planning run and any shown review all go. Recipes, earlier weeks, list history,
    * purchases, settings, the store, the household and the store's own basket stay, and so does
-   * the transfer record. Recurring items add nothing until a new list is generated or prices
+   * the transfer record, though the next transfer no longer counts it as already sent. Recurring items add nothing until a new list is generated or prices
    * are updated. Local only: no AI, catalogue or retailer call.
    */
   async resetList(input: unknown) {
@@ -2953,11 +2958,14 @@ export class Service {
       const next = changed
         ? stateSchema.parse({ ...cleared, revision: base.revision + 1 })
         : base;
+      const closed = this.closedTransferList();
       await this.writeAtomically([
         ...(changed ? [{ key: "state", value: next }] : []),
         { key: "last-quote", value: null },
         { key: EDIT_UNDO_KEY, value: null },
+        ...closed,
       ]);
+      if (closed.length) this.journal = closed[0].value;
       // An unfinished planning run is forgotten: its preview goes and a late reply finds no run.
       // Commits run in this same write queue, so none can be in progress here.
       this.planning.discard();
@@ -3345,13 +3353,38 @@ export class Service {
             cancellable: true,
           }),
       },
+      this.earlierTransfer(),
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
+    if (this.review.alreadySent?.length)
+      this.review.continues = this.journal!.review.id;
     if (manual.length) this.review.manual = manual;
     if (this.review.priceChanges?.length)
       await this.reconcileQuote(this.review);
     return this.snapshot();
+  }
+  /** The last verified transfer of the current list to the same store, if a New list has not started since. */
+  private earlierTransfer() {
+    const last = this.journal;
+    if (
+      last?.status !== "verified" ||
+      last.listClosed ||
+      !last.review.listSent ||
+      last.review.context.providerId !== this.state.context.providerId ||
+      last.review.context.storeId !== this.state.context.storeId
+    )
+      return undefined;
+    return {
+      accountId: last.review.baseline.accountId,
+      listSent: last.review.listSent,
+    };
+  }
+  /** A New list starts fresh: the next transfer sends its rows in full. */
+  private closedTransferList(): { key: string; value: Journal }[] {
+    if (this.journal?.status !== "verified" || this.journal.listClosed)
+      return [];
+    return [{ key: "journal", value: { ...this.journal, listClosed: true } }];
   }
   /**
    * The store's current prices for the same products and quantities replace the quoted ones, so
@@ -3606,7 +3639,11 @@ export class Service {
       await this.db.set("journal", this.journal);
       if (provider instanceof DemoProvider)
         await this.db.set(provider.id, [...provider.carts]);
-      if (this.journal.status === "verified") {
+      // A transfer that found every row already sent wrote nothing and changes no history entry.
+      if (
+        this.journal.status === "verified" &&
+        this.journal.review.targets.length
+      ) {
         await this.writeState(async () => {
           const next = {
             ...this.state,
@@ -3626,16 +3663,9 @@ export class Service {
                 removed: [...this.state.removed],
                 quantities: { ...this.state.quantities },
                 storeKey: storeKey(this.journal!.review.context),
-                transferred: this.journal!.review.targets.map((t) => ({
-                  productId: t.productId,
-                  name: t.name,
-                  quantity: t.quantity - t.before,
-                  unit: t.unit,
-                  price:
-                    t.quantity > t.before
-                      ? Math.round(t.price / (t.quantity - t.before))
-                      : 0,
-                })),
+                // The whole list as sent, including rows an earlier transfer of it already
+                // put in the basket; that earlier entry is replaced below.
+                transferred: reviewLines(this.journal!.review),
                 prices: Object.fromEntries(
                   this.journal!.review.quotes.flatMap((line) =>
                     line.product &&
@@ -3649,7 +3679,9 @@ export class Service {
                 ),
               },
               ...this.state.listHistory.filter(
-                (h) => h.id !== this.journal!.review.id,
+                (h) =>
+                  h.id !== this.journal!.review.id &&
+                  h.id !== this.journal!.review.continues,
               ),
             ].slice(0, 52),
           };

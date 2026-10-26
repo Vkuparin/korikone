@@ -273,3 +273,145 @@ test("review before transfer is an explicit, persisted choice and adds one confi
   expect((await click(service)).transferException).toBeNull();
   expect(service.journal?.status).toBe("verified");
 });
+
+/** Adds a row and a liter of milk to the list, then prices it again. */
+async function extend(service: Service) {
+  await service.save({
+    ...service.state,
+    extras: [
+      { id: "milk", name: "Maito", amount: 3000, unit: "ml" },
+      { id: "pasta", name: "Pasta", amount: 500, unit: "g" },
+      { id: "oats", name: "Kaurahiutale", amount: 1000, unit: "g" },
+    ],
+  });
+  await service.buildBasket();
+}
+const emptyBasket = async (service: Service, provider: DemoProvider) => {
+  const cart = await provider.getCart(service.state.context);
+  provider.carts.set(JSON.stringify(service.state.context), {
+    ...cart,
+    lines: [],
+  });
+  baskets.set(service, {});
+};
+
+for (const chain of ["k-ruoka", "s-kaupat"] as const) {
+  test(`${chain}: after an edit, a second transfer of the same list sends only what the first did not`, async () => {
+    const { service, provider } = await priced(chain);
+    expect((await click(service)).journal?.status).toBe("verified");
+    expect(await cartOf(service, provider)).toEqual({ milk: 2, pasta: 1 });
+    await extend(service);
+    const second = await click(service);
+    expect(second.transferException).toBeNull();
+    expect(second.journal).toMatchObject({
+      status: "verified",
+      review: {
+        targets: [
+          { productId: "milk", before: 2, quantity: 3 },
+          { productId: "oats", before: 0, quantity: 1 },
+        ],
+        alreadySent: [
+          { productId: "milk", quantity: 2 },
+          { productId: "pasta", quantity: 1 },
+        ],
+      },
+    });
+    expect(await cartOf(service, provider)).toEqual({
+      milk: 3,
+      pasta: 1,
+      oats: 1,
+    });
+    expect(provider.writes).toBe(4);
+    // The list's history entry is replaced by one for the whole list as now sent.
+    expect(service.state.listHistory).toHaveLength(1);
+    expect(
+      service.state.listHistory[0].transferred.map((t) => [
+        t.productId,
+        t.quantity,
+      ]),
+    ).toEqual([
+      ["milk", 3],
+      ["oats", 1],
+      ["pasta", 1],
+    ]);
+    // A third click after only a price update finds everything sent and writes nothing.
+    provider.priceChange = true;
+    await service.updatePrices();
+    const third = await click(service);
+    expect(third.transferException).toBeNull();
+    expect(third.journal?.status).toBe("verified");
+    expect(third.journal?.review.targets).toEqual([]);
+    expect(provider.writes).toBe(4);
+    expect(await cartOf(service, provider)).toEqual({
+      milk: 3,
+      pasta: 1,
+      oats: 1,
+    });
+    expect(service.state.listHistory).toHaveLength(1);
+  });
+
+  test(`${chain}: a checkout, a basket changed by hand and a New list each limit what counts as sent`, async () => {
+    const { service, provider } = await priced(chain);
+    await click(service);
+    // The shopper ordered the first basket; the next transfer sends the whole list again.
+    await emptyBasket(service, provider);
+    await extend(service);
+    expect((await click(service)).journal?.review.alreadySent).toBeUndefined();
+    expect(await cartOf(service, provider)).toEqual({
+      milk: 3,
+      pasta: 1,
+      oats: 1,
+    });
+    // One milk was taken out by hand: only Korikone's part still there counts.
+    const cart = await provider.getCart(service.state.context);
+    provider.carts.set(JSON.stringify(service.state.context), {
+      ...cart,
+      lines: cart.lines.map((l) =>
+        l.productId === "milk" ? { ...l, quantity: 2 } : l,
+      ),
+    });
+    await service.save({
+      ...service.state,
+      extras: [
+        ...service.state.extras,
+        { id: "coffee", name: "Kahvi", amount: 500, unit: "g" },
+      ],
+    });
+    await service.buildBasket();
+    const refill = await click(service);
+    expect(refill.journal?.review.targets).toEqual([
+      expect.objectContaining({ productId: "milk", before: 2, quantity: 3 }),
+      expect.objectContaining({ productId: "coffee", before: 0, quantity: 1 }),
+    ]);
+    // A New list starts fresh: the same rows are sent in full on top of what is there.
+    await service.resetList({ revision: service.state.revision });
+    expect(service.journal?.listClosed).toBe(true);
+    await service.save({
+      ...service.state,
+      extras: [{ id: "pasta", name: "Pasta", amount: 500, unit: "g" }],
+    });
+    await service.buildBasket();
+    const fresh = await click(service);
+    expect(fresh.journal?.review.alreadySent).toBeUndefined();
+    expect(fresh.journal?.review.targets).toEqual([
+      expect.objectContaining({ productId: "pasta", before: 1, quantity: 2 }),
+    ]);
+  });
+}
+
+test("a recovered partial transfer counts as sent for the next click", async () => {
+  const { service, provider } = await priced("s-kaupat");
+  provider.failAfter = 1;
+  expect((await click(service)).journal?.status).toBe("partial");
+  provider.failAfter = null;
+  await service.recover();
+  await service.execute({ id: service.review!.id, acknowledged: true });
+  expect(service.journal?.status).toBe("verified");
+  await extend(service);
+  await click(service);
+  expect(await cartOf(service, provider)).toEqual({
+    milk: 3,
+    pasta: 1,
+    oats: 1,
+  });
+});

@@ -253,7 +253,8 @@ test("the transfer record survives a reset, and a reset waits for a write in fli
   const listHistory = structuredClone(service.state.listHistory);
   const writes = provider.writes;
   const snapshot = await reset(service);
-  expect(snapshot.journal).toEqual(journal);
+  // The record stays; only the next transfer no longer counts it as already sent.
+  expect(snapshot.journal).toEqual({ ...journal, listClosed: true });
   expect(snapshot.state.listHistory).toEqual(listHistory);
   expect(JSON.stringify([...provider.carts])).toBe(carts);
   expect(provider.writes).toBe(writes);

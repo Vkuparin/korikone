@@ -12,7 +12,7 @@ How the shopping list reaches a store basket. Implemented in `Service.transferDi
 
 With `state.reviewBeforeTransfer` false (the default, also for older profiles) the service then reads the store basket and each product once more and writes without another question. These do **not** stop the transfer and need no acknowledgement:
 
-- items already in the store basket (quantities are absolute: `target.quantity = before + packs`),
+- items already in the store basket (quantities are absolute: `target.quantity = before + packs`; an earlier transfer of the same list counts as sent, see [below](#sending-a-changed-list-again-b52)),
 - a total above the household budget,
 - rows or requests left out because they have no product.
 
@@ -45,6 +45,18 @@ A review asked for directly with `prepare()` keeps the stricter rule and refuses
 ## Repeating the same list
 
 After a verified transfer of the same batch, another click reads the basket, checks the account and writes nothing.
+
+## Sending a changed list again (B5.2)
+
+A transfer of the same list after an edit, a price update or a recurring row sends only what earlier transfers of this list did not. `createReview` takes the last verified journal's `review.listSent` when that journal is for the same provider and store, its account matches the basket, and no New list has started since (`journal.listClosed`). Per product, `listSent` holds `sent`, Korikone's part, and `before`, what the basket held besides it.
+
+- Korikone's part counts only while the basket still holds it: `min(sent, current - before)`. After a checkout or an emptied basket nothing counts and the row is sent in full; a basket reduced by hand counts only what is left.
+- A row sends `packs - counted`, at least zero. A fully counted row is not written; it is listed in `review.alreadySent` (`{ productId, name, quantity }`), which the transfer result shows as "Jo siirretty aiemmin tästä listasta". Its price is scaled to the packs actually sent.
+- Nothing is taken out of the basket: a row the shopper reduced or removed keeps what was sent.
+- `resetList`, `newWeek`, `reuseWeek` and `approveDraft` (New list paths) set `journal.listClosed`; Clear list does not, because it can be undone.
+- A click that finds every row already sent writes nothing, ends `verified` and changes no `listHistory` entry. Otherwise the new entry's `transferred` is the whole list as sent (written now plus counted, `reviewLines` in `src/domain/changes.ts`) and replaces the entry of the earlier transfer it continues (`review.continues`), so "Muutokset edelliseen" still compares whole lists.
+- A recovered partial transfer carries the original review's `listSent`.
+- Journals saved before B5.2 have no `listSent`, so the first transfer after upgrading sends in full.
 
 ## Optional review
 

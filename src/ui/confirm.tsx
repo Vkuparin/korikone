@@ -331,6 +331,15 @@ export function ConfirmPanel({
         {t("verifiedLines")}: {journal.verified.length} /{" "}
         {journal.review.targets.length}
       </p>
+      {(journal.review.alreadySent?.length ?? 0) > 0 && (
+        <p className="already-sent">
+          {tr(
+            "Jo siirretty aiemmin tästä listasta, ei lisätty uudelleen:",
+            "Already sent earlier from this list, not added again:",
+          )}{" "}
+          {journal.review.alreadySent!.map((item) => item.name).join(", ")}
+        </p>
+      )}
       {(left.length > 0 || leftIntents.length > 0) && (
         <p>
           {tr("Jäi siirtämättä:", "Left out:")}{" "}

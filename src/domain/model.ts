@@ -276,10 +276,25 @@ export type Review = {
     before: number;
     after: number;
   }[];
+  /**
+   * Products an earlier transfer of this same list already put in the basket, and how much of
+   * each was not sent again. Only the rest of a row is written.
+   */
+  alreadySent?: { productId: string; name: string; quantity: number }[];
+  /**
+   * What Korikone has added for the current list once this review is written, per product:
+   * `sent` is Korikone's part still in the basket and `before` what the basket held besides.
+   * The next transfer of the same list sends only what goes beyond `sent`.
+   */
+  listSent?: Record<string, { before: number; sent: number }>;
+  /** The earlier transfer of this list whose rows are still in the basket; its history entry is replaced. */
+  continues?: string;
 };
 export type Journal = {
   batchKey?: string;
   review: Review;
+  /** Set when a New list starts: the next transfer no longer counts this one as sent. */
+  listClosed?: boolean;
   status: "ready" | "transferring" | "partial" | "verified";
   verified: string[];
   uncertain: string | null;

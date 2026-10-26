@@ -24,18 +24,15 @@ export const storeKey = (context: StoreContext) =>
  * new and dropped products, changed quantities and changed pack prices. Returns null when there
  * is nothing to compare with: no earlier transfer, or one saved before its products were kept.
  */
-export function compareTransfers(
-  review: Pick<Review, "context" | "targets">,
-  history: { storeKey: string; transferred: Line[] }[],
-): Changes | null {
-  const last = history[0];
-  if (!last || !last.storeKey) return null;
-  const empty = { added: [], dropped: [], quantity: [], price: [] };
-  if (last.storeKey !== storeKey(review.context))
-    return { storeChanged: true, ...empty };
-  const before = new Map(last.transferred.map((l) => [l.productId, l]));
+/**
+ * What the list sends with this review, per product: the packs written now plus the packs an
+ * earlier transfer of the same list already put in the basket. Prices are per pack.
+ */
+type Sent = Pick<Review, "targets" | "alreadySent"> &
+  Partial<Pick<Review, "quotes">>;
+export function reviewLines(review: Sent): Line[] {
   // A target holds the whole cart quantity and the price of the packs added, so work from the packs.
-  const lines = review.targets.map((t) => {
+  const lines: Line[] = review.targets.map((t) => {
     const packs = t.quantity - t.before;
     return {
       productId: t.productId,
@@ -45,6 +42,38 @@ export function compareTransfers(
       price: packs > 0 ? Math.round(t.price / packs) : 0,
     };
   });
+  for (const sent of review.alreadySent ?? []) {
+    const line = lines.find((l) => l.productId === sent.productId);
+    if (line) {
+      line.quantity += sent.quantity;
+      continue;
+    }
+    const quotes = (review.quotes ?? []).filter(
+      (q) => q.product?.id === sent.productId,
+    );
+    const packs = quotes.reduce((sum, q) => sum + q.packs, 0);
+    const total = quotes.reduce((sum, q) => sum + (q.total ?? 0), 0);
+    lines.push({
+      productId: sent.productId,
+      name: sent.name,
+      unit: quotes[0]?.product?.nativeUnit ?? "",
+      quantity: sent.quantity,
+      price: packs > 0 ? Math.round(total / packs) : 0,
+    });
+  }
+  return lines;
+}
+export function compareTransfers(
+  review: Sent & Pick<Review, "context">,
+  history: { storeKey: string; transferred: Line[] }[],
+): Changes | null {
+  const last = history[0];
+  if (!last || !last.storeKey) return null;
+  const empty = { added: [], dropped: [], quantity: [], price: [] };
+  if (last.storeKey !== storeKey(review.context))
+    return { storeChanged: true, ...empty };
+  const before = new Map(last.transferred.map((l) => [l.productId, l]));
+  const lines = reviewLines(review);
   const now = new Map(lines.map((l) => [l.productId, l]));
   const changes: Changes = { storeChanged: false, ...empty };
   for (const t of lines) {
