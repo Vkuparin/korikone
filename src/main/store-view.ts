@@ -8,6 +8,7 @@ import {
 } from "electron";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { storePermissionAllowed, withTimeout } from "./store-guards";
 
 export type Chain = "k-ruoka" | "s-kaupat";
 export type StorePage = "home" | "cart" | "login";
@@ -72,6 +73,18 @@ const PAYMENT_DOMAINS = [
 const within = (host: string, domains: string[]) =>
   domains.some((d) => host === d || host.endsWith(`.${d}`));
 
+/**
+ * Store pages get only what sign-in and the cart use. Electron grants every other request
+ * (camera, microphone, location, notifications…) by default, also to ads and embedded frames.
+ */
+function guardPermissions(storeSession: Electron.Session) {
+  storeSession.setPermissionRequestHandler((_contents, permission, callback) =>
+    callback(storePermissionAllowed(permission)),
+  );
+  storeSession.setPermissionCheckHandler((_contents, permission) =>
+    storePermissionAllowed(permission),
+  );
+}
 /**
  * One store tab per chain, shown inside the Korikone window. Store pages run with no preload and
  * in a sandbox, each chain in its own persistent session. In development mode the tabs load the
@@ -155,6 +168,7 @@ export class StoreViews {
       ? `persist:development-${chain}`
       : `persist:${chain}`;
     const storeSession = session.fromPartition(partition);
+    guardPermissions(storeSession);
     if (this.development())
       storeSession.webRequest.onBeforeRequest((details, callback) => {
         let host = "";
@@ -302,10 +316,27 @@ export class StoreViews {
    * Runs a script in a hidden page of the chain's site, in the same session as its tab, so
    * Korikone's own calls carry the sign-in the shopper made there. Live mode only.
    */
-  async evaluate(chain: Chain, script: string): Promise<unknown> {
+  async evaluate(
+    chain: Chain,
+    script: string,
+    timeoutMs?: number,
+  ): Promise<unknown> {
     if (this.development()) throw new Error("developmentRequired");
     const contents = await this.background(chain);
-    return contents.executeJavaScript(script, true);
+    if (timeoutMs === undefined)
+      return contents.executeJavaScript(script, true);
+    // A stalled page would hold every later call to this chain and the first quit. The
+    // stalled page is dropped, so the next call loads a fresh one.
+    return withTimeout(
+      contents.executeJavaScript(script, true),
+      timeoutMs,
+      () => {
+        if (this.backgrounds.get(chain)?.webContents === contents) {
+          this.backgrounds.delete(chain);
+          contents.close();
+        }
+      },
+    );
   }
 
   /** The hidden page of a chain's site, loaded on first use. It shares the tab's session and storage. */
@@ -314,9 +345,11 @@ export class StoreViews {
     const home = `${SITES[chain].origin}${BACKGROUND_PATH[chain]}`;
     let view = this.backgrounds.get(chain);
     if (!view) {
+      const storeSession = session.fromPartition(`persist:${chain}`);
+      guardPermissions(storeSession);
       view = new WebContentsView({
         webPreferences: {
-          session: session.fromPartition(`persist:${chain}`),
+          session: storeSession,
           nodeIntegration: false,
           contextIsolation: true,
           sandbox: true,

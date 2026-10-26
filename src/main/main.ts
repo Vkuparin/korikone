@@ -55,6 +55,7 @@ import { diagnostics } from "../application/diagnostics";
 import type { PlanningRun } from "../application/planning";
 import { SKaupatLibrary } from "../stores/s-kaupat-library";
 import { StoreViews } from "./store-view";
+import { STORE_SCRIPT_TIMEOUT_MS } from "./store-guards";
 import {
   KRuokaSite,
   pageScript,
@@ -167,6 +168,7 @@ else
           stores.evaluate(
             "k-ruoka",
             pageScript(request),
+            STORE_SCRIPT_TIMEOUT_MS,
           ) as ReturnType<PageRequest>,
       );
       const kRuokaStore = () =>
