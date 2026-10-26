@@ -86,20 +86,28 @@ export interface InferenceProvider {
   ): Promise<InferenceResult>;
 }
 
+/** An abort by `AbortSignal.timeout` is a timeout, not the shopper's cancel (B5.9). */
+const abortError = (signal: AbortSignal) =>
+  new InferenceError(
+    signal.reason instanceof DOMException &&
+      signal.reason.name === "TimeoutError"
+      ? "timeout"
+      : "cancelled",
+  );
 export async function discoverInferenceModels(
   provider: InferenceProvider,
   signal: AbortSignal,
 ): Promise<InferenceModel[]> {
-  if (signal.aborted) throw new InferenceError("cancelled");
+  if (signal.aborted) throw abortError(signal);
   let rejectAbort: (error: InferenceError) => void = () => {};
   const aborted = new Promise<never>((_, reject) => {
     rejectAbort = reject;
   });
-  const cancel = () => rejectAbort(new InferenceError("cancelled"));
+  const cancel = () => rejectAbort(abortError(signal));
   signal.addEventListener("abort", cancel, { once: true });
   try {
     const raw = await Promise.race([provider.discoverModels(signal), aborted]);
-    if (signal.aborted) throw new InferenceError("cancelled");
+    if (signal.aborted) throw abortError(signal);
     const parsed = z.array(inferenceModelSchema).max(1000).safeParse(raw);
     if (
       !parsed.success ||
@@ -113,7 +121,7 @@ export async function discoverInferenceModels(
       throw new InferenceError("invalidOutput");
     return parsed.data;
   } catch (error) {
-    if (signal.aborted) throw new InferenceError("cancelled");
+    if (signal.aborted) throw abortError(signal);
     if (error instanceof InferenceError) throw error;
     throw new InferenceError("modelsUnavailable");
   } finally {

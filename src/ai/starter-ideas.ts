@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AppState } from "../domain/model";
 import { InferenceError, type InferenceSession } from "./provider";
 import { invokeTaskOutput } from "./output";
+import { parseJSON } from "./draft";
 import { starterIdeasTask } from "./tasks";
 
 import { starterThemes, type StarterTheme } from "../domain/starter-ideas";
@@ -42,7 +43,7 @@ export async function suggestStarterMeals(
       validate: (raw) => {
         let json: unknown;
         try {
-          json = JSON.parse(raw);
+          json = parseJSON(raw);
         } catch {
           throw new Error("invalidDraft");
         }

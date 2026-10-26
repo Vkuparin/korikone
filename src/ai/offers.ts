@@ -7,6 +7,7 @@ import {
   type RetailerOffer,
 } from "../domain/offers";
 import { InferenceError, type InferenceSession } from "./provider";
+import { parseJSON } from "./draft";
 import { invokeTaskOutput } from "./output";
 import { offerIdeasTask } from "./tasks";
 
@@ -91,7 +92,7 @@ export function validateOfferIdeas(
   facts: OfferIdeaProduct[],
 ): OfferIdea[] {
   try {
-    const output = offerIdeasWireSchema.parse(JSON.parse(raw));
+    const output = offerIdeasWireSchema.parse(parseJSON(raw));
     const allowlist = new Map(
       facts.map((p) => [`${p.offerId}:${p.productId}`, p]),
     );

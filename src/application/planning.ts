@@ -264,7 +264,7 @@ const sourceKey = (state: AppState) =>
     note: state.note,
     model: state.aiModel,
     resolverEnabled: state.resolverEnabled,
-    language: state.language,
+    // Not the display language: a FI/EN switch mid-run keeps the reply already paid for (B5.9).
     household: state.household,
     recipes: state.recipes,
     quantities: state.quantities,

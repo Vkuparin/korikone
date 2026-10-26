@@ -215,3 +215,10 @@ test("empty current offer facts start no inference request", async () => {
   );
   expect(provider.calls).toHaveLength(0);
 });
+
+test("B5.9: a fenced JSON reply is accepted like a plain one", () => {
+  const facts = offerIdeaFacts([personalOffer], now());
+  expect(
+    validateOfferIdeas("```json\n" + JSON.stringify(output) + "\n```", facts),
+  ).toEqual(validateOfferIdeas(JSON.stringify(output), facts));
+});

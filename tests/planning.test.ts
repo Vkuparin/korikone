@@ -365,3 +365,13 @@ test.each(["k-ruoka", "s-kaupat"] as const)(
     expect(tools.some((name) => /add|update|write/.test(name))).toBe(false);
   },
 );
+
+test("B5.9: switching FI/EN keeps a running plan; changing the note still makes it obsolete", () => {
+  const planning = setup();
+  planning.replace({ ...planning.state, language: "en" });
+  planning.lifecycle.invalidateFor(planning.state);
+  expect(planning.lifecycle.snapshot()!.phase).not.toBe("obsolete");
+  planning.replace({ ...planning.state, note: "Kermaa" });
+  planning.lifecycle.invalidateFor(planning.state);
+  expect(planning.lifecycle.snapshot()!.phase).toBe("obsolete");
+});

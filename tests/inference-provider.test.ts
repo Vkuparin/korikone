@@ -291,3 +291,18 @@ test("model discovery observes cancellation even if the adapter never returns", 
   controller.abort();
   await rejected;
 });
+
+test("B5.9: a model list that runs out of time is a timeout, a stop is a cancel", async () => {
+  const provider = new ScriptedInferenceProvider("fake", success);
+  provider.discoverModels = (signal: AbortSignal) =>
+    new Promise((_, reject) =>
+      signal.addEventListener("abort", () => reject(signal.reason)),
+    );
+  await expect(
+    discoverInferenceModels(provider, AbortSignal.timeout(5)),
+  ).rejects.toMatchObject({ code: "timeout" });
+  const controller = new AbortController();
+  const stopped = discoverInferenceModels(provider, controller.signal);
+  controller.abort();
+  await expect(stopped).rejects.toMatchObject({ code: "cancelled" });
+});

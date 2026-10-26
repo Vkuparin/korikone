@@ -124,3 +124,13 @@ test("service rotates suggestions without saving a list or reading a retailer an
   ).rejects.toThrow("draftStale");
   expect(service.starterIdeas).toEqual(second.starterIdeas);
 });
+
+test("B5.9: a fenced JSON reply is accepted without a repair request", async () => {
+  const { session, provider } = setup(
+    async () => "```json\n" + JSON.stringify({ names }) + "\n```",
+  );
+  expect(
+    await suggestStarterMeals(session, "weekday", initialState(), []),
+  ).toEqual(names);
+  expect(provider.calls).toHaveLength(1);
+});

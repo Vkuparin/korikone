@@ -489,3 +489,27 @@ test("text and native-shaped output validate to the same intent", () => {
       ),
     ).toThrow("invalidDraft");
 });
+
+test("B5.9: a reply over the operation and phrase limits keeps its first operations and names the rest", () => {
+  const state = editPlan();
+  const { known } = buildEditContext({ instruction: "x" }, state, now);
+  const names = Array.from({ length: 22 }, (_, i) => `Tuote ${i + 1}`);
+  const intent = validateEditIntent(
+    reply(
+      names.map((name) => ({
+        op: "setItem",
+        name,
+        quantity: { kind: "packs", count: 1 },
+      })),
+      { unsupported: [{ phrase: "x".repeat(300) }] },
+    ),
+    known,
+    state,
+  );
+  expect(intent.operations).toHaveLength(20);
+  expect(intent.unsupported.map((u) => u.phrase)).toEqual([
+    "x".repeat(200),
+    "Tuote 21",
+    "Tuote 22",
+  ]);
+});

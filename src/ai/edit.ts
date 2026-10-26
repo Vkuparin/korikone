@@ -508,6 +508,10 @@ export function validateEditIntent(
     ...dropped.map((phrase) => ({ phrase })),
   ].filter((u) => u.phrase.trim());
   if (conflict) throw invalid();
+  // A reply longer than the limits keeps its first operations; the rest are named as not done
+  // instead of costing a repair request (B5.9).
+  for (const extra of operations.splice(editLimits.operations))
+    unsupported.push({ phrase: editOperationLabel(extra, recipes) });
   if (
     loose.operations.length &&
     !operations.length &&
@@ -518,11 +522,35 @@ export function validateEditIntent(
   const intent = editIntentSchema.safeParse({
     version: EDIT_VERSION,
     operations,
-    ambiguities,
-    unsupported: unsupported.slice(0, editLimits.ambiguities),
+    ambiguities: ambiguities.slice(0, editLimits.ambiguities),
+    unsupported: unsupported
+      .map((u) => ({ phrase: u.phrase.trim().slice(0, 200) }))
+      .slice(0, editLimits.ambiguities),
   });
   if (!intent.success) throw invalid();
   return intent.data;
+}
+/** A short name for an operation the reply could not fit, shown as not done. */
+function editOperationLabel(
+  operation: EditOperation,
+  recipes: AppState["recipes"],
+): string {
+  if ("name" in operation && operation.name) return operation.name;
+  const replacement =
+    operation.op === "addMeal"
+      ? operation.recipe
+      : operation.op === "replaceMeal"
+        ? operation.replacement
+        : null;
+  if (replacement?.kind === "new") return replacement.recipe.name;
+  if (replacement?.kind === "saved")
+    return (
+      recipes.find((r) => r.id === replacement.recipeId)?.name ??
+      replacement.recipeId
+    );
+  if ("rowKey" in operation && operation.rowKey)
+    return operation.rowKey.split(":")[0];
+  return "mealId" in operation ? operation.mealId : operation.op;
 }
 const record = (value: unknown) =>
   value && typeof value === "object" && !Array.isArray(value)
