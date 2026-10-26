@@ -456,7 +456,13 @@ else
             : new InferenceSession(
                 provider,
                 models.find((m) => m.modelId === id)!,
-                { maxCalls, maxOutputCharacters: 100_000, timeoutMs: 180_000 },
+                {
+                  maxCalls,
+                  maxOutputCharacters: 100_000,
+                  timeoutMs: 180_000,
+                  // B5.12: an edit or recipe request with its repair ends within four minutes.
+                  budgetMs: 240_000,
+                },
                 signal
                   ? AbortSignal.any([controller.signal, signal])
                   : controller.signal,

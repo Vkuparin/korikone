@@ -40,6 +40,8 @@ export const planningLimits = Object.freeze({
   outputCharacters: 100_000,
   eventCharacters: 200_000,
   timeoutMs: 180_000,
+  /** The whole planning conversation, repairs included (B5.12). */
+  budgetMs: 240_000,
 });
 export const planningPhaseSchema = z.enum([
   "discovering",
@@ -533,6 +535,7 @@ export class PlanningRun {
         maxCalls: planningLimits.aiCalls,
         maxOutputCharacters: planningLimits.outputCharacters,
         timeoutMs: planningLimits.timeoutMs,
+        budgetMs: planningLimits.budgetMs,
       },
       this.signal,
     );

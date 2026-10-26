@@ -306,3 +306,74 @@ test("B5.9: a model list that runs out of time is a timeout, a stop is a cancel"
   controller.abort();
   await expect(stopped).rejects.toMatchObject({ code: "cancelled" });
 });
+
+test("B5.12: a slow refused reply and its repair cannot stretch an operation past its budget", async () => {
+  vi.useFakeTimers();
+  try {
+    // The first reply arrives after 170 s (and would be refused); the repair never answers.
+    let calls = 0;
+    const slow = new ScriptedInferenceProvider("fake", (_request, signal) =>
+      calls++ === 0
+        ? new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ text: "{broken", completion: "complete" }),
+              170_000,
+            ),
+          )
+        : new Promise((_, reject) =>
+            signal.addEventListener("abort", () =>
+              reject(new Error("aborted")),
+            ),
+          ),
+    );
+    const timeline = async (budgetMs?: number) => {
+      calls = 0;
+      const session = new InferenceSession(
+        slow,
+        slow.models[0],
+        {
+          maxCalls: 3,
+          maxOutputCharacters: 1000,
+          timeoutMs: 180_000,
+          ...(budgetMs ? { budgetMs } : {}),
+        },
+        new AbortController().signal,
+      );
+      const started = Date.now();
+      const first = session.invoke(task, "Synthetic note");
+      await vi.advanceTimersByTimeAsync(170_000);
+      await first;
+      const repair = session.invoke(task, "Synthetic note").catch((e) => e);
+      await vi.advanceTimersByTimeAsync(180_000);
+      expect(await repair).toMatchObject({ code: "timeout" });
+      return Date.now() - started;
+    };
+    // Today: 170 s plus a full 180 s repair before the fallback can run.
+    const unbounded = await timeline();
+    expect(unbounded).toBe(350_000);
+    // With the budget the repair gets only what is left of four minutes.
+    calls = 0;
+    const session = new InferenceSession(
+      slow,
+      slow.models[0],
+      {
+        maxCalls: 3,
+        maxOutputCharacters: 1000,
+        timeoutMs: 180_000,
+        budgetMs: 240_000,
+      },
+      new AbortController().signal,
+    );
+    const started = Date.now();
+    const first = session.invoke(task, "Synthetic note");
+    await vi.advanceTimersByTimeAsync(170_000);
+    await first;
+    const repair = session.invoke(task, "Synthetic note").catch((e) => e);
+    await vi.advanceTimersByTimeAsync(70_000);
+    expect(await repair).toMatchObject({ code: "timeout" });
+    expect(Date.now() - started).toBe(240_000);
+    expect(slow.signals[slow.signals.length - 1].aborted).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});

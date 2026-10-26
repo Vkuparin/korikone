@@ -2171,8 +2171,12 @@ export class Service {
     metrics: OperationCounters,
     reportStage = true,
     failures: unknown[] = [],
+    /** A phase deadline: once it passes, rows not yet read stay unsearched (B5.12). */
+    deadline?: AbortSignal,
   ): Promise<BasketLine> {
     try {
+      if (deadline?.aborted) throw new Error("searchDeadline");
+      const row = AbortSignal.timeout(coordinatorLimits.rowTimeoutMs);
       return await this.quoteRequirement(
         provider,
         context,
@@ -2180,7 +2184,7 @@ export class Service {
         requirement,
         metrics,
         reportStage,
-        AbortSignal.timeout(coordinatorLimits.rowTimeoutMs),
+        deadline ? AbortSignal.any([row, deadline]) : row,
       );
     } catch (error) {
       if (
@@ -2700,6 +2704,10 @@ export class Service {
             });
             if (fresh.length)
               this.onActivity?.({ stage: "searching", cancellable: true });
+            // The same catalogue deadline as planning: "add 8 dishes" cannot read for minutes.
+            const deadline = AbortSignal.timeout(
+              coordinatorLimits.searchTimeoutMs,
+            );
             const read = await mapConcurrent(fresh, (requirement) =>
               this.quoteRequirementOrLeave(
                 provider,
@@ -2708,6 +2716,8 @@ export class Service {
                 requirement,
                 metrics,
                 false,
+                [],
+                deadline,
               ),
             );
             const lines: BasketLine[] = wanted.map((requirement) => {

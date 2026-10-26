@@ -147,6 +147,11 @@ export type InferenceBounds = {
   maxCalls: number;
   maxOutputCharacters: number;
   timeoutMs: number;
+  /**
+   * The whole operation's time, across calls and repairs (B5.12). A call gets only what is left,
+   * and none starts once it is spent, so a refused reply cannot stretch a wait to minutes.
+   */
+  budgetMs?: number;
 };
 export type InferenceTaskBounds = Pick<
   InferenceBounds,
@@ -165,6 +170,7 @@ export class InferenceSession {
   private inFlight = false;
   private stopped = false;
   private readonly bounds: InferenceBounds;
+  private readonly startedAt: number;
   get callCount() {
     return this.calls;
   }
@@ -183,9 +189,11 @@ export class InferenceSession {
         maxCalls: z.number().int().min(1).max(100),
         maxOutputCharacters: z.number().int().min(1).max(1_000_000),
         timeoutMs: z.number().int().min(1).max(600_000),
+        budgetMs: z.number().int().min(1).max(1_800_000).optional(),
       })
       .parse(bounds);
     this.bounds = Object.freeze(validated);
+    this.startedAt = Date.now();
     for (const task of parsed.capabilities.tasks) Object.freeze(task);
     Object.freeze(parsed.capabilities.tasks);
     Object.freeze(parsed.capabilities.outputModes);
@@ -234,9 +242,15 @@ export class InferenceSession {
       this.bounds.maxOutputCharacters,
       requested?.maxOutputCharacters ?? this.bounds.maxOutputCharacters,
     );
+    const left =
+      this.bounds.budgetMs === undefined
+        ? Infinity
+        : this.bounds.budgetMs - (Date.now() - this.startedAt);
+    if (left <= 0) throw new InferenceError("timeout");
     const timeoutMs = Math.min(
       this.bounds.timeoutMs,
       requested?.timeoutMs ?? this.bounds.timeoutMs,
+      left,
     );
 
     this.calls++;
