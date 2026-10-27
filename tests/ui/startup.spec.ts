@@ -234,7 +234,10 @@ test("a database that cannot be opened ends the process with a startup error log
   const original = "this is not an SQLite database".repeat(200);
   await writeFile(join(env.KORIKONE_TEST_DATA, "korikone.sqlite"), original);
   const electronPath = (await import("electron")).default as unknown as string;
-  const child = spawn(electronPath, [".", "--no-sandbox"], { env, stdio: "ignore" });
+  const child = spawn(electronPath, [".", "--no-sandbox"], {
+    env,
+    stdio: "ignore",
+  });
   const code = await new Promise<number | null>((resolve, reject) => {
     const timer = setTimeout(() => {
       child.kill();

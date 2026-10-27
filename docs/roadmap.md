@@ -1,10 +1,12 @@
 # Korikone roadmap to 1.0.0
 
-Updated on 25 October 2026 after v0.11.2 publication. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
+Updated on 27 October 2026 after v0.11.3 publication. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
 
 ## Current release
 
-[v0.11.2](https://github.com/Vkuparin/korikone/releases/tag/v0.11.2) is the current pre-release: composer-to-cart reliability (B4.1–B4.5). Partial AI replies, slow or failed store reads and partly unclear edits now keep what is usable instead of failing the request ([verification](release-0.11.2.md)). Owner direction, 25 October 2026: something relevant in the list is always better than a complete failure after a long wait.
+[v0.11.3](https://github.com/Vkuparin/korikone/releases/tag/v0.11.3) is the current pre-release: the twelve review fixes B5.1–B5.12 from [the 0.12.0 task list](tasks/0.12.0.md#b5-review-fixes), including incremental re-transfer, a total time budget for plans and edits, atomic backup restore, visible startup failures and store-tab permission denial ([verification](release-0.11.3.md)). Live store sign-in under the new permission rule and live ChatGPT flows remain owner checks.
+
+[v0.11.2](https://github.com/Vkuparin/korikone/releases/tag/v0.11.2) was the previous pre-release: composer-to-cart reliability (B4.1–B4.5). Partial AI replies, slow or failed store reads and partly unclear edits now keep what is usable instead of failing the request ([verification](release-0.11.2.md)). Owner direction, 25 October 2026: something relevant in the list is always better than a complete failure after a long wait.
 
 [v0.11.1](https://github.com/Vkuparin/korikone/releases/tag/v0.11.1) was the previous pre-release: planning recovery, offer handoff, session retention, bounded pricing reads and one progress surface, completed as v0.12 fix cards ([verification](release-0.11.1.md)). [v0.11.0](https://github.com/Vkuparin/korikone/releases/tag/v0.11.0) is published as an unsigned Windows pre-release and integrated into main. All 19 Done cards are included: one-action multi-file receipt intake, optional grounded name enrichment, readable purchase memory and selected-store K-Ruoka non-food discovery with manual handoff. Automatic non-food basket writes remain unsupported. [Release verification](release-0.11.0.md) records the single canonical flow and short packaged intake smoke; real-receipt/model and live non-food catalogue acceptance remains separate.
 
