@@ -2,8 +2,10 @@ import { z } from "zod";
 
 export const UPDATE_KEY = "update-check";
 export const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// The release list, not `/releases/latest`: that endpoint skips pre-releases and answers 404
+// while every published Korikone release is a pre-release.
 const RELEASES_API =
-  "https://api.github.com/repos/Vkuparin/korikone/releases/latest";
+  "https://api.github.com/repos/Vkuparin/korikone/releases?per_page=20";
 const RELEASE_PAGE = "https://github.com/Vkuparin/korikone/releases/";
 
 export type Update = { version: string; url: string };
@@ -50,9 +52,20 @@ export interface UpdateStorage {
 }
 
 /**
+ * Whether an installation should hear about pre-releases. Before 1.0.0 every release is published
+ * as a GitHub pre-release, so a 0.x installation, or one that is itself a pre-release, is offered
+ * them. A stable 1.0.0 or later installation is offered stable releases only.
+ */
+export function acceptsPrereleases(current: string): boolean {
+  const version = parts(current);
+  return !!version && (version.n[0] === 0 || version.pre !== null);
+}
+
+/**
  * Asks GitHub Releases whether a newer version exists, at most once a day. Between checks the
  * saved answer is reused. A failed check is remembered as "no update" until the next day.
- * Nothing is downloaded; the result is only a version and the release page to open.
+ * The newest eligible release in the list wins; drafts and pages outside the project never
+ * count. Nothing is downloaded; the result is only a version and the release page to open.
  */
 export async function checkForUpdate(
   current: string,
@@ -67,17 +80,24 @@ export async function checkForUpdate(
       : null;
   let update: Update | null = null;
   try {
-    const release = releaseSchema.parse(await fetchJson(RELEASES_API));
-    if (
-      !release.draft &&
-      !release.prerelease &&
-      release.html_url.startsWith(RELEASE_PAGE) &&
-      isNewer(release.tag_name, current)
-    )
+    const reply = await fetchJson(RELEASES_API);
+    const prereleases = acceptsPrereleases(current);
+    for (const entry of Array.isArray(reply) ? reply : [reply]) {
+      const release = releaseSchema.safeParse(entry);
+      if (
+        !release.success ||
+        release.data.draft ||
+        (release.data.prerelease && !prereleases) ||
+        !release.data.html_url.startsWith(RELEASE_PAGE) ||
+        !isNewer(release.data.tag_name, current) ||
+        (update && !isNewer(release.data.tag_name, update.version))
+      )
+        continue;
       update = {
-        version: release.tag_name.replace(/^v/, ""),
-        url: release.html_url,
+        version: release.data.tag_name.replace(/^v/, ""),
+        url: release.data.html_url,
       };
+    }
   } catch {
     update = null;
   }
