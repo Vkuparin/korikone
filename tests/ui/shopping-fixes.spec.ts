@@ -66,6 +66,8 @@ for (const language of ["fi", "en"] as const) {
       await clear.focus();
       await page.keyboard.press("Enter");
       await expect(page.locator(".list-empty-note")).toBeVisible();
+      // One note: the way back replaces the first-use empty state (B6.6).
+      await expect(page.locator(".empty-list")).toHaveCount(0);
       await expect(clear).toBeDisabled();
       await expect(page.locator(".edit-outcome")).toContainText(
         tr("Lista tyhjennetty", "List cleared"),
@@ -96,6 +98,43 @@ for (const language of ["fi", "en"] as const) {
       expect(restored.state.meals).toEqual(before.state.meals);
       expect(restored.state.extras).toEqual(before.state.extras);
       await expect(clear).toBeEnabled();
+    } finally {
+      await app.close();
+    }
+  });
+
+  test(`an empty first list shows one empty state, and a one-item list reads in the singular in ${language} (B6.6)`, async () => {
+    const { app, page } = await start(language);
+    try {
+      const fill = (extras: unknown[]) =>
+        page.evaluate(async (extras) => {
+          const api = window.korikone;
+          const state = (await api.load()).value.state;
+          const saved = await api.save({
+            ...state,
+            meals: [],
+            extras,
+          } as never);
+          if (!saved.ok) throw new Error(saved.error);
+        }, extras);
+      await fill([]);
+      await page.reload();
+      await expect(page.locator(".empty-list")).toBeVisible();
+      await expect(page.locator(".list-empty-note")).toHaveCount(0);
+      await expect(page.locator(".shopping-panel")).not.toContainText(
+        tr("kumoa tyhjennys", "undo the clearing"),
+      );
+
+      await fill([{ id: "milk", name: "Maito", amount: 1000, unit: "ml" }]);
+      await page.reload();
+      const summary = page.locator(".transfer-summary");
+      await expect(summary).toContainText(
+        tr("1 tuote siirretään · 1 pakkaus", "1 product will be sent · 1 pack"),
+        { timeout: 15000 },
+      );
+      const transfer = page.locator(".transfer-button");
+      await expect(transfer).toContainText(tr("· 1 tuote", "· 1 product"));
+      await expect(transfer).not.toContainText(tr("tuotetta", "products"));
     } finally {
       await app.close();
     }

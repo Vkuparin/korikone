@@ -157,7 +157,7 @@ for (const language of ["fi", "en"] as const) {
         name: tr("Kuittien tuonti", "Receipt import"),
       });
       await expect(surface).toContainText(
-        tr("1 kuittia tallennettu", "1 receipt saved"),
+        tr("1 kuitti tallennettu", "1 receipt saved"),
       );
       await expect(surface).toContainText(
         tr("1 oli jo tuotu", "1 already imported"),
@@ -257,7 +257,7 @@ for (const language of ["fi", "en"] as const) {
       await stub(app, [files[0]]);
       await open();
       await expect(surface()).toContainText(
-        tr("1 kuittia tallennettu", "1 receipt saved"),
+        tr("1 kuitti tallennettu", "1 receipt saved"),
       );
       await expect(
         button(tr("Salli jatkossakin", "Enable for future imports")),
@@ -291,7 +291,7 @@ for (const language of ["fi", "en"] as const) {
       await stub(app, [files[2]]);
       await open();
       await expect(surface()).toContainText(
-        tr("1 kuittia tallennettu", "1 receipt saved"),
+        tr("1 kuitti tallennettu", "1 receipt saved"),
       );
       await expect(
         button(tr("Vain tämä tuonti", "Just this import")),

@@ -26,7 +26,8 @@ export function AdvancedSettings({
 }: SettingsSectionProps) {
   return (
     <section className="card form">
-      <h3>{t("aiBehavior")}</h3>
+      {/* Since B5.1 this card holds no AI setting; the heading names what it holds (B6.6). */}
+      <h3>{t("transferAndChoices")}</h3>
       <label>
         <input
           type="checkbox"

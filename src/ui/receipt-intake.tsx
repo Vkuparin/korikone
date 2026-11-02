@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import type { IntakeProgress } from "../application/receipt-intake";
 import type { Snapshot } from "../application/service";
+import { count } from "./i18n";
 
 type Outcome = {
   ok: boolean;
@@ -232,7 +233,12 @@ export function ReceiptIntakeSurface({
         )
       : [
           saved > 0 &&
-            `${saved} ${tr("kuittia tallennettu", saved === 1 ? "receipt saved" : "receipts saved")}`,
+            count(
+              saved,
+              fi,
+              ["kuitti tallennettu", "kuittia tallennettu"],
+              ["receipt saved", "receipts saved"],
+            ),
           counts.duplicate > 0 &&
             `${counts.duplicate} ${tr("oli jo tuotu", "already imported")}`,
           counts.unsupported > 0 &&
@@ -335,8 +341,8 @@ export function ReceiptIntakeSurface({
                   )}
                   {intake.names.issues > 0
                     ? tr(
-                        `; ${intake.names.issues} riviä vaatii tarkistuksen (hinta tai määrä puuttuu).`,
-                        `; ${intake.names.issues} rows need a look (amount or quantity missing).`,
+                        `; ${count(intake.names.issues, true, ["rivi", "riviä"], ["", ""])} vaatii tarkistuksen (hinta tai määrä puuttuu).`,
+                        `; ${count(intake.names.issues, false, ["", ""], ["row needs", "rows need"])} a look (price or quantity missing).`,
                       )
                     : "."}
                 </p>
@@ -365,8 +371,8 @@ export function ReceiptIntakeSurface({
             <div className="receipt-invitation">
               <p>
                 {tr(
-                  `Annetaanko ${provider} nimetä ${invitation.rows} riviä luettavammin? Vain puhdistetut rivinimet ja varmennetut määrät lähetetään, ei kauppaa, päiväystä, hintoja tai tunnisteita.`,
-                  `Let ${provider} write ${invitation.rows} rows more readably? Only sanitized row names and verified quantities are sent: no store, date, prices or identifiers.`,
+                  `Annetaanko ${provider} nimetä ${count(invitation.rows, true, ["rivin", "riviä"], ["", ""])} luettavammin? Vain puhdistetut rivinimet ja varmennetut määrät lähetetään, ei kauppaa, päiväystä, hintoja tai tunnisteita.`,
+                  `Let ${provider} write ${count(invitation.rows, false, ["", ""], ["row", "rows"])} more readably? Only sanitized row names and verified quantities are sent: no store, date, prices or identifiers.`,
                 )}
               </p>
               <div className="actions">

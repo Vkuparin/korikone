@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { OfferIdea } from "../ai/offers";
+import { count } from "./i18n";
 
 export function OfferIdeas({
   snapshot,
@@ -153,7 +154,7 @@ export function OfferIdeas({
                         ? `${tr("Voimassa asti", "Valid until")} ${p.validUntil}`
                         : conditions["validity-unknown"]}
                       {p.remainingRedemptions !== null
-                        ? ` · ${p.remainingRedemptions} ${tr("käyttökertaa jäljellä", "redemptions remaining")}`
+                        ? ` · ${count(p.remainingRedemptions, fi, ["käyttökerta jäljellä", "käyttökertaa jäljellä"], ["redemption remaining", "redemptions remaining"])}`
                         : ""}
                     </p>
                     {!!p.conditions.length && (

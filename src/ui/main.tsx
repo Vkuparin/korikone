@@ -22,7 +22,7 @@ import {
 } from "../domain/model";
 import { ShoppingWorkspace, type ComposerProgress } from "./shopping";
 import { planningActivityPending } from "./planning-status";
-import { en, fi, unitLabel, type Key } from "./i18n";
+import { count, en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
 import { Setup } from "./setup";
 import { ShoppingContext } from "./context";
@@ -1054,7 +1054,12 @@ function App() {
                       <article className="card" key={r.id}>
                         <h2>{r.name}</h2>
                         <p>
-                          {r.servings} {t("servings").toLowerCase()}
+                          {count(
+                            r.servings,
+                            state.language === "fi",
+                            ["annos", "annosta"],
+                            ["serving", "servings"],
+                          )}
                         </p>
                         <ul>
                           {r.ingredients.map((i) => (

@@ -101,9 +101,12 @@ export function ModelSelector({
         </button>
       )}
       {settings && (!connected || error || missing || !models.length) && (
-        <button className="text" onClick={settings}>
-          {tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI")}
-        </button>
+        <>
+          {/* A space after the note before it, so the two never run together (B6.6). */}{" "}
+          <button className="text" onClick={settings}>
+            {tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI")}
+          </button>
+        </>
       )}
     </div>
   );

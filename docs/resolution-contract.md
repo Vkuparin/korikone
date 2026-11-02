@@ -4,7 +4,7 @@
 
 ## Saved resolver setting (F15.11)
 
-`AppState.resolverEnabled` is a strict boolean defaulting to true, including old profiles. Settings > Advanced > AI behavior saves it through the existing revision-bound `save` IPC. SQLite state and validated backups retain it. Changing it keeps the saved quote but clears its review through ordinary save rules. It creates no inference or retailer write.
+`AppState.resolverEnabled` is a strict boolean defaulting to true, including old profiles. Settings > Advanced > AI behavior saved it through the existing revision-bound `save` IPC until [B5.1](tasks/0.12.0.md) removed that switch; the card is now headed "Transfer and product choices" ([B6.6](tasks/0.12.0.md#b6-polish)). SQLite state and validated backups retain it. Changing it keeps the saved quote but clears its review through ordinary save rules. It creates no inference or retailer write.
 
 `Service.planShopping(input, session)` supplies `run.sourceState().resolverEnabled` to the coordinator; callers cannot override it with a third argument. `PlanningRun` includes it in the source signature. A changed setting obsoletes in-flight work before queued main saves and through subsequent source checks; late results cannot overwrite that choice. A new operation uses the newly saved value.
 

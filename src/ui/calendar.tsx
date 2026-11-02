@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { count } from "./i18n";
 import type { AppState } from "../domain/model";
 import {
   calendarDays,
@@ -108,7 +109,12 @@ export function MealCalendarView({
       >
         <strong>{recipe.name}</strong>
         <span>
-          {meal.servings} {tr("annosta", "portions")}
+          {count(
+            meal.servings,
+            fi,
+            ["annos", "annosta"],
+            ["portion", "portions"],
+          )}
         </span>
       </button>
     );

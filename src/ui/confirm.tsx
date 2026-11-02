@@ -5,7 +5,7 @@ import { candidateSuitability, purchasable } from "../domain/matching";
 import { compareTransfers, hasChanges } from "../domain/changes";
 import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
-import { en, fi, unitLabel, type Key } from "./i18n";
+import { count as counted, en, fi, unitLabel, type Key } from "./i18n";
 import { priceMetrics } from "../domain/price-ranking";
 
 const chainName = (review: Review) =>
@@ -267,8 +267,14 @@ export function ConfirmPanel({
               })
             }
           >
-            {tr("Vahvista", "Confirm")}: {count} {tr("tuotetta", "products")} →{" "}
-            {chainName(review)} ·{" "}
+            {tr("Vahvista", "Confirm")}:{" "}
+            {counted(
+              count,
+              language === "fi",
+              ["tuote", "tuotetta"],
+              ["product", "products"],
+            )}{" "}
+            → {chainName(review)} ·{" "}
             {review.quotes.some((line) => line.approximate) &&
               tr("noin ", "about ")}
             {money(review.total)}

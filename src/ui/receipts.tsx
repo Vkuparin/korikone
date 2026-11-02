@@ -3,6 +3,7 @@ import type { ReceiptImportCoordinator } from "../application/receipt-import";
 import type { Snapshot } from "../application/service";
 import { categorySchema } from "../domain/categories";
 import { preferenceCategoryLabel } from "./category-preferences";
+import { count } from "./i18n";
 
 export type ReceiptsView = Awaited<
   ReturnType<ReceiptImportCoordinator["view"]>
@@ -144,7 +145,7 @@ export function ReceiptsPanel({
               imported.outcome === "updated"
                 ? tr("Kuitti päivitettiin", "Receipt updated")
                 : tr("Kuitti tuotiin", "Receipt imported")
-            }: ${imported.lines} ${tr("riviä", "rows")}${
+            }: ${count(imported.lines, fi, ["rivi", "riviä"], ["row", "rows"])}${
               imported.unreadableLines
                 ? `, ${imported.unreadableLines} ${tr("lukukelvotonta", "unreadable")}`
                 : ""

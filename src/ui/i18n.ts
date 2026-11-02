@@ -7,6 +7,20 @@ export function packCount(count: number, language: string): string {
     return `${count} ${count === 1 ? "pakkaus" : "pakkausta"}`;
   return `${count} ${count === 1 ? "pack" : "packs"}`;
 }
+/**
+ * A number with its noun phrase. Finnish takes the nominative singular after exactly one and the
+ * partitive after any other number ("1 tuote", "2 tuotetta", "21 tuotetta"); English takes the
+ * singular after one ("1 product", "2 products"). Each pair is [after one, after any other] (B6.6).
+ */
+export function count(
+  n: number,
+  fi: boolean,
+  finnish: [string, string],
+  english: [string, string],
+): string {
+  const [one, other] = fi ? finnish : english;
+  return `${n} ${n === 1 ? one : other}`;
+}
 export const en = {
   settingsGeneral: "General",
   settingsHousehold: "Household",
@@ -14,7 +28,7 @@ export const en = {
   settingsAI: "ChatGPT and AI",
   settingsData: "Data",
   settingsAdvanced: "Advanced",
-  aiBehavior: "AI behavior",
+  transferAndChoices: "Transfer and product choices",
   settingsAbout: "About",
   settingsCategory: "Settings category",
   householdUnapplied: "Household changes have not been saved.",
@@ -329,7 +343,7 @@ export const fi: Record<Key, string> = {
   settingsAI: "ChatGPT ja tekoäly",
   settingsData: "Tiedot",
   settingsAdvanced: "Lisäasetukset",
-  aiBehavior: "Tekoälyn toiminta",
+  transferAndChoices: "Siirto ja tuotevalinnat",
   settingsAbout: "Tietoja",
   settingsCategory: "Asetusryhmä",
   householdUnapplied: "Kotitalouden muutoksia ei ole tallennettu.",

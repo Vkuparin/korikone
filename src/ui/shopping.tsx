@@ -37,7 +37,7 @@ import { editTargets, mealTargetId, rowTargetId } from "../domain/edits";
 import { RowFind, type FindResult } from "./row-find";
 import { MerchandiseRow } from "./merchandise";
 import type { Unit } from "../domain/model";
-import { unitLabel } from "./i18n";
+import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
@@ -1875,7 +1875,12 @@ export function ShoppingWorkspace({
                           −
                         </button>
                         <span>
-                          {meal.servings} {tr("annosta", "portions")}
+                          {count(
+                            meal.servings,
+                            fi,
+                            ["annos", "annosta"],
+                            ["portion", "portions"],
+                          )}
                         </span>
                         <button
                           aria-label={tr("Lisää annoksia", "More portions")}
@@ -2097,7 +2102,9 @@ export function ShoppingWorkspace({
               </button>
             </div>
           )}
-          {!all.length && (
+          {/* Right after clearing, one note with the way back; a list that was never filled shows
+              only the empty state below (B6.6). */}
+          {!all.length && snapshot.edit?.status === "cleared" && (
             <p className="muted list-empty-note" role="status">
               {tr(
                 "Lista on tyhjä. Lisää tuote, kirjoita uusi lista tai kumoa tyhjennys. Vakiotuotteet palaavat, kun päivität hinnat tai teet uuden listan.",
@@ -2184,7 +2191,7 @@ export function ShoppingWorkspace({
               }
             >
               <option value="price">
-                {tr("Edullisin sopiva pakkausmäärä", "Lowest total pack cost")}
+                {tr("Edullisin, merkistä riippumatta", "Cheapest, any brand")}
               </option>
               <option value="storeBrand">
                 {tr("Suosi kaupan merkkejä", "Prefer store brands")}
@@ -2224,7 +2231,7 @@ export function ShoppingWorkspace({
               />
             </div>
           )}
-          {!all.length && (
+          {!all.length && snapshot.edit?.status !== "cleared" && (
             <div className="empty-list">
               <span aria-hidden="true">☷</span>
               <h3>{tr("Lista täyttyy tähän", "Your list will appear here")}</h3>
@@ -2766,16 +2773,27 @@ export function ShoppingWorkspace({
             <div className="list-footer">
               {state.skipped.length > 0 && (
                 <small>
-                  {state.skipped.length}{" "}
-                  {tr("tuotetta kotona, ei mukana", "items at home, excluded")}
+                  {count(
+                    state.skipped.length,
+                    fi,
+                    ["tuote kotona, ei mukana", "tuotetta kotona, ei mukana"],
+                    ["item at home, excluded", "items at home, excluded"],
+                  )}
                 </small>
               )}
               {missing.length > 0 && (
                 <p className="warning">
-                  {missing.length}{" "}
-                  {tr(
-                    "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
-                    "items need a price or suitable pack. They are excluded from the estimate.",
+                  {count(
+                    missing.length,
+                    fi,
+                    [
+                      "tuotteelta puuttuu hinta tai sopiva pakkaus. Se ei sisälly arvioon.",
+                      "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
+                    ],
+                    [
+                      "item needs a price or suitable pack. It is excluded from the estimate.",
+                      "items need a price or suitable pack. They are excluded from the estimate.",
+                    ],
                   )}
                 </p>
               )}
@@ -3007,16 +3025,22 @@ export function ShoppingWorkspace({
               >
                 <p>
                   <strong>
-                    {transferable}{" "}
-                    {tr("tuotetta siirretään", "products will be sent")}
+                    {count(
+                      transferable,
+                      fi,
+                      ["tuote siirretään", "tuotetta siirretään"],
+                      ["product will be sent", "products will be sent"],
+                    )}
                   </strong>
                   {" · "}
-                  {snapshot.basket
-                    .filter(transferableLine)
-                    .reduce((n, line) => n + line.packs, 0)}{" "}
-                  {tr("pakkausta", "packs")}
+                  {packCount(
+                    snapshot.basket
+                      .filter(transferableLine)
+                      .reduce((n, line) => n + line.packs, 0),
+                    state.language,
+                  )}
                   {missing.length > 0 &&
-                    ` · ${missing.length} ${tr("riviä jää pois (ei tuotetta)", "rows are left out (no product)")}`}
+                    ` · ${count(missing.length, fi, ["rivi jää pois (ei tuotetta)", "riviä jää pois (ei tuotetta)"], ["row is left out (no product)", "rows are left out (no product)"])}`}
                 </p>
                 {missing.length > 0 && (
                   <p className="muted">
@@ -3094,7 +3118,13 @@ export function ShoppingWorkspace({
                 )}
                 <span>
                   {" "}
-                  · {transferable} {tr("tuotetta", "products")}
+                  ·{" "}
+                  {count(
+                    transferable,
+                    fi,
+                    ["tuote", "tuotetta"],
+                    ["product", "products"],
+                  )}
                 </span>
                 {prices.exact > 0 && (
                   <span className="transfer-total">

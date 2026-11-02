@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
+import { count } from "./i18n";
 
 type Call = (method: string, input?: unknown) => Promise<boolean>;
 
@@ -90,7 +91,7 @@ export function RepeatSummary({ snapshot }: { snapshot: Snapshot }) {
           )}
         </strong>
         {" · "}
-        {repeat.rows} {tr("riviä", "rows")}
+        {count(repeat.rows, fi, ["rivi", "riviä"], ["row", "rows"])}
       </p>
       <p className="muted">
         {tr(
@@ -126,8 +127,8 @@ export function RepeatSummary({ snapshot }: { snapshot: Snapshot }) {
       {repeat.missingRecipes.length > 0 && (
         <p>
           {tr(
-            `${repeat.missingRecipes.length} ateriaa jäi pois, koska reseptiä ei enää ole.`,
-            `${repeat.missingRecipes.length} meals were left out because their recipe no longer exists.`,
+            `${count(repeat.missingRecipes.length, true, ["ateria jäi pois, koska sen reseptiä", "ateriaa jäi pois, koska niiden reseptiä"], ["", ""])} ei enää ole.`,
+            `${count(repeat.missingRecipes.length, false, ["", ""], ["meal was left out because its recipe", "meals were left out because their recipe"])} no longer exists.`,
           )}
         </p>
       )}
