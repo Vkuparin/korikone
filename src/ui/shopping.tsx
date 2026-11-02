@@ -356,6 +356,7 @@ export function ShoppingWorkspace({
   visible = true,
   onProgress,
   operationProgress,
+  historyActions,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -376,6 +377,8 @@ export function ShoppingWorkspace({
   visible?: boolean;
   onProgress?: (progress: ComposerProgress | null) => void;
   operationProgress?: OperationProgress | null;
+  /** Shown under the History heading, such as the receipt import (B6.7). */
+  historyActions?: React.ReactNode;
 }) {
   const state = snapshot.state;
   const all = requirements(state, new Date(), true);
@@ -1171,6 +1174,7 @@ export function ShoppingWorkspace({
     return (
       <section>
         <h1>{tr("Historia", "History")}</h1>
+        {historyActions}
         {insights && (
           <SpendingChart
             insights={insights}
@@ -2969,6 +2973,7 @@ export function ShoppingWorkspace({
                 {tr("Viimeksi haetut hinnat", "Last quoted prices")} ·{" "}
                 {new Date(snapshot.quotedAt).toLocaleString(
                   fi ? "fi-FI" : "en-FI",
+                  { dateStyle: "short", timeStyle: "short" },
                 )}
                 {/* The total is on the line above; the budget sits beside the price time. */}
                 {state.household.budget > 0 &&

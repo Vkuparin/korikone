@@ -79,9 +79,31 @@ for (const language of ["fi", "en"] as const) {
       );
       // Twelve weeks, each with a row in the text table.
       await expect(chart.locator(".spending-table tbody tr")).toHaveCount(12);
-      // Budget label from the household's weekly budget.
+      // Budget label from the household's weekly budget, whole inside the chart (B6.7).
       await expect(chart.locator("svg")).toContainText(
         tr("Viikkobudjetti", "Weekly budget"),
+      );
+      expect(
+        await chart.locator("svg[role=img]").evaluate((svg) => {
+          const label = [...svg.querySelectorAll("text")].find((t) =>
+            /Viikkobudjetti|Weekly budget/.test(t.textContent ?? ""),
+          )!;
+          return (
+            label.getBoundingClientRect().top >= svg.getBoundingClientRect().top
+          );
+        }),
+      ).toBe(true);
+      // The receipt import sits under the page heading (B6.7).
+      const title = page.getByRole("heading", {
+        name: tr("Historia", "History"),
+        level: 1,
+      });
+      const importButton = page.getByRole("button", {
+        name: tr("Tuo kuitteja", "Import receipts"),
+        exact: true,
+      });
+      expect((await importButton.boundingBox())!.y).toBeGreaterThanOrEqual(
+        (await title.boundingBox())!.y + (await title.boundingBox())!.height,
       );
       // This week holds today's receipt with its printed total and breakdown.
       const current = chart.locator(".spending-table tbody tr").last();

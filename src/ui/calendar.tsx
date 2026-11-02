@@ -31,6 +31,14 @@ export function MealCalendarView({
       day: "numeric",
       month: "numeric",
     });
+  // A day heading names the day ("Sunnuntai 1.11."); the date label above reads within a
+  // sentence ("sunnuntaina 1.11.") (B6.7).
+  const dayHeading = (date: string) => {
+    if (!fi) return dateLabel(date);
+    const at = new Date(`${date}T12:00:00`);
+    const weekday = at.toLocaleDateString("fi-FI", { weekday: "long" });
+    return `${weekday[0].toUpperCase()}${weekday.slice(1)} ${at.toLocaleDateString("fi-FI", { day: "numeric", month: "numeric" })}`;
+  };
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -191,7 +199,7 @@ export function MealCalendarView({
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => drop(event, date)}
           >
-            <h2>{dateLabel(date)}</h2>
+            <h2>{dayHeading(date)}</h2>
             <label>
               <input
                 type="checkbox"

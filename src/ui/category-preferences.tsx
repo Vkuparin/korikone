@@ -301,13 +301,16 @@ export function CategoryPreferences(props: Props) {
         {c.title}
       </h3>
       <p>{c.help}</p>
-      <button
-        className="secondary"
-        disabled={props.busy}
-        onClick={() => void props.call("exportData")}
-      >
-        {c.backup}
-      </button>
+      {/* With nothing remembered there is nothing to back up before a change (B6.7). */}
+      {rules.length > 0 && (
+        <button
+          className="secondary"
+          disabled={props.busy}
+          onClick={() => void props.call("exportData")}
+        >
+          {c.backup}
+        </button>
+      )}
       {!rules.length ? (
         <p>{c.empty}</p>
       ) : (

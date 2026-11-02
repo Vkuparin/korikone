@@ -28,7 +28,7 @@ export function AdvancedSettings({
     <section className="card form">
       {/* Since B5.1 this card holds no AI setting; the heading names what it holds (B6.6). */}
       <h3>{t("transferAndChoices")}</h3>
-      <label>
+      <label className="check">
         <input
           type="checkbox"
           checked={snapshot.state.reviewBeforeTransfer}
@@ -47,7 +47,7 @@ export function AdvancedSettings({
           : "When on, the transfer stops for a review before anything is added to the store. When off, the list is sent with one click; a review is still asked for when something does not match. The setting changes no list and makes no request."}
       </p>
       <CategoryPreferences snapshot={snapshot} busy={busy} call={call} />
-      <label>
+      <label className="check">
         <input
           type="checkbox"
           checked={snapshot.developmentMode}

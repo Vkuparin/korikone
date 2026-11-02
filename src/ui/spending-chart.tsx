@@ -52,9 +52,11 @@ export function SpendingChart({
   const height = 220;
   const left = 8;
   const bottom = 28;
-  const plot = height - bottom - 8;
+  // Room above the tallest value for the budget label, which sits above its line (B6.7).
+  const head = 22;
+  const plot = height - bottom - head;
   const slot = (width - left * 2) / spending.weeks.length;
-  const y = (cents: number) => 8 + plot - (cents / top) * plot;
+  const y = (cents: number) => head + plot - (cents / top) * plot;
   const hasAny =
     spending.weeks.some((w) => w.purchases || w.transferEstimate.transfers) ||
     spending.undated.purchases > 0;
@@ -123,7 +125,7 @@ export function SpendingChart({
                       x={x}
                       y={actualTop}
                       width={barWidth}
-                      height={8 + plot - actualTop}
+                      height={head + plot - actualTop}
                       fill={
                         w.coverage === "partial"
                           ? "url(#spending-partial)"
@@ -135,7 +137,7 @@ export function SpendingChart({
                   {w.coverage === "partial" && w.actual === 0 && (
                     <text
                       x={x + barWidth / 2}
-                      y={8 + plot - 4}
+                      y={head + plot - 4}
                       textAnchor="middle"
                       fontSize="12"
                       fill="var(--kk-warning)"

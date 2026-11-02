@@ -887,23 +887,6 @@ function App() {
                 }))
               }
             />
-            {page === "history" && (
-              <div className="receipt-import-bar">
-                <button
-                  className="secondary"
-                  type="button"
-                  disabled={receiptIntake.running}
-                  onClick={() => void receiptIntake.pick()}
-                >
-                  {state.language === "fi" ? "Tuo kuitteja" : "Import receipts"}
-                </button>
-                <small className="muted">
-                  {state.language === "fi"
-                    ? "Valitse yksi tai useampi PDF-, TXT- tai CSV-tiedosto tai pudota ne ikkunaan."
-                    : "Choose one or more PDF, TXT or CSV files, or drop them on the window."}
-                </small>
-              </div>
-            )}
             <div
               hidden={
                 page !== "week" && page !== "weekPlan" && page !== "history"
@@ -916,6 +899,25 @@ function App() {
                 }
                 onProgress={setComposerProgress}
                 operationProgress={activeProgress}
+                historyActions={
+                  <div className="receipt-import-bar">
+                    <button
+                      className="secondary"
+                      type="button"
+                      disabled={receiptIntake.running}
+                      onClick={() => void receiptIntake.pick()}
+                    >
+                      {state.language === "fi"
+                        ? "Tuo kuitteja"
+                        : "Import receipts"}
+                    </button>
+                    <small className="muted">
+                      {state.language === "fi"
+                        ? "Valitse yksi tai useampi PDF-, TXT- tai CSV-tiedosto tai pudota ne ikkunaan."
+                        : "Choose one or more PDF, TXT or CSV files, or drop them on the window."}
+                    </small>
+                  </div>
+                }
                 snapshot={snapshot}
                 busy={busy || !!activeProgress}
                 call={call}
@@ -1099,7 +1101,9 @@ function App() {
                       <small>
                         {t("lastPurchased")}:{" "}
                         {s.lastPurchased
-                          ? new Date(s.lastPurchased).toLocaleDateString()
+                          ? new Date(s.lastPurchased).toLocaleDateString(
+                              state.language === "fi" ? "fi-FI" : "en-FI",
+                            )
                           : t("noDate")}
                       </small>
                     </div>
