@@ -15,11 +15,19 @@ import {
   clipboard,
   net,
   nativeTheme,
+  screen,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { basename, extname, join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { Database } from "../persistence/database";
+import {
+  MIN_SIZE,
+  WINDOW_STATE_KEY,
+  initialBounds,
+  readWindowState,
+  type WindowState,
+} from "./window-state";
 import { createService } from "../application/development";
 import { FixtureAI, aiScenarios } from "../ai/fixtures";
 import { offerSourceScenarios } from "../ai/scenarios";
@@ -295,12 +303,17 @@ else
         dark: { color: "#131416", symbolColor: "#eceef0" },
       };
       const initialBackground = nativePalette[initialAppearance.resolved].color;
+      // The last size and place come back when that screen is still connected (B6.3).
+      const opening = initialBounds(
+        readWindowState(await db.get(WINDOW_STATE_KEY).catch(() => null)),
+        screen.getAllDisplays().map((display) => display.workArea),
+        screen.getPrimaryDisplay().workArea,
+      );
       const window = new BrowserWindow({
-        show: process.env.KORIKONE_TEST_HIDDEN !== "1",
-        width: 1280,
-        height: 900,
-        minWidth: 680,
-        minHeight: 600,
+        show: false,
+        ...opening.bounds,
+        minWidth: MIN_SIZE.width,
+        minHeight: MIN_SIZE.height,
         backgroundColor: initialBackground,
         titleBarStyle: "hidden",
         titleBarOverlay: {
@@ -315,6 +328,45 @@ else
           nodeIntegration: false,
           sandbox: true,
         },
+      });
+      if (process.env.KORIKONE_TEST_HIDDEN !== "1") {
+        if (opening.maximized) window.maximize();
+        window.show();
+      }
+      // Remember the size, place and maximized state shortly after each change and on close.
+      let windowStateTimer: ReturnType<typeof setTimeout> | undefined;
+      let windowStateSaved: Promise<unknown> = Promise.resolve();
+      const saveWindowState = () => {
+        clearTimeout(windowStateTimer);
+        if (
+          window.isDestroyed() ||
+          window.isMinimized() ||
+          window.isFullScreen()
+        )
+          return;
+        const value: WindowState = {
+          ...window.getNormalBounds(),
+          maximized: window.isMaximized(),
+        };
+        windowStateSaved = windowStateSaved
+          .then(() => db.set(WINDOW_STATE_KEY, value))
+          .catch(() => {});
+      };
+      const saveWindowStateSoon = () => {
+        clearTimeout(windowStateTimer);
+        windowStateTimer = setTimeout(saveWindowState, 500);
+      };
+      window.on("resize", saveWindowStateSoon);
+      window.on("move", saveWindowStateSoon);
+      window.on("maximize", saveWindowStateSoon);
+      window.on("unmaximize", saveWindowStateSoon);
+      window.on("close", saveWindowState);
+      // Launching Korikone again brings this window forward instead of doing nothing.
+      app.on("second-instance", () => {
+        if (window.isDestroyed()) return;
+        if (window.isMinimized()) window.restore();
+        if (process.env.KORIKONE_TEST_HIDDEN !== "1") window.show();
+        window.focus();
       });
       let publishedAppearance = initialAppearance;
       const publishAppearance = () => {
@@ -1582,6 +1634,8 @@ else
         if (closing) return;
         event.preventDefault();
         closing = true;
+        // A quit that does not start by closing the window still keeps its last size (B6.3).
+        saveWindowState();
         service.cancelOfferIdeas();
         inferenceController?.abort();
         receiptController?.abort();
@@ -1596,6 +1650,7 @@ else
               worker.close(),
               sWorker.close(),
               stores.flush(),
+              windowStateSaved,
             ]),
           )
           .finally(() => stores.close())
