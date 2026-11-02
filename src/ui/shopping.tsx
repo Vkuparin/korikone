@@ -500,7 +500,6 @@ export function ShoppingWorkspace({
   const [editFailed, setEditFailed] = useState(false);
   const [editCancelled, setEditCancelled] = useState(false);
   const [confirmingNewList, setConfirmingNewList] = useState(false);
-  const [confirmingClear, setConfirmingClear] = useState(false);
   const [transferFailed, setTransferFailed] = useState(false);
   // The refused-draft cause comes from the last planning event: a failed call returns no snapshot.
   const failureCause =
@@ -1014,6 +1013,20 @@ export function ShoppingWorkspace({
   // The unsent replacement draft survives a detour to the current list.
   const savedDraft = useRef("");
   const newListButton = useRef<HTMLButtonElement>(null);
+  // Clear list opens the same New list confirmation (B6.11); focus goes back where it came from.
+  const clearListButton = useRef<HTMLButtonElement>(null);
+  const confirmOpener = useRef<HTMLButtonElement | null>(null);
+  const openNewList = (opener: HTMLButtonElement | null) => {
+    confirmOpener.current = opener;
+    setResetFailed(false);
+    setConfirmingNewList(true);
+  };
+  const closeNewList = () => {
+    setConfirmingNewList(false);
+    requestAnimationFrame(() =>
+      (confirmOpener.current ?? newListButton.current)?.focus(),
+    );
+  };
   const [resetFailed, setResetFailed] = useState(false);
   /**
    * The confirmed New list: a durable local reset of the whole workspace (`resetList`), then
@@ -1054,7 +1067,6 @@ export function ShoppingWorkspace({
     setEditFailed(false);
     setTransferFailed(false);
     setQrOpen(false);
-    setConfirmingClear(false);
     setLivePlanning(null);
     setShowSavedDuringPlanning(false);
     requestAnimationFrame(() => noteElement.current?.focus());
@@ -1068,21 +1080,6 @@ export function ShoppingWorkspace({
     leaveNewList();
     requestAnimationFrame(() => noteElement.current?.focus());
   };
-  /** Unsent composer text that clearing the list would discard. */
-  const unsentText = composingEdit
-    ? instruction.trim().length > 0
-    : note.trim().length > 0 && note !== state.note;
-  async function clearList() {
-    setConfirmingClear(false);
-    const applied = await call("clearList", { revision: state.revision });
-    if (!applied) return;
-    changeNote("");
-    setInstruction("");
-    setFocusTarget(null);
-    setNewList(false);
-    savedDraft.current = "";
-    requestAnimationFrame(() => noteElement.current?.focus());
-  }
   /** Opens the composer on one row or meal. Nothing is sent until the shopper presses Update. */
   const editWithInstruction = (targetId: string) => {
     if (!composingEdit) leaveNewList();
@@ -1356,10 +1353,7 @@ export function ShoppingWorkspace({
                 className="secondary"
                 type="button"
                 disabled={busy || working || editWorking || transferring}
-                onClick={() => {
-                  setResetFailed(false);
-                  setConfirmingNewList(true);
-                }}
+                onClick={() => openNewList(newListButton.current)}
               >
                 {tr("Uusi lista", "New list")}
               </button>
@@ -1383,10 +1377,7 @@ export function ShoppingWorkspace({
               className="secondary"
               type="button"
               disabled={busy || working || editWorking || transferring}
-              onClick={() => {
-                setResetFailed(false);
-                setConfirmingNewList(true);
-              }}
+              onClick={() => openNewList(newListButton.current)}
             >
               {tr("Uusi lista", "New list")}
             </button>
@@ -1408,8 +1399,7 @@ export function ShoppingWorkspace({
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
-                setConfirmingNewList(false);
-                requestAnimationFrame(() => newListButton.current?.focus());
+                closeNewList();
               }
             }}
           >
@@ -1438,10 +1428,7 @@ export function ShoppingWorkspace({
               className="secondary"
               type="button"
               autoFocus
-              onClick={() => {
-                setConfirmingNewList(false);
-                requestAnimationFrame(() => newListButton.current?.focus());
-              }}
+              onClick={closeNewList}
             >
               {tr("Peruuta", "Cancel")}
             </button>
@@ -2058,11 +2045,16 @@ export function ShoppingWorkspace({
               <span className="muted">· {all.length}</span>
             </h2>
             <button
+              ref={clearListButton}
               className="secondary clear-list"
-              disabled={busy || working || (!all.length && !state.note.trim())}
-              onClick={() =>
-                unsentText ? setConfirmingClear(true) : void clearList()
+              disabled={
+                busy ||
+                working ||
+                editWorking ||
+                transferring ||
+                (!all.length && !state.note.trim())
               }
+              onClick={() => openNewList(clearListButton.current)}
             >
               {tr("Tyhjennä lista", "Clear list")}
             </button>
@@ -2085,27 +2077,6 @@ export function ShoppingWorkspace({
               </button>
             </details>
           </div>
-          {confirmingClear && (
-            <div className="composer-confirm" role="alertdialog">
-              <p>
-                {tr(
-                  "Kirjoittamasi keskeneräinen teksti hylätään, kun lista tyhjennetään. Tyhjennys voidaan kumota, mutta teksti ei palaa.",
-                  "The unsent text you wrote is discarded when the list is cleared. Clearing can be undone, but the text will not come back.",
-                )}
-              </p>
-              <button type="button" onClick={() => void clearList()}>
-                {tr("Tyhjennä lista", "Clear list")}
-              </button>
-              <button
-                className="secondary"
-                type="button"
-                autoFocus
-                onClick={() => setConfirmingClear(false)}
-              >
-                {tr("Säilytä lista", "Keep the list")}
-              </button>
-            </div>
-          )}
           {/* Right after clearing, one note with the way back; a list that was never filled shows
               only the empty state below (B6.6). */}
           {!all.length && snapshot.edit?.status === "cleared" && (

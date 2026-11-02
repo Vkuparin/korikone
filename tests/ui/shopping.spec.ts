@@ -252,6 +252,10 @@ test("shopping workspace adds recipes, marks home items, removes rows, schedules
     await page
       .getByRole("button", { name: "Tyhjennä lista", exact: true })
       .click();
+    // Clear list asks once, as New list does (B6.11).
+    await page
+      .getByRole("button", { name: "Aloita uusi lista", exact: true })
+      .click();
     await expect(page.locator(".grocery-row")).toHaveCount(0);
     await expect(page.locator(".interpretation")).toHaveCount(0);
     await page.screenshot({

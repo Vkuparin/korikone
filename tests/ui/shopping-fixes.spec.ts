@@ -53,7 +53,7 @@ for (const language of ["fi", "en"] as const) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
 
-  test(`Clear list empties the list locally, explains it and undoes in ${language}`, async () => {
+  test(`Clear list opens the same confirmed New list, which saves the week to history in ${language} (B6.11)`, async () => {
     const { app, page } = await start(language);
     try {
       const load = () =>
@@ -62,42 +62,43 @@ for (const language of ["fi", "en"] as const) {
         name: tr("Tyhjennä lista", "Clear list"),
         exact: true,
       });
+      const confirm = page.getByRole("alertdialog");
       const before = await load();
+      // Escape leaves everything as it was and returns to the button that asked.
       await clear.focus();
       await page.keyboard.press("Enter");
-      await expect(page.locator(".list-empty-note")).toBeVisible();
-      // One note: the way back replaces the first-use empty state (B6.6).
-      await expect(page.locator(".empty-list")).toHaveCount(0);
-      await expect(clear).toBeDisabled();
-      await expect(page.locator(".edit-outcome")).toContainText(
-        tr("Lista tyhjennetty", "List cleared"),
+      await expect(confirm).toContainText(
+        tr("Tätä ei voi kumota.", "This cannot be undone."),
       );
+      await page.keyboard.press("Escape");
+      await expect(confirm).toHaveCount(0);
+      await expect(clear).toBeFocused();
+      await expect(page.locator(".grocery-row").first()).toBeVisible();
+      expect((await load()).state.revision).toBe(before.state.revision);
+
+      await clear.click();
+      await confirm
+        .getByRole("button", {
+          name: tr("Aloita uusi lista", "Start new list"),
+          exact: true,
+        })
+        .click();
+      await expect(confirm).toHaveCount(0);
+      await expect(page.locator(".grocery-row")).toHaveCount(0);
+      await expect(page.locator(".empty-list")).toBeVisible();
+      await expect(clear).toBeDisabled();
+      // A New list has no Undo; the week is kept in history instead.
+      await expect(
+        page.getByRole("button", { name: tr("Kumoa", "Undo"), exact: true }),
+      ).toHaveCount(0);
       const cleared = await load();
       expect(cleared.state.meals).toEqual([]);
       expect(cleared.state.extras).toEqual([]);
+      expect(cleared.state.history[0].meals).toEqual(before.state.meals);
       expect([
         cleared.developmentRequests,
         cleared.developmentStoreWrites,
       ]).toEqual([0, 0]);
-      // The empty list stays empty across navigation.
-      await page
-        .getByRole("button", { name: tr("Reseptit", "Recipes"), exact: true })
-        .click();
-      await page
-        .getByRole("button", {
-          name: tr("Ostoslista", "Shopping list"),
-          exact: true,
-        })
-        .click();
-      await expect(page.locator(".grocery-row")).toHaveCount(0);
-      await page
-        .getByRole("button", { name: tr("Kumoa", "Undo"), exact: true })
-        .click();
-      await expect.poll(async () => (await load()).state.meals.length).toBe(2);
-      const restored = await load();
-      expect(restored.state.meals).toEqual(before.state.meals);
-      expect(restored.state.extras).toEqual(before.state.extras);
-      await expect(clear).toBeEnabled();
     } finally {
       await app.close();
     }
@@ -150,9 +151,13 @@ for (const language of ["fi", "en"] as const) {
           exact: true,
         })
         .click();
-      await expect(page.getByRole("alertdialog")).toBeVisible();
+      // The New list confirmation names the unsent text it would discard (B6.11).
+      await expect(page.getByRole("alertdialog")).toContainText(
+        tr("keskeneräisen tekstin", "any text you have not sent"),
+      );
       await page
-        .getByRole("button", { name: tr("Säilytä lista", "Keep the list") })
+        .getByRole("alertdialog")
+        .getByRole("button", { name: tr("Peruuta", "Cancel"), exact: true })
         .click();
       await expect(page.locator(".grocery-row").first()).toBeVisible();
       await expect(composer(page)).toHaveValue(
