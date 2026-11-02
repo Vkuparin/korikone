@@ -166,6 +166,24 @@ for (const language of ["fi", "en"] as const) {
       await expect(surface).toContainText(tr("1 epäonnistui", "1 failed"));
       await expect(surface).toContainText("rikki.pdf");
       await expect(surface.getByRole("status").first()).toBeVisible();
+      // The result follows to the list but stays clear of its panel and transfer button (B6.5).
+      await nav(page, tr("Ostoslista", "Shopping list")).click();
+      const transfer = page.locator(".transfer-button");
+      await expect(transfer).toBeVisible();
+      expect(
+        await transfer.evaluate((button) => {
+          const r = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            r.left + r.width / 2,
+            r.top + r.height / 2,
+          );
+          return !!hit && button.contains(hit);
+        }),
+      ).toBe(true);
+      const panel = (await page.locator(".shopping-panel").boundingBox())!;
+      const box = (await surface.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(panel.x);
+      await nav(page, tr("Historia", "History")).click();
       // The retry names only the failed file and reopens the picker.
       await stub(app, [bad]);
       await surface

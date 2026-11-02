@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { IntakeProgress } from "../application/receipt-intake";
 import type { Snapshot } from "../application/service";
 
@@ -243,6 +249,26 @@ export function ReceiptIntakeSurface({
   const provider =
     invitation?.providerId === "chatgpt" ? "ChatGPT" : invitation?.providerId;
   const enrichment = result?.enrichment;
+  // The page keeps room below its last content for the box, so nothing stays under it (B6.5).
+  const box = useRef<HTMLElement>(null);
+  const shown = !!(progress || result || error);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!shown || !element) return;
+    const root = document.documentElement;
+    const reserve = () =>
+      root.style.setProperty(
+        "--receipt-surface-space",
+        `${Math.ceil(element.getBoundingClientRect().height)}px`,
+      );
+    reserve();
+    const observer = new ResizeObserver(reserve);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--receipt-surface-space");
+    };
+  }, [shown]);
   return (
     <>
       {dragging && (
@@ -251,8 +277,9 @@ export function ReceiptIntakeSurface({
           <span>PDF, TXT, CSV</span>
         </div>
       )}
-      {(progress || result || error) && (
+      {shown && (
         <section
+          ref={box}
           className="receipt-intake-surface"
           aria-label={tr("Kuittien tuonti", "Receipt import")}
         >

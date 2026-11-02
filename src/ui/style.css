@@ -2191,9 +2191,9 @@ nav button {
   place-content: center;
   gap: 4px;
   text-align: center;
-  border: 3px dashed var(--accent, currentColor);
+  border: 3px dashed var(--kk-action);
   border-radius: 12px;
-  background: color-mix(in srgb, Canvas 88%, transparent);
+  background: color-mix(in srgb, var(--kk-surface) 88%, transparent);
   pointer-events: none;
 }
 .receipt-intake-surface {
@@ -2203,11 +2203,37 @@ nav button {
   z-index: 40;
   max-width: min(420px, calc(100vw - 32px));
   padding: 12px 14px;
-  border: 1px solid var(--border, currentColor);
+  border: 1px solid var(--kk-control-border);
   border-radius: 10px;
-  background: Canvas;
-  color: CanvasText;
-  box-shadow: 0 4px 18px rgb(0 0 0 / 0.2);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  box-shadow: 0 2px 8px var(--kk-menu-shadow);
+}
+/* In the app the box sits at the bottom left of the page column, clear of the list panel and its
+   transfer button, and the page gets room below its last content to scroll clear of it (B6.5).
+   The offsets follow the navigation rail, the main inset and the list column at each width. */
+body:has(.app-main) .receipt-intake-surface {
+  left: 202px;
+  right: auto;
+  max-width: 420px;
+}
+body:has(.receipt-intake-surface) .app-main {
+  padding-bottom: max(45px, calc(var(--receipt-surface-space, 0px) + 32px));
+}
+@media (max-width: 1150px) {
+  body:has(.app-main) .receipt-intake-surface {
+    left: 184px;
+    max-width: min(420px, calc(100vw - 576px));
+  }
+  body:has(.receipt-intake-surface) .app-main {
+    padding-bottom: max(18px, calc(var(--receipt-surface-space, 0px) + 32px));
+  }
+}
+@media (max-width: 900px) {
+  body:has(.app-main) .receipt-intake-surface {
+    left: 180px;
+    max-width: min(420px, calc(100vw - 196px));
+  }
 }
 .receipt-intake-surface p {
   margin: 0 0 6px;
