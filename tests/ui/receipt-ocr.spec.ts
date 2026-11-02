@@ -46,7 +46,7 @@ test("offline scanned receipts show OCR review provenance and persist through re
       );
       await page
         .getByRole("button", {
-          name: "Tuo kuitti (PDF, teksti tai CSV)",
+          name: "Tuo kuitteja (PDF, teksti tai CSV)",
           exact: true,
         })
         .click();
@@ -64,7 +64,9 @@ test("offline scanned receipts show OCR review provenance and persist through re
     await pick("ocr-k-clean.pdf");
     await expect(cards()).toHaveCount(1);
     await expect(
-      page.getByRole("status").filter({ hasText: "Tämä kuitti on jo tuotu" }),
+      page
+        .locator(".receipt-intake-summary")
+        .filter({ hasText: "Kaikki kuitit oli jo tuotu" }),
     ).toBeVisible();
     await pick("ocr-s-uncertain.pdf");
     await expect(cards()).toHaveCount(2);

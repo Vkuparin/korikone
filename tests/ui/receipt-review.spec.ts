@@ -41,7 +41,8 @@ for (const language of ["fi", "en"] as const) {
       "utf8",
     );
     await writeFile(files.k, fixtureText(fixture("k-weighed")), "utf8");
-    await writeFile(files.broken, "not a pdf");
+    // A PDF header with a broken body, so the reader itself fails (B6.10).
+    await writeFile(files.broken, "%PDF-1.4\nnot a pdf");
     const app = await electron.launch({ args: ["."], env });
     try {
       const page = await app.firstWindow();
@@ -65,8 +66,8 @@ for (const language of ["fi", "en"] as const) {
       await settingsCategory(page, "data", tr("Tiedot", "Data"));
       const importButton = page.getByRole("button", {
         name: tr(
-          "Tuo kuitti (PDF, teksti tai CSV)",
-          "Import receipt (PDF, text or CSV)",
+          "Tuo kuitteja (PDF, teksti tai CSV)",
+          "Import receipts (PDF, text or CSV)",
         ),
         exact: true,
       });
@@ -83,11 +84,11 @@ for (const language of ["fi", "en"] as const) {
 
       // Zero-model import: the summary, the printed balance and no request of any kind.
       await pick(files.basic);
-      await expect(
-        page
-          .getByRole("status")
-          .filter({ hasText: tr("Kuitti tuotiin", "Receipt imported") }),
-      ).toBeVisible();
+      // Settings uses the several-files import and its summary box (B6.10).
+      const intake = page.locator(".receipt-intake-summary");
+      await expect(intake).toContainText(
+        tr("1 kuitti tallennettu", "1 receipt saved"),
+      );
       await expect(cards).toHaveCount(1);
       await expect(cards.first().locator(":scope > summary")).toContainText(
         tr("Summa täsmää", "Total matches"),
@@ -97,19 +98,19 @@ for (const language of ["fi", "en"] as const) {
       );
       // The same trip as a PDF is a duplicate and adds nothing.
       await pick(files.basicPdf);
-      await expect(
-        page.getByText(
-          tr(
-            "Tämä kuitti on jo tuotu. Mitään ei lisätty.",
-            "This receipt was already imported. Nothing was added.",
-          ),
+      await expect(intake).toContainText(
+        tr(
+          "Kaikki kuitit oli jo tuotu. Mitään ei lisätty.",
+          "Every receipt was already imported. Nothing was added.",
         ),
-      ).toBeVisible();
+      );
       await expect(cards).toHaveCount(1);
 
       // A broken file fails visibly and leaves the list as it was.
       await pick(files.broken);
-      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(intake).toContainText(
+        tr("Kuitin lukeminen epäonnistui", "The receipt could not be read"),
+      );
       await expect(cards).toHaveCount(1);
 
       // A missing price is a factual issue: the card stays collapsed, says how many rows need a

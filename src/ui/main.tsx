@@ -541,20 +541,6 @@ function App() {
   );
   // The store tab stays loaded after leaving it, and a sign-in may be waiting there.
   const storeCue = (storeOpen && storePage) || waiting;
-  const settingsProps: SettingsSectionProps = {
-    snapshot,
-    busy,
-    call,
-    save,
-    t,
-    storeOpen: storeCue && page !== "store",
-    returnToStore: () => setPage("store"),
-    changeLanguage,
-    editStaples: () => setPage("staples"),
-    appVersion,
-    aiRequestLimit,
-    developmentLocked,
-  };
   // Receipts from the picker or a drop. They never go through the busy state, so the shopping
   // composer, drafts and navigation stay usable while files are read.
   // The store site is a native view over the window: a floating progress box would sit under it,
@@ -574,6 +560,23 @@ function App() {
         },
       })),
   });
+  const settingsProps: SettingsSectionProps = {
+    snapshot,
+    busy,
+    call,
+    save,
+    t,
+    storeOpen: storeCue && page !== "store",
+    returnToStore: () => setPage("store"),
+    changeLanguage,
+    editStaples: () => setPage("staples"),
+    appVersion,
+    aiRequestLimit,
+    developmentLocked,
+    // Settings imports receipts the same way as History (B6.10).
+    importReceipts: (keepOriginal) => void receiptIntake.pick(keepOriginal),
+    receiptImportRunning: receiptIntake.running,
+  };
   // Reading the saved list from this computer: no request, search or transfer is running.
   if (!loaded)
     return (
@@ -908,7 +911,7 @@ function App() {
                       className="secondary"
                       type="button"
                       disabled={receiptIntake.running}
-                      onClick={() => void receiptIntake.pick()}
+                      onClick={() => void receiptIntake.pick(false)}
                     >
                       {state.language === "fi"
                         ? "Tuo kuitteja"

@@ -423,7 +423,7 @@ test("PDF receipt import reads locally, an unrecognised layout saves nothing and
     }, path);
     await page
       .getByRole("button", {
-        name: "Tuo kuitti (PDF, teksti tai CSV)",
+        name: "Tuo kuitteja (PDF, teksti tai CSV)",
         exact: true,
       })
       .click();
@@ -439,14 +439,16 @@ test("PDF receipt import reads locally, an unrecognised layout saves nothing and
     await expect(page.getByLabel("Kuittien ostosrivit")).toHaveValue(
       "Unsaved receipt lines",
     );
-    await writeFile(path, "broken PDF");
+    // A PDF header with a broken body: the intake lets it through and the reader fails.
+    await writeFile(path, "%PDF-1.7\nbroken PDF");
     await page
       .getByRole("button", {
-        name: "Tuo kuitti (PDF, teksti tai CSV)",
+        name: "Tuo kuitteja (PDF, teksti tai CSV)",
         exact: true,
       })
       .click();
-    await expect(page.getByRole("alert")).toContainText(
+    // Settings uses the several-files import; one failed file still gets its reason (B6.10).
+    await expect(page.locator(".receipt-intake-surface")).toContainText(
       "Kuitin lukeminen epäonnistui",
     );
     await expect(page.getByLabel("Kuittien ostosrivit")).toHaveValue(

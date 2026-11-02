@@ -247,6 +247,8 @@ export function DataSettings({
   call,
   save,
   t,
+  importReceipts,
+  receiptImportRunning,
 }: SettingsSectionProps) {
   const state = snapshot.state;
   const fi = state.language === "fi";
@@ -265,6 +267,8 @@ export function DataSettings({
           busy={busy}
           call={call}
           language={state.language}
+          importReceipts={importReceipts}
+          importing={receiptImportRunning}
         />
         <PurchaseMemory snapshot={snapshot} busy={busy} call={call} />
         <p>

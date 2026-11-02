@@ -30,6 +30,8 @@ async function render(
     appVersion: "0.0.0",
     aiRequestLimit: false,
     developmentLocked: false,
+    importReceipts: () => {},
+    receiptImportRunning: false,
   };
   return {
     stores: renderToStaticMarkup(createElement(StoresSettings, props)),

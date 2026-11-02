@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import type { IntakeProgress } from "../application/receipt-intake";
 import type { Snapshot } from "../application/service";
-import { count } from "./i18n";
+import { count, en, fi as finnish } from "./i18n";
 
 type Outcome = {
   ok: boolean;
@@ -134,21 +134,27 @@ export function useReceiptIntake({
     };
   }, [suppressed]);
 
-  const pick = useCallback(async () => {
-    if (running.current) return;
-    running.current = true;
-    setError("");
-    try {
-      accept(
-        (await window.korikone.importReceipts({
-          keepOriginal: false,
-        })) as Outcome,
-      );
-    } finally {
-      running.current = false;
-      setProgress(null);
-    }
-  }, [accept]);
+  // Whether the last pick kept the source text; a retry of failed files keeps the same choice.
+  const keep = useRef(false);
+  const pick = useCallback(
+    async (keepOriginal?: boolean) => {
+      if (running.current) return;
+      running.current = true;
+      if (keepOriginal !== undefined) keep.current = keepOriginal;
+      setError("");
+      try {
+        accept(
+          (await window.korikone.importReceipts({
+            keepOriginal: keep.current,
+          })) as Outcome,
+        );
+      } finally {
+        running.current = false;
+        setProgress(null);
+      }
+    },
+    [accept],
+  );
   const cancel = useCallback(async () => {
     const id = progress?.operationId ?? snapshot.receiptIntakeRunning;
     if (id) await window.korikone.cancelReceiptIntake({ operationId: id });
@@ -219,6 +225,25 @@ export function ReceiptIntakeSurface({
     (f) => f.outcome === "failed" || f.outcome === "cancelled",
   );
   const unsupported = result?.files.filter((f) => f.outcome === "unsupported");
+  // One picked file that was not saved gets its reason, as the single-file import gave (B6.10).
+  const single =
+    result?.files.length === 1 &&
+    (result.files[0].outcome === "unsupported" ||
+      result.files[0].outcome === "failed")
+      ? result.files[0].code
+      : null;
+  const reason = !single
+    ? null
+    : single === "receiptUnsupported"
+      ? tr(
+          "Tiedostoa ei tunnistettu kuitiksi. Mitään ei tallennettu.",
+          "The file was not recognised as a receipt. Nothing was saved.",
+        )
+      : single === "receiptNoText" ||
+          single === "receiptUnreadable" ||
+          single === "receiptTooLarge"
+        ? (fi ? finnish : en)[single]
+        : null;
   const saved = (counts?.added ?? 0) + (counts?.updated ?? 0);
   const duplicateOnly =
     !!counts &&
@@ -321,6 +346,7 @@ export function ReceiptIntakeSurface({
           {result && !progress && (
             <div role="status" className="receipt-intake-summary">
               <p>{summary}</p>
+              {reason && <p className="receipt-intake-reason">{reason}</p>}
               {!!unsupported?.length && (
                 <p className="muted">
                   {tr("Ei tuettu", "Not supported")}:{" "}

@@ -70,8 +70,8 @@ for (const language of ["fi", "en"] as const) {
       await page
         .getByRole("button", {
           name: tr(
-            "Tuo kuitti (PDF, teksti tai CSV)",
-            "Import receipt (PDF, text or CSV)",
+            "Tuo kuitteja (PDF, teksti tai CSV)",
+            "Import receipts (PDF, text or CSV)",
           ),
           exact: true,
         })

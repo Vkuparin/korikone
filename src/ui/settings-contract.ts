@@ -47,4 +47,7 @@ export type SettingsSectionProps = {
   appVersion: string;
   aiRequestLimit: boolean;
   developmentLocked: boolean;
+  /** Opens the several-files receipt import that History uses (B6.10). */
+  importReceipts: (keepOriginal: boolean) => void;
+  receiptImportRunning: boolean;
 };

@@ -53,7 +53,7 @@ test("a PDF import and an edited receipt text each give a clear result and survi
       dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] });
     });
     await section
-      .getByRole("button", { name: "Tuo kuitti (PDF, teksti tai CSV)" })
+      .getByRole("button", { name: "Tuo kuitteja (PDF, teksti tai CSV)" })
       .click();
     await expect(text).toHaveValue("Oma muistiinpano");
     await expect(
@@ -68,11 +68,12 @@ test("a PDF import and an edited receipt text each give a clear result and survi
       });
     }, pdf);
     await section
-      .getByRole("button", { name: "Tuo kuitti (PDF, teksti tai CSV)" })
+      .getByRole("button", { name: "Tuo kuitteja (PDF, teksti tai CSV)" })
       .click();
-    await expect(section.locator(".receipt-summary")).toContainText(
-      "summa täsmää",
-    );
+    // Settings uses the several-files import (B6.10); the saved receipt shows its balance.
+    await expect(
+      section.locator(".receipt-card").first().locator(":scope > summary"),
+    ).toContainText("Summa täsmää");
     await expect(text).toHaveValue("Oma muistiinpano");
 
     // Saving the edited text says so only once it is stored.

@@ -28,11 +28,16 @@ export function ReceiptsPanel({
   busy,
   call,
   language,
+  importReceipts,
+  importing,
 }: {
   snapshot: Snapshot;
   busy: boolean;
   call: Call;
   language: string;
+  /** The several-files import that History and drops use, so both places behave alike (B6.10). */
+  importReceipts: (keepOriginal: boolean) => void;
+  importing: boolean;
 }) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -48,7 +53,12 @@ export function ReceiptsPanel({
   // snapshot's own import summary or revision does.
   useEffect(() => {
     void refresh();
-  }, [refresh, snapshot.purchaseImport, snapshot.receiptEnrichment]);
+  }, [
+    refresh,
+    snapshot.purchaseImport,
+    snapshot.receiptEnrichment,
+    snapshot.receiptIntake,
+  ]);
   const act = async (method: string, input?: unknown) => {
     const ok = await call(method, input);
     await refresh();
@@ -159,12 +169,12 @@ export function ReceiptsPanel({
     <section className="receipts-panel" aria-label={tr("Kuitit", "Receipts")}>
       <div className="actions">
         <button
-          disabled={busy}
-          onClick={() => void act("importPurchaseReceipt", { keepOriginal })}
+          disabled={busy || importing}
+          onClick={() => importReceipts(keepOriginal)}
         >
           {tr(
-            "Tuo kuitti (PDF, teksti tai CSV)",
-            "Import receipt (PDF, text or CSV)",
+            "Tuo kuitteja (PDF, teksti tai CSV)",
+            "Import receipts (PDF, text or CSV)",
           )}
         </button>
         <label className="check">
@@ -181,8 +191,8 @@ export function ReceiptsPanel({
       </div>
       <p className="muted">
         {tr(
-          "Kuitti luetaan ja tarkistetaan paikallisesti: rivit, määrät, summat ja alennukset. Mitään ei lähetetä ja ostoslistaasi ei muuteta.",
-          "The receipt is read and checked on this device: rows, quantities, totals and discounts. Nothing is sent and your shopping list is not changed.",
+          "Valitse yksi tai useampi tiedosto tai pudota ne ikkunaan, kuten Historiassa. Kuitit luetaan ja tarkistetaan paikallisesti: rivit, määrät, summat ja alennukset. Ostoslistaasi ei muuteta.",
+          "Choose one or more files or drop them on the window, as in History. Receipts are read and checked on this device: rows, quantities, totals and discounts. Your shopping list is not changed.",
         )}
       </p>
       {busy && (
