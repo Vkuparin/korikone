@@ -227,6 +227,12 @@ for (const language of ["fi", "en"] as const)
             ),
           })
           .click();
+        // Measure once the cancel has landed: for a few milliseconds the progress box still sits
+        // over the bottom of the page, and a measurement in that moment reports it covering the
+        // transfer button (seen in either order on the same layout, B6.2).
+        await expect(
+          page.locator(".operation-fallback:not(.operation-finished)"),
+        ).toHaveCount(0);
         await measure("composer-cancelled");
         await composer(page).fill("");
 

@@ -2474,7 +2474,7 @@ export function ShoppingWorkspace({
                               : tr("ei vielä merkitty", "not recorded")}
                           </small>
                         )}
-                        <small>
+                        <small className="row-source">
                           {r.sources
                             .map((s) =>
                               s === "staple"
@@ -2489,14 +2489,6 @@ export function ShoppingWorkspace({
                         <small className="row-amount">
                           {r.amount} {unitLabel(r.unit, state.language)}
                         </small>
-                        <button
-                          className="text edit-with-instruction"
-                          aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${r.name}`}
-                          disabled={busy || working || editWorking}
-                          onClick={() => editWithInstruction(rowTargetId(key))}
-                        >
-                          {tr("Muokkaa ohjeella", "Edit with instruction")}
-                        </button>
                         {!home && !line?.product && (
                           <small className="warning">
                             {tr("Tuote puuttuu", "Needs a product")}
@@ -2551,46 +2543,72 @@ export function ShoppingWorkspace({
                           />
                         )}
                       </div>
-                      <div className="quantity-control">
+                      {/* One line under the name: amount, then the row's text actions. */}
+                      <div className="row-actions">
+                        <div className="quantity-control">
+                          <button
+                            aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
+                            disabled={busy || r.amount <= step}
+                            onClick={() =>
+                              void save({
+                                ...state,
+                                quantities: {
+                                  ...state.quantities,
+                                  [key]: Math.max(1, r.amount - step),
+                                },
+                              })
+                            }
+                          >
+                            −
+                          </button>
+                          <span>{count}</span>
+                          <small>
+                            {line?.product && !line.approximate
+                              ? tr(
+                                  count === 1 ? "pakkaus" : "pakkausta",
+                                  count === 1 ? "pack" : "packs",
+                                )
+                              : unitLabel(r.unit, state.language)}
+                          </small>
+                          <button
+                            aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
+                            disabled={busy}
+                            onClick={() =>
+                              void save({
+                                ...state,
+                                quantities: {
+                                  ...state.quantities,
+                                  [key]: r.amount + step,
+                                },
+                              })
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
                         <button
-                          aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
-                          disabled={busy || r.amount <= step}
-                          onClick={() =>
-                            void save({
-                              ...state,
-                              quantities: {
-                                ...state.quantities,
-                                [key]: Math.max(1, r.amount - step),
-                              },
-                            })
-                          }
+                          className="text edit-with-instruction"
+                          aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${r.name}`}
+                          disabled={busy || working || editWorking}
+                          onClick={() => editWithInstruction(rowTargetId(key))}
                         >
-                          −
+                          {tr("Muokkaa ohjeella", "Edit with instruction")}
                         </button>
-                        <span>{count}</span>
-                        <small>
-                          {line?.product && !line.approximate
-                            ? tr(
-                                count === 1 ? "pakkaus" : "pakkausta",
-                                count === 1 ? "pack" : "packs",
-                              )
-                            : unitLabel(r.unit, state.language)}
-                        </small>
-                        <button
-                          aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
-                          disabled={busy}
-                          onClick={() =>
-                            void save({
-                              ...state,
-                              quantities: {
-                                ...state.quantities,
-                                [key]: r.amount + step,
-                              },
-                            })
-                          }
-                        >
-                          +
-                        </button>
+                        {line && !home && (
+                          <RowCorrection
+                            snapshot={snapshot}
+                            line={line}
+                            busy={busy}
+                            correct={async (input) => {
+                              const applied = await call("correctRow", input);
+                              if (!applied)
+                                await call("load", undefined, {
+                                  preserveError: true,
+                                });
+                              return applied;
+                            }}
+                          />
+                        )}
                       </div>
                       <strong className="row-price">
                         {home
@@ -2706,21 +2724,6 @@ export function ShoppingWorkspace({
                                 )
                                 ?.focus(),
                             );
-                          }}
-                        />
-                      )}
-                      {line && !home && (
-                        <RowCorrection
-                          snapshot={snapshot}
-                          line={line}
-                          busy={busy}
-                          correct={async (input) => {
-                            const applied = await call("correctRow", input);
-                            if (!applied)
-                              await call("load", undefined, {
-                                preserveError: true,
-                              });
-                            return applied;
                           }}
                         />
                       )}
@@ -2937,6 +2940,10 @@ export function ShoppingWorkspace({
                 {new Date(snapshot.quotedAt).toLocaleString(
                   fi ? "fi-FI" : "en-FI",
                 )}
+                {/* The total is on the line above; the budget sits beside the price time. */}
+                {state.household.budget > 0 &&
+                  (prices.exact > 0 || estimated.length > 0) &&
+                  ` · ${tr("budjetti", "budget")} ${money(state.household.budget)}`}
               </p>
             ) : (
               rows.length > 0 && (
@@ -3006,13 +3013,6 @@ export function ShoppingWorkspace({
                       .map((r) => r.name)
                       .join(", ")}
                     {missing.length > 6 ? "…" : ""}
-                  </p>
-                )}
-                {(prices.exact > 0 || estimated.length > 0) && (
-                  <p className="muted">
-                    {tr("Arvio", "Estimate")} {money(total)}
-                    {state.household.budget > 0 &&
-                      ` · ${tr("budjetti", "budget")} ${money(state.household.budget)}`}
                   </p>
                 )}
                 {state.household.budget > 0 &&

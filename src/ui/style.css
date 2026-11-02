@@ -1079,6 +1079,11 @@ body:has(.app-main) .demo {
   margin: -4px -6px 0;
   scroll-padding: 8px;
 }
+/* B6.2: a long transfer result scrolls inside the footer instead of squeezing the rows away. */
+.shopping-panel:not([data-flow="true"]) .shopping-total {
+  max-height: 42vh;
+  overflow-y: auto;
+}
 .shopping-panel[data-flow="true"] {
   position: static;
   max-height: none;
@@ -1117,11 +1122,18 @@ body:has(.app-main) .demo {
 }
 .product-preference {
   font-size: 14px;
-  margin: 13px 0;
+  margin: 10px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
 }
 .product-preference select {
   font-size: 14px;
   padding: 5px;
+  flex: 1 1 180px;
+  min-width: 0;
+  margin-top: 0;
 }
 .grocery-category h3 {
   font-size: 14px;
@@ -1143,7 +1155,8 @@ body:has(.app-main) .demo {
   box-shadow: 0 0 0 5px var(--kk-action-soft);
 }
 .grocery-description {
-  grid-column: 2 / 4;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -1166,9 +1179,37 @@ body:has(.app-main) .demo {
   font-size: 14px;
   margin: 0 4px;
 }
+/* B6.2: the price shares the first line with the name; the amount and the row's text actions
+   share one line under it, so a row takes about half the height it did. */
 .grocery-row .row-price {
-  grid-column: 3 / 5;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.grocery-row .row-actions {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  min-width: 0;
+}
+.row-actions .row-correction {
+  display: contents;
+}
+.row-actions .correction-form {
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+.row-actions .row-correction > .text {
+  font-size: 14px;
+  min-height: 32px;
+  padding: 4px 0;
+}
+.row-price-badges:empty {
+  display: none;
 }
 .row-price-badges {
   grid-column: 2 / 5;
@@ -1190,7 +1231,15 @@ body:has(.app-main) .demo {
 .grocery-description small.row-amount {
   color: var(--kk-text);
   font-variant-numeric: tabular-nums;
-  margin-top: 8px;
+}
+/* Dish or source and the needed amount on one line: "Tomaattipasta · 400 g". */
+.grocery-description small.row-source,
+.grocery-description small.row-amount {
+  display: inline;
+}
+.grocery-description small.row-source:not(:empty) + small.row-amount::before {
+  content: " · ";
+  color: var(--kk-muted);
 }
 .grocery-description small.warning {
   color: var(--kk-warning);
@@ -1438,7 +1487,8 @@ body:has(.app-main) .demo {
   margin-bottom: 0;
 }
 .shopping-workspace .grocery-row {
-  padding: 12px 0;
+  padding: 10px 0;
+  row-gap: 4px;
 }
 .grouped-review {
   margin: 12px 0;
