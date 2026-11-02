@@ -28,7 +28,13 @@ No owner ChatGPT request, live retailer account or private receipt was used.
 
 ## Package
 
-Filled in from the Windows build: installer name, size, SHA-256 and the packaged smoke result.
+`npm run package` prepared the pinned workers, license notices and checksum-verified Finnish OCR assets, built the app and produced the NSIS installer. Native ProductVersion is 0.11.4.0 and FileVersion is 0.11.4.
+
+The short packaged smoke (`scripts/ocr-package-smoke.mjs`) passed: packaged launch, version 0.11.4 and one synthetic scanned-PDF import with a balanced total, saved OCR provenance, zero AI requests and zero retailer writes. No packaged feature matrix or installer acceptance was run.
+
+- Installer: Korikone-0.11.4-x64-setup.exe, 152610582 bytes.
+- SHA-256: a0ba0439488ff49d48596eb28f63523bd7ff0afd88eea8316e575cc3d91c585b.
+- Checksum asset: SHA256SUMS-0.11.4.txt.
 
 ## Remaining acceptance
 
