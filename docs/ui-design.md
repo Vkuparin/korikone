@@ -298,7 +298,7 @@ Selectors. The neutral values are the defaults of the two theme blocks, so a mis
 
 The focus colour against the accent fill itself is 1.0–1.7:1 in every combination, so a ring must never touch a fill. Keep the existing 3 px offset: the ring is then drawn on the parent surface, where it measures 4.39:1 or more. Rules that draw an outline in the action colour must use `--kk-focus` instead (see the map).
 
-K orange and the warning role stay distinct by more than hue: warnings keep their own background, text and wording and sit in status regions; the accent is on buttons, selected navigation and the confirmed-store cue. Neither role's variable may alias the other's.
+K orange and the warning role stay distinct by more than hue: warnings keep their own background, text and wording and sit in status regions; the accent is on buttons, selected navigation and the confirmed-store cue. Neither role's variable may alias the other's. Since [B6.4](tasks/0.12.0.md#b6-polish) (2 November 2026) the navigation's return-to-store cue (`nav button.store-open`) is outlined in `--kk-action` with `--kk-action-text`, not filled, so it never looks more current than the page you are on, and it appears only when a store page is really open; the fill row of the component map below predates that.
 
 **Component map for U18.4.** Line numbers are those of `src/ui/style.css` at commit 51eedef.
 

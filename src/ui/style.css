@@ -1897,13 +1897,14 @@ body:has(.app-main) > #root > .progress {
   border-radius: 8px;
   background: var(--kk-surface);
 }
-/* A store page is still open in the Kauppa view. */
+/* A store page is still open in the Kauppa view. Outlined, so it never looks more current than
+   the page you are on (B6.4). */
 nav button.store-open {
-  background: var(--kk-action);
-  color: var(--kk-on-action);
+  color: var(--kk-action-text);
+  box-shadow: inset 0 0 0 1.5px var(--kk-action);
 }
 nav button.store-open small {
-  color: var(--kk-on-action);
+  color: var(--kk-action-text);
   display: block;
   font-weight: 400;
 }

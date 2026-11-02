@@ -45,7 +45,7 @@ import type {
   SettingsSection,
   SettingsSectionProps,
 } from "./settings-contract";
-import { StorePage, type Chain } from "./store";
+import { StorePage, storeChains, type Chain } from "./store";
 import { isLive, liveProviders } from "../stores/provider";
 declare global {
   interface Window {
@@ -209,9 +209,11 @@ function App() {
   const [storeOpen, setStoreOpen] = useState(false);
   // During setup there is no navigation, so the store tab is shown over the setup screen.
   const [setupStore, setSetupStore] = useState(false);
+  // Without a chosen store the Kauppa view only says to choose one; nothing stays open (B6.4).
+  const storePage = storeChain !== null || storeChains(snapshot).length > 0;
   useEffect(() => {
-    if (page === "store") setStoreOpen(true);
-  }, [page]);
+    if (page === "store" && storePage) setStoreOpen(true);
+  }, [page, storePage]);
   const checkedLogins = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -535,7 +537,7 @@ function App() {
     </label>
   );
   // The store tab stays loaded after leaving it, and a sign-in may be waiting there.
-  const storeCue = storeOpen || waiting;
+  const storeCue = (storeOpen && storePage) || waiting;
   const settingsProps: SettingsSectionProps = {
     snapshot,
     busy,

@@ -130,3 +130,40 @@ test("leaving the Kauppa view keeps each chain's page and pending sign-in, and t
     await app.close();
   }
 });
+
+test("opening Kauppa before any store is chosen leaves no way back to a store (B6.4)", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (e): e is [string, string] => typeof e[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(
+    join(tmpdir(), "korikone-store-none-"),
+  );
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({ args: ["."], env });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
+      .click();
+    const nav = (name: string | RegExp) =>
+      page.getByRole("navigation").getByRole("button", { name });
+    const store = nav(/^Kauppa/);
+    await store.click();
+    await expect(
+      page.getByText("Valitse ensin kauppa Asetuksista."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Avaa Asetukset" }).click();
+    // Settings > Kaupat, where a store would be chosen: no return cue to an empty page.
+    await expect(store).not.toHaveAttribute("aria-current", "page");
+    await expect(store).not.toHaveClass(/store-open/);
+    await expect(store).toHaveText("Kauppa");
+    await expect(
+      page.getByRole("button", { name: "Palaa kauppaan" }),
+    ).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
