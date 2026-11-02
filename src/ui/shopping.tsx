@@ -578,16 +578,28 @@ export function ShoppingWorkspace({
     const fit = () => {
       const el = panel.current;
       if (!el) return;
+      const before = el.dataset.flow;
       if (window.matchMedia("(max-width: 900px)").matches) {
         el.style.maxHeight = "";
         el.dataset.flow = "true";
-        return;
+      } else {
+        const top = Math.max(el.getBoundingClientRect().top, 12);
+        const available = window.innerHeight - top - 12;
+        const normalFlow =
+          (footer.current?.offsetHeight ?? 0) + 180 > available;
+        el.dataset.flow = String(normalFlow);
+        el.style.maxHeight = normalFlow ? "" : `${available}px`;
       }
-      const top = Math.max(el.getBoundingClientRect().top, 12);
-      const available = window.innerHeight - top - 12;
-      const normalFlow = (footer.current?.offsetHeight ?? 0) + 180 > available;
-      el.dataset.flow = String(normalFlow);
-      el.style.maxHeight = normalFlow ? "" : `${available}px`;
+      // Switching between the scrolling rows and page flow changes how tall the rows are, which
+      // can leave a focused control in the list out of view; bring it back (B6.2).
+      const focused = document.activeElement;
+      if (
+        before !== undefined &&
+        before !== el.dataset.flow &&
+        focused instanceof HTMLElement &&
+        el.contains(focused)
+      )
+        focused.scrollIntoView({ block: "nearest" });
     };
     fit();
     window.addEventListener("scroll", fit, { passive: true });
