@@ -31,7 +31,10 @@ export type SettingsSectionProps = {
   call: (
     method: string,
     input?: unknown,
-    options?: { preserveError?: boolean },
+    options?: {
+      preserveError?: boolean;
+      onSuccess?: (value: Snapshot) => void;
+    },
   ) => Promise<boolean>;
   save: (state: AppState) => Promise<boolean>;
   t: (key: Key) => string;

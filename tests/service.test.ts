@@ -593,6 +593,49 @@ test("diagnostics carry no observed prices", async () => {
   expect(report).not.toMatch(/priceHistory|unitPrice|prices:/);
 });
 
+test("diagnostics name only error codes, never the text of an error (B6.9)", async () => {
+  const service = new Service(memory());
+  await ready(service);
+  const snapshot = service.snapshot();
+  const report = diagnostics(
+    {
+      ...snapshot,
+      // A journal saved before B6.9 may still hold a store's message.
+      journal: {
+        review: {
+          context: snapshot.state.context,
+          targets: [],
+          createdAt: "2026-11-01T10:00:00.000Z",
+        },
+        status: "partial",
+        verified: [],
+        uncertain: null,
+        error: "Tili ville@example.fi: Pasta 500 g hylättiin",
+      } as unknown as typeof snapshot.journal,
+      ai: {
+        state: "error",
+        email: "",
+        error: "fetch failed for ville@example.fi",
+        models: [],
+      },
+    },
+    { app: "test" },
+  );
+  expect(report.transfer?.error).toBe("transferFailed");
+  expect(report.ai.error).toBe("aiFailed");
+  expect(JSON.stringify(report)).not.toMatch(/ville|Pasta|hylättiin|fetch/);
+  // A code is kept as it is.
+  expect(
+    diagnostics(
+      {
+        ...snapshot,
+        ai: { state: "error", email: "", error: "usageLimit", models: [] },
+      },
+      { app: "test" },
+    ).ai.error,
+  ).toBe("usageLimit");
+});
+
 test("automatic choices cannot bypass household exclusions through saved products or brand preferences", async () => {
   const service = new Service(memory());
   const provider = service.registry.get("demo-k") as DemoProvider;

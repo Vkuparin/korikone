@@ -467,6 +467,15 @@ describe("reviewed cart transfers", () => {
     expect(journal.status).toBe("partial");
     expect(journal.error).toBe("verificationFailed");
   });
+  it("keeps only an error code when a store fails with text (B6.9)", async () => {
+    const { provider, journal } = await setup();
+    provider.setQuantity = async () => {
+      throw new Error("Tili ville@example.fi: Pasta 500 g hylättiin");
+    };
+    await transfer(provider, journal, () => {});
+    expect(journal.status).toBe("partial");
+    expect(journal.error).toBe("transferFailed");
+  });
 });
 
 it("keeps home rows visible separately from removed rows and applies quantity overrides", () => {

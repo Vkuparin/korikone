@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { SettingsSectionProps } from "./settings-contract";
 import { ModelSelector } from "./model";
 import { Chains } from "./chains";
@@ -138,14 +138,106 @@ export function AdvancedSettings({
           )}
         </fieldset>
       )}
+      <DiagnosticsReport snapshot={snapshot} busy={busy} call={call} t={t} />
+    </section>
+  );
+}
+
+/** The report is read in the window before anything is saved; saving writes that text (B6.9). */
+function DiagnosticsReport({
+  snapshot,
+  busy,
+  call,
+  t,
+}: Pick<SettingsSectionProps, "snapshot" | "busy" | "call" | "t">) {
+  const fi = snapshot.state.language === "fi";
+  const [report, setReport] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const preview = useRef<HTMLElement>(null);
+  // Bring a newly opened report into view once the page has settled after the call.
+  const reveal = useRef(false);
+  useEffect(() => {
+    if (!reveal.current || busy || report === null) return;
+    reveal.current = false;
+    preview.current?.scrollIntoView({ block: "nearest" });
+  }, [busy, report]);
+  return (
+    <>
       <button
         className="secondary"
         disabled={busy}
-        onClick={() => void call("exportDiagnostics")}
+        aria-expanded={report !== null}
+        onClick={() => {
+          setSaved(false);
+          void call("previewDiagnostics", undefined, {
+            onSuccess: (value) => {
+              const text = (value as { diagnosticsReport?: string })
+                .diagnosticsReport;
+              if (typeof text !== "string") return;
+              reveal.current = true;
+              setReport(text);
+            },
+          });
+        }}
       >
         {t("diagnostics")}
       </button>
-    </section>
+      {saved && (
+        <p role="status" className="muted">
+          {fi ? "Vianetsintätiedot tallennettu." : "Diagnostic report saved."}
+        </p>
+      )}
+      {report !== null && (
+        <section
+          ref={preview}
+          className="diagnostics-preview"
+          aria-labelledby="diagnostics-preview-title"
+        >
+          <h4 id="diagnostics-preview-title">
+            {fi ? "Vianetsintätiedot" : "Diagnostic report"}
+          </h4>
+          <p className="muted">
+            {fi
+              ? "Tallennus kirjoittaa tiedostoon täsmälleen tämän tekstin. Siinä on versiot, määrät, tilat ja virhekoodit, ei reseptejä, tuotteita, tilitietoja, viestejä eikä virheiden tekstejä."
+              : "Saving writes exactly this text to a file. It holds versions, counts, states and error codes, with no recipes, products, account details, messages or error text."}
+          </p>
+          <pre
+            tabIndex={0}
+            aria-label={fi ? "Raportin sisältö" : "Report content"}
+          >
+            {report}
+          </pre>
+          <div className="actions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void call("saveDiagnostics", undefined, {
+                  onSuccess: (value) => {
+                    if (
+                      !(value as { diagnosticsSaved?: boolean })
+                        .diagnosticsSaved
+                    )
+                      return;
+                    setReport(null);
+                    setSaved(true);
+                  },
+                })
+              }
+            >
+              {fi ? "Tallenna…" : "Save…"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setReport(null)}
+            >
+              {fi ? "Peruuta" : "Cancel"}
+            </button>
+          </div>
+        </section>
+      )}
+    </>
   );
 }
 

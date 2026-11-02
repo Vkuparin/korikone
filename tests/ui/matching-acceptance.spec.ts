@@ -34,24 +34,19 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
         },
         { state, language },
       );
-      await app.evaluate(({ dialog }) => {
-        dialog.showMessageBox = async (...args: unknown[]) => {
-          const options = args.at(-1) as { detail?: string };
-          (
-            globalThis as unknown as { acceptanceReport: string }
-          ).acceptanceReport = options.detail!;
-          return { response: 1, checkboxChecked: false };
-        };
-      });
-      const diagnostics = async () => {
-        await page.evaluate(() => window.korikone.exportDiagnostics());
-        return app.evaluate(() =>
-          JSON.parse(
-            (globalThis as unknown as { acceptanceReport: string })
-              .acceptanceReport,
+      // The report shown in Settings (B6.9); nothing is saved here.
+      const diagnostics = async () =>
+        JSON.parse(
+          await page.evaluate(
+            async () =>
+              (
+                (await window.korikone.previewDiagnostics())
+                  .value as unknown as {
+                  diagnosticsReport: string;
+                }
+              ).diagnosticsReport,
           ),
         );
-      };
       const load = () =>
         page.evaluate(async () => (await window.korikone.load()).value);
       await page.reload();

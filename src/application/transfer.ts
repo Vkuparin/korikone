@@ -1,4 +1,5 @@
 import { mapConcurrent } from "./concurrent";
+import { isErrorCode } from "./errors";
 import type { OperationStep } from "./operation-progress";
 import type {
   AppState,
@@ -414,7 +415,11 @@ export async function transfer(
     await record();
   } catch (error) {
     journal.status = "partial";
-    journal.error = error instanceof Error ? error.message : "transferFailed";
+    // Only a code is kept: a store or network message can quote account or product text (B6.9).
+    journal.error =
+      error instanceof Error && isErrorCode(error.message)
+        ? error.message
+        : "transferFailed";
     await record();
   } finally {
     locks.delete(key);

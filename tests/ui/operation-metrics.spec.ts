@@ -44,25 +44,18 @@ test("real IPC task repair and persisted diagnostics export contain only bounded
     page = await app.firstWindow();
     await page.waitForFunction(() => !!window.korikone);
     await app.evaluate(({ dialog }, path) => {
-      dialog.showMessageBox = async (...args: unknown[]) => {
-        Object.assign(globalThis, {
-          metricPreview: (args.at(-1) as { detail: string }).detail,
-        });
-        return { response: 0, checkboxChecked: false };
-      };
       dialog.showSaveDialog = async () => ({ canceled: false, filePath: path });
     }, filePath);
-    const result = await page.evaluate(() =>
-      window.korikone.exportDiagnostics(),
-    );
+    // The report is shown in Settings first; saving writes exactly that text (B6.9).
+    const preview = await page.evaluate(async () => {
+      const result = await window.korikone.previewDiagnostics();
+      return (result.value as unknown as { diagnosticsReport: string })
+        .diagnosticsReport;
+    });
+    const result = await page.evaluate(() => window.korikone.saveDiagnostics());
     expect(result.ok).toBe(true);
     const text = await readFile(filePath, "utf8");
-    expect(text).toBe(
-      await app.evaluate(
-        () =>
-          (globalThis as unknown as { metricPreview: string }).metricPreview,
-      ),
-    );
+    expect(text).toBe(preview);
     const metrics = JSON.parse(text).operationMetrics;
     expect(metrics).toContainEqual(
       expect.objectContaining({

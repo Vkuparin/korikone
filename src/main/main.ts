@@ -677,6 +677,8 @@ else
             : 0;
         }
       };
+      /** The diagnostic report last shown in Settings, the only text saveDiagnostics writes. */
+      let pendingDiagnostics: string | null = null;
       const handlers: Record<string, (input: unknown) => Promise<unknown>> = {
         getAppInfo: async () => ({
           version: app.getVersion(),
@@ -1413,8 +1415,9 @@ else
             );
           return service.snapshot();
         },
-        exportDiagnostics: async () => {
-          const report = JSON.stringify(
+        // The report is shown inside Settings first; saving writes exactly the text shown (B6.9).
+        previewDiagnostics: async () => {
+          pendingDiagnostics = JSON.stringify(
             diagnostics(
               service.snapshot(),
               {
@@ -1429,22 +1432,23 @@ else
             null,
             2,
           );
-          // Show exactly what will be saved before writing it anywhere.
-          const fi = service.state.language === "fi";
-          const { response } = await dialog.showMessageBox(window, {
-            type: "info",
-            message: fi ? "Vianetsintätiedot" : "Diagnostic report",
-            detail: report,
-            buttons: fi ? ["Tallenna…", "Peruuta"] : ["Save…", "Cancel"],
-            defaultId: 0,
-            cancelId: 1,
-          });
-          if (response !== 0) return service.snapshot();
+          return {
+            ...service.snapshot(),
+            diagnosticsReport: pendingDiagnostics,
+          };
+        },
+        // Takes no text from the window: only the report built and shown above is written.
+        saveDiagnostics: async () => {
+          const report = pendingDiagnostics;
+          if (report === null) throw new Error("diagnosticsMissing");
           const { filePath } = await dialog.showSaveDialog(window, {
             defaultPath: "korikone-diagnostics.json",
           });
-          if (filePath) await writeFile(filePath, report, "utf8");
-          return service.snapshot();
+          if (filePath) {
+            await writeFile(filePath, report, "utf8");
+            pendingDiagnostics = null;
+          }
+          return { ...service.snapshot(), diagnosticsSaved: Boolean(filePath) };
         },
         importData: async () => {
           const { filePaths } = await dialog.showOpenDialog(window, {

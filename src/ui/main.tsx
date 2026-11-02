@@ -397,7 +397,8 @@ function App() {
                 ].includes(method)
               ? "stores"
               : [
-                    "exportDiagnostics",
+                    "previewDiagnostics",
+                    "saveDiagnostics",
                     "setDevelopmentMode",
                     "developmentScenario",
                     "restartSetup",
