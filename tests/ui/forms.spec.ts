@@ -79,3 +79,64 @@ test("unsaved recipe quantities survive language switching and saved data surviv
     await app.close();
   }
 });
+
+test("a recipe and a new regular item being written keep their text after a look at another page (B6.8)", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-drafts-"));
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({ args: ["."], env });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    const nav = (name: string) =>
+      page
+        .getByRole("navigation")
+        .first()
+        .getByRole("button", { name, exact: true });
+    await nav("Reseptit").click();
+    await page.getByRole("button", { name: "Uusi resepti" }).click();
+    await page.getByLabel("Nimi", { exact: true }).fill("Keskeneräinen keitto");
+    await page.getByRole("button", { name: "Lisää aines" }).click();
+    await page.getByLabel("Nimi", { exact: true }).nth(1).fill("Peruna");
+    await page.getByLabel("Määrä", { exact: true }).fill("2");
+    await nav("Ostoslista").click();
+    await nav("Reseptit").click();
+    await expect(page.getByLabel("Nimi", { exact: true }).first()).toHaveValue(
+      "Keskeneräinen keitto",
+    );
+    await expect(page.getByLabel("Nimi", { exact: true }).nth(1)).toHaveValue(
+      "Peruna",
+    );
+    await expect(page.getByLabel("Määrä", { exact: true })).toHaveValue("2");
+    // Nothing was saved on the way.
+    expect(
+      (
+        await page.evaluate(() => window.korikone.load())
+      ).value.state.recipes.some(
+        (r: { name: string }) => r.name === "Keskeneräinen keitto",
+      ),
+    ).toBe(false);
+
+    await nav("Asetukset").click();
+    await settingsCategory(page, "household", "Kotitalous");
+    await page.getByRole("button", { name: "Muokkaa vakiotuotteita" }).click();
+    const form = page.locator("form", {
+      has: page.getByRole("button", { name: "Lisää vakiotuote" }),
+    });
+    await form.getByLabel("Nimi", { exact: true }).fill("Kahvi");
+    await nav("Ostoslista").click();
+    await nav("Asetukset").click();
+    await settingsCategory(page, "household", "Kotitalous");
+    await page.getByRole("button", { name: "Muokkaa vakiotuotteita" }).click();
+    await expect(form.getByLabel("Nimi", { exact: true })).toHaveValue("Kahvi");
+  } finally {
+    await app.close();
+  }
+});

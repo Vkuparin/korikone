@@ -247,6 +247,8 @@ function App() {
   const [importPending, setImportPending] = useState(false);
   const [importedDraft, setImportedDraft] = useState(false);
   const [editingStapleId, setEditingStapleId] = useState<string | null>(null);
+  // Text typed into the new-staple form keeps the staples page mounted until it is saved (B6.8).
+  const [stapleTouched, setStapleTouched] = useState(false);
   const state = snapshot.state;
   const editingStaple = state.staples.find(
     (item) => item.id === editingStapleId,
@@ -949,8 +951,10 @@ function App() {
                 }}
               />
             )}
-            {page === "recipes" && (
-              <>
+            {/* While an editor is open, Recipes and staples stay mounted but hidden, so what was typed
+                is still there after a look at another page (B6.8). */}
+            {(page === "recipes" || editing) && (
+              <div hidden={page !== "recipes"}>
                 <div className="section-heading">
                   <h1>{t("recipes")}</h1>
                   <div className="actions">
@@ -1080,10 +1084,12 @@ function App() {
                     ))}
                   </div>
                 )}
-              </>
+              </div>
             )}
-            {page === "staples" && (
-              <>
+            {(page === "staples" ||
+              editingStapleId !== null ||
+              stapleTouched) && (
+              <div hidden={page !== "staples"}>
                 <button
                   className="text"
                   onClick={() => openSettings("household")}
@@ -1149,6 +1155,9 @@ function App() {
                 <form
                   key={editingStaple?.id ?? "new-staple"}
                   className="card inline"
+                  onInput={() => {
+                    if (!editingStaple) setStapleTouched(true);
+                  }}
                   onSubmit={async (e) => {
                     e.preventDefault();
                     const form = new FormData(e.currentTarget);
@@ -1182,8 +1191,10 @@ function App() {
                               )
                             : [...state.staples, item],
                         })
-                      )
+                      ) {
                         setEditingStapleId(null);
+                        if (!editingStaple) setStapleTouched(false);
+                      }
                     } catch {
                       setError("invalidQuantity");
                     }
@@ -1242,7 +1253,7 @@ function App() {
                     </button>
                   )}
                 </form>
-              </>
+              </div>
             )}
             <Settings
               entry={settingsEntry}
