@@ -20,6 +20,8 @@ Real owner receipts in `scratch/receipts/` are private local reference material.
 
 # Roadmap and task coordination
 
+Integrate verified changes directly into `main` and push to GitHub. Open a pull request only when the owner explicitly asks for one.
+
 `docs/roadmap.md` is the release-goal and product-decision index. Canonical implementation cards/statuses live in `docs/tasks/<version>.md`; unassigned work is in `docs/tasks/later.md`. Read `docs/tasks/README.md`, the assigned card and its direct dependency contracts, not the entire backlog. Existing IDs stay stable when releases move. `docs/roadmap-history.md` records historical audits and is not a second task register.
 
 Before taking a card, fetch/reconcile the latest GitHub state and inspect real code/active work. Publish In progress with agent/thread, branch/worktree and scope so another agent cannot claim the same card. Implement only assigned scope. A Strong agent fixes contracts and rewrites dependent cards with exact files, symbols and fixtures before Simple handoff. Planned paths are suggestions until that contract lands.

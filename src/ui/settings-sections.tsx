@@ -242,6 +242,7 @@ function DiagnosticsReport({
 }
 
 export function DataSettings({
+  active,
   snapshot,
   busy,
   call,
@@ -249,7 +250,7 @@ export function DataSettings({
   t,
   importReceipts,
   receiptImportRunning,
-}: SettingsSectionProps) {
+}: SettingsSectionProps & { active: boolean }) {
   const state = snapshot.state;
   const fi = state.language === "fi";
   const [draft, setDraft] = useSettingsDraft({ receipts: state.receiptText });
@@ -263,6 +264,7 @@ export function DataSettings({
       <section className="card form">
         <h3>{fi ? "Aiemmat kuitit" : "Previous receipts"}</h3>
         <ReceiptsPanel
+          active={active}
           snapshot={snapshot}
           busy={busy}
           call={call}
@@ -270,7 +272,12 @@ export function DataSettings({
           importReceipts={importReceipts}
           importing={receiptImportRunning}
         />
-        <PurchaseMemory snapshot={snapshot} busy={busy} call={call} />
+        <PurchaseMemory
+          active={active}
+          snapshot={snapshot}
+          busy={busy}
+          call={call}
+        />
         <p>
           {fi
             ? "Tai liitä ostosrivit tekstinä alle. Teksti säilyy sellaisenaan, kunnes tuot sen kuiteiksi. Skannattu PDF tarvitsee tekstintunnistuksen (OCR)."

@@ -31,6 +31,8 @@ Write meals and groceries in one note. In the current source, press **Taio ostos
 
 To add groceries one at a time, enter a name, amount and unit under **Add grocery** and press Enter. The form confirms the addition and returns focus to the name field for the next item. Use whole numbers for pieces, grams and millilitres. For kilograms and litres, you can enter up to three decimal places with a comma or a point.
 
+In **Recipes**, search by recipe name or ingredient and open **Instructions** on a recipe card to read the cooking steps. In **Meal schedule**, select a meal to choose its day, or use drag and drop or the arrow keys. In **History**, **View saved receipts** opens your receipt collection.
+
 **Cancel list update** stops a pending interpretation and preserves the saved list. The typed note stays available. Press the update button or Ctrl+Enter to retry. Editing during an update discards its obsolete response without starting another request.
 
 Returning to the shopping list or restarting restores compatible products, totals and the time labelled **Viimeksi haetut hinnat** / **Last quoted prices**, without requesting interpretation or catalogue data. Explicit list, product and store changes refresh prices. A list without a compatible quote shows **Ei hinnoiteltu** / **Not priced** and an explicit action to fetch products and prices. If an edit saves but pricing fails, the saved rows stay visible as unpriced with a retry action. Transfer review checks fresh retailer data before any write.

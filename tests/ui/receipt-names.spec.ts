@@ -2,7 +2,6 @@ import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { settingsCategory } from "./settings-helper";
 
 const receipt = [
   "S-market Esimerkki",
@@ -54,11 +53,20 @@ for (const language of ["fi", "en"] as const) {
       const open = async () => {
         await page
           .getByRole("button", {
-            name: tr("Asetukset", "Settings"),
+            name: tr("Historia", "History"),
             exact: true,
           })
           .click();
-        await settingsCategory(page, "data", tr("Tiedot", "Data"));
+        await page
+          .getByRole("button", {
+            name: tr("Näytä tallennetut kuitit", "View saved receipts"),
+          })
+          .click();
+        await expect(
+          page.getByRole("heading", {
+            name: tr("Tallennetut kuitit", "Saved receipts"),
+          }),
+        ).toBeFocused();
       };
       await open();
       await app.evaluate(({ dialog }, path) => {
@@ -80,6 +88,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(card).toHaveCount(1);
       // Collapsed after an ordinary import; no model-only or name warning in the summary.
       await expect(card).not.toHaveJSProperty("open", true);
+      await expect(card.locator("tbody tr")).toHaveCount(0);
       const summary = card.locator(":scope > summary");
       await expect(summary).toContainText(tr("Summa täsmää", "Total matches"));
       await expect(summary).not.toContainText(tr("huomioitavaa", "to check"));

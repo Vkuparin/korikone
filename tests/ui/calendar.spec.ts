@@ -168,7 +168,14 @@ test("calendar moves meals by drag and keyboard, saves leftovers and survives re
       name: "Tomaattipasta 4 portions",
       exact: true,
     });
-    await restartedPasta.focus();
+    await restartedPasta.click();
+    const picker = page.getByRole("combobox", { name: "Move to day" });
+    await expect(picker).toBeFocused();
+    const destination = page.locator(".calendar-day").nth(5);
+    await picker.selectOption((await destination.getAttribute("data-date"))!);
+    await expect(
+      destination.getByRole("button", { name: "Tomaattipasta 4 portions" }),
+    ).toBeFocused();
     await page.keyboard.press("Delete");
     await expect(
       page

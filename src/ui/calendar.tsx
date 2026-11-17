@@ -42,6 +42,7 @@ export function MealCalendarView({
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [choosingDay, setChoosingDay] = useState<string | null>(null);
   const weekText = calendarText(state);
   useEffect(() => setCopied(false), [weekText]);
   const pendingFocus = useRef<string | null>(null);
@@ -65,10 +66,11 @@ export function MealCalendarView({
     }
   }
   async function move(id: string, date: string | null) {
-    if (!meals.some((m) => m.id === id) || locked) return;
-    const meal = meals.find((m) => m.id === id)!;
+    const meal = meals.find((m) => m.id === id);
+    if (!meal || locked) return;
     const name = state.recipes.find((r) => r.id === meal.recipeId)!.name;
     if (await persist(moveCalendarMeal(state.calendar, id, date), id)) {
+      setChoosingDay(null);
       setMessage(
         `${name}: ${date ? dateLabel(date) : tr("Ei päivää", "Unscheduled")}`,
       );
@@ -81,50 +83,81 @@ export function MealCalendarView({
   const mealButton = (meal: AppState["meals"][number], date: string | null) => {
     const recipe = state.recipes.find((r) => r.id === meal.recipeId)!;
     return (
-      <button
-        className="calendar-meal secondary"
-        key={meal.id}
-        data-meal-id={meal.id}
-        ref={(element) => {
-          if (element) buttons.current.set(meal.id, element);
-          else buttons.current.delete(meal.id);
-        }}
-        aria-describedby="calendar-help"
-        disabled={locked}
-        draggable={!locked}
-        onDragStart={(event) => {
-          event.dataTransfer.setData("application/x-korikone-meal", meal.id);
-          event.dataTransfer.effectAllowed = "move";
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Delete") {
-            event.preventDefault();
-            void move(meal.id, null);
-            return;
+      <React.Fragment key={meal.id}>
+        <button
+          className="calendar-meal secondary"
+          data-meal-id={meal.id}
+          ref={(element) => {
+            if (element) buttons.current.set(meal.id, element);
+            else buttons.current.delete(meal.id);
+          }}
+          aria-describedby="calendar-help"
+          aria-expanded={choosingDay === meal.id}
+          disabled={locked}
+          draggable={!locked}
+          onClick={() =>
+            setChoosingDay(choosingDay === meal.id ? null : meal.id)
           }
-          const direction = {
-            ArrowLeft: -1,
-            ArrowUp: -1,
-            ArrowRight: 1,
-            ArrowDown: 1,
-          }[event.key];
-          if (!direction) return;
-          event.preventDefault();
-          const index = date ? days.indexOf(date) : -1;
-          const next = index < 0 ? 0 : index + direction;
-          if (next >= 0 && next < days.length) void move(meal.id, days[next]);
-        }}
-      >
-        <strong>{recipe.name}</strong>
-        <span>
-          {count(
-            meal.servings,
-            fi,
-            ["annos", "annosta"],
-            ["portion", "portions"],
-          )}
-        </span>
-      </button>
+          onDragStart={(event) => {
+            event.dataTransfer.setData("application/x-korikone-meal", meal.id);
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Delete") {
+              event.preventDefault();
+              void move(meal.id, null);
+              return;
+            }
+            const direction = {
+              ArrowLeft: -1,
+              ArrowUp: -1,
+              ArrowRight: 1,
+              ArrowDown: 1,
+            }[event.key];
+            if (!direction) return;
+            event.preventDefault();
+            const index = date ? days.indexOf(date) : -1;
+            const next = index < 0 ? 0 : index + direction;
+            if (next >= 0 && next < days.length) void move(meal.id, days[next]);
+          }}
+        >
+          <strong>{recipe.name}</strong>
+          <span>
+            {count(
+              meal.servings,
+              fi,
+              ["annos", "annosta"],
+              ["portion", "portions"],
+            )}
+          </span>
+        </button>
+        {choosingDay === meal.id && (
+          <label className="calendar-day-choice">
+            {tr("Siirrä päivälle", "Move to day")}
+            <select
+              autoFocus
+              disabled={locked}
+              value={date ?? ""}
+              onChange={(event) =>
+                void move(meal.id, event.target.value || null)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setChoosingDay(null);
+                  buttons.current.get(meal.id)?.focus();
+                }
+              }}
+            >
+              <option value="">{tr("Ei päivää", "Unscheduled")}</option>
+              {days.map((day) => (
+                <option key={day} value={day}>
+                  {dayHeading(day)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </React.Fragment>
     );
   };
   const onVisibleDate = new Set(
@@ -141,8 +174,8 @@ export function MealCalendarView({
       </p>
       <p id="calendar-help" className="muted">
         {tr(
-          "Vedä ateria päivälle tai siirrä sitä nuolinäppäimillä. Delete poistaa päivän. Muutokset tallentuvat automaattisesti.",
-          "Drag a meal onto a day or move it with the arrow keys. Delete removes its date. Changes are saved automatically.",
+          "Valitse ateria ja sille päivä. Voit myös vetää aterian tai siirtää sitä nuolinäppäimillä. Delete poistaa päivän.",
+          "Select a meal to choose its day. You can also drag it or move it with the arrow keys. Delete clears its date.",
         )}
       </p>
       <div className="actions">

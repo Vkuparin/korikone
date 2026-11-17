@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Service, Snapshot } from "../application/service";
 
 export type Insights = Awaited<ReturnType<Service["purchaseInsights"]>>;
@@ -20,7 +20,10 @@ export function purchaseInsightsKey(snapshot: Snapshot): string {
 }
 
 export function useInsights(snapshot: Snapshot, enabled = true) {
-  const key = purchaseInsightsKey(snapshot);
+  const key = useMemo(
+    () => (enabled ? purchaseInsightsKey(snapshot) : null),
+    [enabled, snapshot],
+  );
   const [insights, setInsights] = useState<Insights | null>(null);
   const refresh = useCallback(async () => {
     const result = await window.korikone.purchaseInsights();

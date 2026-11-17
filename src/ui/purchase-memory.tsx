@@ -8,17 +8,19 @@ import { useInsights } from "./insights";
  * the receipts or their totals, and nothing here is a saved preference.
  */
 export function PurchaseMemory({
+  active,
   snapshot,
   busy,
   call,
 }: {
+  active: boolean;
   snapshot: Snapshot;
   busy: boolean;
   call: (method: string, input?: unknown) => Promise<boolean>;
 }) {
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
-  const { insights, refresh } = useInsights(snapshot);
+  const { insights, refresh } = useInsights(snapshot, active);
   if (!insights || !insights.aliases.length) return null;
   const observed = insights.observedSummaries.length;
   const forgetAll = async () => {

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReceiptImportCoordinator } from "../application/receipt-import";
 import type { Snapshot } from "../application/service";
 import { categorySchema } from "../domain/categories";
@@ -24,6 +30,7 @@ type Call = (
  * shopper uses the enrichment controls beside it.
  */
 export function ReceiptsPanel({
+  active,
   snapshot,
   busy,
   call,
@@ -31,6 +38,7 @@ export function ReceiptsPanel({
   importReceipts,
   importing,
 }: {
+  active: boolean;
   snapshot: Snapshot;
   busy: boolean;
   call: Call;
@@ -52,8 +60,9 @@ export function ReceiptsPanel({
   // The ledger also changes through imports of other kinds, so read it again whenever the
   // snapshot's own import summary or revision does.
   useEffect(() => {
-    void refresh();
+    if (active) void refresh();
   }, [
+    active,
     refresh,
     snapshot.purchaseImport,
     snapshot.receiptEnrichment,
@@ -64,18 +73,17 @@ export function ReceiptsPanel({
     await refresh();
     return ok;
   };
+  const locale = fi ? "fi-FI" : "en-FI";
+  const currency = useMemo(
+    () => new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }),
+    [locale],
+  );
+  const dates = useMemo(() => new Intl.DateTimeFormat(locale), [locale]);
   const money = (cents: number | null) =>
-    cents === null
-      ? tr("tuntematon", "unknown")
-      : new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
-          style: "currency",
-          currency: "EUR",
-        }).format(cents / 100);
+    cents === null ? tr("tuntematon", "unknown") : currency.format(cents / 100);
   const date = (purchase: Purchase) =>
     purchase.purchasedAt
-      ? new Date(purchase.purchasedAt).toLocaleDateString(
-          fi ? "fi-FI" : "en-FI",
-        )
+      ? dates.format(new Date(purchase.purchasedAt))
       : tr("päiväys tuntematon", "date unknown");
   const balance = (purchase: Purchase) =>
     ({
@@ -327,6 +335,9 @@ export function ReceiptsPanel({
           </button>
         </div>
       )}
+      <h4 id="saved-receipts" tabIndex={-1}>
+        {tr("Tallennetut kuitit", "Saved receipts")}
+      </h4>
       {view && !view.purchases.length && (
         <p className="muted">
           {tr("Ei tuotuja kuitteja vielä.", "No imported receipts yet.")}
@@ -377,36 +388,18 @@ type CardProps = {
  * names first with the printed rows on request, and keeps evidence, retention and deletion behind
  * an optional section. Only an item the shopper chooses is corrected, inline.
  */
-function ReceiptCard({
-  fi,
-  purchase,
-  busy,
-  act,
-  money,
-  date,
-  balance,
-  reason,
-  ocrNotice,
-  aiReady,
-  providerName,
-  providerId,
-  scopeOf,
-  enrichment,
-}: CardProps) {
+function ReceiptCard(props: CardProps) {
+  const { fi, purchase, money, date, balance } = props;
   const tr = (a: string, b: string) => (fi ? a : b);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [printed, setPrinted] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const openers = useRef(new Map<string, HTMLButtonElement>());
-  const closeEditing = () => {
-    const id = editing;
-    setEditing(null);
-    // Focus returns to the control that opened the correction.
-    requestAnimationFrame(() => (id ? openers.current.get(id)?.focus() : null));
-  };
-  const names = purchase.names;
+  // Keep an opened correction form mounted when its receipt is collapsed.
+  const [visited, setVisited] = useState(false);
   return (
-    <details className="card receipt-card">
+    <details
+      className="card receipt-card"
+      onToggle={(event) => {
+        if (event.currentTarget.open) setVisited(true);
+      }}
+    >
       <summary>
         {(purchase.store ?? tr("Tuntematon kauppa", "Unknown store")) +
           " · " +
@@ -432,6 +425,39 @@ function ReceiptCard({
           </span>
         )}
       </summary>
+      {visited && <ReceiptDetails {...props} />}
+    </details>
+  );
+}
+
+function ReceiptDetails({
+  fi,
+  purchase,
+  busy,
+  act,
+  money,
+  reason,
+  ocrNotice,
+  aiReady,
+  providerName,
+  providerId,
+  scopeOf,
+  enrichment,
+}: CardProps) {
+  const tr = (a: string, b: string) => (fi ? a : b);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [printed, setPrinted] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const openers = useRef(new Map<string, HTMLButtonElement>());
+  const closeEditing = () => {
+    const id = editing;
+    setEditing(null);
+    // Focus returns to the control that opened the correction.
+    requestAnimationFrame(() => (id ? openers.current.get(id)?.focus() : null));
+  };
+  const names = purchase.names;
+  return (
+    <>
       <table>
         <thead>
           <tr>
@@ -650,7 +676,7 @@ function ReceiptCard({
           )}
         </div>
       </details>
-    </details>
+    </>
   );
 }
 

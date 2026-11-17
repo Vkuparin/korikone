@@ -66,31 +66,55 @@ export function StorePage({
 
   useLayoutEffect(() => {
     if (!current) return;
+    let pendingFrame = 0;
+    let lastArea: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null = null;
     const place = () => {
+      pendingFrame = 0;
       const element = frame.current;
       if (!element) return;
       const rect = element.getBoundingClientRect();
       const height = Math.max(window.innerHeight - rect.top - 16, 200);
+      const area = {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(height),
+      };
+      if (
+        lastArea &&
+        area.x === lastArea.x &&
+        area.y === lastArea.y &&
+        area.width === lastArea.width &&
+        area.height === lastArea.height
+      )
+        return;
+      lastArea = area;
       element.style.height = `${height}px`;
-      void window.korikone.storeView({
-        chain: current,
-        area: {
-          x: Math.round(rect.left),
-          y: Math.round(rect.top),
-          width: Math.round(rect.width),
-          height: Math.round(height),
-        },
-      });
+      void window.korikone
+        .storeView({ chain: current, area })
+        .then((result) => {
+          if (!result.ok && lastArea === area) lastArea = null;
+        });
+    };
+    const schedule = () => {
+      if (!pendingFrame) pendingFrame = requestAnimationFrame(place);
     };
     place();
-    const observer = new ResizeObserver(place);
+    const observer = new ResizeObserver(schedule);
     if (frame.current) observer.observe(frame.current);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    observer.observe(document.body);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      cancelAnimationFrame(pendingFrame);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
     };
   }, [current]);
   useEffect(() => () => void window.korikone.hideStore(), []);

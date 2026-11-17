@@ -22,8 +22,9 @@ import {
 } from "../domain/model";
 import { ShoppingWorkspace, type ComposerProgress } from "./shopping";
 import { planningActivityPending } from "./planning-status";
-import { count, en, fi, unitLabel, type Key } from "./i18n";
+import { en, fi, unitLabel, type Key } from "./i18n";
 import "./style.css";
+import { RecipeLibrary } from "./recipe-library";
 import { Setup } from "./setup";
 import { ShoppingContext } from "./context";
 import { ReceiptIntakeSurface, useReceiptIntake } from "./receipt-intake";
@@ -241,6 +242,7 @@ function App() {
   }
   const [aiRequestLimit, setAIRequestLimit] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
+  const [recipeSaveCount, setRecipeSaveCount] = useState(0);
   // Recipe import: the pasted text, whether its panel is open and whether the draft is unreviewed.
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
@@ -917,6 +919,20 @@ function App() {
                         ? "Tuo kuitteja"
                         : "Import receipts"}
                     </button>
+                    <button
+                      type="button"
+                      className="text"
+                      onClick={() => {
+                        openSettings("data");
+                        requestAnimationFrame(() =>
+                          document.getElementById("saved-receipts")?.focus(),
+                        );
+                      }}
+                    >
+                      {state.language === "fi"
+                        ? "Näytä tallennetut kuitit"
+                        : "View saved receipts"}
+                    </button>
                     <small className="muted">
                       {state.language === "fi"
                         ? "Valitse yksi tai useampi PDF-, TXT- tai CSV-tiedosto tai pudota ne ikkunaan."
@@ -973,6 +989,7 @@ function App() {
                         : "Import recipe from text"}
                     </button>
                     <button
+                      disabled={!!editing || importPending}
                       onClick={() => {
                         setImportedDraft(false);
                         setEditing({
@@ -1033,7 +1050,7 @@ function App() {
                       : "Review the imported recipe. Nothing is saved until you press Save."}
                   </p>
                 )}
-                {editing ? (
+                {editing && (
                   <RecipeForm
                     key={editing.id}
                     recipe={editing}
@@ -1055,39 +1072,18 @@ function App() {
                       ) {
                         setImportedDraft(false);
                         setEditing(null);
+                        setRecipeSaveCount((count) => count + 1);
                       }
                     }}
                   />
-                ) : (
-                  <div className="grid">
-                    {state.recipes.map((r) => (
-                      <article className="card" key={r.id}>
-                        <h2>{r.name}</h2>
-                        <p>
-                          {count(
-                            r.servings,
-                            state.language === "fi",
-                            ["annos", "annosta"],
-                            ["serving", "servings"],
-                          )}
-                        </p>
-                        <ul>
-                          {r.ingredients.map((i) => (
-                            <li key={i.id}>
-                              {i.name} · {i.amount} {u(i.unit)}
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          className="secondary"
-                          onClick={() => setEditing(r)}
-                        >
-                          {t("edit")}
-                        </button>
-                      </article>
-                    ))}
-                  </div>
                 )}
+                <RecipeLibrary
+                  key={recipeSaveCount}
+                  recipes={state.recipes}
+                  language={state.language}
+                  editing={!!editing}
+                  onEdit={setEditing}
+                />
               </div>
             )}
             {(page === "staples" ||
@@ -1272,7 +1268,12 @@ function App() {
                 advanced: <AdvancedSettings {...settingsProps} />,
                 ai: <AISettings {...settingsProps} />,
                 stores: <StoresSettings {...settingsProps} />,
-                data: <DataSettings {...settingsProps} />,
+                data: (
+                  <DataSettings
+                    {...settingsProps}
+                    active={page === "settings" && settingsSection === "data"}
+                  />
+                ),
               }}
             />
           </main>

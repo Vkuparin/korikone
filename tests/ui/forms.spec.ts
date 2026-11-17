@@ -140,3 +140,60 @@ test("a recipe and a new regular item being written keep their text after a look
     await app.close();
   }
 });
+
+test("recipe search finds ingredients beyond the first page and opens cooking instructions", async () => {
+  const { ELECTRON_RUN_AS_NODE, ...env } = process.env;
+  const app = await electron.launch({
+    args: ["."],
+    env: {
+      ...env,
+      KORIKONE_TEST_HIDDEN: "1",
+      KORIKONE_TEST_DATA: await mkdtemp(join(tmpdir(), "korikone-library-")),
+    },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Reseptit", exact: true }),
+    ).toBeVisible();
+    await page.evaluate(async () => {
+      const api = window.korikone;
+      const { state } = (await api.load()).value;
+      const base = state.recipes[0];
+      const extra = Array.from({ length: 15 }, (_, index) => ({
+        ...base,
+        id: "fixture-" + index,
+        name: "Keitto " + index,
+        ingredients: [{ id: "lentil", name: "Linssi", unit: "g", amount: 200 }],
+      }));
+      const result = await api.save({
+        ...state,
+        recipes: [...state.recipes, ...extra],
+      });
+      if (!result.ok) throw new Error(result.error);
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Reseptit", exact: true }).click();
+    const cards = page.locator(".recipe-grid article");
+    await expect(cards).toHaveCount(12);
+    await page.getByRole("button", { name: /Näytä lisää reseptejä/ }).click();
+    await expect(cards).toHaveCount(18);
+    const search = page.getByRole("searchbox");
+    await search.fill("ruokakerma");
+    await expect(cards).toHaveCount(1);
+    await cards.getByText("Valmistusohje", { exact: true }).click();
+    await expect(
+      cards.getByText("Pilko kasvikset ja keitä kypsiksi. Lisää kerma."),
+    ).toBeVisible();
+    await search.fill("ei löydy");
+    await expect(cards).toHaveCount(0);
+    await page.getByRole("button", { name: "Tyhjennä haku" }).click();
+    await expect(cards).toHaveCount(12);
+    await expect(search).toBeFocused();
+  } finally {
+    await app.close();
+  }
+});
