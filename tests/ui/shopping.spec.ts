@@ -172,9 +172,17 @@ test("manual groceries accept decimal units and merge into quoted ingredient row
     );
     await expect(page.locator(".grocery-row")).toHaveCount(4);
     await expect(page.getByLabel("Tuotteen määrä")).toHaveValue("1,5");
+    await expect(page.getByLabel("Tuotteen määrä")).toBeFocused();
+    await expect(page.getByLabel("Tuotteen määrä")).toHaveAccessibleDescription(
+      "Anna positiivinen määrä kokonaislukuna.",
+    );
     await add("Banaani", "2", "pcs");
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.locator(".grocery-row")).toHaveCount(5);
+    await expect(page.getByLabel("Lisää tuote", { exact: true })).toBeFocused();
+    await expect(page.locator(".quick-add").getByRole("status")).toHaveText(
+      "Lisätty: Banaani",
+    );
     await page.reload();
     await expect(page.locator(".grocery-row")).toHaveCount(5);
     await expect(potato).toContainText("2500 g");
@@ -183,6 +191,68 @@ test("manual groceries accept decimal units and merge into quoted ingredient row
         async () => (await window.korikone.load()).value!.developmentRequests,
       ),
     ).toBe(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("quick add keeps the next grocery draft and identifies the field to fix in English", async () => {
+  const app = await launch();
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Aloita tyhjästä viikosta" })
+      .click();
+    await page.evaluate(() => window.korikone.setLanguage("en"));
+    await page.reload();
+    const form = page.locator("form.quick-add");
+    const item = form.getByRole("textbox", {
+      name: "Add grocery",
+      exact: true,
+    });
+    const amount = form.getByLabel("Grocery amount");
+    await page.setViewportSize({ width: 720, height: 900 });
+    await item.fill("  ");
+    await item.press("Enter");
+    await expect(item).toHaveAccessibleDescription("Enter a grocery name.");
+    await expect(item).toBeFocused();
+    await item.fill("x".repeat(101));
+    await item.press("Enter");
+    await expect(item).toHaveAccessibleDescription(
+      "Use a shorter grocery name.",
+    );
+    await item.fill("Maito");
+    await amount.fill("0.0001");
+    await form.getByLabel("Grocery unit").selectOption("l");
+    await amount.press("Enter");
+    await expect(amount).toBeFocused();
+    await expect(amount).toHaveAccessibleDescription(
+      "Enter a positive amount with up to three decimal places.",
+    );
+    await amount.fill("1.25");
+    await expect(form.getByRole("alert")).toHaveCount(0);
+    // Start the next item in the same event turn, before the save IPC can return.
+    await form.evaluate((element: HTMLFormElement) => {
+      element.requestSubmit();
+      document.execCommand("insertText", false, "Kahvi");
+    });
+    await expect(page.locator('[data-row-key="milk:ml"]')).toContainText(
+      "1250 ml",
+    );
+    await expect(item).toHaveValue("Kahvi");
+    await expect(amount).toHaveValue("1.25");
+    await amount.fill("500");
+    await form.getByLabel("Grocery unit").selectOption("g");
+    await amount.press("Enter");
+    await expect(form.getByRole("status")).toHaveText("Added: Kahvi");
+    await expect(item).toHaveValue("");
+    await expect(item).toBeFocused();
+    await expect(amount).toHaveValue("1");
+    await expect(form.getByLabel("Grocery unit")).toHaveValue("pcs");
+    await page.reload();
+    await expect(
+      page.locator(".grocery-row").filter({ hasText: "Kahvi" }),
+    ).toContainText("500 g");
   } finally {
     await app.close();
   }

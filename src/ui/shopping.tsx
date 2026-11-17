@@ -5,11 +5,7 @@ import {
 } from "./operation-progress";
 import type { OperationProgress } from "../application/operation-progress";
 import { starterThemes, type StarterTheme } from "../domain/starter-ideas";
-import {
-  candidateSuitability,
-  priceAlternatives,
-  purchasable,
-} from "../domain/matching";
+import { priceAlternatives, purchasable } from "../domain/matching";
 import { packageAmount } from "../domain/package-content";
 import { comparePriceAlternative } from "../domain/price-ranking";
 import { currentOffer } from "../domain/prices";
@@ -19,7 +15,13 @@ import { RowCorrection } from "./row-correction";
 import type { PlanningSnapshot } from "../application/planning";
 import { planningActivityPending, planningPhaseLabel } from "./planning-status";
 import { PlanningPreview, PlanningPreviewFocus } from "./planning-preview";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Snapshot } from "../application/service";
 import type { AppState, Product, Requirement } from "../domain/model";
 import { ModelSelector } from "./model";
@@ -32,11 +34,15 @@ import {
   pieceQuote,
   shoppingList,
 } from "../domain/planner";
-import { addGrocery } from "../domain/groceries";
-import { editTargets, mealTargetId, rowTargetId } from "../domain/edits";
+import { QuickAdd } from "./quick-add";
+import {
+  editTargets,
+  mealTargetId,
+  requirementKey,
+  rowTargetId,
+} from "../domain/edits";
 import { RowFind, type FindResult } from "./row-find";
 import { MerchandiseRow } from "./merchandise";
-import type { Unit } from "../domain/model";
 import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { RowDetails } from "./details";
@@ -451,7 +457,6 @@ export function ShoppingWorkspace({
     snapshot,
     visible && view !== "schedule",
   );
-  const [groceryError, setGroceryError] = useState(false);
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
   const reviewOpener = useRef<HTMLButtonElement>(null);
@@ -512,13 +517,16 @@ export function ShoppingWorkspace({
     setStartedAt(working || editWorking ? Date.now() : null);
   }, [working, editWorking]);
   const editRunning = useRef(false);
-  const targets = editTargets(state, new Date());
-  const focusName =
-    focusTarget === null
-      ? null
-      : (targets.rows.find((row) => row.targetId === focusTarget)?.name ??
-        targets.meals.find((meal) => meal.targetId === focusTarget)?.name ??
-        null);
+  function targetName(id: string | null) {
+    if (!id) return null;
+    const { rows, meals } = editTargets(state);
+    return (
+      rows.find((row) => row.targetId === id)?.name ??
+      meals.find((meal) => meal.targetId === id)?.name ??
+      null
+    );
+  }
+  const focusName = targetName(focusTarget);
   useEffect(() => {
     if (!hasList && newListDraft) setNewList(false);
   }, [hasList]);
@@ -778,12 +786,7 @@ export function ShoppingWorkspace({
         {
           revision: state.revision,
           instruction: requested,
-          ...(focus &&
-          [...targets.rows, ...targets.meals].some(
-            (target) => target.targetId === focus,
-          )
-            ? { focusTargetId: focus }
-            : {}),
+          ...(targetName(focus) !== null ? { focusTargetId: focus } : {}),
           consent: true,
         },
         {
@@ -1091,18 +1094,59 @@ export function ShoppingWorkspace({
       noteElement.current?.scrollIntoView?.({ block: "nearest" });
     });
   };
-  const rows = requirements(state);
+  const homeKeys = new Set(state.skipped);
+  const rows = all.filter((row) => !homeKeys.has(requirementKey(row)));
   const unmatchedRequests = snapshot.committedIntents.filter(
     (intent) =>
       intent.status !== "resolved" &&
       (intent.intent.unresolvedReason !== null ||
         intent.reason === "missing-requirement"),
   );
-  const money = (cents: number) =>
-    new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
-      style: "currency",
-      currency: "EUR",
-    }).format(cents / 100);
+  const currency = useMemo(
+    () =>
+      new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
+        style: "currency",
+        currency: "EUR",
+      }),
+    [fi],
+  );
+  const money = (cents: number) => currency.format(cents / 100);
+  const quotesByKey = useMemo(() => {
+    const exclusions = exclusionTerms(state.household.exclusions);
+    return new Map(
+      snapshot.basket.map((line) => {
+        const r = line.requirement;
+        const best =
+          line.product && line.total !== null
+            ? priceAlternatives(
+                r,
+                line.product,
+                line.candidates.filter((p) => purchasable(r, p)),
+                {
+                  context: state.context,
+                  preferences: state.categoryPreferences,
+                  exclusions,
+                  productPreference: state.productPreference,
+                  priceBasis: state.priceBasis,
+                  sourceNote: state.note,
+                  accepted: state.accepted[r.id] ?? [],
+                },
+              )[0]
+            : undefined;
+        const comparison =
+          best && line.product
+            ? comparePriceAlternative(r, line.product, best, state.priceBasis)
+            : null;
+        return [
+          requirementKey(r),
+          {
+            line,
+            cheaper: best && comparison ? { product: best, comparison } : null,
+          },
+        ] as const;
+      }),
+    );
+  }, [snapshot.basket, state]);
   const total = snapshot.basket.reduce(
     (sum, line) => sum + (line.total ?? 0),
     0,
@@ -1113,13 +1157,7 @@ export function ShoppingWorkspace({
   );
   const transferable = snapshot.basket.filter(transferableLine).length;
   const missing = rows.filter(
-    (r) =>
-      !snapshot.basket.some(
-        (l) =>
-          l.requirement.id === r.id &&
-          l.requirement.unit === r.unit &&
-          l.product,
-      ),
+    (r) => !quotesByKey.get(requirementKey(r))?.line.product,
   );
   const groups = state.meals
     .filter((m) => !m.leftovers)
@@ -2087,70 +2125,7 @@ export function ShoppingWorkspace({
               )}
             </p>
           )}
-          <form
-            className="quick-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = e.currentTarget;
-              const data = new FormData(form);
-              try {
-                const next = addGrocery(
-                  state,
-                  String(data.get("item")),
-                  String(data.get("amount")),
-                  String(data.get("unit")) as Unit | "kg" | "l",
-                );
-                setGroceryError(false);
-                void save(next).then((ok) => {
-                  if (ok) form.reset();
-                });
-              } catch {
-                setGroceryError(true);
-              }
-            }}
-          >
-            <input
-              name="item"
-              aria-label={tr("Lisää tuote", "Add grocery")}
-              placeholder={tr(
-                "+ Lisää tuote, esim. kahvi",
-                "+ Add a grocery, e.g. coffee",
-              )}
-              required
-              maxLength={200}
-            />
-            <input
-              name="amount"
-              aria-label={tr("Tuotteen määrä", "Grocery amount")}
-              inputMode="decimal"
-              defaultValue="1"
-              required
-            />
-            <select
-              name="unit"
-              aria-label={tr("Tuotteen yksikkö", "Grocery unit")}
-            >
-              <option value="pcs">{tr("kpl", "pcs")}</option>
-              <option value="g">g</option>
-              <option value="kg">kg</option>
-              <option value="ml">ml</option>
-              <option value="l">l</option>
-            </select>
-            <button
-              disabled={busy}
-              aria-label={tr("Lisää tuote listaan", "Add grocery to list")}
-            >
-              +
-            </button>
-          </form>
-          {groceryError && (
-            <p role="alert">
-              {tr(
-                "Anna positiivinen määrä. Kilot ja litrat voivat sisältää enintään kolme desimaalia; grammat, millilitrat ja kappaleet ovat kokonaislukuja.",
-                "Enter a positive amount. Kilograms and litres accept up to three decimal places; grams, millilitres and pieces must be whole numbers.",
-              )}
-            </p>
-          )}
+          <QuickAdd state={state} busy={busy} save={save} />
           <label className="product-preference">
             {tr("Tuotevalinnat", "Product choices")}
             <select
@@ -2212,8 +2187,8 @@ export function ShoppingWorkspace({
               <h3>{tr("Lista täyttyy tähän", "Your list will appear here")}</h3>
               <p>
                 {tr(
-                  "Kirjoita toiveesi vasemmalle. Jokaisen tuotteen kohdalla näkyy, mitä ruokaa varten se on.",
-                  "Write your note on the left. Each grocery shows which meal it belongs to.",
+                  "Lisää tuote nimellä tai kirjoita ostostoiveesi muistiinpanoon.",
+                  "Add a grocery by name or write what you need in the shopping note.",
                 )}
               </p>
             </div>
@@ -2249,11 +2224,7 @@ export function ShoppingWorkspace({
                     </li>
                   ))}
                   {snapshot.proposal.quantities.map((assumed) => {
-                    const line = snapshot.basket.find(
-                      (l) =>
-                        `${l.requirement.id}:${l.requirement.unit}` ===
-                        assumed.requirementKey,
-                    );
+                    const line = quotesByKey.get(assumed.requirementKey)?.line;
                     return (
                       <li key={assumed.requirementKey}>
                         <span>
@@ -2305,13 +2276,11 @@ export function ShoppingWorkspace({
               {all
                 .filter((r) => category(r.name) === cat)
                 .map((r) => {
-                  const key = `${r.id}:${r.unit}`;
-                  const line = snapshot.basket.find(
-                    (l) =>
-                      l.requirement.id === r.id &&
-                      l.requirement.unit === r.unit,
-                  );
-                  const home = state.skipped.includes(key);
+                  const key = requirementKey(r);
+                  const quote = quotesByKey.get(key);
+                  const line = quote?.line;
+                  const cheaper = quote?.cheaper;
+                  const home = homeKeys.has(key);
                   const merchandiseIntent =
                     line?.requirement.merchandise ?? r.merchandise ?? null;
                   const step =
@@ -2323,37 +2292,6 @@ export function ShoppingWorkspace({
                         : 100;
                   const count =
                     line?.product && !line.approximate ? line.packs : r.amount;
-                  // One shared eligibility filter and sort for the chosen price basis.
-                  const best =
-                    line?.product && line.total !== null
-                      ? priceAlternatives(
-                          r,
-                          line.product,
-                          line.candidates.filter((p) => purchasable(r, p)),
-                          {
-                            context: state.context,
-                            preferences: state.categoryPreferences,
-                            exclusions: exclusionTerms(
-                              state.household.exclusions,
-                            ),
-                            productPreference: state.productPreference,
-                            priceBasis: state.priceBasis,
-                            sourceNote: state.note,
-                            accepted: state.accepted[r.id] ?? [],
-                          },
-                        )[0]
-                      : undefined;
-                  const comparison =
-                    best && line?.product
-                      ? comparePriceAlternative(
-                          r,
-                          line.product,
-                          best,
-                          state.priceBasis,
-                        )
-                      : null;
-                  const cheaper =
-                    best && comparison ? { product: best, comparison } : null;
                   return (
                     <div
                       className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
