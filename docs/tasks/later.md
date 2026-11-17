@@ -152,3 +152,7 @@ Recipes can be searched by name or ingredient and read without opening the edito
 `npm run build` passed. Four focused Electron checks passed in development mode: recipe search and instructions (`forms.spec.ts`), moving a meal (`calendar.spec.ts`), opening and correcting a saved receipt (`receipt-names.spec.ts`, English), and native store positioning (`store-progress.spec.ts`). The recipe fixture now waits for onboarding to finish before seeding the library.
 
 A 240-recipe fixture rendered 12 cards on entry. In the embedded store, 60 scroll notifications with unchanged geometry caused zero native placement calls. Resizing the window did reposition the store. No live accounts were used. Owner visual acceptance is pending.
+
+## First shopping list and store setup
+
+In progress, 17 November 2026. Codex, main checkout on `main`. Clarify the first-launch choices, give store search actionable feedback and let shoppers try a note and connect ChatGPT from the shopping list. Verify with development fixtures.
