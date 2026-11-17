@@ -145,4 +145,10 @@ Verification on local development fixtures:
 
 ## Recipe, schedule, receipt and store polish
 
-In progress, 17 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Improve recipe browsing and reading, click-to-schedule meals, receipt access from History and rendering costs in Data and the store frame. Owner requests direct integration on main.
+Done, 17 November 2026. Codex, chat "Generic polish run". Published directly to main in `bb7ca9d`. Release pending.
+
+Recipes can be searched by name or ingredient and read without opening the editor. Selecting a calendar meal opens a day picker. History links directly to saved receipts. Data opens receipt rows on demand and pauses its receipt reads while hidden. The Store view sends new bounds when its position or size changes.
+
+`npm run build` passed. Four focused Electron checks passed in development mode: recipe search and instructions (`forms.spec.ts`), moving a meal (`calendar.spec.ts`), opening and correcting a saved receipt (`receipt-names.spec.ts`, English), and native store positioning (`store-progress.spec.ts`). The recipe fixture now waits for onboarding to finish before seeding the library.
+
+A 240-recipe fixture rendered 12 cards on entry. In the embedded store, 60 scroll notifications with unchanged geometry caused zero native placement calls. Resizing the window did reposition the store. No live accounts were used. Owner visual acceptance is pending.
