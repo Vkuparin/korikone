@@ -21,8 +21,11 @@ export function addGrocery(
     ...state.extras,
     ...state.staples,
   ].find((i) => i.unit === unit && identity(i.name) === identity(cleanName));
+  const id = existing?.id ?? identity(cleanName);
+  if (!cleanName || !ingredientSchema.shape.id.safeParse(id).success)
+    throw new Error("invalidGroceryName");
   const item = ingredientSchema.parse({
-    id: existing?.id ?? identity(cleanName),
+    id,
     name: existing?.name ?? cleanName,
     amount: parseAmount(rawAmount, inputUnit),
     unit,

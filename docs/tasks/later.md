@@ -129,3 +129,16 @@ Owner requested on 11 October 2026 after discussing QR export. Research only, re
 ## Store button text clipping (owner report, 25 October 2026)
 
 Done: Codex, branch codex/planning-recovery-and-upgrade-sessions, local checkout. Owner revised scope: removed the duplicate composer store button and kept the top selector; clicking either open selector cancels unsaved changes and closes the panel. Added a 16-pixel gap above offer ideas. Implementation a4b6f2b plus the following spacing commit. Published to main and released in v0.11.1. Build/typecheck, scoped formatting/diff checks, contextual Settings FI/EN (2), header selector cancel/search/confirm (1), and final desktop/narrow FI/EN layout checks (2) passed. Saved state, basket, typed note and focus are preserved. Zero live AI requests or retailer writes.
+
+## Shopping list entry and rendering polish
+
+Done, 17 November 2026. Codex, chat "Generic polish run", branch `codex/shopping-list-polish` in the main checkout. Implementation `a88fc54` is on GitHub in [PR #12](https://github.com/Vkuparin/korikone/pull/12). Merge and release are pending.
+
+Manual grocery entry labels each field, identifies invalid names and amounts, confirms additions and keeps the next draft if a save is still running. The shopping list reuses quoted product comparisons and its currency formatter while the note changes.
+
+Verification on local development fixtures:
+
+- `npx vitest run tests/groceries.test.ts` passed (3 tests).
+- `npm run test:ui -- tests/ui/shopping.spec.ts tests/ui/price-basis.spec.ts tests/ui/edit-composer.spec.ts -g "manual groceries|quick add keeps|shared price basis|asks for clarification"` passed (6 tests). The English rapid-entry case passed again after the final text-selection change.
+- Build with type checking, scoped Prettier and diff checks passed. Visually checked the entry form at widths of 1280 and 720 pixels.
+- Four typing samples on the six-row example list took 26–32 ms of renderer script time before and 14–21 ms after. Each sample typed the same 26 characters. Currency formatter constructions fell from 286 to zero per sample. Owner visual acceptance is pending. No live accounts were used.

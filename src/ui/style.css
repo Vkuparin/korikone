@@ -1135,15 +1135,47 @@ body:has(.app-main) .demo {
 }
 .quick-add {
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 6px 8px;
 }
-.quick-add input {
-  font-size: 16px;
-  background: var(--kk-bg);
-  border: none;
+.quick-add > label {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
+.quick-add-options {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.quick-add-options label {
+  width: 4.4rem;
+}
+.quick-add input,
+.quick-add select,
 .quick-add button {
-  padding: 6px 12px;
+  min-height: 38px;
+  padding: 6px 9px;
+  font-size: 14px;
+}
+.quick-add [aria-invalid="true"] {
+  border-color: var(--kk-error);
+}
+.quick-add-error,
+.quick-add-status:not(:empty) {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.quick-add-error {
+  color: var(--kk-error);
+}
+.quick-add-status {
+  color: var(--kk-success);
+}
+.quick-add-status:empty {
+  position: absolute;
 }
 .product-preference {
   font-size: 14px;
@@ -1490,20 +1522,6 @@ body:has(.app-main) .demo {
   [data-planning-activity="pending"] .planning-activity {
     animation: none;
   }
-}
-.quick-add {
-  flex-wrap: wrap;
-}
-.quick-add input[name="item"] {
-  flex: 1 1 100%;
-}
-.quick-add input[name="amount"] {
-  width: 80px;
-}
-.quick-add select {
-  width: 65px;
-  font-size: 11px;
-  padding: 5px;
 }
 .shopping-workspace details {
   padding: 0;
