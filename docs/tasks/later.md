@@ -132,4 +132,13 @@ Done: Codex, branch codex/planning-recovery-and-upgrade-sessions, local checkout
 
 ## Shopping list entry and rendering polish
 
-In progress, 17 November 2026. Codex, chat "Generic polish run", branch `codex/shopping-list-polish` in the main checkout. Improve manual grocery entry, field feedback and repeated list rendering while typing. Verify the existing Finnish and English shopping flow with local development fixtures. Release unassigned.
+Done, 17 November 2026. Codex, chat "Generic polish run", branch `codex/shopping-list-polish` in the main checkout. Implementation `a88fc54` is on GitHub in [PR #12](https://github.com/Vkuparin/korikone/pull/12). Merge and release are pending.
+
+Manual grocery entry labels each field, identifies invalid names and amounts, confirms additions and keeps the next draft if a save is still running. The shopping list reuses quoted product comparisons and its currency formatter while the note changes.
+
+Verification on local development fixtures:
+
+- `npx vitest run tests/groceries.test.ts` passed (3 tests).
+- `npm run test:ui -- tests/ui/shopping.spec.ts tests/ui/price-basis.spec.ts tests/ui/edit-composer.spec.ts -g "manual groceries|quick add keeps|shared price basis|asks for clarification"` passed (6 tests). The English rapid-entry case passed again after the final text-selection change.
+- Build with type checking, scoped Prettier and diff checks passed. Visually checked the entry form at widths of 1280 and 720 pixels.
+- Four typing samples on the six-row example list took 26–32 ms of renderer script time before and 14–21 ms after. Each sample typed the same 26 characters. Currency formatter constructions fell from 286 to zero per sample. Owner visual acceptance is pending. No live accounts were used.
