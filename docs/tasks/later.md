@@ -2,6 +2,10 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## Shopping review fixes
+
+In progress. Codex, chat "Generic polish run", main checkout. Show items already sent when quantities go down, reprice only changed quantities, repeat ordered groceries, add a compact list shortcut, and make History searchable with product details loaded on demand. Target pre-release v0.11.5 with focused fixture checks.
+
 ## Review an AI edit before sending a reused list
 
 Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ec95c49`. Release pending.
