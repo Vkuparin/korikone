@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { Service } from "../src/application/service";
 import { initialState, stateSchema } from "../src/domain/model";
 import { DemoProvider } from "../src/stores/demo";
+import { compareSentQuantities } from "../src/ui/transfer-summary";
 import { memoryStorage } from "./helpers/purchase-fixtures";
 
 type Chain = "k-ruoka" | "s-kaupat";
@@ -294,6 +295,64 @@ const emptyBasket = async (service: Service, provider: DemoProvider) => {
   });
   baskets.set(service, {});
 };
+
+test("the additions preview credits a product once across rows and excludes reduced quantities", async () => {
+  const { service } = await priced("k-ruoka");
+  const sent = (await click(service)).journal!.review.listSent!;
+  const [milk, pasta] = service.basket;
+  const preview = compareSentQuantities(
+    [milk, { ...milk, packs: 1 }, pasta],
+    sent,
+  );
+  expect(preview.additions).toEqual([
+    { productId: "milk", name: milk.product!.name, packs: 1 },
+  ]);
+  expect(
+    preview.previouslySent.map((item) => [item.productId, item.packs]),
+  ).toEqual([
+    ["milk", 2],
+    ["pasta", 1],
+  ]);
+  expect(compareSentQuantities([{ ...milk, packs: 1 }], sent)).toEqual({
+    additions: [],
+    previouslySent: [{ productId: "milk", name: milk.product!.name, packs: 1 }],
+  });
+});
+
+test("a forgotten-item transfer waits if the store needs more packs than the list showed", async () => {
+  const { service, provider } = await priced("k-ruoka");
+  await click(service);
+  await extend(service);
+  await emptyBasket(service, provider);
+  const before = provider.writes;
+  const result = await service.transferDisplayed({
+    revision: service.state.revision,
+    quotedAt: service.quotedAt,
+    batchKey: service.snapshot().transferBatchKey,
+    expectedAdditions: [
+      { productId: "milk", packs: 1 },
+      { productId: "oats", packs: 1 },
+    ],
+  });
+  expect(result.transferException).toBe("additionsChanged");
+  expect(provider.writes).toBe(before);
+  expect(
+    result.review?.targets.map((item) => [
+      item.productId,
+      item.quantity - item.before,
+    ]),
+  ).toEqual([
+    ["milk", 3],
+    ["pasta", 1],
+    ["oats", 1],
+  ]);
+  await service.execute({ id: result.review!.id, acknowledged: true });
+  expect(await cartOf(service, provider)).toEqual({
+    milk: 3,
+    pasta: 1,
+    oats: 1,
+  });
+});
 
 for (const chain of ["k-ruoka", "s-kaupat"] as const) {
   test(`${chain}: after an edit, a second transfer of the same list sends only what the first did not`, async () => {

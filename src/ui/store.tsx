@@ -32,7 +32,7 @@ export function StorePage({
   setChain: (chain: Chain) => void;
   settings: () => void;
   /** Leaves the Store view for Korikone's shopping list. Absent during first setup. */
-  returnToList?: () => void;
+  returnToList?: (destination: "position" | "add") => void;
 }) {
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -171,7 +171,7 @@ export function StorePage({
           <button
             className="secondary"
             data-store-return="list"
-            onClick={returnToList}
+            onClick={() => returnToList("position")}
           >
             {tr("Palaa ostoslistaan", "Return to shopping list")}
           </button>
@@ -228,6 +228,30 @@ export function StorePage({
                   "Check your K-Ruoka basket and complete your order.",
                 )}
           </strong>
+          {returnToList && (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => returnToList("add")}
+            >
+              {tr(
+                "Palaa listaan lisäämään tuote",
+                "Return to the list to add an item",
+              )}
+            </button>
+          )}
+          {!!handoff.alreadySent?.length && (
+            <p>
+              {handoff.targets.length
+                ? tr("Lisätty tällä kertaa", "Added this time")
+                : tr(
+                    "Kauppaan ei tarvinnut lisätä tuotteita.",
+                    "The store quantities needed no top-up.",
+                  )}
+              {handoff.targets.length > 0 &&
+                ` · ${handoff.targets.map((item) => `${item.name} × ${item.quantity - item.before}`).join(", ")}`}
+            </p>
+          )}
           {addAtStore.length > 0 && (
             <details open={addAtStore.length <= 4}>
               <summary>

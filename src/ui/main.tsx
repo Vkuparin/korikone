@@ -174,7 +174,7 @@ function App() {
   // Where the shopping list was scrolled when the shopper left it, so the Store view's own
   // "Return to shopping list" brings them back to the same place.
   const listScroll = useRef({ window: 0, panel: 0 });
-  const restoreList = useRef(false);
+  const restoreList = useRef<"position" | "add" | null>(null);
   useEffect(() => {
     if (page !== "week") return;
     const remember = () => {
@@ -183,10 +183,15 @@ function App() {
         panel: document.querySelector(".shopping-panel")?.scrollTop ?? 0,
       };
     };
-    if (restoreList.current) {
-      restoreList.current = false;
+    const destination = restoreList.current;
+    if (destination) {
+      restoreList.current = null;
       const saved = { ...listScroll.current };
       requestAnimationFrame(() => {
+        if (destination === "add") {
+          document.getElementById("quick-add-item")?.focus();
+          return;
+        }
         window.scrollTo(0, saved.window);
         const panel = document.querySelector(".shopping-panel");
         if (panel) panel.scrollTop = saved.panel;
@@ -987,8 +992,8 @@ function App() {
                 chain={storeChain}
                 setChain={setStoreChain}
                 settings={() => openSettings("stores")}
-                returnToList={() => {
-                  restoreList.current = true;
+                returnToList={(destination) => {
+                  restoreList.current = destination;
                   setPage("week");
                 }}
               />

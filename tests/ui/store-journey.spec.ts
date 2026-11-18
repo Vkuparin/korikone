@@ -8,7 +8,7 @@ for (const [chain, name, destination] of [
   ["k-ruoka", "K-Ruoka", "/kauppa/ostoskori"],
   ["s-kaupat", "S-kaupat", "/ostoslistat/lista-1"],
 ])
-  test(`${name}: setup, explicit update and one transfer open the destination without another approval`, async () => {
+  test(`${name}: return from a verified transfer and send a forgotten grocery once`, async () => {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -93,6 +93,70 @@ for (const [chain, name, destination] of [
       expect(snapshot.developmentRequests).toBe(1);
       expect(snapshot.review).toBeNull();
       expect(snapshot.transferException).toBeNull();
+      await handoff
+        .getByRole("button", { name: "Palaa listaan lisäämään tuote" })
+        .click();
+      const input = page.getByLabel("Lisää tuote", { exact: true });
+      await expect(input).toBeFocused();
+      const read = async () =>
+        (await page.evaluate(() => window.korikone.load())).value;
+      expect((await read()).developmentStoreWrites).toBe(
+        snapshot.developmentStoreWrites,
+      );
+      await input.fill("Maito");
+      await page.getByLabel("Tuotteen yksikkö").selectOption("l");
+      await click("Lisää tuote listaan");
+      await click("Näytä siirrettävät tuotteet");
+      await expect(page.locator(".transfer-result")).toHaveCount(0);
+      const send = page.getByRole("button", {
+        name: "Siirrä lisäykset kauppaan",
+        exact: true,
+      });
+      await expect(send).toBeFocused();
+      const summary = page.locator(".transfer-summary");
+      await expect(summary).toContainText(
+        /Lisäykset edellisen siirron jälkeen.*[Mm]aito.*× 1/,
+      );
+      await expect(summary.locator("p").first()).not.toContainText(
+        snapshot.journal!.review.targets[0].name,
+      );
+      await summary.getByText(/Siirretty aiemmin tältä listalta/).click();
+      await expect(summary.getByRole("listitem")).toHaveText(
+        `${snapshot.journal!.review.targets[0].name} × 1`,
+      );
+      expect((await read()).developmentStoreWrites).toBe(
+        snapshot.developmentStoreWrites,
+      );
+      await send.click();
+      await expect(handoff).toContainText(
+        /Lisätty tällä kertaa.*[Mm]aito.*× 1/,
+      );
+      const updated = await read();
+      expect(updated.journal?.review.targets).toEqual([
+        expect.objectContaining({ productId: "milk", quantity: 1, before: 0 }),
+      ]);
+      expect(updated.journal?.review.alreadySent).toEqual([
+        expect.objectContaining({
+          productId: snapshot.journal!.review.targets[0].productId,
+          quantity: 1,
+        }),
+      ]);
+      expect(updated.developmentStoreWrites).toBe(
+        snapshot.developmentStoreWrites + 1,
+      );
+      expect(updated.developmentRequests).toBe(snapshot.developmentRequests);
+      await click("Palaa ostoslistaan");
+      const result = page.getByRole("region", { name: "Siirron tulos" });
+      await result
+        .getByRole("button", { name: "Lisää unohtunut tuote" })
+        .click();
+      await expect(input).toBeFocused();
+      await result.getByRole("button", { name: "Sulje", exact: true }).click();
+      await click("Avaa kauppa uudelleen");
+      await expect(handoff).toBeVisible();
+      expect((await read()).developmentStoreWrites).toBe(
+        updated.developmentStoreWrites,
+      );
       expect(
         await app.evaluate(
           ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,

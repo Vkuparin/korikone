@@ -1,4 +1,22 @@
-import type { Review, StoreContext } from "./model";
+import type { Journal, Review, StoreContext } from "./model";
+
+export function earlierListTransfer(
+  last: Journal | null | undefined,
+  context: StoreContext,
+) {
+  if (
+    last?.status !== "verified" ||
+    last.listClosed ||
+    !last.review.listSent ||
+    last.review.context.providerId !== context.providerId ||
+    last.review.context.storeId !== context.storeId
+  )
+    return undefined;
+  return {
+    accountId: last.review.baseline.accountId,
+    listSent: last.review.listSent,
+  };
+}
 
 type Line = {
   productId: string;

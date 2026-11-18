@@ -6,10 +6,12 @@ export function QuickAdd({
   state,
   busy,
   save,
+  showTransfer,
 }: {
   state: AppState;
   busy: boolean;
   save: (next: AppState) => Promise<boolean>;
+  showTransfer?: () => void;
 }) {
   const fi = state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -139,6 +141,11 @@ export function QuickAdd({
       <span className="quick-add-status" role="status">
         {added && (fi ? `Lisätty: ${added}` : `Added: ${added}`)}
       </span>
+      {added && showTransfer && (
+        <button type="button" className="text" onClick={showTransfer}>
+          {tr("Näytä siirrettävät tuotteet", "View items to send")}
+        </button>
+      )}
     </form>
   );
 }

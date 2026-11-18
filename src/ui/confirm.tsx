@@ -67,6 +67,7 @@ export function ConfirmPanel({
   call,
   money,
   onClose,
+  onAddItem,
   onRecover,
   onOpenStore,
 }: {
@@ -75,6 +76,7 @@ export function ConfirmPanel({
   call: (method: string, input?: unknown) => Promise<boolean>;
   money: (cents: number) => string;
   onClose: () => void;
+  onAddItem: () => void;
   onRecover: () => void;
   /** Shows the store tab that "Open store cart" loaded. */
   onOpenStore: (chain: "k-ruoka" | "s-kaupat") => void;
@@ -92,8 +94,10 @@ export function ConfirmPanel({
   const items =
     review && attention(review, state.household.budget, state.listHistory);
   const leftOut = review ? omittedReviewItems(review) : [];
+  const additionsChanged = snapshot.transferException === "additionsChanged";
   const quiet =
     !!items &&
+    !additionsChanged &&
     !leftOut.length &&
     !items.manual.length &&
     !items.overBudget &&
@@ -116,6 +120,18 @@ export function ConfirmPanel({
         <h3>
           {tr("Siirto", "Transfer to")} {review.context.storeName}
         </h3>
+        {!!review.alreadySent?.length && (
+          <p>
+            {tr(
+              "Aiemmasta siirrosta jo kaupassa",
+              "Still at the store from the last transfer",
+            )}
+            {" · "}
+            {review.alreadySent
+              .map((item) => `${item.name} × ${item.quantity}`)
+              .join(", ")}
+          </p>
+        )}
         {isLive(review.context.providerId) && (
           <p className="muted">
             {t("account")}: {review.baseline.accountName || t("signedIn")}
@@ -125,6 +141,14 @@ export function ConfirmPanel({
           <p>{tr("Ei huomautettavaa.", "Nothing needs attention.")}</p>
         ) : (
           <ul className="attention-list">
+            {additionsChanged && (
+              <li>
+                {tr(
+                  "Kaupassa on aiemmin siirrettyjä tuotteita odotettua vähemmän. Tarkista täydennettävät määrät ennen siirtoa.",
+                  "The store holds fewer of your previously sent items than expected. Check the quantities below before sending.",
+                )}
+              </li>
+            )}
             {leftOut.length > 0 && (
               <li>
                 {tr("Jää pois siirrosta:", "Left out of this transfer:")}{" "}
@@ -222,7 +246,7 @@ export function ConfirmPanel({
             )}
           </details>
         )}
-        <details>
+        <details open={additionsChanged || undefined}>
           <summary>{tr("Näytä kaikki rivit", "Show all rows")}</summary>
           <ul>
             {review.targets.map((target) => (
@@ -402,6 +426,9 @@ export function ConfirmPanel({
                     )}
               </button>
             )}
+            <button className="secondary" disabled={busy} onClick={onAddItem}>
+              {tr("Lisää unohtunut tuote", "Add a forgotten item")}
+            </button>
             <button
               className="secondary"
               disabled={busy}
@@ -414,7 +441,10 @@ export function ConfirmPanel({
               disabled={busy}
               onClick={() => void call("prepare", { allowMissing: true })}
             >
-              {tr("Siirrä sama lista uudelleen…", "Transfer this list again…")}
+              {tr(
+                "Tarkista kaupan määrät uudelleen…",
+                "Recheck store quantities…",
+              )}
             </button>
             <button className="text" onClick={onClose}>
               {tr("Sulje", "Close")}

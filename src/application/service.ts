@@ -56,7 +56,7 @@ import {
   type StoreProvider,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
-import { reviewLines, storeKey } from "../domain/changes";
+import { earlierListTransfer, reviewLines, storeKey } from "../domain/changes";
 import {
   ERROR_KEY,
   ERROR_LIMIT,
@@ -3373,7 +3373,7 @@ export class Service {
             cancellable: true,
           }),
       },
-      this.earlierTransfer(),
+      earlierListTransfer(this.journal, this.state.context),
     );
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
@@ -3383,22 +3383,6 @@ export class Service {
     if (this.review.priceChanges?.length)
       await this.reconcileQuote(this.review);
     return this.snapshot();
-  }
-  /** The last verified transfer of the current list to the same store, if a New list has not started since. */
-  private earlierTransfer() {
-    const last = this.journal;
-    if (
-      last?.status !== "verified" ||
-      last.listClosed ||
-      !last.review.listSent ||
-      last.review.context.providerId !== this.state.context.providerId ||
-      last.review.context.storeId !== this.state.context.storeId
-    )
-      return undefined;
-    return {
-      accountId: last.review.baseline.accountId,
-      listSent: last.review.listSent,
-    };
   }
   /** A New list starts fresh: the next transfer sends its rows in full. */
   private closedTransferList(): { key: string; value: Journal }[] {
@@ -3529,11 +3513,19 @@ export class Service {
   }
   async transferDisplayed(input: unknown) {
     this.assertNoProvisionalTransfer();
-    const { revision, quotedAt, batchKey } = z
+    const { revision, quotedAt, batchKey, expectedAdditions } = z
       .object({
         revision: z.number().int(),
         quotedAt: z.string(),
         batchKey: z.string(),
+        expectedAdditions: z
+          .array(
+            z.object({
+              productId: z.string(),
+              packs: z.number().int().positive(),
+            }),
+          )
+          .optional(),
       })
       .parse(input);
     if (this.busy || this.transferPending) throw new Error("busy");
@@ -3585,7 +3577,23 @@ export class Service {
         throw new Error("draftStale");
       }
       const review = this.review!;
-      // Only a shopper who asked for it sees the review first. Otherwise rows left out, a budget
+      // A follow-up click covers the additions displayed. A changed store basket may now need more.
+      if (expectedAdditions) {
+        const displayed = new Map(
+          expectedAdditions.map((item) => [item.productId, item.packs]),
+        );
+        if (
+          review.targets.some(
+            (target) =>
+              target.quantity - target.before >
+              (displayed.get(target.productId) ?? 0),
+          )
+        ) {
+          this.transferException = "additionsChanged";
+          return this.snapshot();
+        }
+      }
+      // Otherwise only a shopper who asked for it sees the review first. Rows left out, a budget
       // warning and items already in the store basket were shown with the button and need no
       // second approval.
       if (this.state.reviewBeforeTransfer) {

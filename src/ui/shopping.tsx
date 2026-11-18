@@ -45,7 +45,8 @@ import { RowFind, type FindResult } from "./row-find";
 import { MerchandiseRow } from "./merchandise";
 import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
-import { requestWithoutRow } from "./transfer-summary";
+import { compareSentQuantities, requestWithoutRow } from "./transfer-summary";
+import { earlierListTransfer } from "../domain/changes";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
 import {
@@ -582,11 +583,21 @@ export function ShoppingWorkspace({
   const panel = useRef<HTMLElement>(null);
   const footer = useRef<HTMLDivElement>(null);
   const [comparing, setComparing] = useState(false);
-  const [confirming, setConfirming] = useState(
-    !!snapshot.journal &&
-      (snapshot.journal.status === "partial" ||
-        snapshot.journal.batchKey === snapshot.transferBatchKey),
+  const sameVerifiedBatch =
+    snapshot.journal?.status === "verified" &&
+    !snapshot.journal.listClosed &&
+    snapshot.journal.batchKey === snapshot.transferBatchKey;
+  const [showConfirmation, setConfirming] = useState(
+    sameVerifiedBatch || snapshot.journal?.status === "partial",
   );
+  const confirming =
+    showConfirmation &&
+    (sameVerifiedBatch ||
+      snapshot.journal?.status === "partial" ||
+      !!snapshot.review ||
+      snapshot.transferException === "priceChanged" ||
+      snapshot.transferException === "unresolved" ||
+      snapshot.transferException === "manualOnly");
   const [transferring, setTransferring] = useState(false);
   // The list row whose details are open.
   const [opened, setOpened] = useState<string | null>(null);
@@ -1177,6 +1188,11 @@ export function ShoppingWorkspace({
     }
     return { sendable, transferPrices: priceBreakdown(sendable), unverified };
   }, [snapshot.basket, snapshot.merchandise.manual]);
+  const followUp = useMemo(() => {
+    const previous = earlierListTransfer(snapshot.journal, state.context);
+    return previous ? compareSentQuantities(sendable, previous.listSent) : null;
+  }, [snapshot.journal, state.context, sendable]);
+  const additions = followUp?.additions;
   const missing = snapshot.quotedAt
     ? rows.filter((r) => !quotesByKey.get(requirementKey(r))?.line.product)
     : [];
@@ -2198,7 +2214,16 @@ export function ShoppingWorkspace({
               )}
             </p>
           )}
-          <QuickAdd state={state} busy={busy} save={save} />
+          <QuickAdd
+            state={state}
+            busy={busy}
+            save={save}
+            showTransfer={
+              additions && !sameVerifiedBatch
+                ? () => (transferButton.current ?? footer.current)?.focus()
+                : undefined
+            }
+          />
           <label className="product-preference">
             {tr("Tuotevalinnat", "Product choices")}
             <select
@@ -2880,6 +2905,7 @@ export function ShoppingWorkspace({
           snapshot.journal?.status === "partial") && (
           <div
             ref={footer}
+            tabIndex={-1}
             className="shopping-total"
             role="region"
             aria-label={tr("Yhteensä ja siirto", "Total and transfer")}
@@ -2891,6 +2917,9 @@ export function ShoppingWorkspace({
                 call={call}
                 money={money}
                 onClose={() => setConfirming(false)}
+                onAddItem={() =>
+                  document.getElementById("quick-add-item")?.focus()
+                }
                 onRecover={() => void call("recover")}
                 onOpenStore={openStore}
               />
@@ -3007,7 +3036,57 @@ export function ShoppingWorkspace({
                 role="group"
                 aria-label={tr("Ennen siirtoa", "Before the transfer")}
               >
-                {sendable.length > 0 ? (
+                {additions && sendable.length > 0 ? (
+                  <>
+                    {additions.length > 0 ? (
+                      <p>
+                        <strong>
+                          {tr(
+                            "Lisäykset edellisen siirron jälkeen",
+                            "Added since the last transfer",
+                          )}
+                        </strong>
+                        {" · "}
+                        {additions
+                          .map((item) => `${item.name} × ${item.packs}`)
+                          .join(", ")}
+                      </p>
+                    ) : (
+                      <p>
+                        {tr(
+                          "Listan tuotemäärät eivät ole kasvaneet edellisestä siirrosta.",
+                          "No additional quantities on this list since the last transfer.",
+                        )}
+                      </p>
+                    )}
+                    {!!followUp?.previouslySent.length && (
+                      <details>
+                        <summary>
+                          {tr(
+                            "Siirretty aiemmin tältä listalta",
+                            "Previously sent from this list",
+                          )}{" "}
+                          · {followUp.previouslySent.length}
+                        </summary>
+                        <ul>
+                          {followUp.previouslySent.map((item) => (
+                            <li key={item.productId}>
+                              {item.name} × {item.packs}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                    {!sameVerifiedBatch && (
+                      <p className="muted">
+                        {tr(
+                          "Kaupassa jäljellä olevat aiemmin siirretyt pakkaukset lasketaan mukaan. Korikone lisää vain puuttuvan määrän.",
+                          "Packs from your previous transfer count toward this list if they’re still at the store. Korikone adds the remaining quantity.",
+                        )}
+                      </p>
+                    )}
+                  </>
+                ) : sendable.length > 0 ? (
                   <p>
                     <strong>
                       {count(
@@ -3113,6 +3192,9 @@ export function ShoppingWorkspace({
                         revision: state.revision,
                         quotedAt: snapshot.quotedAt,
                         batchKey: snapshot.transferBatchKey,
+                        expectedAdditions: additions?.map(
+                          ({ productId, packs }) => ({ productId, packs }),
+                        ),
                       }))
                     )
                       setConfirming(true);
@@ -3130,7 +3212,27 @@ export function ShoppingWorkspace({
                     )}{" "}
                   </span>
                 )}
-                {state.reviewBeforeTransfer ? (
+                {sameVerifiedBatch ? (
+                  isLive(state.context.providerId) ? (
+                    tr("Avaa kauppa uudelleen", "Reopen store")
+                  ) : (
+                    tr("Näytä siirron tulos", "View transfer result")
+                  )
+                ) : additions ? (
+                  state.reviewBeforeTransfer ? (
+                    tr("Tarkista lisäykset", "Review additions")
+                  ) : additions.length > 0 ? (
+                    tr(
+                      "Siirrä lisäykset kauppaan",
+                      "Send additions to the store",
+                    )
+                  ) : (
+                    tr(
+                      "Täydennä puuttuvat määrät kauppaan",
+                      "Top up missing quantities at the store",
+                    )
+                  )
+                ) : state.reviewBeforeTransfer ? (
                   tr("Tarkista siirto", "Review transfer")
                 ) : state.context.providerId === "s-kaupat" ? (
                   tr(
@@ -3146,24 +3248,29 @@ export function ShoppingWorkspace({
                     {tr("ostoskori", "basket")}
                   </>
                 )}
-                <span>
-                  {" "}
-                  ·{" "}
-                  {count(
-                    sendable.length,
-                    fi,
-                    ["tuote", "tuotetta"],
-                    ["product", "products"],
-                  )}
-                </span>
-                {(transferPrices.exact > 0 ||
-                  transferPrices.approximate > 0) && (
-                  <span className="transfer-total">
+                {!additions && !sameVerifiedBatch && (
+                  <span>
                     {" "}
-                    · {transferPrices.approximate > 0 && tr("noin ", "about ")}
-                    {money(transferPrices.exact + transferPrices.approximate)}
+                    ·{" "}
+                    {count(
+                      sendable.length,
+                      fi,
+                      ["tuote", "tuotetta"],
+                      ["product", "products"],
+                    )}
                   </span>
                 )}
+                {!additions &&
+                  !sameVerifiedBatch &&
+                  (transferPrices.exact > 0 ||
+                    transferPrices.approximate > 0) && (
+                    <span className="transfer-total">
+                      {" "}
+                      ·{" "}
+                      {transferPrices.approximate > 0 && tr("noin ", "about ")}
+                      {money(transferPrices.exact + transferPrices.approximate)}
+                    </span>
+                  )}
               </button>
             )}
           </div>
