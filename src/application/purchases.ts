@@ -141,6 +141,8 @@ export class PurchaseStore {
   async write(
     ledger: PurchaseLedger,
     originals: { sourceId: string; text: string | null }[] = [],
+    /** The stored ledger value this change started from, when the caller has already read it. */
+    storedLedger?: { value: unknown },
   ) {
     const entries = ledgerEntries(ledger, originals);
     const validated = entries[0].value as PurchaseLedger;
@@ -154,7 +156,12 @@ export class PurchaseStore {
     const same = (x: unknown, y: unknown) =>
       JSON.stringify(x ?? null) === JSON.stringify(y ?? null);
     const prior: unknown[] = [];
-    for (const entry of entries) prior.push(await this.db.get(entry.key));
+    for (const [i, entry] of entries.entries())
+      prior.push(
+        i === 0 && storedLedger
+          ? storedLedger.value
+          : await this.db.get(entry.key),
+      );
     try {
       await this.db.setMany(entries);
     } catch (error) {
@@ -213,84 +220,61 @@ export class PurchaseStore {
    * Parses one receipt text and commits its source, evidence, reconciliation, rule
    * interpretations and optional original in one write. An exact repeat adds nothing.
    */
-  importReceipt(
+  async importReceipt(
     text: string,
     format: "pdf" | "txt" | "csv",
     options: { keepOriginal?: boolean; ocrPages?: number[] } = {},
   ): Promise<ReceiptImport> {
+    const [result] = await this.importReceipts([{ text, format, ...options }]);
+    if ("error" in result) throw result.error;
+    return result;
+  }
+  /**
+   * Several receipts read once against one ledger and committed in one atomic write (B7.11), so an
+   * import does not reread and rewrite the whole ledger for every file. Each receipt is merged on
+   * its own: an invalid one is reported with its error and leaves the others unchanged. If the one
+   * write fails, every receipt that would have changed the ledger reports that error.
+   */
+  importReceipts(
+    items: {
+      text: string;
+      format: "pdf" | "txt" | "csv";
+      keepOriginal?: boolean;
+      ocrPages?: number[];
+    }[],
+  ): Promise<(ReceiptImport | { error: unknown })[]> {
     return this.serialize(async () => {
-      const ocrPages = receiptOCRPagesSchema.parse(options.ocrPages ?? []);
-      if (ocrPages.length && format !== "pdf")
-        throw new Error("purchaseInvalid");
-      const parsed = parseReceipt(text);
-      if (parsed.outcome === "unsupported")
-        return {
-          outcome: "unsupported",
-          eventId: null,
-          lines: parsed.lines,
-          unreadableLines: parsed.lines,
-          reconciliation: null,
-          ...(ocrPages.length ? { ocrPages } : {}),
-        };
+      const results: (ReceiptImport | { error: unknown })[] = [];
+      if (!items.length) return results;
+      const stored = await this.db.get(PURCHASES_KEY);
+      let ledger = readLedger(stored);
+      const originals = new Map<string, string>();
+      const changed: number[] = [];
       const importedAt = new Date().toISOString();
-      const { source, event } = receiptPurchase(
-        parsed,
-        format,
-        receiptFingerprint(parsed),
-        importedAt,
-      );
-      if (ocrPages.length) {
-        if (ocrPages.some((page) => page > (source.pages ?? 1)))
-          throw new Error("purchaseInvalid");
-        source.ocrPages = ocrPages;
+      for (const [index, item] of items.entries()) {
+        try {
+          const step = mergeReceipt(ledger, item, importedAt);
+          results.push(step.summary);
+          if (!step.ledger) continue;
+          ledger = step.ledger;
+          if (step.original)
+            originals.set(step.original.sourceId, step.original.text);
+          changed.push(index);
+        } catch (error) {
+          results.push({ error });
+        }
       }
-      const merged = mergePurchase(await this.ledger(), source, event);
-      const summary = {
-        ...(ocrPages.length ? { ocrPages } : {}),
-        outcome: merged.outcome,
-        eventId: merged.eventId,
-        lines: parsed.receipt.lines,
-        unreadableLines: parsed.receipt.unreadableLines,
-        reconciliation: parsed.facts.reconciliation.status,
-      };
-      const stored = merged.ledger.sources.find((s) =>
-        merged.ledger.events
-          .find((e) => e.id === merged.eventId)!
-          .sourceIds.includes(s.id),
-      )!;
-      // Keeping the original is the shopper's choice per import; a repeat can add it later.
-      const keep =
-        options.keepOriginal === true && stored.retention !== "original";
-      if (merged.outcome === "duplicate" && !keep) return summary;
-      const current = merged.ledger.events.find(
-        (e) => e.id === merged.eventId,
-      )!;
-      await this.write(
-        {
-          ...merged.ledger,
-          sources: merged.ledger.sources.map((s) =>
-            s.id === stored.id && keep ? { ...s, retention: "original" } : s,
-          ),
-          annotations:
-            merged.outcome === "duplicate"
-              ? merged.ledger.annotations
-              : [
-                  ...merged.ledger.annotations.filter(
-                    (a) => a.eventId !== current.id || a.origin !== "rule",
-                  ),
-                  ...ruleAnnotations(current, stored.revision, importedAt),
-                ],
-        },
-        keep
-          ? [
-              {
-                sourceId: stored.id,
-                text: text.slice(0, purchaseLimits.originalCharacters),
-              },
-            ]
-          : [],
-      );
-      return summary;
+      if (!changed.length) return results;
+      try {
+        await this.write(
+          ledger,
+          [...originals].map(([sourceId, text]) => ({ sourceId, text })),
+          { value: stored },
+        );
+      } catch (error) {
+        for (const index of changed) results[index] = { error };
+      }
+      return results;
     });
   }
   delete(input: unknown) {
@@ -346,4 +330,93 @@ export class PurchaseStore {
       })),
     ]);
   }
+}
+
+/**
+ * One receipt merged into a ledger in memory. `ledger` is null when nothing changes (an exact
+ * repeat without a newly kept original); `original` is the text to keep beside the record.
+ */
+function mergeReceipt(
+  base: PurchaseLedger,
+  item: {
+    text: string;
+    format: "pdf" | "txt" | "csv";
+    keepOriginal?: boolean;
+    ocrPages?: number[];
+  },
+  importedAt: string,
+): {
+  summary: ReceiptImport;
+  ledger: PurchaseLedger | null;
+  original: { sourceId: string; text: string } | null;
+} {
+  const { text, format } = item;
+  const ocrPages = receiptOCRPagesSchema.parse(item.ocrPages ?? []);
+  if (ocrPages.length && format !== "pdf") throw new Error("purchaseInvalid");
+  const parsed = parseReceipt(text);
+  if (parsed.outcome === "unsupported")
+    return {
+      summary: {
+        outcome: "unsupported",
+        eventId: null,
+        lines: parsed.lines,
+        unreadableLines: parsed.lines,
+        reconciliation: null,
+        ...(ocrPages.length ? { ocrPages } : {}),
+      },
+      ledger: null,
+      original: null,
+    };
+  const { source, event } = receiptPurchase(
+    parsed,
+    format,
+    receiptFingerprint(parsed),
+    importedAt,
+  );
+  if (ocrPages.length) {
+    if (ocrPages.some((page) => page > (source.pages ?? 1)))
+      throw new Error("purchaseInvalid");
+    source.ocrPages = ocrPages;
+  }
+  const merged = mergePurchase(base, source, event);
+  const summary: ReceiptImport = {
+    ...(ocrPages.length ? { ocrPages } : {}),
+    outcome: merged.outcome,
+    eventId: merged.eventId,
+    lines: parsed.receipt.lines,
+    unreadableLines: parsed.receipt.unreadableLines,
+    reconciliation: parsed.facts.reconciliation.status,
+  };
+  const current = merged.ledger.events.find((e) => e.id === merged.eventId)!;
+  const stored = merged.ledger.sources.find((s) =>
+    current.sourceIds.includes(s.id),
+  )!;
+  // Keeping the original is the shopper's choice per import; a repeat can add it later.
+  const keep = item.keepOriginal === true && stored.retention !== "original";
+  if (merged.outcome === "duplicate" && !keep)
+    return { summary, ledger: null, original: null };
+  return {
+    summary,
+    ledger: {
+      ...merged.ledger,
+      sources: merged.ledger.sources.map((s) =>
+        s.id === stored.id && keep ? { ...s, retention: "original" } : s,
+      ),
+      annotations:
+        merged.outcome === "duplicate"
+          ? merged.ledger.annotations
+          : [
+              ...merged.ledger.annotations.filter(
+                (a) => a.eventId !== current.id || a.origin !== "rule",
+              ),
+              ...ruleAnnotations(current, stored.revision, importedAt),
+            ],
+    },
+    original: keep
+      ? {
+          sourceId: stored.id,
+          text: text.slice(0, purchaseLimits.originalCharacters),
+        }
+      : null,
+  };
 }

@@ -102,7 +102,10 @@ test("one picker action saves several real files through the worker and IPC, bes
       () => (window as unknown as { stages: string[] }).stages,
     );
     expect(stages[0]).toBe("reading:1/5");
-    expect(stages).toContain("saving:2/5");
+    // Every read file is saved in one ledger write after the last read (B7.11).
+    expect(stages.filter((s) => s.startsWith("saving"))).toEqual([
+      "saving:5/5",
+    ]);
     expect(stages.at(-1)).toBe("done:5/5");
     // No consent was given: nothing was sent, and the shopper may be invited.
     expect(intake.enrichment).toBeNull();

@@ -67,8 +67,9 @@ export type IntakeResult = {
 const readerCodes = ["receiptTooLarge", "receiptNoText", "receiptUnreadable"];
 
 /**
- * One import action over several files. Files are read one at a time and each is saved on its
- * own, so a damaged file fails alone and a cancelled action keeps what was already saved. Only
+ * One import action over several files. Files are read one at a time, then everything read is
+ * saved in one ledger write (B7.11): a damaged file fails alone, and a cancelled action still
+ * saves what it had read. Only
  * after everything is saved may one request name the new purchases, and only with saved consent
  * for the selected provider. Nothing here touches the shopping list, a quote or a store.
  */
@@ -88,8 +89,11 @@ export class ReceiptIntake {
   ): Promise<IntakeResult> {
     const now = options.now ?? Date.now;
     const started = now();
-    const results: IntakeFileResult[] = [];
-    const report = (stage: IntakeProgress["stage"], file: number) => {
+    const report = (
+      stage: IntakeProgress["stage"],
+      file: number,
+      results: IntakeFileResult[],
+    ) => {
       try {
         options.onProgress?.({
           operationId: options.operationId,
@@ -109,13 +113,24 @@ export class ReceiptIntake {
         : now() - started > intakeLimits.deadlineMs
           ? "receiptDeadline"
           : null;
+    // Outcomes by file position. A read file waits in `pending` and is listed only once the one
+    // ledger write of the batch has committed it, so every listed file is durable (B7.11).
+    const slots: (IntakeFileResult | undefined)[] = [];
+    const listed = () => slots.filter((r): r is IntakeFileResult => !!r);
+    const pending: {
+      index: number;
+      name: string;
+      text: string;
+      format: "pdf" | "txt" | "csv";
+      ocrPages: number[];
+    }[] = [];
     let bytes = 0;
     for (const [index, file] of files.entries()) {
       const done = (
         outcome: IntakeOutcome,
         code: string | null = null,
         eventId: string | null = null,
-      ) => results.push({ name: file.name, outcome, code, eventId });
+      ) => (slots[index] = { name: file.name, outcome, code, eventId });
       const stop = stopped();
       if (stop) {
         done("cancelled", stop);
@@ -137,7 +152,7 @@ export class ReceiptIntake {
         continue;
       }
       bytes += file.bytes;
-      report("reading", index + 1);
+      report("reading", index + 1, listed());
       let read: { text: string; ocrPages: number[] };
       try {
         read = await new Promise((resolve, reject) => {
@@ -165,27 +180,56 @@ export class ReceiptIntake {
         done("cancelled", "cancelled");
         continue;
       }
-      report("saving", index + 1);
+      pending.push({
+        index,
+        name: file.name,
+        text: read.text,
+        format: file.format,
+        ocrPages: read.ocrPages,
+      });
+    }
+    // Everything read before a cancel or the deadline is still saved, in one write.
+    if (pending.length) {
+      report("saving", pending.at(-1)!.index + 1, listed());
+      let saved: Awaited<ReturnType<ReceiptImportCoordinator["importMany"]>>;
       try {
-        const { receipt } = await this.receipts.import(read.text, file.format, {
-          keepOriginal: options.keepOriginal,
-          ocrPages: read.ocrPages,
-          ai: null,
-        });
-        done(
-          receipt.outcome,
-          receipt.outcome === "unsupported" ? "receiptUnsupported" : null,
-          receipt.eventId,
+        saved = await this.receipts.importMany(
+          pending.map((p) => ({
+            text: p.text,
+            format: p.format,
+            ocrPages: p.ocrPages,
+            keepOriginal: options.keepOriginal,
+          })),
         );
       } catch (error) {
-        done(
-          "failed",
-          error instanceof Error && /^[a-zA-Z]{1,40}$/.test(error.message)
-            ? error.message
-            : "receiptUnreadable",
-        );
+        saved = pending.map(() => ({ error }));
+      }
+      for (const [i, item] of pending.entries()) {
+        const outcome = saved[i];
+        slots[item.index] =
+          "error" in outcome
+            ? {
+                name: item.name,
+                outcome: "failed",
+                code:
+                  outcome.error instanceof Error &&
+                  /^[a-zA-Z]{1,40}$/.test(outcome.error.message)
+                    ? outcome.error.message
+                    : "receiptUnreadable",
+                eventId: null,
+              }
+            : {
+                name: item.name,
+                outcome: outcome.outcome,
+                code:
+                  outcome.outcome === "unsupported"
+                    ? "receiptUnsupported"
+                    : null,
+                eventId: outcome.eventId,
+              };
       }
     }
+    const results = listed();
     const eventIds = [
       ...new Set(
         results.flatMap((r) =>
@@ -204,7 +248,7 @@ export class ReceiptIntake {
         ...options.ai,
         session: async () => {
           asked = true;
-          report("interpreting", files.length);
+          report("interpreting", files.length, results);
           return options.ai!.session();
         },
       });
@@ -213,7 +257,7 @@ export class ReceiptIntake {
         invitation = await this.receipts.invitation(eventIds, options.ai);
       else if (asked || status.status !== "skipped") enrichment = status;
     }
-    report("done", files.length);
+    report("done", files.length, results);
     const counts = {
       added: 0,
       updated: 0,

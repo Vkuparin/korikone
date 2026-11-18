@@ -81,10 +81,21 @@ const enable = {
   scope: 1 as const,
 };
 
-test("several files are saved one by one; a bad file fails alone and a repeat is a duplicate", async () => {
-  const { service } = await profile();
+test("several files are saved in one ledger write; a bad file fails alone and a repeat is a duplicate", async () => {
+  const { service, storage } = await profile();
   const shopping = structuredClone(service.snapshot());
   const progress: IntakeProgress[] = [];
+  // One read and one write of the purchase ledger for the whole import (B7.11).
+  const ledgerCalls = { get: 0, set: 0 };
+  const { get, setMany } = storage;
+  storage.get = async (key) => {
+    if (key === "purchases") ledgerCalls.get++;
+    return get(key);
+  };
+  storage.setMany = async (batch) => {
+    if (batch.some((e) => e.key === "purchases")) ledgerCalls.set++;
+    return setMany!(batch);
+  };
   const snapshot = await service.importReceiptFiles(
     [
       file("s-kuitti.txt", "s-basic-campaign"),
@@ -125,21 +136,26 @@ test("several files are saved one by one; a bad file fails alone and a repeat is
     null,
     false,
   ]);
-  // Real stages only, in order, ending with everything listed; each file is durable when listed.
+  // Real stages only, in order, ending with everything listed; each file is durable when listed,
+  // so read files appear only after the one save of the batch.
   expect(progress.map((p) => p.stage)).toEqual([
     "reading",
-    "saving",
     "reading",
     "reading",
-    "saving",
     "reading",
-    "saving",
     "reading",
     "saving",
     "done",
   ]);
   expect(progress.at(-1)).toMatchObject({ files: 6, cancellable: false });
-  expect(progress[2].results).toHaveLength(2);
+  expect(progress[2].results.map((r) => r.name)).toEqual([
+    "kuva.png",
+    "rikki.txt",
+  ]);
+  expect(progress.at(-1)!.results).toHaveLength(6);
+  expect(ledgerCalls.set).toBe(1);
+  // The import reads the ledger once; linking the new purchases afterwards may read it once more.
+  expect(ledgerCalls.get).toBeLessThanOrEqual(2);
   expect(snapshot.receiptIntakeRunning).toBeNull();
   // The shopping list, its quote and the transfer record are exactly as they were.
   expect(snapshot.state).toEqual(shopping.state);
@@ -188,7 +204,7 @@ test("the batch bounds refuse extra files and bytes without reading them, and a 
   });
 });
 
-test("cancelling stops the files not yet saved and keeps the saved ones; only the named import can be cancelled", async () => {
+test("cancelling stops the files not yet read and saves the ones already read; only the named import can be cancelled", async () => {
   const { service } = await profile();
   let release = () => {};
   const gate = new Promise<void>((done) => (release = done));
@@ -202,20 +218,25 @@ test("cancelling stops the files not yet saved and keeps the saved ones; only th
     },
   };
   let operationId = "";
+  let reading = 0;
   const running = service.importReceiptFiles(
     [
       file("eka.txt", "s-basic-campaign"),
       slow,
       file("kolmas.txt", "s-deposits"),
     ],
-    { onProgress: (p) => (operationId = p.operationId) },
+    {
+      onProgress: (p) => {
+        operationId = p.operationId;
+        if (p.stage === "reading") reading = p.file;
+      },
+    },
   );
   await expect
     .poll(() => service.snapshot().receiptIntakeRunning)
     .not.toBeNull();
-  await expect
-    .poll(async () => (await service.purchaseView()).purchases.length)
-    .toBe(1);
+  // The first file is read; nothing is written until the batch ends (B7.11).
+  await expect.poll(() => reading).toBe(2);
   // A second import, or a cancel for another operation, does not disturb this one.
   await expect(
     service.importReceiptFiles([file("x.txt", "s-deposits")]),

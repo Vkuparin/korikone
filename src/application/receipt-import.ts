@@ -317,6 +317,18 @@ export class ReceiptImportCoordinator {
     };
   }
 
+  /** Several read receipts saved in one ledger write, without any request (B7.11). */
+  importMany(
+    items: {
+      text: string;
+      format: "pdf" | "txt" | "csv";
+      keepOriginal?: boolean;
+      ocrPages?: number[];
+    }[],
+  ) {
+    return this.store.importReceipts(items);
+  }
+
   /** Saves or withdraws automatic consent for one provider and the current data scope. */
   setConsent(input: unknown, now = new Date()) {
     const request = receiptConsentRequestSchema.parse(input);
