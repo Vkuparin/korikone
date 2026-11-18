@@ -2324,6 +2324,29 @@ nav button {
   gap: 8px;
   margin-top: 12px;
 }
+.repeat-last {
+  flex-wrap: wrap;
+  margin-block: 12px;
+}
+.repeat-options {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.repeat-options fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.repeat-options legend {
+  font-weight: 600;
+}
+.repeat-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 5px;
+}
 .checkout-action {
   margin-block-start: 8px;
 }

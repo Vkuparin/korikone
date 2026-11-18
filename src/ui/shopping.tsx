@@ -1080,6 +1080,9 @@ export function ShoppingWorkspace({
       setResetFailed(true);
       return;
     }
+    showFreshList("");
+  }
+  function showFreshList(savedNote: string) {
     setConfirmingNewList(false);
     newListFromHistory.current = null;
     try {
@@ -1092,7 +1095,8 @@ export function ShoppingWorkspace({
     } catch {
       // Session storage is a convenience.
     }
-    changeNote("");
+    changeNote(savedNote);
+    currentInstruction.current = "";
     setInstructionValue("");
     setFocusTarget(null);
     setNewListDraft(false);
@@ -1106,10 +1110,12 @@ export function ShoppingWorkspace({
     setUpdateFailed(false);
     setCancelled(false);
     setEditFailed(false);
+    setEditCancelled(false);
     setTransferFailed(false);
     setQrOpen(false);
     setLivePlanning(null);
     setShowSavedDuringPlanning(false);
+    openList();
     requestAnimationFrame(() => noteElement.current?.focus());
   }
   const leaveNewList = () => {
@@ -1266,6 +1272,28 @@ export function ShoppingWorkspace({
         },
       ],
     });
+  const repeatButton = (
+    entry: AppState["listHistory"][number],
+    latest = false,
+  ) => (
+    <RepeatButton
+      key={entry.id}
+      entry={entry}
+      snapshot={snapshot}
+      latest={latest}
+      replacing={hasList || !!note.trim() || !!instruction.trim()}
+      busy={busy || working || editWorking || transferring}
+      repeat={(rowKeys) =>
+        call(
+          "repeatList",
+          { historyId: entry.id, revision: state.revision, rowKeys },
+          {
+            onSuccess: (result) => showFreshList(result.state.note),
+          },
+        )
+      }
+    />
+  );
   if (view === "history")
     return (
       <section>
@@ -1369,43 +1397,7 @@ export function ShoppingWorkspace({
                     )}
                   </button>
                 )}
-                <RepeatButton
-                  snapshot={snapshot}
-                  historyId={h.id}
-                  hasList={all.length > 0}
-                  busy={busy}
-                  call={call}
-                />
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    const restored = h.recipes.map((r) => ({
-                      ...r,
-                      id: crypto.randomUUID(),
-                    }));
-                    void save({
-                      ...state,
-                      note: h.note,
-                      recipes: [...state.recipes, ...restored],
-                      meals: h.meals.map((m) => ({
-                        ...m,
-                        recipeId:
-                          restored[
-                            h.recipes.findIndex((r) => r.id === m.recipeId)
-                          ]?.id ?? m.recipeId,
-                      })),
-                      extras: h.extras,
-                      skipped: h.skipped,
-                      removed: h.removed,
-                      quantities: h.quantities,
-                    }).then((ok) => {
-                      if (ok) changeNote(h.note);
-                    });
-                  }}
-                >
-                  {tr("Käytä listan pohjana", "Use as a starting list")}
-                </button>
+                {repeatButton(h)}
               </div>
             </article>
           ))}
@@ -1472,21 +1464,14 @@ export function ShoppingWorkspace({
         <h1>
           {tr("Mitä tällä viikolla syödään?", "What shall we eat this week?")}
         </h1>
-        <RepeatSummary snapshot={snapshot} />
-        {!all.length && !!state.listHistory.length && (
-          <p className="repeat-last">
-            <RepeatButton
-              snapshot={snapshot}
-              historyId={state.listHistory[0].id}
-              hasList={false}
-              busy={busy}
-              call={call}
-              label={tr(
-                "Toista viimeksi kauppaan siirretty lista",
-                "Repeat the list last transferred to the store",
-              )}
-            />
-          </p>
+        <RepeatSummary
+          snapshot={snapshot}
+          adjust={() => listHeading.current?.focus()}
+        />
+        {!hasList && !!state.listHistory.length && (
+          <div className="actions repeat-last">
+            {repeatButton(state.listHistory[0], true)}
+          </div>
         )}
         {composingEdit &&
           !working &&
@@ -2278,6 +2263,21 @@ export function ShoppingWorkspace({
               </button>
             </details>
           </div>
+          {composingEdit && (
+            <button
+              type="button"
+              className="text"
+              onClick={() => {
+                setFocusTarget(null);
+                noteElement.current?.focus();
+              }}
+            >
+              {tr(
+                "Viimeistele lista tekoälykentässä",
+                "Finish the list in the AI field",
+              )}
+            </button>
+          )}
           {/* Right after clearing, one note with the way back; a list that was never filled shows
               only the empty state below (B6.6). */}
           {!all.length && snapshot.edit?.status === "cleared" && (
@@ -2662,7 +2662,14 @@ export function ShoppingWorkspace({
                       </div>
                       {/* One line under the name: amount, then the row's text actions. */}
                       <div className="row-actions">
-                        <div className="quantity-control">
+                        <div
+                          className="quantity-control"
+                          role="group"
+                          aria-label={tr(
+                            `Määrä: ${r.name}`,
+                            `Quantity: ${r.name}`,
+                          )}
+                        >
                           <button
                             aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
                             disabled={busy || r.amount <= step}
@@ -2678,15 +2685,17 @@ export function ShoppingWorkspace({
                           >
                             −
                           </button>
-                          <span>{count}</span>
-                          <small>
-                            {line?.product && !line.approximate
-                              ? tr(
-                                  count === 1 ? "pakkaus" : "pakkausta",
-                                  count === 1 ? "pack" : "packs",
-                                )
-                              : unitLabel(r.unit, state.language)}
-                          </small>
+                          <output aria-live="polite" aria-atomic="true">
+                            <span>{count}</span>{" "}
+                            <small>
+                              {line?.product && !line.approximate
+                                ? tr(
+                                    count === 1 ? "pakkaus" : "pakkausta",
+                                    count === 1 ? "pack" : "packs",
+                                  )
+                                : unitLabel(r.unit, state.language)}
+                            </small>
+                          </output>
                           <button
                             aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
                             disabled={busy}

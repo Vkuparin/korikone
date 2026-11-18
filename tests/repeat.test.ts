@@ -6,7 +6,10 @@ import { DemoProvider } from "../src/stores/demo";
 import { memoryStorage } from "./helpers/purchase-fixtures";
 
 /** A list of soup, milk and an unknown grocery, transferred once at the demo K store. */
-async function transferred(change: (state: AppState) => void = () => {}) {
+async function transferred(
+  change: (state: AppState) => void = () => {},
+  startNewWeek = true,
+) {
   const store = memoryStorage();
   const service = new Service(store.storage);
   service.developmentMode = true;
@@ -37,7 +40,7 @@ async function transferred(change: (state: AppState) => void = () => {}) {
   expect(service.journal?.status).toBe("verified");
   const [entry] = service.state.listHistory;
   // The shopper has since started a new week and the history entry may be altered for a case.
-  await service.newWeek();
+  if (startNewWeek) await service.newWeek();
   const next = structuredClone(service.state);
   change(next);
   if (JSON.stringify(next) !== JSON.stringify(service.state)) {
@@ -49,9 +52,74 @@ async function transferred(change: (state: AppState) => void = () => {}) {
 const repeat = (service: Service, historyId: string) =>
   service.repeatList({ historyId, revision: service.state.revision });
 
+test("chosen order groceries keep their amounts and start a separately transferable list", async () => {
+  const { service, entry, provider } = await transferred(undefined, false);
+  await service.confirmPurchase();
+  const original = structuredClone(service.state.listHistory);
+  expect(entry.sentGroceries?.map((row) => row.id)).toEqual([
+    "potato",
+    "cream",
+    "milk",
+  ]);
+  const writes = provider.writes;
+  const result = await service.repeatList({
+    historyId: entry.id,
+    revision: service.state.revision,
+    rowKeys: ["potato:g"],
+  });
+  expect(result.state.meals).toEqual([]);
+  expect(result.state.extras).toEqual([
+    expect.objectContaining({ id: "potato", amount: 1500, unit: "g" }),
+  ]);
+  expect(result.basket).toHaveLength(1);
+  expect(result.basket[0].packs).toBe(2);
+  expect(result.repeat?.notSelected).toEqual([]);
+  expect(result.journal?.listClosed).toBe(true);
+  expect(result.state.listHistory).toEqual(original);
+  expect(result.developmentRequests).toBe(0);
+  expect(provider.writes).toBe(writes);
+  await service.init();
+  expect(service.journal?.listClosed).toBe(true);
+  expect(service.state.extras).toEqual(result.state.extras);
+});
+
+test("legacy list selection uses saved recipe amounts and rejects invalid selections or unavailable prices without replacing the list", async () => {
+  const { service, entry, provider } = await transferred((state) => {
+    delete state.listHistory[0].sentGroceries;
+    state.extras = [{ id: "coffee", name: "Kahvi", amount: 500, unit: "g" }];
+  });
+  const before = structuredClone(service.state);
+  const pick = (rowKeys: string[]) =>
+    service.repeatList({
+      historyId: entry.id,
+      revision: before.revision,
+      rowKeys,
+    });
+  for (const keys of [
+    [],
+    ["potato:g", "potato:g"],
+    ["carrot:g"],
+    ["unknown:g"],
+  ])
+    await expect(pick(keys)).rejects.toThrow();
+  provider.failSearch = true;
+  await expect(pick(["potato:g"])).rejects.toThrow("storeBusy");
+  expect(service.state).toEqual(before);
+  provider.failSearch = false;
+  const result = await pick(["potato:g", "milk:ml"]);
+  expect(result.state.extras.map(({ id, amount }) => [id, amount])).toEqual([
+    ["potato", 1500],
+    ["milk", 2000],
+  ]);
+  expect(result.state.listHistory).toEqual(before.listHistory);
+});
+
 test("repeat restores the transferred list with fresh prices, no AI request and no retailer write", async () => {
-  const { service, provider, entry, entries } = await transferred();
-  expect(service.state.meals).toEqual([]);
+  // Repeat an open, unconfirmed transfer. Starting a new week would close it.
+  const { service, provider, entry, entries } = await transferred(
+    undefined,
+    false,
+  );
   const writes = provider.writes;
   const carts = JSON.stringify([...provider.carts]);
   const revision = service.state.revision;

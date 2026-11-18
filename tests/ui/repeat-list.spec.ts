@@ -1,30 +1,34 @@
-import { test, expect, _electron as electron } from "@playwright/test";
+import {
+  test,
+  expect,
+  _electron as electron,
+  type Page,
+} from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-for (const language of ["fi", "en"] as const) {
-  test(`a transferred list is repeated with fresh prices, no AI request, cancellable and editable in ${language}`, async () => {
-    const fi = language === "fi";
-    const tr = (a: string, b: string) => (fi ? a : b);
-    const env = Object.fromEntries(
-      Object.entries(process.env).filter(
-        (e): e is [string, string] => typeof e[1] === "string",
-      ),
-    );
-    delete env.ELECTRON_RUN_AS_NODE;
-    env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-repeat-"));
-    env.KORIKONE_TEST_HIDDEN = "1";
-    const app = await electron.launch({ args: ["."], env });
-    try {
-      const page = await app.firstWindow();
-      await page
-        .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
-        .click();
-      const load = () =>
-        page.evaluate(async () => (await window.korikone.load()).value);
-      // A verified transfer of a small list, then an empty list.
-      await page.evaluate(async (language) => {
+async function withTransfer(
+  language: "en" | "fi",
+  placed: boolean,
+  run: (page: Page) => Promise<void>,
+) {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (e): e is [string, string] => typeof e[1] === "string",
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.KORIKONE_TEST_DATA = await mkdtemp(join(tmpdir(), "korikone-repeat-"));
+  env.KORIKONE_TEST_HIDDEN = "1";
+  const app = await electron.launch({ args: ["."], env });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
+      .click();
+    await page.evaluate(
+      async ({ language, placed }) => {
         const api = window.korikone;
         await api.setLanguage(language);
         await api.signInAI();
@@ -52,15 +56,118 @@ for (const language of ["fi", "en"] as const) {
           ? await api.execute({ id: review.id, acknowledged: true })
           : requested;
         if (!done.ok) throw new Error(done.error);
-        const cleared = await api.newWeek();
-        if (!cleared.ok) throw new Error(cleared.error);
-      }, language);
-      await page.reload();
+        const next = placed ? await api.confirmPurchase() : await api.newWeek();
+        if (!next.ok) throw new Error(next.error);
+      },
+      { language, placed },
+    );
+    await page.reload();
+    await run(page);
+  } finally {
+    await app.close();
+  }
+}
+
+test("choose groceries from a placed order, adjust packs and finish in the AI field", async () => {
+  await withTransfer("en", true, async (page) => {
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    const before = await load();
+    const note = page.getByLabel("Edit current list");
+    await note.fill("add apples tomorrow");
+    await page.getByRole("button", { name: "History", exact: true }).click();
+    const card = page
+      .getByRole("article")
+      .filter({ hasText: "Order marked as placed" });
+    const choose = card.getByRole("button", {
+      name: "Choose items from this order",
+    });
+    await choose.click();
+    const start = card.getByRole("button", {
+      name: "Start list with selected items",
+    });
+    await expect(start).toBeDisabled();
+    await expect(card.getByRole("checkbox").first()).toBeFocused();
+    await card.getByRole("checkbox", { name: /Kahvi/ }).check();
+    await card.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(choose).toBeFocused();
+    expect((await load()).state).toEqual(before.state);
+    await page
+      .getByRole("navigation")
+      .getByRole("button", { name: "Shopping list", exact: true })
+      .click();
+    await expect(note).toHaveValue("add apples tomorrow");
+    await page.getByRole("button", { name: "History", exact: true }).click();
+    await choose.click();
+    await card.getByRole("checkbox", { name: /Kahvi/ }).check();
+    await start.click();
+    await expect(note).toBeFocused();
+    await expect(note).toHaveValue("");
+    await expect(page.locator(".repeat-summary")).toContainText(
+      "Groceries from your order",
+    );
+    await page
+      .getByRole("button", { name: "Adjust quantities on the list" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Shopping list · 1" }),
+    ).toBeFocused();
+    const coffee = page.locator('[data-row-key="coffee:g"]');
+    await coffee
+      .getByRole("button", { name: "Increase: Kahvi", exact: true })
+      .click();
+    await expect(
+      coffee
+        .getByRole("group", { name: "Quantity: Kahvi" })
+        .getByRole("status"),
+    ).toHaveText("2 packs");
+    await coffee
+      .getByRole("button", { name: "Decrease: Kahvi", exact: true })
+      .click();
+    await expect(
+      coffee
+        .getByRole("group", { name: "Quantity: Kahvi" })
+        .getByRole("status"),
+    ).toHaveText("1 pack");
+    await coffee
+      .getByRole("button", { name: "Increase: Kahvi", exact: true })
+      .click();
+    await expect(
+      coffee
+        .getByRole("group", { name: "Quantity: Kahvi" })
+        .getByRole("status"),
+    ).toHaveText("2 packs");
+    await page
+      .getByRole("button", { name: "Finish the list in the AI field" })
+      .click();
+    await expect(note).toBeFocused();
+    await note.fill("add 1 l of milk");
+    expect((await load()).developmentRequests).toBe(before.developmentRequests);
+    await page
+      .getByRole("button", { name: "Update my shopping list", exact: true })
+      .click();
+    await expect(page.locator(".grocery-row")).toHaveCount(2);
+    const after = await load();
+    expect(
+      after.basket.find((row) => row.requirement.id === "coffee")?.packs,
+    ).toBe(2);
+    expect(after.state.listHistory).toEqual(before.state.listHistory);
+    expect(after.developmentRequests).toBe(before.developmentRequests + 1);
+    expect(after.developmentStoreWrites).toBe(before.developmentStoreWrites);
+  });
+});
+
+for (const language of ["fi", "en"] as const) {
+  test(`a transferred list is repeated with fresh prices, cancellable and editable in ${language}`, async () => {
+    const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
+    await withTransfer(language, false, async (page) => {
+      const load = () =>
+        page.evaluate(async () => (await window.korikone.load()).value);
       const before = await load();
       expect(before.state.extras).toEqual([]);
       const requests = before.developmentRequests;
 
-      // Empty list: the one contextual action, labelled as a transfer, not a purchase.
+      // The shortcut identifies an unconfirmed transfer by its source.
       const repeat = page.getByRole("button", {
         name: tr(
           "Toista viimeksi kauppaan siirretty lista",
@@ -73,7 +180,7 @@ for (const language of ["fi", "en"] as const) {
       const summary = page.locator(".repeat-summary");
       await expect(summary).toBeVisible();
       await expect(summary).toContainText(
-        tr("Siirto ei ole osto", "A transfer is not a purchase"),
+        tr("Siirretyn listan ostoksia", "Groceries from your transferred list"),
       );
       const repeated = await load();
       expect(repeated.state.extras.map((e) => e.id).sort()).toEqual([
@@ -91,13 +198,16 @@ for (const language of ["fi", "en"] as const) {
         .click();
       await page
         .getByRole("button", {
-          name: tr("Toista tämä lista", "Repeat this list"),
+          name: tr("Toista koko lista", "Repeat the whole list"),
           exact: true,
         })
         .first()
         .click();
       await expect(
-        page.getByText(tr("arkistoidaan", "archived")),
+        page.getByText(
+          tr("Tämä korvaa nykyisen listan", "This replaces your current list"),
+          { exact: false },
+        ),
       ).toBeVisible();
       const stateBefore = (await load()).state;
       await page
@@ -129,8 +239,6 @@ for (const language of ["fi", "en"] as const) {
       expect(edited.state.removed).toEqual(["coffee:g"]);
       expect(edited.developmentRequests).toBe(requests + 1);
       expect(edited.developmentStoreWrites).toBe(before.developmentStoreWrites);
-    } finally {
-      await app.close();
-    }
+    });
   });
 }

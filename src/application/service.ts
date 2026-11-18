@@ -108,7 +108,7 @@ import { appearanceSchema } from "../domain/appearance";
 import { pricingKey, restoredQuote, persistedQuoteSchema } from "./quotes";
 import { PlanningLifecycle } from "./planning";
 import { mapIntentResults } from "../domain/intents";
-import { applyEditIntent, applyEdits } from "../domain/edits";
+import { applyEditIntent, applyEdits, editRowKeySchema } from "../domain/edits";
 import { editDelta } from "../domain/edit-delta";
 import { interpretEdit } from "../ai/edit";
 import type { InferenceSession } from "../ai/provider";
@@ -154,7 +154,13 @@ import {
   linkStrong,
   sameGrocery,
 } from "../domain/purchase-links";
-import { repeatPlan, repeatResult, type RepeatResult } from "../domain/repeat";
+import {
+  repeatPlan,
+  repeatSelected,
+  repeatResult,
+  savedGroceries,
+  type RepeatResult,
+} from "../domain/repeat";
 import {
   ReceiptImportCoordinator,
   enrichPurchaseRequestSchema,
@@ -1123,10 +1129,11 @@ export class Service {
    * of the repeated list needs its own approval as any list does.
    */
   async repeatList(input: unknown) {
-    const { historyId, revision } = z
+    const { historyId, revision, rowKeys } = z
       .object({
         historyId: z.string().min(1),
         revision: z.number().int().nonnegative(),
+        rowKeys: z.array(editRowKeySchema).min(1).max(500).optional(),
       })
       .strict()
       .parse(input);
@@ -1136,11 +1143,14 @@ export class Service {
       if (revision !== this.state.revision) throw new Error("draftStale");
       const entry = this.state.listHistory.find((h) => h.id === historyId);
       if (!entry) throw new Error("historyMissing");
-      const plan = repeatPlan(this.state, entry);
+      const plan = rowKeys
+        ? repeatSelected(this.state, entry, rowKeys)
+        : repeatPlan(this.state, entry);
       const next = stateSchema.parse({
         ...this.state,
         ...plan.state,
         ...clearRowCorrections(this.state),
+        offerBindings: {},
         requestIntents: [],
         history: this.archived(this.state),
         revision: this.state.revision + 1,
@@ -1168,7 +1178,18 @@ export class Service {
           saved.success ? saved.data : [],
           basket.flatMap((line) => line.candidates),
         );
+        const previousId =
+          this.journal && transferHistoryId(this.journal.review);
+        const previousOrderPlaced =
+          this.state.listHistory.some(
+            (h) => h.id === previousId && h.orderPlacedAt,
+          ) ||
+          this.purchaseSignals.some(
+            (s) => s.transferId === previousId && s.strength === "confirmed",
+          );
+        const closed = previousOrderPlaced ? this.closedTransferList() : [];
         await this.writeAtomically([
+          ...closed,
           { key: "state", value: next },
           {
             key: "last-quote",
@@ -1182,6 +1203,7 @@ export class Service {
           },
           { key: PRICE_KEY, value: observedPrices },
         ]);
+        if (closed.length) this.journal = closed[0].value;
         this.planning.invalidateFor(next);
         this.state = next;
         this.observedPrices = observedPrices;
@@ -1192,7 +1214,7 @@ export class Service {
         this.review = null;
         this.comparison = null;
         this.transferException = null;
-        this.repeat = repeatResult(next, entry, plan, quote.basket);
+        this.repeat = repeatResult(next, entry, plan, quote.basket, !!rowKeys);
         return this.snapshot();
       } finally {
         this.busy = false;
@@ -3759,6 +3781,9 @@ export class Service {
                 storeKey: storeKey(this.journal!.review.context),
                 storeName: this.journal!.review.context.storeName,
                 orderPlacedAt: null,
+                sentGroceries: savedGroceries(
+                  this.journal!.review.quotes.map((line) => line.requirement),
+                ),
                 // The whole list as sent, including rows an earlier transfer of it already
                 // put in the basket; that earlier entry is replaced below.
                 transferred: reviewLines(this.journal!.review),

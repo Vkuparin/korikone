@@ -157,6 +157,8 @@ export const stateSchema = z
           storeName: z.string().optional(),
           // Undefined on profiles created before manual checkout marks were kept in history.
           orderPlacedAt: z.iso.datetime().nullable().optional(),
+          // Grocery quantities before the retailer rounded them to packs.
+          sentGroceries: z.array(ingredientSchema).optional(),
           transferred: z
             .array(
               z.object({

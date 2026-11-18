@@ -1,5 +1,12 @@
 import { storeKey } from "./changes";
-import type { AppState, BasketLine } from "./model";
+import {
+  ingredientSchema,
+  type AppState,
+  type BasketLine,
+  type Ingredient,
+} from "./model";
+import { requirements } from "./planner";
+import { requirementKey } from "./edits";
 
 type HistoryEntry = AppState["listHistory"][number];
 
@@ -57,11 +64,69 @@ export function repeatPlan(state: AppState, entry: HistoryEntry) {
   };
 }
 
+/** Older transfers kept the plan, but not the groceries quoted for that transfer. */
+export function reusableGroceries(
+  state: AppState,
+  entry: HistoryEntry,
+): Ingredient[] {
+  if (entry.sentGroceries) return entry.sentGroceries;
+  const rows = requirements({
+    ...state,
+    ...entry,
+    meals: entry.meals.filter((m) =>
+      entry.recipes.some((r) => r.id === m.recipeId),
+    ),
+    staples: [],
+    specifications: {},
+    offerBindings: {},
+  });
+  return savedGroceries(rows);
+}
+
+export function savedGroceries(rows: Ingredient[]): Ingredient[] {
+  return rows.flatMap((row) => {
+    const item = ingredientSchema.safeParse(row);
+    return item.success ? [item.data] : [];
+  });
+}
+
+export function repeatSelected(
+  state: AppState,
+  entry: HistoryEntry,
+  keys: string[],
+) {
+  const wanted = new Set(keys);
+  const extras = reusableGroceries(state, entry).filter((row) =>
+    wanted.has(requirementKey(row)),
+  );
+  if (
+    !extras.length ||
+    extras.length !== keys.length ||
+    wanted.size !== keys.length
+  )
+    throw new Error("draftStale");
+  return {
+    missingRecipes: [],
+    state: {
+      recipes: state.recipes,
+      meals: [],
+      extras,
+      skipped: [],
+      removed: [],
+      quantities: {},
+      note: "",
+      assumptions: "",
+      recurringPaused: true,
+    },
+  };
+}
+
 export function repeatResult(
   next: AppState,
   entry: HistoryEntry,
   plan: ReturnType<typeof repeatPlan>,
   basket: BasketLine[],
+  selectedOnly = false,
 ): RepeatResult {
   const sameStore = entry.storeKey === storeKey(next.context);
   const selected = new Map(
@@ -92,10 +157,13 @@ export function repeatResult(
             : [];
         })
       : [],
-    notSelected: sameStore
-      ? entry.transferred
-          .filter((item) => item.quantity > 0 && !selected.has(item.productId))
-          .map((item) => item.name)
-      : [],
+    notSelected:
+      sameStore && !selectedOnly
+        ? entry.transferred
+            .filter(
+              (item) => item.quantity > 0 && !selected.has(item.productId),
+            )
+            .map((item) => item.name)
+        : [],
   };
 }
