@@ -8,7 +8,7 @@ import { inferredClassification } from "./categories";
 import {
   ingredientSchema,
   recipeSchema,
-  stateSchema,
+  parseState,
   unitSchema,
   type AppState,
   type Requirement,
@@ -341,7 +341,11 @@ export function applyEdits(
   if (batch.revision !== state.revision) throw new EditError("staleEdit");
   const now = options.now ?? new Date();
   const packSizes = options.packSizes ?? {};
-  const next = structuredClone(state);
+  // Edits never touch the list history, which is most of a long-used profile (B7.4).
+  const next = {
+    ...structuredClone({ ...state, listHistory: [] }),
+    listHistory: state.listHistory,
+  };
   const rows = new Map(
     requirements(state, now, true).map((r) => [requirementKey(r), r]),
   );
@@ -819,8 +823,12 @@ export function applyEdits(
     }
   }
 
-  const validated = stateSchema.safeParse(next);
-  if (!validated.success) throw new EditError("invalidEdit");
+  let validated: { data: AppState };
+  try {
+    validated = { data: parseState(next, state) };
+  } catch {
+    throw new EditError("invalidEdit");
+  }
   let after: Requirement[];
   try {
     after = requirements(validated.data, now);
@@ -839,7 +847,7 @@ export function applyEdits(
       visibleBefore.get(key) !== visibleAfter.get(key) || respecified.has(key),
   );
   if (
-    JSON.stringify(validated.data) === JSON.stringify(stateSchema.parse(state))
+    JSON.stringify(validated.data) === JSON.stringify(parseState(state, state))
   )
     throw new EditError("noChange");
   return { state: validated.data, applied, changedKeys };

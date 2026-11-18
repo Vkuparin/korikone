@@ -33,21 +33,53 @@ export function currentOffer(product: Product, now = new Date()): boolean {
 }
 
 /** Compare today's unit price with the last eight earlier observations at this store. */
+const observationKey = (
+  productId: string,
+  providerId: string,
+  storeId: string,
+) => JSON.stringify([productId, providerId, storeId]);
+/**
+ * Observations of each product at each store, newest first, built once per history array. Every
+ * snapshot asks for every row; scanning up to 20 000 observations per row made each click slower
+ * as prices piled up (B7.4). History arrays are replaced, never changed in place.
+ */
+const indexes = new WeakMap<
+  readonly PriceObservation[],
+  Map<string, PriceObservation[]>
+>();
+function observationIndex(history: readonly PriceObservation[]) {
+  let index = indexes.get(history);
+  if (!index) {
+    index = new Map();
+    for (const entry of history) {
+      const key = observationKey(
+        entry.productId,
+        entry.providerId,
+        entry.storeId,
+      );
+      const list = index.get(key);
+      if (list) list.push(entry);
+      else index.set(key, [entry]);
+    }
+    for (const list of index.values())
+      list.sort((a, b) => b.date.localeCompare(a.date));
+    indexes.set(history, index);
+  }
+  return index;
+}
 export function cheaperThanUsual(
   product: Product,
   history: PriceObservation[],
   now = new Date(),
 ): boolean {
   if (product.price == null || product.packAmount <= 0) return false;
-  const previous = history
-    .filter(
-      (entry) =>
-        entry.productId === product.id &&
-        entry.providerId === product.providerId &&
-        entry.storeId === product.storeId &&
-        entry.date < day(now),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date))
+  const today = day(now);
+  const previous = (
+    observationIndex(history).get(
+      observationKey(product.id, product.providerId, product.storeId),
+    ) ?? []
+  )
+    .filter((entry) => entry.date < today)
     .slice(0, 8)
     .filter((entry) => entry.unitPrice != null)
     .map((entry) => entry.unitPrice!)

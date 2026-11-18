@@ -32,6 +32,7 @@ import {
   initialState,
   contextSchema,
   stateSchema,
+  parseState,
   unitSchema,
   type AppState,
   type BasketLine,
@@ -479,7 +480,7 @@ export class Service {
       const result = this.planningResult(operationId);
       try {
         if (!this.db.setMany) throw new Error("storageFailed");
-        const next = stateSchema.parse({
+        const next = this.parseState({
           ...result.state,
           revision: this.state.revision + 1,
           appearance: this.state.appearance,
@@ -1146,7 +1147,7 @@ export class Service {
       const plan = rowKeys
         ? repeatSelected(this.state, entry, rowKeys)
         : repeatPlan(this.state, entry);
-      const next = stateSchema.parse({
+      const next = this.parseState({
         ...this.state,
         ...plan.state,
         ...clearRowCorrections(this.state),
@@ -1719,7 +1720,7 @@ export class Service {
         JSON.stringify(this.state.requestIntents)
     )
       throw new Error("intentActionRequired");
-    const next = stateSchema.parse(
+    const next = this.parseState(
       input &&
         typeof input === "object" &&
         "note" in input &&
@@ -1953,7 +1954,7 @@ export class Service {
           )
         )
           throw new Error("fulfillmentUnavailable");
-        const next = stateSchema.parse({
+        const next = this.parseState({
           ...this.state,
           context,
           revision: this.state.revision + 1,
@@ -2112,7 +2113,7 @@ export class Service {
     if (this.busy || this.transferPending) throw new Error("busy");
     if (this.state.recurringPaused)
       await this.writeState(async () => {
-        const next = stateSchema.parse({
+        const next = this.parseState({
           ...this.state,
           recurringPaused: false,
           revision: this.state.revision + 1,
@@ -2457,7 +2458,7 @@ export class Service {
     return this.writeState(async () => {
       this.assertNoProvisionalTransfer();
       if (this.busy || this.transferPending) throw new Error("busy");
-      const next = stateSchema.parse({
+      const next = this.parseState({
         ...chosen(),
         revision: this.state.revision + 1,
       });
@@ -2592,7 +2593,7 @@ export class Service {
           } else next.correctionHolds.push(rowKey);
         }
         next.revision++;
-        const validated = stateSchema.parse(next);
+        const validated = this.parseState(next);
         const oldRows = new Map(
           this.basket.map((l) => [
             `${l.requirement.id}:${l.requirement.unit}`,
@@ -2679,7 +2680,14 @@ export class Service {
     const same = (a: unknown, b: unknown) =>
       JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
     const prior: unknown[] = [];
-    for (const entry of entries) prior.push(await this.db.get(entry.key));
+    // The saved state is the one in memory unless an earlier commit was uncertain, so a click
+    // does not read a long-used profile back before every write (B7.4).
+    for (const entry of entries)
+      prior.push(
+        entry.key === "state" && !this.commitUncertain
+          ? this.state
+          : await this.db.get(entry.key),
+      );
     try {
       await this.db.setMany(entries);
     } catch (error) {
@@ -2692,7 +2700,12 @@ export class Service {
       }
       // Durable despite a lost acknowledgement; no write is retried.
       if (entries.every((entry, i) => same(stored[i], entry.value))) return;
-      if (entries.every((_, i) => same(stored[i], prior[i]))) throw error;
+      // The state in memory is the validated form of what is stored; compare like with like.
+      const rolledBack = (i: number) =>
+        entries[i].key === "state" && prior[i] === this.state
+          ? same(stateSchema.safeParse(stored[i]).data ?? stored[i], prior[i])
+          : same(stored[i], prior[i]);
+      if (entries.every((_, i) => rolledBack(i))) throw error;
       this.commitUncertain = true;
       throw new Error("commitUnknown");
     }
@@ -2765,7 +2778,7 @@ export class Service {
             };
             return this.snapshot();
           }
-          const next = stateSchema.parse({
+          const next = this.parseState({
             ...outcome.result.state,
             revision: base.revision + 1,
           });
@@ -2945,6 +2958,10 @@ export class Service {
    * read. Nothing is searched: a row with no retained products stays unpriced until the shopper
    * asks for prices. No AI request and no retailer write.
    */
+  /** Validates a state derived from the current one; unchanged list history is not re-read (B7.4). */
+  private parseState(input: unknown): AppState {
+    return parseState(input, this.state);
+  }
   async editLocally(input: unknown) {
     const { revision, operations } = localEditRequestSchema.parse(input);
     return this.writeState(async () => {
@@ -3046,7 +3063,7 @@ export class Service {
           day.leftovers ? [[date, { mealIds: [], leftovers: true }]] : [],
         ),
       );
-      const cleared = stateSchema.parse({
+      const cleared = this.parseState({
         ...base,
         history: this.archived(base),
         meals: [],
@@ -3063,7 +3080,7 @@ export class Service {
       });
       const changed = JSON.stringify(cleared) !== JSON.stringify(base);
       const next = changed
-        ? stateSchema.parse({ ...cleared, revision: base.revision + 1 })
+        ? this.parseState({ ...cleared, revision: base.revision + 1 })
         : base;
       const closed = this.closedTransferList();
       await this.writeAtomically([
@@ -3161,7 +3178,7 @@ export class Service {
     const { applied, now } = change;
     const quoted = this.quotedAt !== null;
     const key = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
-    const next = stateSchema.parse({
+    const next = this.parseState({
       ...edited,
       revision: base.revision + 1,
     });
@@ -3318,7 +3335,7 @@ export class Service {
       const undo = this.undo;
       if (!undo || undo.revision !== this.state.revision)
         throw new Error("undoUnavailable");
-      const next = stateSchema.parse({
+      const next = this.parseState({
         ...restoredPlan(this.state, undo),
         revision: this.state.revision + 1,
       });
@@ -3562,7 +3579,7 @@ export class Service {
       .parse(input);
     return this.writeState(async () => {
       if (this.busy || this.transferPending) throw new Error("busy");
-      const next = stateSchema.parse({
+      const next = this.parseState({
         ...this.state,
         reviewBeforeTransfer: enabled,
       });

@@ -197,6 +197,29 @@ export const stateSchema = z
     },
   }));
 export type AppState = z.infer<typeof stateSchema>;
+/**
+ * `stateSchema.parse` for a state whose list history is the one already validated in `known`
+ * (B7.4). A year of weekly history is most of the saved state; re-validating it on every click
+ * made each change several times slower than on a new profile. Any other history is validated in
+ * full. The returned state shares `known.listHistory`, which is only ever replaced, never mutated.
+ */
+export function parseState(input: unknown, known?: AppState | null): AppState {
+  if (
+    known &&
+    input &&
+    typeof input === "object" &&
+    "listHistory" in input &&
+    Array.isArray(input.listHistory) &&
+    (input.listHistory === known.listHistory ||
+      (input.listHistory.length === known.listHistory.length &&
+        JSON.stringify(input.listHistory) ===
+          JSON.stringify(known.listHistory)))
+  ) {
+    const parsed = stateSchema.parse({ ...input, listHistory: [] });
+    return { ...parsed, listHistory: known.listHistory };
+  }
+  return stateSchema.parse(input);
+}
 export type Recipe = z.infer<typeof recipeSchema>;
 export type Ingredient = z.infer<typeof ingredientSchema>;
 export type StoreContext = z.infer<typeof contextSchema>;
