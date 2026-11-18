@@ -4,7 +4,9 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## Shopping review fixes
 
-In progress. Codex, chat "Generic polish run", main checkout. Show items already sent when quantities go down, reprice only changed quantities, repeat ordered groceries, add a compact list shortcut, and make History searchable with product details loaded on demand. Target pre-release v0.11.5 with focused fixture checks.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `222467f` and published in [v0.11.5](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5).
+
+One focused unit test and four focused Electron cases passed. Build, changed-file formatting and packaged launch and compact-list checks passed. [Release verification](../release-0.11.5.md) records the checks and installer checksum. Owner visual acceptance and live retailer checks remain open.
 
 ## Review an AI edit before sending a reused list
 
