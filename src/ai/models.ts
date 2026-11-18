@@ -13,7 +13,7 @@ export function chooseModel(
     return override;
   }
   const small = models.find((model) =>
-    /(?:^|[\s._-])(luna|nano|mini|small|lite|flash)(?:$|[\s._-])/i.test(
+    /(?:^|[\s._-])(luna|nano|mini|small|lite|flash|haiku)(?:$|[\s._-])/i.test(
       `${model.slug} ${model.name}`,
     ),
   );

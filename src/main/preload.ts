@@ -47,6 +47,7 @@ const methods = [
   "setLanguage",
   "setAppearance",
   "setAIModel",
+  "setAIProvider",
   "setPriceBasis",
   "setReviewBeforeTransfer",
   "setReceiptText",
