@@ -417,35 +417,24 @@ test("Advanced retains locked development tools and the real diagnostic preview/
     ).toHaveCount(0);
     const path = join(directory, "diagnostics.json");
     await app.evaluate(({ dialog }, filePath) => {
-      dialog.showMessageBox = async (...args: unknown[]) => {
-        const options = args.at(-1) as { detail?: string };
-        Object.assign(globalThis, { diagnosticPreview: options.detail });
-        return { response: 0, checkboxChecked: false };
-      };
       dialog.showSaveDialog = async () => ({ canceled: false, filePath });
     }, path);
+    // The report is previewed in the page (B6.9) and saved exactly as shown.
     await page
       .getByRole("button", {
         name: "Tallenna vianetsintätiedot (ei henkilötietoja)",
         exact: true,
       })
       .click();
-    await expect
-      .poll(async () => {
-        try {
-          return await readFile(path, "utf8");
-        } catch {
-          return "";
-        }
-      })
-      .not.toBe("");
-    expect(await readFile(path, "utf8")).toBe(
-      await app.evaluate(
-        () =>
-          (globalThis as unknown as { diagnosticPreview: string })
-            .diagnosticPreview,
-      ),
-    );
+    const preview = page.getByRole("region", { name: "Vianetsintätiedot" });
+    const content = preview.getByLabel("Raportin sisältö");
+    await expect(content).toContainText('"generatedAt"');
+    const shown = await content.textContent();
+    await preview.getByRole("button", { name: "Tallenna…" }).click();
+    await expect(
+      page.getByText("Vianetsintätiedot tallennettu."),
+    ).toBeVisible();
+    expect(await readFile(path, "utf8")).toBe(shown);
     const snapshot = (await page.evaluate(async () => window.korikone.load()))
       .value;
     expect(snapshot.developmentRequests).toBe(0);

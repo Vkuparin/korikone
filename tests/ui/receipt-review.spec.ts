@@ -117,7 +117,8 @@ for (const language of ["fi", "en"] as const) {
       // look, and the one row is corrected inline when the shopper opens it.
       await pick(files.missing);
       await expect(cards).toHaveCount(2);
-      const missingCard = cards.filter({ hasText: "OMENA PUNAINEN" });
+      // A collapsed card renders only its summary, so cards are found by printed total.
+      const missingCard = cards.filter({ hasText: /3[,.]18/ });
       await expect(missingCard.locator(":scope > summary")).toContainText(
         tr("1 huomioitavaa", "1 to check"),
       );
@@ -169,7 +170,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(
         page
           .locator(".receipt-card")
-          .filter({ hasText: "OMENA PUNAINEN" })
+          .filter({ hasText: /3[,.]18/ })
           .locator(":scope > summary"),
       ).toContainText(tr("Summa täsmää", "Total matches"));
 
@@ -194,7 +195,7 @@ for (const language of ["fi", "en"] as const) {
         ),
       ).toBeVisible();
       expect((await load()).developmentRequests).toBe(0);
-      const kCard = cards.filter({ hasText: "BANAANI" });
+      const kCard = cards.filter({ hasText: /4[,.]82/ });
       // Enrichment and deletion sit in the optional details of an opened card.
       await kCard.locator(":scope > summary").click();
       await kCard.locator(".receipt-more summary").click();

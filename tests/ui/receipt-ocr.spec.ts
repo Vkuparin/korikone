@@ -55,6 +55,8 @@ test("offline scanned receipts show OCR review provenance and persist through re
     await pick("ocr-k-clean.pdf");
     await expect(cards()).toHaveCount(1);
     const k = cards().filter({ hasText: "K-Market Kokeilu" });
+    // A card renders its details, the OCR notice among them, once it is opened.
+    await k.locator(":scope > summary").click();
     await expect(k.locator(".receipt-ocr-notice")).toContainText(
       "Tarkista määrät ja hinnat",
     );
@@ -89,6 +91,8 @@ test("offline scanned receipts show OCR review provenance and persist through re
     page = await app.firstWindow();
     await openData();
     await expect(cards()).toHaveCount(2);
+    for (const card of await cards().all())
+      await card.locator(":scope > summary").click();
     await expect(cards().locator(".receipt-ocr-notice")).toHaveCount(2);
     // The older file-import API also keeps OCR provenance while saving its legacy text.
     await app.evaluate(
@@ -121,6 +125,7 @@ test("offline scanned receipts show OCR review provenance and persist through re
       .getByRole("button", { name: "Settings", exact: true })
       .click();
     await settingsCategory(page, "data", "Data");
+    await cards().first().locator(":scope > summary").click();
     await expect(cards().first().locator(".receipt-ocr-notice")).toContainText(
       "Check quantities and prices",
     );
