@@ -4,7 +4,11 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## Reuse a previous order and finish the next list
 
-In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Help returning shoppers reuse items from a previous order, adjust quantities and finish their list in the AI field. Verify the changed paths with local fixtures.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ae6f77b`. Release pending.
+
+Shoppers can start a list with selected groceries from an order or repeat the whole list. The new list opens with current prices and keyboard access to quantities and the AI field. Older entries offer the groceries available in the saved plan.
+
+Three focused unit cases in `repeat.test.ts` passed, covering saved quantities, older entries, failed price lookups and duplicate transfer protection. Four Electron cases passed across `repeat-list.spec.ts` and `new-list-reset.spec.ts`. They covered selection, draft preservation on cancel, quantity changes, an AI edit, Finnish and English whole-list shortcuts and resetting the workspace. All checks used local fixtures. Build, scoped Prettier and diff checks passed. Owner visual acceptance is pending.
 
 ## Checkout, shopping history and the next list
 
