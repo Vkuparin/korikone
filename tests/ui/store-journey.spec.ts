@@ -55,7 +55,7 @@ for (const [chain, name, destination] of [
       await click("Valmis");
       await page
         .getByLabel("Mitä haluaisit valmistaa?")
-        .fill("500 g suodatinjauhettua kahvia");
+        .fill("500 g suodatinjauhettua kahvia ja testimarja");
       // Typing has no side effects; only the update button submits the note.
       expect(
         (await page.evaluate(async () => (await window.korikone.load()).value))
@@ -63,6 +63,9 @@ for (const [chain, name, destination] of [
       ).toBe(0);
       await click("Taio ostoslista");
       await expect(page.locator(".grocery-row .row-name")).toHaveCount(1);
+      await expect(page.locator(".transfer-summary")).toContainText(
+        "testimarja",
+      );
       await click(
         chain === "s-kaupat"
           ? /^Siirrä ja avaa S-kaupat-lista/
@@ -72,6 +75,13 @@ for (const [chain, name, destination] of [
       await expect(
         page.getByRole("button", { name: "Kauppa", exact: true }),
       ).toHaveAttribute("aria-current", "page");
+      const handoff = page.getByRole("region", { name: "Siirto kauppaan" });
+      await expect(handoff).toContainText(
+        chain === "s-kaupat" ? "S-kauppojen ostoskoriin" : "viimeistele tilaus",
+      );
+      await expect(
+        handoff.getByText("testimarja", { exact: true }),
+      ).toBeVisible();
       expect((await fixtureTab(app, chain)).url).toContain(
         `/${chain}${destination}`,
       );

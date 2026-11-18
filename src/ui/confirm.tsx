@@ -7,6 +7,7 @@ import { priceRises } from "../domain/prices";
 import { isLive } from "../stores/provider";
 import { count as counted, en, fi, unitLabel, type Key } from "./i18n";
 import { priceMetrics } from "../domain/price-ranking";
+import { omittedReviewItems } from "./transfer-summary";
 
 const chainName = (review: Review) =>
   review.context.providerId === "k-ruoka"
@@ -90,10 +91,10 @@ export function ConfirmPanel({
   const changes = review && compareTransfers(review, state.listHistory);
   const items =
     review && attention(review, state.household.budget, state.listHistory);
+  const leftOut = review ? omittedReviewItems(review) : [];
   const quiet =
     !!items &&
-    !items.unresolved.length &&
-    !items.unresolvedIntents.length &&
+    !leftOut.length &&
     !items.manual.length &&
     !items.overBudget &&
     !items.inCart.length &&
@@ -124,23 +125,10 @@ export function ConfirmPanel({
           <p>{tr("Ei huomautettavaa.", "Nothing needs attention.")}</p>
         ) : (
           <ul className="attention-list">
-            {(items.unresolved.length > 0 ||
-              items.unresolvedIntents.length > 0) && (
+            {leftOut.length > 0 && (
               <li>
-                {tr(
-                  "Ei siirretä, tuote puuttuu:",
-                  "Not transferred, no product:",
-                )}{" "}
-                {[
-                  ...items.unresolved.map((r) => r.name),
-                  ...items.unresolvedIntents
-                    .filter(
-                      (result) =>
-                        result.intent.unresolvedReason !== null ||
-                        result.reason === "missing-requirement",
-                    )
-                    .map((result) => result.intent.label),
-                ].join(", ")}
+                {tr("Jää pois siirrosta:", "Left out of this transfer:")}{" "}
+                {leftOut.join(", ")}
               </li>
             )}
             {items.manual.length > 0 && (
@@ -317,12 +305,7 @@ export function ConfirmPanel({
       </section>
     );
   if (!journal) return null;
-  const left = journal.review.unresolved ?? [];
-  const leftIntents = (journal.review.unresolvedIntents ?? []).filter(
-    (result) =>
-      result.intent.unresolvedReason !== null ||
-      result.reason === "missing-requirement",
-  );
+  const left = omittedReviewItems(journal.review);
   const live = isLive(journal.review.context.providerId);
   return (
     <section
@@ -346,13 +329,13 @@ export function ConfirmPanel({
           {journal.review.alreadySent!.map((item) => item.name).join(", ")}
         </p>
       )}
-      {(left.length > 0 || leftIntents.length > 0) && (
+      {left.length > 0 && (
         <p>
-          {tr("Jäi siirtämättä:", "Left out:")}{" "}
-          {[
-            ...left.map((r) => r.name),
-            ...leftIntents.map((result) => result.intent.label),
-          ].join(", ")}
+          {tr(
+            "Lisää tarvittaessa itse kaupassa:",
+            "Add these at the store if you still need them:",
+          )}{" "}
+          {left.join(", ")}
         </p>
       )}
       {(journal.review.manual?.length ?? 0) > 0 && (

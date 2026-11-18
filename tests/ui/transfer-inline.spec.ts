@@ -65,7 +65,7 @@ for (const language of ["fi", "en"] as const) {
         tr("2 tuotetta siirretään", "2 products will be sent"),
       );
       await expect(summary).toContainText(
-        tr("1 riviä jää pois", "1 rows are left out"),
+        tr("Jää pois siirrosta", "Left out of transfer"),
       );
       await expect(summary).toContainText("Tuntematon ruoka");
       await expect(summary).toContainText(
@@ -91,6 +91,12 @@ for (const language of ["fi", "en"] as const) {
       expect(sent.transferException).toBeNull();
       expect(sent.review ?? null).toBeNull();
       expect(sent.developmentStoreWrites).toBe(2);
+      await expect(page.locator(".transfer-result")).toContainText(
+        tr(
+          "Lisää tarvittaessa itse kaupassa: Tuntematon ruoka",
+          "Add these at the store if you still need them: Tuntematon ruoka",
+        ),
+      );
       await expect(page.getByRole("alertdialog")).toHaveCount(0);
       await expect(page.locator(".transfer-summary")).toHaveCount(0);
 

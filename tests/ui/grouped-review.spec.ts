@@ -30,7 +30,13 @@ test("closing a fully resolved review returns focus to the saved list heading", 
       await window.korikone.buildBasket();
     }, state);
     await page.reload();
-    const entry = page.getByRole("button", { name: /^Review unresolved rows/ });
+    await expect(page.locator(".transfer-summary")).toContainText(
+      "No products ready to transfer",
+    );
+    await expect(page.locator(".transfer-button")).toHaveCount(0);
+    const entry = page.getByRole("button", {
+      name: /^Choose missing products/,
+    });
     await entry.click();
     const review = page.getByRole("region", {
       name: "Review product choices",
@@ -47,6 +53,7 @@ test("closing a fully resolved review returns focus to the saved list heading", 
       )
       .toBe("cream");
     await expect(entry).toContainText("0");
+    await expect(page.locator(".transfer-button")).toBeEnabled();
     await review
       .getByRole("button", { name: "Close review", exact: true })
       .click();
@@ -112,7 +119,7 @@ for (const language of ["fi", "en"] as const) {
         exact: true,
       });
       const entry = page.getByRole("button", {
-        name: /^(Tarkista ratkaisemattomat rivit|Review unresolved rows)/,
+        name: /^(Valitse puuttuvat tuotteet|Choose missing products)/,
       });
       await expect(review).toHaveCount(0);
       await composer(page).fill("A new note that is not applied");
@@ -149,6 +156,22 @@ for (const language of ["fi", "en"] as const) {
         name: `${fi ? "Tarkista" : "Review"}: Tuntematon testiruoka`,
         exact: true,
       });
+      await missing
+        .getByRole("button", {
+          name: fi
+            ? "Tarkenna ostostoivetta"
+            : "Describe this item in the note",
+        })
+        .click();
+      await expect(composer(page)).toBeFocused();
+      await expect(composer(page)).toHaveValue(
+        "A new note that is not applied",
+      );
+      await expect(page.locator(".composer-focus")).toContainText(
+        "Tuntematon testiruoka",
+      );
+      await expect(review).toHaveCount(0);
+      await entry.click();
       await missing
         .getByRole("button", {
           name: fi ? "Jätä ratkaisematta" : "Leave unresolved",

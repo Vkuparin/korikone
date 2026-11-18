@@ -73,12 +73,36 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
           { exact: true },
         ),
       ).toBeVisible();
+      const summary = page.locator(".transfer-summary");
+      await expect(page.locator(".generated-list-link")).toContainText(
+        tr("2 ostosta jää pois siirrosta", "2 items left out of transfer"),
+      );
+      await page
+        .getByRole("button", {
+          name: tr("Näytä ostoslista", "View shopping list"),
+          exact: true,
+        })
+        .click();
+      await expect(
+        page
+          .getByRole("complementary")
+          .getByRole("heading", { level: 2 })
+          .first(),
+      ).toBeFocused();
+      await expect(summary).toContainText("Kerma");
+      await expect(summary).toContainText("kahvia");
+      const reviewOptions = summary.getByRole("button", {
+        name: tr("Tarkista tuotevaihtoehdot", "Review product options"),
+      });
+      await reviewOptions.click();
+      await page.keyboard.press("Escape");
+      await expect(reviewOptions).toBeFocused();
       await page
         .getByRole("button", {
           name:
             language === "fi"
-              ? /^Tarkista ratkaisemattomat rivit/
-              : /^Review unresolved rows/,
+              ? /^Valitse puuttuvat tuotteet/
+              : /^Choose missing products/,
         })
         .click();
       const review = page.getByRole("region", {
@@ -112,10 +136,13 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
         .toBe(1);
       await review
         .getByRole("button", {
-          name: tr("Sulje tarkistus", "Close review"),
+          name: tr("Jatka siirtoon", "Continue to transfer"),
           exact: true,
         })
         .click();
+      await expect(page.locator(".transfer-button")).toBeFocused();
+      await expect(summary).not.toContainText("Kerma");
+      await expect(summary).toContainText("kahvia");
       const milkOpener = page.getByRole("button", {
         name: `${tr("Tarkoitin jotain muuta", "I meant something else")}: Maito`,
         exact: true,

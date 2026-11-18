@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import { liveProviders } from "../stores/provider";
+import { omittedReviewItems } from "./transfer-summary";
 
 export type Chain = "k-ruoka" | "s-kaupat";
 const NAMES: Record<string, string> = {
@@ -136,6 +137,20 @@ export function StorePage({
     );
   const action = (name: "back" | "reload" | "browser") =>
     void window.korikone.storeAction({ chain: current, action: name });
+  const journal = snapshot.journal;
+  const handoff =
+    returnToList &&
+    journal?.status === "verified" &&
+    journal.batchKey === snapshot.transferBatchKey &&
+    journal.review.context.providerId === current
+      ? journal.review
+      : null;
+  const addAtStore = handoff
+    ? [
+        ...omittedReviewItems(handoff),
+        ...(handoff.manual ?? []).map((item) => item.productName),
+      ]
+    : [];
   return (
     <section className="store-page" aria-label={tr("Kauppa", "Store")}>
       <div className="store-toolbar">
@@ -197,12 +212,40 @@ export function StorePage({
           {tr("Kauppojen asetukset", "Store settings")}
         </button>
       </div>
-      <p className="muted">
-        {tr(
-          "Kirjaudu tähän näkymään kerran; kirjautuminen säilyy. Tilaus ja maksu tehdään aina täällä itse.",
-          "Sign in here once; the sign-in is kept. You always place the order and pay here yourself.",
-        )}
-      </p>
+      {handoff ? (
+        <section
+          className="store-handoff"
+          aria-label={tr("Siirto kauppaan", "Store transfer")}
+        >
+          <strong>
+            {current === "s-kaupat"
+              ? tr(
+                  "Lisää Korikone-listan tuotteet S-kauppojen ostoskoriin.",
+                  "Add the products from your Korikone list to the S-kaupat basket.",
+                )
+              : tr(
+                  "Tarkista K-Ruoan ostoskori ja viimeistele tilaus.",
+                  "Check your K-Ruoka basket and complete your order.",
+                )}
+          </strong>
+          {addAtStore.length > 0 && (
+            <details open={addAtStore.length <= 4}>
+              <summary>
+                {tr("Lisää tarvittaessa itse", "Add these yourself if needed")}{" "}
+                · {addAtStore.length}
+              </summary>
+              <p>{addAtStore.join(", ")}</p>
+            </details>
+          )}
+        </section>
+      ) : (
+        <p className="muted">
+          {tr(
+            "Kirjaudu tähän näkymään kerran; kirjautuminen säilyy. Tilaus ja maksu tehdään aina täällä itse.",
+            "Sign in here once; the sign-in is kept. You always place the order and pay here yourself.",
+          )}
+        </p>
+      )}
       <div
         ref={frame}
         className="store-frame"

@@ -59,9 +59,8 @@ test("weighed estimates show split totals, requested mass and survive restart wi
     await page.evaluate(() =>
       window.korikone.setReviewBeforeTransfer({ enabled: true }),
     );
-    await page
-      .getByRole("button", { name: /Siirrä ja avaa kaupan ostoskori/ })
-      .click();
+    await page.reload();
+    await page.getByRole("button", { name: /^Tarkista siirto/ }).click();
     await expect(
       page.getByRole("region", { name: "Siirron vahvistus" }),
     ).toContainText("Omena");

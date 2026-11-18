@@ -45,6 +45,7 @@ import { RowFind, type FindResult } from "./row-find";
 import { MerchandiseRow } from "./merchandise";
 import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
+import { requestWithoutRow } from "./transfer-summary";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
 import {
@@ -460,11 +461,18 @@ export function ShoppingWorkspace({
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
   const reviewOpener = useRef<HTMLButtonElement>(null);
+  const footerReview = useRef<HTMLButtonElement>(null);
+  const openedFromFooter = useRef(false);
+  const transferButton = useRef<HTMLButtonElement>(null);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const closeReview = () => {
     setReviewRows(null);
     requestAnimationFrame(() =>
-      (reviewOpener.current ?? listHeading.current)?.focus(),
+      (
+        (openedFromFooter.current
+          ? footerReview.current
+          : reviewOpener.current) ?? listHeading.current
+      )?.focus(),
     );
   };
   const currentNote = useRef(note);
@@ -1101,12 +1109,7 @@ export function ShoppingWorkspace({
   };
   const homeKeys = new Set(state.skipped);
   const rows = all.filter((row) => !homeKeys.has(requirementKey(row)));
-  const unmatchedRequests = snapshot.committedIntents.filter(
-    (intent) =>
-      intent.status !== "resolved" &&
-      (intent.intent.unresolvedReason !== null ||
-        intent.reason === "missing-requirement"),
-  );
+  const unmatchedRequests = snapshot.committedIntents.filter(requestWithoutRow);
   const currency = useMemo(
     () =>
       new Intl.NumberFormat(fi ? "fi-FI" : "en-FI", {
@@ -1160,10 +1163,33 @@ export function ShoppingWorkspace({
   const estimated = snapshot.basket.filter(
     (line) => line.approximate && line.total !== null,
   );
-  const transferable = snapshot.basket.filter(transferableLine).length;
-  const missing = rows.filter(
-    (r) => !quotesByKey.get(requirementKey(r))?.line.product,
-  );
+  const { sendable, transferPrices, unverified } = useMemo(() => {
+    const manualKeys = new Set(
+      snapshot.merchandise.manual.map((item) => item.requirementKey),
+    );
+    const sendable = [];
+    const unverified = [];
+    for (const line of snapshot.basket) {
+      if (!line.product || manualKeys.has(requirementKey(line.requirement)))
+        continue;
+      if (transferableLine(line)) sendable.push(line);
+      else unverified.push(line.requirement.name);
+    }
+    return { sendable, transferPrices: priceBreakdown(sendable), unverified };
+  }, [snapshot.basket, snapshot.merchandise.manual]);
+  const missing = snapshot.quotedAt
+    ? rows.filter((r) => !quotesByKey.get(requirementKey(r))?.line.product)
+    : [];
+  const leftOut = [
+    ...missing.map((r) => r.name),
+    ...unverified,
+    ...unmatchedRequests.map((result) => result.intent.label),
+  ];
+  const openReview = (fromFooter: boolean) => {
+    openedFromFooter.current = fromFooter;
+    if (reviewRows) document.getElementById("grouped-review-heading")?.focus();
+    else setReviewRows(missing);
+  };
   const groups = state.meals
     .filter((m) => !m.leftovers)
     .map((meal) => ({
@@ -1372,6 +1398,26 @@ export function ShoppingWorkspace({
             />
           </p>
         )}
+        {composingEdit &&
+          !working &&
+          !focusTarget &&
+          !instruction &&
+          snapshot.planning?.phase === "committed" && (
+            <div className="generated-list-link">
+              <span role="status">
+                {tr("Ostoslista luotu", "Shopping list created")}
+                {leftOut.length > 0 &&
+                  ` · ${count(leftOut.length, fi, ["ostos jää pois siirrosta", "ostosta jää pois siirrosta"], ["item left out of transfer", "items left out of transfer"])}`}
+              </span>
+              <button
+                type="button"
+                className="text"
+                onClick={() => listHeading.current?.focus()}
+              >
+                {tr("Näytä ostoslista", "View shopping list")}
+              </button>
+            </div>
+          )}
         {hasList && (
           <div
             className="composer-mode"
@@ -2186,14 +2232,10 @@ export function ShoppingWorkspace({
               aria-expanded={reviewRows !== null}
               aria-controls="optional-product-review"
               disabled={busy}
-              onClick={() =>
-                reviewRows
-                  ? closeReview()
-                  : setReviewRows(structuredClone(missing))
-              }
+              onClick={() => (reviewRows ? closeReview() : openReview(false))}
             >
-              {tr("Tarkista ratkaisemattomat rivit", "Review unresolved rows")}{" "}
-              · {missing.length}
+              {tr("Valitse puuttuvat tuotteet", "Choose missing products")} ·{" "}
+              {missing.length}
             </button>
           )}
           {reviewRows && (
@@ -2205,6 +2247,20 @@ export function ShoppingWorkspace({
                 money={money}
                 call={call}
                 close={closeReview}
+                editRow={(key) => {
+                  setReviewRows(null);
+                  editWithInstruction(rowTargetId(key));
+                }}
+                backToTransfer={
+                  !confirming && sendable.length > 0
+                    ? () => {
+                        setReviewRows(null);
+                        requestAnimationFrame(() =>
+                          transferButton.current?.focus(),
+                        );
+                      }
+                    : undefined
+                }
               />
             </div>
           )}
@@ -2321,7 +2377,7 @@ export function ShoppingWorkspace({
                     line?.product && !line.approximate ? line.packs : r.amount;
                   return (
                     <div
-                      className={`grocery-row ${home ? "at-home" : ""} ${!home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
+                      className={`grocery-row ${home ? "at-home" : ""} ${snapshot.quotedAt && !home && (!line?.product || line.total === null) ? "unresolved" : ""} ${selected && r.sources.includes(selected) ? "highlighted" : ""}`}
                       key={key}
                       data-row-key={key}
                     >
@@ -2448,7 +2504,7 @@ export function ShoppingWorkspace({
                         <small className="row-amount">
                           {r.amount} {unitLabel(r.unit, state.language)}
                         </small>
-                        {!home && !line?.product && (
+                        {snapshot.quotedAt && !home && !line?.product && (
                           <small className="warning">
                             {tr("Tuote puuttuu", "Needs a product")}
                           </small>
@@ -2491,16 +2547,19 @@ export function ShoppingWorkspace({
                             }
                           />
                         )}
-                        {!home && !line?.product && !merchandiseIntent && (
-                          <RowFind
-                            language={state.language}
-                            name={r.name}
-                            amountLabel={`${r.amount} ${unitLabel(r.unit, state.language)}`}
-                            busy={busy || working || editWorking}
-                            aiConnected={snapshot.ai.state === "connected"}
-                            find={(wording) => findForRow(key, wording)}
-                          />
-                        )}
+                        {snapshot.quotedAt &&
+                          !home &&
+                          !line?.product &&
+                          !merchandiseIntent && (
+                            <RowFind
+                              language={state.language}
+                              name={r.name}
+                              amountLabel={`${r.amount} ${unitLabel(r.unit, state.language)}`}
+                              busy={busy || working || editWorking}
+                              aiConnected={snapshot.ai.state === "connected"}
+                              find={(wording) => findForRow(key, wording)}
+                            />
+                          )}
                       </div>
                       {/* One line under the name: amount, then the row's text actions. */}
                       <div className="row-actions">
@@ -2698,8 +2757,8 @@ export function ShoppingWorkspace({
             >
               <p>
                 {tr(
-                  "Näitä pyyntöjä ei ole hinnoiteltu:",
-                  "These requests are not priced:",
+                  "Näille pyynnöille ei löytynyt siirrettävää tuotetta. Lisää ne tarvittaessa itse kaupassa.",
+                  "These requests have no product to transfer. Add them at the store if you still need them.",
                 )}
               </p>
               <ul>
@@ -2720,22 +2779,6 @@ export function ShoppingWorkspace({
                     ["item at home, excluded", "items at home, excluded"],
                   )}
                 </small>
-              )}
-              {missing.length > 0 && (
-                <p className="warning">
-                  {count(
-                    missing.length,
-                    fi,
-                    [
-                      "tuotteelta puuttuu hinta tai sopiva pakkaus. Se ei sisälly arvioon.",
-                      "tuotteelta puuttuu hinta tai sopiva pakkaus. Ne eivät sisälly arvioon.",
-                    ],
-                    [
-                      "item needs a price or suitable pack. It is excluded from the estimate.",
-                      "items need a price or suitable pack. They are excluded from the estimate.",
-                    ],
-                  )}
-                </p>
               )}
               <small>
                 {snapshot.pickupFee
@@ -2958,46 +3001,89 @@ export function ShoppingWorkspace({
                 onOpen={() => setComparing(true)}
               />
             )}
-            {!confirming && !!rows.length && (
+            {!confirming && snapshot.quotedAt && !!rows.length && (
               <div
                 className="transfer-summary"
                 role="group"
                 aria-label={tr("Ennen siirtoa", "Before the transfer")}
               >
-                <p>
-                  <strong>
-                    {count(
-                      transferable,
-                      fi,
-                      ["tuote siirretään", "tuotetta siirretään"],
-                      ["product will be sent", "products will be sent"],
+                {sendable.length > 0 ? (
+                  <p>
+                    <strong>
+                      {count(
+                        sendable.length,
+                        fi,
+                        ["tuote siirretään", "tuotetta siirretään"],
+                        ["product will be sent", "products will be sent"],
+                      )}
+                    </strong>
+                    {" · "}
+                    {packCount(
+                      sendable.reduce((n, line) => n + line.packs, 0),
+                      state.language,
                     )}
-                  </strong>
-                  {" · "}
-                  {packCount(
-                    snapshot.basket
-                      .filter(transferableLine)
-                      .reduce((n, line) => n + line.packs, 0),
-                    state.language,
-                  )}
-                  {missing.length > 0 &&
-                    ` · ${count(missing.length, fi, ["rivi jää pois (ei tuotetta)", "riviä jää pois (ei tuotetta)"], ["row is left out (no product)", "rows are left out (no product)"])}`}
-                </p>
-                {missing.length > 0 && (
-                  <p className="muted">
-                    {missing
-                      .slice(0, 6)
-                      .map((r) => r.name)
-                      .join(", ")}
-                    {missing.length > 6 ? "…" : ""}
                   </p>
+                ) : (
+                  <p>
+                    <strong>
+                      {tr(
+                        "Ei siirrettäviä tuotteita",
+                        "No products ready to transfer",
+                      )}
+                    </strong>
+                  </p>
+                )}
+                {leftOut.length > 4 ? (
+                  <details className="transfer-omissions">
+                    <summary>
+                      {tr("Jää pois siirrosta", "Left out of transfer")} ·{" "}
+                      {leftOut.length}
+                    </summary>
+                    <ul>
+                      {leftOut.map((name, index) => (
+                        <li key={index}>{name}</li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : (
+                  leftOut.length > 0 && (
+                    <p className="transfer-omissions">
+                      <strong>
+                        {tr("Jää pois siirrosta", "Left out of transfer")}
+                      </strong>
+                      {" · "}
+                      {leftOut.join(", ")}
+                    </p>
+                  )
+                )}
+                {snapshot.merchandise.manual.length > 0 && (
+                  <p>
+                    <strong>
+                      {tr("Lisää itse kaupassa", "Add at the store")}
+                    </strong>
+                    {" · "}
+                    {snapshot.merchandise.manual
+                      .map((item) => item.productName)
+                      .join(", ")}
+                  </p>
+                )}
+                {missing.length > 0 && (
+                  <button
+                    ref={footerReview}
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => openReview(true)}
+                  >
+                    {tr("Tarkista tuotevaihtoehdot", "Review product options")}
+                  </button>
                 )}
                 {state.household.budget > 0 &&
                   total > state.household.budget && (
                     <p role="status" className="warning">
                       {tr(
-                        "Lista ylittää viikkobudjetin. Siirto ei vaadi erillistä vahvistusta.",
-                        "The list is over the weekly budget. The transfer needs no separate confirmation.",
+                        "Lista ylittää viikkobudjetin.",
+                        "The list is over the weekly budget.",
                       )}
                     </p>
                   )}
@@ -3011,10 +3097,11 @@ export function ShoppingWorkspace({
                 )}
               </div>
             )}
-            {!confirming && (
+            {!confirming && !!snapshot.quotedAt && sendable.length > 0 && (
               <button
+                ref={transferButton}
                 className="transfer-button"
-                disabled={busy || !rows.length || !transferable}
+                disabled={busy || !rows.length}
                 onClick={async () => {
                   // An interrupted transfer is shown for recovery instead of a new review.
                   setTransferring(true);
@@ -3043,7 +3130,9 @@ export function ShoppingWorkspace({
                     )}{" "}
                   </span>
                 )}
-                {state.context.providerId === "s-kaupat" ? (
+                {state.reviewBeforeTransfer ? (
+                  tr("Tarkista siirto", "Review transfer")
+                ) : state.context.providerId === "s-kaupat" ? (
                   tr(
                     "Siirrä ja avaa S-kaupat-lista",
                     "Transfer and open S-kaupat list",
@@ -3061,16 +3150,18 @@ export function ShoppingWorkspace({
                   {" "}
                   ·{" "}
                   {count(
-                    transferable,
+                    sendable.length,
                     fi,
                     ["tuote", "tuotetta"],
                     ["product", "products"],
                   )}
                 </span>
-                {prices.exact > 0 && (
+                {(transferPrices.exact > 0 ||
+                  transferPrices.approximate > 0) && (
                   <span className="transfer-total">
                     {" "}
-                    · {money(prices.exact)}
+                    · {transferPrices.approximate > 0 && tr("noin ", "about ")}
+                    {money(transferPrices.exact + transferPrices.approximate)}
                   </span>
                 )}
               </button>

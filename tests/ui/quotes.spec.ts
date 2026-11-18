@@ -132,6 +132,14 @@ test("view return and restart retain quotes without searches, while explicit edi
       "Could not retrieve products and prices",
     );
     await expect(page.getByText("Not priced", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: /Choose missing products|Review product options/,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator(".grocery-row.unresolved, .transfer-button"),
+    ).toHaveCount(0);
     expect((await load()).basket).toEqual([]);
     expect((await load()).state.quantities["potato:g"]).toBeGreaterThan(800);
     expect((await load()).developmentRequests).toBe(1);

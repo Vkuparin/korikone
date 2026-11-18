@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Requirement } from "../domain/model";
+import { requirementKey } from "../domain/edits";
 import { RowDetails } from "./details";
 import { preferenceCategoryLabel } from "./category-preferences";
 
@@ -9,8 +10,6 @@ type Call = (
   input?: unknown,
   options?: { preserveError?: boolean },
 ) => Promise<boolean>;
-const rowKey = (requirement: Requirement) =>
-  `${requirement.id}:${requirement.unit}`;
 
 /** An optional view of the captured uncertain rows; it owns no list, quote or transfer. */
 export function GroupedReview({
@@ -20,6 +19,8 @@ export function GroupedReview({
   money,
   call,
   close,
+  editRow,
+  backToTransfer,
 }: {
   snapshot: Snapshot;
   requirements: Requirement[];
@@ -27,6 +28,8 @@ export function GroupedReview({
   money: (cents: number) => string;
   call: Call;
   close: () => void;
+  editRow: (key: string) => void;
+  backToTransfer?: () => void;
 }) {
   const language = snapshot.state.language;
   const tr = (fi: string, en: string) => (language === "fi" ? fi : en);
@@ -37,15 +40,18 @@ export function GroupedReview({
     heading.current?.focus();
   }, []);
   const groups = new Map<string, Requirement[]>();
+  const linesByKey = new Map(
+    snapshot.basket.map((line) => [requirementKey(line.requirement), line]),
+  );
   for (const requirement of requirements) {
-    const line = snapshot.basket.find(
-      (candidate) => rowKey(candidate.requirement) === rowKey(requirement),
-    );
+    const line = linesByKey.get(requirementKey(requirement));
     const category = line?.matching?.category;
     const name = category
       ? preferenceCategoryLabel(category, language)
       : tr("Muut pyynnöt", "Other requests");
-    groups.set(name, [...(groups.get(name) ?? []), requirement]);
+    const group = groups.get(name);
+    if (group) group.push(requirement);
+    else groups.set(name, [requirement]);
   }
   return (
     <section
@@ -63,8 +69,8 @@ export function GroupedReview({
       </h2>
       <p>
         {tr(
-          "Käytä kerran hyväksyy tuotteen nykyiseen listaan. Muista tyyppi kysyy erikseen tulevien listojen säännön. Voit jättää rivin ratkaisematta; siirto kysyy puuttuvista tuotteista myöhemmin.",
-          "Use once approves a product for the current list. Remember type asks separately for a rule for future lists. You can leave a row unresolved; transfer will ask about missing products later.",
+          "Valitse sopiva tuote painamalla Käytä kerran. Ilman tuotetta jäävät ostokset säilyvät listalla ja jäävät pois siirrosta.",
+          "Choose Use once to add a product to this list. Items without a product stay on your list and are left out of the transfer.",
         )}
       </p>
       <button
@@ -79,10 +85,8 @@ export function GroupedReview({
         <section className="review-category" key={category}>
           <h3>{category}</h3>
           {rows.map((requirement) => {
-            const key = rowKey(requirement);
-            const line = snapshot.basket.find(
-              (candidate) => rowKey(candidate.requirement) === key,
-            );
+            const key = requirementKey(requirement);
+            const line = linesByKey.get(key);
             const left = aside.includes(key) && !line?.product;
             return (
               <section
@@ -171,6 +175,19 @@ export function GroupedReview({
                         )}
                       </p>
                     )}
+                    {line && !line.product && !line.candidates.length && (
+                      <button
+                        type="button"
+                        className="text"
+                        disabled={busy}
+                        onClick={() => editRow(key)}
+                      >
+                        {tr(
+                          "Tarkenna ostostoivetta",
+                          "Describe this item in the note",
+                        )}
+                      </button>
+                    )}
                     {!line?.product && (
                       <button
                         type="button"
@@ -191,6 +208,16 @@ export function GroupedReview({
           })}
         </section>
       ))}
+      {backToTransfer && (
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy}
+          onClick={backToTransfer}
+        >
+          {tr("Jatka siirtoon", "Continue to transfer")}
+        </button>
+      )}
     </section>
   );
 }

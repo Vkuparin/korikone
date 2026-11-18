@@ -72,6 +72,13 @@ test("a list with a non-food row transfers its groceries only, and a non-food li
       ],
     });
     await expect(page.locator(".merchandise-manual")).toBeVisible();
+    await expect(page.locator(".transfer-summary")).toContainText(
+      "1 tuote siirretään",
+    );
+    await expect(page.locator(".transfer-summary")).toContainText(
+      before.merchandise.manual[0].productName,
+    );
+    await expect(transfer).toContainText("· 1 tuote · 2,38");
 
     await transfer.click();
     await expect
@@ -97,6 +104,11 @@ test("a list with a non-food row transfers its groceries only, and a non-food li
 
     // A list of the non-food row alone: nothing is sent and no transfer record is made.
     await list([boots]);
+    await page.reload();
+    await expect(page.locator(".transfer-summary")).toContainText(
+      "Ei siirrettäviä tuotteita",
+    );
+    await expect(page.locator(".transfer-button")).toHaveCount(0);
     const only = await load();
     const clicked = await page.evaluate(
       (input) => window.korikone.transferDisplayed(input),

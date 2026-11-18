@@ -2297,6 +2297,30 @@ nav button {
 .transfer-summary p {
   margin: 4px 0;
 }
+.generated-list-link {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.store-handoff {
+  margin-block: 8px;
+  overflow-wrap: anywhere;
+}
+.store-handoff details,
+.store-handoff p {
+  padding: 0;
+  margin: 4px 0;
+}
+.transfer-summary .transfer-omissions {
+  border-inline-start: 3px solid var(--kk-warning);
+  padding-inline-start: 8px;
+  overflow-wrap: anywhere;
+}
+.transfer-summary button {
+  margin-block: 4px;
+}
 .transfer-summary .transfer-error {
   color: var(--kk-error);
   background: var(--kk-error-bg);

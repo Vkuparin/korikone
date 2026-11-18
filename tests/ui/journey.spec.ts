@@ -54,9 +54,7 @@ test("plan, localize, review, recover and persist in the desktop app", async () 
     );
     await page.reload();
     const bar = list.getByRole("region", { name: "Total and transfer" });
-    await bar
-      .getByRole("button", { name: /^Transfer and open store basket/ })
-      .click();
+    await bar.getByRole("button", { name: /^Review transfer/ }).click();
     const panel = bar.getByRole("region", { name: "Transfer confirmation" });
     await expect(panel).toContainText(
       "Already in the cart: Pasta 500 g 1 → 2 kpl",

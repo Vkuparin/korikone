@@ -309,8 +309,9 @@ export const en = {
   reasonAccepted: "Your accepted product for this ingredient.",
   reasonCheapest:
     "Cheapest of your accepted products for the amount needed, counting whole packs.",
-  noCandidates:
-    "No matching product was found in this store. Mark it as already at home or buy it elsewhere.",
+  noSelection:
+    "Choose a suitable product to include this item in the transfer.",
+  noCandidates: "No matching product was found in this store.",
   chosen: "Chosen",
   stockUnknown: "Stock unknown",
   deposit: "deposit",
@@ -623,8 +624,8 @@ export const fi: Record<Key, string> = {
   reasonAccepted: "Tälle ainekselle hyväksymäsi tuote.",
   reasonCheapest:
     "Halvin hyväksymistäsi tuotteista tarvittavalle määrälle kokonaisina pakkauksina.",
-  noCandidates:
-    "Kaupasta ei löytynyt sopivaa tuotetta. Merkitse se jo kotona olevaksi tai osta muualta.",
+  noSelection: "Valitse sopiva tuote, jos haluat sen mukaan siirtoon.",
+  noCandidates: "Kaupasta ei löytynyt sopivaa tuotetta.",
   chosen: "Valittu",
   stockUnknown: "Saatavuus ei tiedossa",
   deposit: "pantti",

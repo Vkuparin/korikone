@@ -181,7 +181,7 @@ export function RowDetails({
         </p>
       ) : (
         <p className="warning">
-          {t(line.candidates.length ? "unresolved" : "noCandidates")}
+          {t(line.candidates.length ? "noSelection" : "noCandidates")}
         </p>
       )}
       {cheaper && (

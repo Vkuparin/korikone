@@ -92,9 +92,7 @@ for (const provider of ["chatgpt", "fake-alternative"])
         window.korikone.setReviewBeforeTransfer({ enabled: true }),
       );
       await page.reload();
-      await page
-        .getByRole("button", { name: /Siirrä ja avaa kaupan ostoskori/ })
-        .click();
+      await page.getByRole("button", { name: /^Tarkista siirto/ }).click();
       await expect(
         page.getByRole("region", { name: "Siirron vahvistus" }),
       ).toContainText("kahvia");
@@ -105,6 +103,14 @@ for (const provider of ["chatgpt", "fake-alternative"])
         "kahvia",
       );
       expect(reviewed.developmentStoreWrites).toBe(0);
+      await page.getByRole("button", { name: /^Vahvista:/ }).click();
+      const result = page.getByRole("region", { name: "Siirron tulos" });
+      await expect(result).toContainText(
+        "Lisää tarvittaessa itse kaupassa: kahvia",
+      );
+      const sent = (await page.evaluate(() => window.korikone.load())).value;
+      expect(sent.journal?.status).toBe("verified");
+      expect(sent.developmentStoreWrites).toBe(1);
     } finally {
       await app.close();
     }
