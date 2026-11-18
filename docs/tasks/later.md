@@ -2,6 +2,10 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## First-list product review and store transfer
+
+In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Clarify which items lack a store product, how to review them and what the shopper can transfer. Verify the affected paths with development fixtures.
+
 ## R2. Live development dashboard
 
 Owner requested and authorized on 11 October 2026. Repository tooling, independent of product releases. Read existing roadmap/task Markdown directly, with automatic local refresh and no AI calls, duplicate reporting or extra agent bookkeeping. Show release goals, feature progress, task evidence and parse problems honestly; task counts do not establish release readiness. Owner extended scope to selecting other local checkouts and a reusable workflow starter kit for current/future projects.
