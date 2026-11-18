@@ -1253,6 +1253,10 @@ body:has(.app-main) .demo {
   padding: 6px 9px;
   font-size: 14px;
 }
+/* The grocery name is typed text, so it keeps the 16 px reading floor. */
+.quick-add > label input {
+  font-size: 16px;
+}
 .quick-add [aria-invalid="true"] {
   border-color: var(--kk-error);
 }
