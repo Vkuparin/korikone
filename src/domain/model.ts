@@ -154,6 +154,9 @@ export const stateSchema = z
             .default({}),
           // The store and the products of the transfer, for "Muutokset edelliseen".
           storeKey: z.string().default(""),
+          storeName: z.string().optional(),
+          // Undefined on profiles created before manual checkout marks were kept in history.
+          orderPlacedAt: z.iso.datetime().nullable().optional(),
           transferred: z
             .array(
               z.object({

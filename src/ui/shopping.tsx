@@ -45,6 +45,7 @@ import { RowFind, type FindResult } from "./row-find";
 import { MerchandiseRow } from "./merchandise";
 import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
+import { CheckoutButton, type CheckoutOrder } from "./checkout";
 import { compareSentQuantities, requestWithoutRow } from "./transfer-summary";
 import { earlierListTransfer } from "../domain/changes";
 import { RowDetails } from "./details";
@@ -365,6 +366,9 @@ export function ShoppingWorkspace({
   onProgress,
   operationProgress,
   historyActions,
+  order,
+  openList,
+  openOrderHistory,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -381,6 +385,9 @@ export function ShoppingWorkspace({
   settings: (section?: SettingsSection) => void;
   staples: () => void;
   openStore: (chain: "k-ruoka" | "s-kaupat") => void;
+  order?: CheckoutOrder;
+  openList: () => void;
+  openOrderHistory: (id: string) => void;
   view?: "list" | "schedule" | "history";
   visible?: boolean;
   onProgress?: (progress: ComposerProgress | null) => void;
@@ -1043,6 +1050,7 @@ export function ShoppingWorkspace({
   // Clear list opens the same New list confirmation (B6.11); focus goes back where it came from.
   const clearListButton = useRef<HTMLButtonElement>(null);
   const confirmOpener = useRef<HTMLButtonElement | null>(null);
+  const newListFromHistory = useRef<string | null>(null);
   const openNewList = (opener: HTMLButtonElement | null) => {
     confirmOpener.current = opener;
     setResetFailed(false);
@@ -1050,6 +1058,11 @@ export function ShoppingWorkspace({
   };
   const closeNewList = () => {
     setConfirmingNewList(false);
+    if (newListFromHistory.current) {
+      openOrderHistory(newListFromHistory.current);
+      newListFromHistory.current = null;
+      return;
+    }
     requestAnimationFrame(() =>
       (confirmOpener.current ?? newListButton.current)?.focus(),
     );
@@ -1068,6 +1081,7 @@ export function ShoppingWorkspace({
       return;
     }
     setConfirmingNewList(false);
+    newListFromHistory.current = null;
     try {
       for (const key of [
         "shopping-note",
@@ -1257,51 +1271,55 @@ export function ShoppingWorkspace({
       <section>
         <h1>{tr("Historia", "History")}</h1>
         {historyActions}
-        {insights && (
-          <SpendingChart
-            insights={insights}
-            budget={state.household.budget}
-            language={state.language}
-          />
-        )}
-        {insights && (
-          <LinkReview
-            insights={insights}
-            snapshot={snapshot}
-            busy={busy}
-            call={call}
-            refresh={refreshInsights}
-          />
-        )}
         <p>
           {tr(
-            "Kaupan ostoskoriin siirretyt listat. Ostoksen maksaminen ei tallennu automaattisesti.",
-            "Lists transferred to the store cart. Checkout is not recorded automatically.",
+            "Kauppaan siirretyt ostoslistat ja tehdyiksi merkityt tilaukset.",
+            "Shopping lists sent to the store and orders you marked as placed.",
           )}
         </p>
-        <div className="interpretations">
+        <div className="order-history">
           {state.listHistory.map((h) => (
-            <article className="card" key={h.id}>
-              <h2>
-                {new Date(h.date).toLocaleDateString(fi ? "fi-FI" : "en-FI")}
+            <article
+              className="card"
+              key={h.id}
+              aria-labelledby={`order-history-${h.id}`}
+            >
+              <h2
+                id={`order-history-${h.id}`}
+                tabIndex={-1}
+                aria-describedby={`order-status-${h.id}`}
+              >
+                {h.storeName && `${h.storeName} · `}
+                {new Date(h.date).toLocaleString(fi ? "fi-FI" : "en-FI", {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })}
               </h2>
-              <p className="muted transfer-signal">
+              <p
+                id={`order-status-${h.id}`}
+                className={`transfer-signal ${h.orderPlacedAt ? "placed-order" : "muted"}`}
+              >
+                {h.orderPlacedAt &&
+                  tr("Tilaus merkitty tehdyksi", "Order marked as placed")}
                 {(() => {
                   const signal = transferSignal(snapshot, h.id);
-                  return signal === "confirmed"
-                    ? tr(
-                        "Siirto vahvistettu ostetuksi kuitilla tai tilauksella",
-                        "Transfer confirmed as bought by a receipt or order",
-                      )
-                    : signal === "review"
+                  if (h.orderPlacedAt && !signal) return null;
+                  const description =
+                    signal === "confirmed"
                       ? tr(
-                          "Mahdollinen osto odottaa vahvistustasi",
-                          "A possible purchase is waiting for your answer",
+                          "Siirto vahvistettu ostetuksi kuitilla tai tilauksella",
+                          "Transfer confirmed as bought by a receipt or order",
                         )
-                      : tr(
-                          "Siirto kauppaan, ei vielä vahvistettu ostos",
-                          "Transfer to the store, not a confirmed purchase",
-                        );
+                      : signal === "review"
+                        ? tr(
+                            "Mahdollinen osto odottaa vahvistustasi",
+                            "A possible purchase is waiting for your answer",
+                          )
+                        : tr(
+                            "Siirto kauppaan, ei vielä vahvistettu ostos",
+                            "Transfer to the store, not a confirmed purchase",
+                          );
+                  return h.orderPlacedAt ? ` · ${description}` : description;
                 })()}
               </p>
               <p>
@@ -1309,46 +1327,86 @@ export function ShoppingWorkspace({
                   h.meals
                     .map(
                       (m) =>
-                        state.recipes.find((r) => r.id === m.recipeId)?.name,
+                        (
+                          h.recipes.find((r) => r.id === m.recipeId) ??
+                          state.recipes.find((r) => r.id === m.recipeId)
+                        )?.name,
                     )
                     .join(", ")}
               </p>
-              <RepeatButton
-                snapshot={snapshot}
-                historyId={h.id}
-                hasList={all.length > 0}
-                busy={busy}
-                call={call}
-              />{" "}
-              <button
-                disabled={busy}
-                onClick={() => {
-                  const restored = h.recipes.map((r) => ({
-                    ...r,
-                    id: crypto.randomUUID(),
-                  }));
-                  void save({
-                    ...state,
-                    note: h.note,
-                    recipes: [...state.recipes, ...restored],
-                    meals: h.meals.map((m) => ({
-                      ...m,
-                      recipeId:
-                        restored[
-                          h.recipes.findIndex((r) => r.id === m.recipeId)
-                        ]?.id ?? m.recipeId,
-                    })),
-                    extras: h.extras,
-                    skipped: h.skipped,
-                    removed: h.removed,
-                    quantities: h.quantities,
-                  }).then((ok) => {
-                    if (ok) changeNote(h.note);
-                  });
-                }}
-              >
-                {tr("Käytä listan pohjana", "Use as a starting list")}
-              </button>
+              {h.transferred.length > 0 && (
+                <details>
+                  <summary>
+                    {tr("Siirretyt tuotteet", "Transferred products")} ·{" "}
+                    {h.transferred.length}
+                  </summary>
+                  <ul>
+                    {h.transferred.map((item) => (
+                      <li key={item.productId}>
+                        {item.name} × {item.quantity}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              <div className="actions">
+                {!h.orderPlacedAt && order?.historyId === h.id && (
+                  <CheckoutButton order={order} language={state.language} />
+                )}
+                {h.orderPlacedAt && order?.historyId === h.id && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      newListFromHistory.current = h.id;
+                      openNewList(null);
+                      openList();
+                    }}
+                  >
+                    {tr(
+                      "Aloita seuraava ostoslista",
+                      "Start the next shopping list",
+                    )}
+                  </button>
+                )}
+                <RepeatButton
+                  snapshot={snapshot}
+                  historyId={h.id}
+                  hasList={all.length > 0}
+                  busy={busy}
+                  call={call}
+                />
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    const restored = h.recipes.map((r) => ({
+                      ...r,
+                      id: crypto.randomUUID(),
+                    }));
+                    void save({
+                      ...state,
+                      note: h.note,
+                      recipes: [...state.recipes, ...restored],
+                      meals: h.meals.map((m) => ({
+                        ...m,
+                        recipeId:
+                          restored[
+                            h.recipes.findIndex((r) => r.id === m.recipeId)
+                          ]?.id ?? m.recipeId,
+                      })),
+                      extras: h.extras,
+                      skipped: h.skipped,
+                      removed: h.removed,
+                      quantities: h.quantities,
+                    }).then((ok) => {
+                      if (ok) changeNote(h.note);
+                    });
+                  }}
+                >
+                  {tr("Käytä listan pohjana", "Use as a starting list")}
+                </button>
+              </div>
             </article>
           ))}
         </div>
@@ -1359,6 +1417,22 @@ export function ShoppingWorkspace({
               "Transferred lists will appear here.",
             )}
           </p>
+        )}
+        {insights && (
+          <>
+            <LinkReview
+              insights={insights}
+              snapshot={snapshot}
+              busy={busy}
+              call={call}
+              refresh={refreshInsights}
+            />
+            <SpendingChart
+              insights={insights}
+              budget={state.household.budget}
+              language={state.language}
+            />
+          </>
         )}
         {!!state.history.length && (
           <section className="card">
@@ -2912,6 +2986,7 @@ export function ShoppingWorkspace({
           >
             {confirming && (
               <ConfirmPanel
+                order={order}
                 snapshot={snapshot}
                 busy={busy}
                 call={call}

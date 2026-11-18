@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import { liveProviders } from "../stores/provider";
 import { omittedReviewItems } from "./transfer-summary";
+import { CheckoutButton, type CheckoutOrder } from "./checkout";
 
 export type Chain = "k-ruoka" | "s-kaupat";
 const NAMES: Record<string, string> = {
@@ -26,6 +27,7 @@ export function StorePage({
   setChain,
   settings,
   returnToList,
+  order,
 }: {
   snapshot: Snapshot;
   chain: Chain | null;
@@ -33,6 +35,7 @@ export function StorePage({
   settings: () => void;
   /** Leaves the Store view for Korikone's shopping list. Absent during first setup. */
   returnToList?: (destination: "position" | "add") => void;
+  order?: CheckoutOrder;
 }) {
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -141,7 +144,12 @@ export function StorePage({
   const handoff =
     returnToList &&
     journal?.status === "verified" &&
-    journal.batchKey === snapshot.transferBatchKey &&
+    !journal.listClosed &&
+    (journal.batchKey === snapshot.transferBatchKey ||
+      (order?.placed &&
+        current &&
+        snapshot.state.stores[current]?.storeId ===
+          journal.review.context.storeId)) &&
     journal.review.context.providerId === current
       ? journal.review
       : null;
@@ -218,17 +226,19 @@ export function StorePage({
           aria-label={tr("Siirto kauppaan", "Store transfer")}
         >
           <strong>
-            {current === "s-kaupat"
-              ? tr(
-                  "Lisää Korikone-listan tuotteet S-kauppojen ostoskoriin.",
-                  "Add the products from your Korikone list to the S-kaupat basket.",
-                )
-              : tr(
-                  "Tarkista K-Ruoan ostoskori ja viimeistele tilaus.",
-                  "Check your K-Ruoka basket and complete your order.",
-                )}
+            {order?.placed
+              ? tr("Tilaus merkitty tehdyksi", "Order marked as placed")
+              : current === "s-kaupat"
+                ? tr(
+                    "Lisää Korikone-listan tuotteet S-kauppojen ostoskoriin.",
+                    "Add the products from your Korikone list to the S-kaupat basket.",
+                  )
+                : tr(
+                    "Tarkista K-Ruoan ostoskori ja viimeistele tilaus.",
+                    "Check your K-Ruoka basket and complete your order.",
+                  )}
           </strong>
-          {returnToList && (
+          {!order?.placed && returnToList && (
             <button
               type="button"
               className="secondary"
@@ -239,6 +249,22 @@ export function StorePage({
                 "Return to the list to add an item",
               )}
             </button>
+          )}
+          {order && (
+            <div className="checkout-action">
+              {!order.placed && (
+                <p>
+                  {tr(
+                    "Kun olet tehnyt tilauksen kaupassa, merkitse se ostoshistoriaan.",
+                    "Once you’ve placed the order at the store, mark it in your shopping history.",
+                  )}
+                </p>
+              )}
+              <CheckoutButton
+                order={order}
+                language={snapshot.state.language}
+              />
+            </div>
           )}
           {!!handoff.alreadySent?.length && (
             <p>
@@ -252,7 +278,7 @@ export function StorePage({
                 ` · ${handoff.targets.map((item) => `${item.name} × ${item.quantity - item.before}`).join(", ")}`}
             </p>
           )}
-          {addAtStore.length > 0 && (
+          {!order?.placed && addAtStore.length > 0 && (
             <details open={addAtStore.length <= 4}>
               <summary>
                 {tr("Lisää tarvittaessa itse", "Add these yourself if needed")}{" "}

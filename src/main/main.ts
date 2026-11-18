@@ -1107,8 +1107,7 @@ else
           service.refreshAfterChange(() => service.approveDraft(), {
             explicit: true,
           }),
-        confirmPurchase: () =>
-          service.refreshAfterChange(() => service.confirmPurchase()),
+        confirmPurchase: (input) => service.confirmPurchase(input),
         newWeek: () => service.refreshAfterChange(() => service.newWeek()),
         reuseWeek: () =>
           service.refreshAfterChange(() => service.reuseWeek(), {

@@ -8,6 +8,7 @@ import { isLive } from "../stores/provider";
 import { count as counted, en, fi, unitLabel, type Key } from "./i18n";
 import { priceMetrics } from "../domain/price-ranking";
 import { omittedReviewItems } from "./transfer-summary";
+import { CheckoutButton, type CheckoutOrder } from "./checkout";
 
 const chainName = (review: Review) =>
   review.context.providerId === "k-ruoka"
@@ -68,6 +69,7 @@ export function ConfirmPanel({
   money,
   onClose,
   onAddItem,
+  order,
   onRecover,
   onOpenStore,
 }: {
@@ -77,6 +79,7 @@ export function ConfirmPanel({
   money: (cents: number) => string;
   onClose: () => void;
   onAddItem: () => void;
+  order?: CheckoutOrder;
   onRecover: () => void;
   /** Shows the store tab that "Open store cart" loaded. */
   onOpenStore: (chain: "k-ruoka" | "s-kaupat") => void;
@@ -338,7 +341,9 @@ export function ConfirmPanel({
       aria-label={tr("Siirron tulos", "Transfer result")}
     >
       <h3 role="status">
-        {t(journal.status === "verified" ? "verified" : "partial")}
+        {order?.placed
+          ? tr("Tilaus merkitty tehdyksi", "Order marked as placed")
+          : t(journal.status === "verified" ? "verified" : "partial")}
       </h3>
       <p>
         {t("verifiedLines")}: {journal.verified.length} /{" "}
@@ -353,7 +358,7 @@ export function ConfirmPanel({
           {journal.review.alreadySent!.map((item) => item.name).join(", ")}
         </p>
       )}
-      {left.length > 0 && (
+      {!order?.placed && left.length > 0 && (
         <p>
           {tr(
             "Lisää tarvittaessa itse kaupassa:",
@@ -362,7 +367,7 @@ export function ConfirmPanel({
           {left.join(", ")}
         </p>
       )}
-      {(journal.review.manual?.length ?? 0) > 0 && (
+      {!order?.placed && (journal.review.manual?.length ?? 0) > 0 && (
         <p className="manual-handoff">
           {tr(
             "Ei siirretty, lisää itse kaupan sivulla:",
@@ -386,19 +391,21 @@ export function ConfirmPanel({
               )}
             </p>
           )}
-          <p className="muted">
-            {snapshot.developmentMode
-              ? tr(
-                  "Kehitystila: siirto tarkistettiin testikorissa. Oikeaa kaupan ikkunaa ei avata. Avauspainike testaa avaamisen lisäämättä tuotteita.",
-                  "Development mode: transfer verified in the test basket. No real store window opens. The open button tests opening without adding products.",
-                )
-              : journal.review.context.providerId === "s-kaupat"
-                ? t("sKaupatHandoff")
-                : tr(
-                    "Viimeistele tilaus kaupan ostoskorissa. Tarvittaessa voit avata sen uudelleen.",
-                    "Complete checkout in the store basket. You can reopen it if needed.",
-                  )}
-          </p>
+          {!order?.placed && (
+            <p className="muted">
+              {snapshot.developmentMode
+                ? tr(
+                    "Kehitystila: siirto tarkistettiin testikorissa. Oikeaa kaupan ikkunaa ei avata. Avauspainike testaa avaamisen lisäämättä tuotteita.",
+                    "Development mode: transfer verified in the test basket. No real store window opens. The open button tests opening without adding products.",
+                  )
+                : journal.review.context.providerId === "s-kaupat"
+                  ? t("sKaupatHandoff")
+                  : tr(
+                      "Viimeistele tilaus kaupan ostoskorissa. Tarvittaessa voit avata sen uudelleen.",
+                      "Complete checkout in the store basket. You can reopen it if needed.",
+                    )}
+            </p>
+          )}
           {snapshot.developmentMode && (
             <p aria-live="polite">
               {tr("Testatut avaukset", "Tested openings")}:{" "}
@@ -426,26 +433,24 @@ export function ConfirmPanel({
                     )}
               </button>
             )}
-            <button className="secondary" disabled={busy} onClick={onAddItem}>
-              {tr("Lisää unohtunut tuote", "Add a forgotten item")}
-            </button>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => void call("confirmPurchase")}
-            >
-              {t("ordered")}
-            </button>
-            <button
-              className="text"
-              disabled={busy}
-              onClick={() => void call("prepare", { allowMissing: true })}
-            >
-              {tr(
-                "Tarkista kaupan määrät uudelleen…",
-                "Recheck store quantities…",
-              )}
-            </button>
+            {!order?.placed && (
+              <button className="secondary" disabled={busy} onClick={onAddItem}>
+                {tr("Lisää unohtunut tuote", "Add a forgotten item")}
+              </button>
+            )}
+            {order && <CheckoutButton order={order} language={language} />}
+            {!order?.placed && (
+              <button
+                className="text"
+                disabled={busy}
+                onClick={() => void call("prepare", { allowMissing: true })}
+              >
+                {tr(
+                  "Tarkista kaupan määrät uudelleen…",
+                  "Recheck store quantities…",
+                )}
+              </button>
+            )}
             <button className="text" onClick={onClose}>
               {tr("Sulje", "Close")}
             </button>

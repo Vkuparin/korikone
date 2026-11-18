@@ -56,7 +56,12 @@ import {
   type StoreProvider,
 } from "../stores/provider";
 import { compareBaskets, type Comparison } from "../domain/compare";
-import { earlierListTransfer, reviewLines, storeKey } from "../domain/changes";
+import {
+  earlierListTransfer,
+  reviewLines,
+  storeKey,
+  transferHistoryId,
+} from "../domain/changes";
 import {
   ERROR_KEY,
   ERROR_LIMIT,
@@ -1057,7 +1062,13 @@ export class Service {
     });
     const confirmed = confirmedTransfers(linked.ledger);
     for (const transfer of confirmed) {
-      if (await this.db.get(`ordered-${transfer.transferId}`)) continue;
+      if (
+        this.state.listHistory.some(
+          (entry) => entry.id === transfer.transferId && entry.orderPlacedAt,
+        ) ||
+        (await this.db.get(`ordered-${transfer.transferId}`))
+      )
+        continue;
       const confirmedAt = transfer.purchasedAt ?? new Date().toISOString();
       await this.db.set(`ordered-${transfer.transferId}`, {
         confirmedAt,
@@ -1323,20 +1334,59 @@ export class Service {
     // refused backup leaves the profile exactly as it was (B5.8).
     await this.writeState(() =>
       this.purchases.serialize(async () =>
-        this.saveState({ ...next, revision: this.state.revision }, true, [
-          ...(prices ? [{ key: PRICE_KEY, value: limitPrices(prices) }] : []),
-          ...(await this.purchases.restoreEntries(raw)),
-        ]),
+        this.saveState(
+          {
+            ...(await this.restoreOrderMarks(next)),
+            revision: this.state.revision,
+          },
+          true,
+          [
+            ...(prices ? [{ key: PRICE_KEY, value: limitPrices(prices) }] : []),
+            ...(await this.purchases.restoreEntries(raw)),
+          ],
+        ),
       ),
     );
     this.observedPrices = await this.priceHistory();
     return this.snapshot();
+  }
+  private async restoreOrderMarks(state: AppState): Promise<AppState> {
+    if (!state.listHistory.some((entry) => entry.orderPlacedAt === undefined))
+      return state;
+    const last = this.journal;
+    const listHistory = await Promise.all(
+      state.listHistory.map(async (entry) => {
+        if (entry.orderPlacedAt !== undefined) return entry;
+        let mark = await this.db.get(`ordered-${entry.id}`);
+        if (
+          !mark &&
+          last?.status === "verified" &&
+          last.review.id !== entry.id &&
+          transferHistoryId(last.review) === entry.id
+        )
+          mark = await this.db.get(`ordered-${last.review.id}`);
+        return {
+          ...entry,
+          orderPlacedAt:
+            mark?.by === "manual" &&
+            z.iso.datetime().safeParse(mark.confirmedAt).success
+              ? mark.confirmedAt
+              : null,
+        };
+      }),
+    );
+    return { ...state, listHistory };
   }
   async init() {
     this.observedPrices = await this.priceHistory();
     const state = await this.db.get("state");
     if (state) this.state = stateSchema.parse(state);
     this.journal = await this.db.get("journal");
+    const upgraded = await this.restoreOrderMarks(this.state);
+    if (upgraded !== this.state) {
+      await this.db.set("state", upgraded);
+      this.state = upgraded;
+    }
     if (this.journal?.status === "transferring") {
       this.journal.status = "partial";
       this.journal.error = "interrupted";
@@ -1992,30 +2042,45 @@ export class Service {
       correctionHolds: [],
     });
   }
-  async confirmPurchase() {
-    if (this.busy || this.journal?.status !== "verified")
-      throw new Error("reviewRequired");
-    const run = this.journal.review.id;
-    // An earlier confirmation, by the shopper or by purchase evidence, is kept as it is.
-    const order = (await this.db.get(`ordered-${run}`)) ?? {
-      confirmedAt: new Date().toISOString(),
-      by: "manual",
-    };
-    const purchased = new Set(
-      this.journal.review.quotes.map((line) => line.requirement.id),
-    );
-    const next = {
-      ...this.state,
-      history: this.archived(this.state, order.confirmedAt),
-      staples: this.state.staples.map((item) =>
-        purchased.has(item.id)
-          ? { ...item, lastPurchased: order.confirmedAt }
-          : item,
-      ),
-    };
-    await this.db.set(`ordered-${run}`, order);
-    await this.save(next);
-    return this.snapshot();
+  async confirmPurchase(input?: unknown) {
+    const expected =
+      input === undefined
+        ? this.journal?.review.id
+        : z.object({ transferId: z.string() }).parse(input).transferId;
+    return this.writeState(async () => {
+      const journal = this.journal;
+      if (
+        this.busy ||
+        this.transferPending ||
+        journal?.status !== "verified" ||
+        journal.review.id !== expected
+      )
+        throw new Error("reviewRequired");
+      const id = transferHistoryId(journal.review);
+      const entry = this.state.listHistory.find((item) => item.id === id);
+      if (!entry) throw new Error("reviewRequired");
+      if (entry.orderPlacedAt) return this.snapshot();
+      if (journal.listClosed) throw new Error("reviewRequired");
+      const evidence = await this.db.get(`ordered-${id}`);
+      const placedAt = new Date().toISOString();
+      const at = evidence?.confirmedAt ?? placedAt;
+      const purchased = new Set(
+        journal.review.quotes.map((line) => line.requirement.id),
+      );
+      return this.saveState({
+        ...this.state,
+        listHistory: this.state.listHistory.map((item) =>
+          item.id === id ? { ...item, orderPlacedAt: placedAt } : item,
+        ),
+        history: this.archived({ ...this.state, meals: entry.meals }, at),
+        staples: this.state.staples.map((item) =>
+          purchased.has(item.id) &&
+          (!item.lastPurchased || item.lastPurchased < at)
+            ? { ...item, lastPurchased: at }
+            : item,
+        ),
+      });
+    });
   }
   /**
    * The shopper's explicit price update. Recurring items paused by Clear list join the list
@@ -3378,7 +3443,7 @@ export class Service {
     this.review.unresolved = unresolved.map((line) => line.requirement);
     this.review.unresolvedIntents = unresolvedIntents;
     if (this.review.alreadySent?.length)
-      this.review.continues = this.journal!.review.id;
+      this.review.continues = transferHistoryId(this.journal!.review);
     if (manual.length) this.review.manual = manual;
     if (this.review.priceChanges?.length)
       await this.reconcileQuote(this.review);
@@ -3545,6 +3610,7 @@ export class Service {
       }
       if (
         this.journal?.status === "verified" &&
+        !this.journal.listClosed &&
         this.journal.batchKey === this.batchKey()
       ) {
         const cart = await this.registry
@@ -3691,6 +3757,8 @@ export class Service {
                 removed: [...this.state.removed],
                 quantities: { ...this.state.quantities },
                 storeKey: storeKey(this.journal!.review.context),
+                storeName: this.journal!.review.context.storeName,
+                orderPlacedAt: null,
                 // The whole list as sent, including rows an earlier transfer of it already
                 // put in the basket; that earlier entry is replaced below.
                 transferred: reviewLines(this.journal!.review),
@@ -3709,7 +3777,8 @@ export class Service {
               ...this.state.listHistory.filter(
                 (h) =>
                   h.id !== this.journal!.review.id &&
-                  h.id !== this.journal!.review.continues,
+                  (h.id !== this.journal!.review.continues ||
+                    !!h.orderPlacedAt),
               ),
             ].slice(0, 52),
           };

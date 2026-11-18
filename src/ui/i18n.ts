@@ -266,7 +266,8 @@ export const en = {
     "Connect ChatGPT in Settings for meal drafts. You can also add meals manually below.",
   realStatus:
     "Sign in to K-Ruoka once in the Store tab. Choose a pickup branch below. Select the final slot and delivery details in the store. Weighted products and products without a clear pack size need manual store review.",
-  ordered: "I completed the purchase",
+  ordered: "Mark order as placed",
+  viewPlacedOrder: "View order in history",
   unsupported: "This provider does not support this operation.",
   invalidQuantity:
     "Enter a positive quantity in whole grams, millilitres or pieces. Kilograms and litres accept decimals.",
@@ -582,7 +583,8 @@ export const fi: Record<Key, string> = {
     "Yhdistä ChatGPT asetuksissa aterialuonnoksia varten. Voit myös lisätä ateriat käsin alta.",
   realStatus:
     "Kirjaudu K-Ruokaan kerran Kauppa-näkymässä. Valitse noutokauppa alta. Valitse lopullinen aika ja toimitustiedot kaupassa. Punnittavat tuotteet ja epäselvät pakkauskoot on tarkistettava kaupassa käsin.",
-  ordered: "Olen tehnyt ostoksen",
+  ordered: "Merkitse tilaus tehdyksi",
+  viewPlacedOrder: "Näytä tilaus historiassa",
   unsupported: "Kauppa ei tue tätä toimintoa.",
   invalidQuantity:
     "Anna positiivinen määrä kokonaisina grammoina, millilitroina tai kappaleina. Kilogrammoissa ja litroissa voit käyttää desimaaleja.",

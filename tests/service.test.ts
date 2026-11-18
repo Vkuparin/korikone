@@ -5,6 +5,7 @@ import { DemoProvider } from "../src/stores/demo";
 import { priceRises } from "../src/domain/prices";
 import { attention } from "../src/ui/confirm";
 import { diagnostics } from "../src/application/diagnostics";
+import { memoryStorage } from "./helpers/purchase-fixtures";
 function memory() {
   const entries = new Map<string, unknown>();
   return {
@@ -396,16 +397,54 @@ test("store switching preserves meals and invalidates review without writing car
   expect((service.registry.get("demo-s") as DemoProvider).writes).toBe(0);
 });
 test("transfer does not advance staple cadence; purchase confirmation does", async () => {
-  const service = new Service(memory());
+  const storage = memory();
+  const service = new Service(storage);
   await ready(service);
   await service.execute({ id: service.review!.id, acknowledged: false });
   expect(service.journal?.status).toBe("verified");
   expect(service.state.staples[0].lastPurchased).toBeNull();
-  await service.confirmPurchase();
+  await expect(
+    service.confirmPurchase({ transferId: "another-history-entry" }),
+  ).rejects.toThrow("reviewRequired");
+  expect(service.state.listHistory[0].orderPlacedAt).toBeNull();
+  await Promise.all([
+    service.confirmPurchase({ transferId: service.journal!.review.id }),
+    service.confirmPurchase(),
+  ]);
+  const saved = structuredClone(service.state);
   const purchased = service.state.staples[0].lastPurchased;
   expect(purchased).not.toBeNull();
   await service.confirmPurchase();
   expect(service.state.staples[0].lastPurchased).toBe(purchased);
+  expect(service.state).toEqual(saved);
+  expect(saved.listHistory[0].orderPlacedAt).toBe(purchased);
+  const restarted = new Service(storage);
+  await restarted.init();
+  expect(restarted.state.listHistory).toEqual(saved.listHistory);
+});
+
+test("older manual order marks migrate to their own shopping history entry", async () => {
+  const { storage } = memoryStorage();
+  const service = new Service(storage);
+  await ready(service);
+  await service.execute({ id: service.review!.id, acknowledged: false });
+  const { orderPlacedAt: ignored, ...legacy } = service.state.listHistory[0];
+  const at = "2026-09-30T12:00:00.000Z";
+  await storage.set("state", {
+    ...service.state,
+    listHistory: [legacy, { ...legacy, id: "another-list" }],
+  });
+  await storage.set(`ordered-${legacy.id}`, { confirmedAt: at, by: "manual" });
+  const restarted = new Service(storage);
+  await restarted.init();
+  expect(
+    restarted.state.listHistory.map((entry) => entry.orderPlacedAt),
+  ).toEqual([at, null]);
+  expect((await restarted.exportBackup()).listHistory[0].orderPlacedAt).toBe(
+    at,
+  );
+  await restarted.importBackup({ ...service.state, listHistory: [legacy] });
+  expect(restarted.state.listHistory[0].orderPlacedAt).toBe(at);
 });
 test("rejects stale and duplicate approvals and enforces budget acknowledgement", async () => {
   const service = new Service(memory());

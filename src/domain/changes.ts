@@ -1,5 +1,12 @@
 import type { Journal, Review, StoreContext } from "./model";
 
+/** A quantity check that wrote nothing keeps the last actual transfer's history entry. */
+export function transferHistoryId(review: Review) {
+  return review.targets.length === 0 && review.continues
+    ? review.continues
+    : review.id;
+}
+
 export function earlierListTransfer(
   last: Journal | null | undefined,
   context: StoreContext,

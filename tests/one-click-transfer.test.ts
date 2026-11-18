@@ -296,6 +296,31 @@ const emptyBasket = async (service: Service, provider: DemoProvider) => {
   baskets.set(service, {});
 };
 
+test("quantity rechecks mark the original order and an identical next list gets its own history entry", async () => {
+  const { service, provider } = await priced("k-ruoka");
+  await click(service);
+  const first = service.journal!.review.id;
+  for (let i = 0; i < 2; i++) {
+    const checked = await service.prepare({ allowMissing: true });
+    expect(checked.review!.targets).toHaveLength(0);
+    await service.execute({ id: checked.review!.id, acknowledged: true });
+  }
+  await service.confirmPurchase({ transferId: service.journal!.review.id });
+  expect(service.state.listHistory).toMatchObject([
+    { id: first, orderPlacedAt: expect.any(String) },
+  ]);
+  const extras = service.state.extras;
+  await service.resetList({ revision: service.state.revision });
+  await emptyBasket(service, provider);
+  await service.save({ ...service.state, extras });
+  await service.buildBasket();
+  await click(service);
+  expect(service.state.listHistory).toHaveLength(2);
+  expect(service.state.listHistory[0].orderPlacedAt).toBeNull();
+  expect(service.state.listHistory[1].id).toBe(first);
+  expect(await cartOf(service, provider)).toEqual({ milk: 2, pasta: 1 });
+});
+
 test("the additions preview credits a product once across rows and excludes reduced quantities", async () => {
   const { service } = await priced("k-ruoka");
   const sent = (await click(service)).journal!.review.listSent!;

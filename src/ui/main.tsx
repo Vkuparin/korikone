@@ -47,6 +47,8 @@ import type {
   SettingsSectionProps,
 } from "./settings-contract";
 import { StorePage, storeChains, type Chain } from "./store";
+import { transferHistoryId } from "../domain/changes";
+import type { CheckoutOrder } from "./checkout";
 import { isLive, liveProviders } from "../stores/provider";
 declare global {
   interface Window {
@@ -440,6 +442,34 @@ function App() {
     }
   }
   const save = (next: AppState) => call("save", next);
+  function openOrderHistory(id: string) {
+    setPage("history");
+    requestAnimationFrame(() =>
+      document.getElementById(`order-history-${id}`)?.focus(),
+    );
+  }
+  const journal = snapshot.journal;
+  const entry =
+    journal?.status === "verified" && !journal.listClosed
+      ? state.listHistory.find(
+          (item) => item.id === transferHistoryId(journal.review),
+        )
+      : undefined;
+  const checkoutOrder: CheckoutOrder | undefined =
+    entry && journal
+      ? {
+          historyId: entry.id,
+          placed: !!entry.orderPlacedAt,
+          busy: busy || !!activeProgress,
+          open: async () => {
+            if (
+              entry.orderPlacedAt ||
+              (await call("confirmPurchase", { transferId: journal.review.id }))
+            )
+              openOrderHistory(entry.id);
+          },
+        }
+      : undefined;
   async function openFirstList(next: AppState) {
     if (!(await save(next))) return false;
     setPage("week");
@@ -928,6 +958,9 @@ function App() {
               }
             >
               <ShoppingWorkspace
+                order={checkoutOrder}
+                openList={() => setPage("week")}
+                openOrderHistory={openOrderHistory}
                 key={String(snapshot.developmentMode)}
                 visible={
                   page === "week" || page === "weekPlan" || page === "history"
@@ -996,6 +1029,7 @@ function App() {
                   restoreList.current = destination;
                   setPage("week");
                 }}
+                order={checkoutOrder}
               />
             )}
             {/* While an editor is open, Recipes and staples stay mounted but hidden, so what was typed
