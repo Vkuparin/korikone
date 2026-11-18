@@ -88,13 +88,17 @@ export function QuickAdd({
         setAdded("");
       }}
     >
+      {/* B7.1: one line; the labels stay for assistive technology. */}
       <label>
-        {tr("Lisää tuote", "Add grocery")}
+        <span className="sr-only">{tr("Lisää tuote", "Add grocery")}</span>
         <input
           ref={item}
           id="quick-add-item"
           name="item"
-          placeholder={tr("Esim. kahvi", "e.g. coffee")}
+          placeholder={tr(
+            "Lisää tuote, esim. kahvi",
+            "Add a grocery, e.g. coffee",
+          )}
           required
           maxLength={200}
           aria-invalid={nameError || undefined}
@@ -103,7 +107,7 @@ export function QuickAdd({
       </label>
       <div className="quick-add-options">
         <label>
-          {tr("Määrä", "Amount")}
+          <span className="sr-only">{tr("Määrä", "Amount")}</span>
           <input
             ref={amount}
             name="amount"
@@ -116,7 +120,7 @@ export function QuickAdd({
           />
         </label>
         <label>
-          {tr("Yksikkö", "Unit")}
+          <span className="sr-only">{tr("Yksikkö", "Unit")}</span>
           <select
             ref={unitField}
             name="unit"

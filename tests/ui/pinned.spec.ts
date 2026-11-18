@@ -69,8 +69,9 @@ test("the total and transfer bar stay in view while the list scrolls", async () 
     }
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: "test-results/pinned.png" });
-    // A short window uses normal flow when the footer would crowd the rows.
-    await page.setViewportSize({ width: 1100, height: 600 });
+    // A short window uses normal flow when the footer would crowd the rows. The footer is
+    // compact since B7.1, so 600 px tall still scrolls the rows; 400 px does not.
+    await page.setViewportSize({ width: 1100, height: 400 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(list).toHaveAttribute("data-flow", "true");
     await transfer.scrollIntoViewIfNeeded();

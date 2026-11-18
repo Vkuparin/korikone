@@ -63,8 +63,13 @@ for (const language of ["fi", "en"] as const) {
         exact: true,
       });
       const confirm = page.getByRole("alertdialog");
+      // Clearing lives in the list menu (B7.1).
+      const menu = page.getByLabel(tr("Listan toiminnot", "List actions"), {
+        exact: true,
+      });
       const before = await load();
-      // Escape leaves everything as it was and returns to the button that asked.
+      // Escape leaves everything as it was and returns to the menu that asked.
+      await menu.click();
       await clear.focus();
       await page.keyboard.press("Enter");
       await expect(confirm).toContainText(
@@ -72,10 +77,11 @@ for (const language of ["fi", "en"] as const) {
       );
       await page.keyboard.press("Escape");
       await expect(confirm).toHaveCount(0);
-      await expect(clear).toBeFocused();
+      await expect(menu).toBeFocused();
       await expect(page.locator(".grocery-row").first()).toBeVisible();
       expect((await load()).state.revision).toBe(before.state.revision);
 
+      await menu.click();
       await clear.click();
       await confirm
         .getByRole("button", {
@@ -86,6 +92,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(confirm).toHaveCount(0);
       await expect(page.locator(".grocery-row")).toHaveCount(0);
       await expect(page.locator(".empty-list")).toBeVisible();
+      await menu.click();
       await expect(clear).toBeDisabled();
       // A New list has no Undo; the week is kept in history instead.
       await expect(
@@ -145,6 +152,9 @@ for (const language of ["fi", "en"] as const) {
     const { app, page } = await start(language);
     try {
       await composer(page).fill(tr("lisää kahvia", "add coffee"));
+      await page
+        .getByLabel(tr("Listan toiminnot", "List actions"), { exact: true })
+        .click();
       await page
         .getByRole("button", {
           name: tr("Tyhjennä lista", "Clear list"),

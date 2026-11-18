@@ -1137,9 +1137,10 @@ export function ShoppingWorkspace({
   const newListButton = useRef<HTMLButtonElement>(null);
   // Clear list opens the same New list confirmation (B6.11); focus goes back where it came from.
   const clearListButton = useRef<HTMLButtonElement>(null);
-  const confirmOpener = useRef<HTMLButtonElement | null>(null);
+  const listMenu = useRef<HTMLDetailsElement>(null);
+  const confirmOpener = useRef<HTMLElement | null>(null);
   const newListFromHistory = useRef<string | null>(null);
-  const openNewList = (opener: HTMLButtonElement | null) => {
+  const openNewList = (opener: HTMLElement | null) => {
     confirmOpener.current = opener;
     setResetFailed(false);
     setConfirmingNewList(true);
@@ -2526,54 +2527,96 @@ export function ShoppingWorkspace({
               {tr("Ostoslista", "Shopping list")}{" "}
               <span className="muted">· {all.length}</span>
             </h2>
-            <button
-              ref={clearListButton}
-              className="secondary clear-list"
-              disabled={
-                busy ||
-                working ||
-                editWorking ||
-                transferring ||
-                (!all.length && !state.note.trim())
-              }
-              onClick={() => openNewList(clearListButton.current)}
-            >
-              {tr("Tyhjennä lista", "Clear list")}
-            </button>
-            <details className="list-menu">
+            {composingEdit && (
+              <button
+                type="button"
+                className="text finish-in-composer"
+                aria-label={tr(
+                  "Viimeistele lista tekoälykentässä",
+                  "Finish the list in the AI field",
+                )}
+                onClick={() => {
+                  setFocusTarget(null);
+                  noteElement.current?.focus();
+                }}
+              >
+                {tr("Viimeistele tekoälyllä", "Finish with AI")}
+              </button>
+            )}
+            {/* B7.1: the list's less frequent actions share one menu, so the rows start higher. */}
+            <details className="list-menu" ref={listMenu}>
               <summary aria-label={tr("Listan toiminnot", "List actions")}>
                 ···
               </summary>
-              <button className="text" onClick={() => void call("exportList")}>
-                {tr("Tallenna tekstinä", "Save as text")}
-              </button>
-              <button
-                className="text"
-                disabled={busy || !rows.length}
-                onClick={() => void call("buildBasket")}
-              >
-                {tr(
-                  "Päivitä tuotteet ja hinnat",
-                  "Refresh products and prices",
-                )}
-              </button>
+              <div className="list-menu-items">
+                <label className="product-preference">
+                  {tr("Tuotevalinnat", "Product choices")}
+                  <select
+                    value={state.productPreference}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void save({
+                        ...state,
+                        productPreference: e.target
+                          .value as AppState["productPreference"],
+                        accepted: {},
+                      })
+                    }
+                  >
+                    <option value="price">
+                      {tr(
+                        "Edullisin, merkistä riippumatta",
+                        "Cheapest, any brand",
+                      )}
+                    </option>
+                    <option value="storeBrand">
+                      {tr("Suosi kaupan merkkejä", "Prefer store brands")}
+                    </option>
+                    <option value="avoidStoreBrand">
+                      {tr("Vältä kaupan merkkejä", "Avoid store brands")}
+                    </option>
+                  </select>
+                </label>
+                <button
+                  className="text"
+                  disabled={busy || !rows.length}
+                  onClick={() => void call("buildBasket")}
+                >
+                  {tr(
+                    "Päivitä tuotteet ja hinnat",
+                    "Refresh products and prices",
+                  )}
+                </button>
+                <button
+                  className="text"
+                  onClick={() => void call("exportList")}
+                >
+                  {tr("Tallenna tekstinä", "Save as text")}
+                </button>
+                <button
+                  ref={clearListButton}
+                  className="text clear-list"
+                  disabled={
+                    busy ||
+                    working ||
+                    editWorking ||
+                    transferring ||
+                    (!all.length && !state.note.trim())
+                  }
+                  onClick={() => {
+                    // Focus returns to the menu, which stays in place when the panel closes.
+                    if (listMenu.current) listMenu.current.open = false;
+                    openNewList(
+                      listMenu.current?.querySelector("summary") ??
+                        clearListButton.current,
+                    );
+                  }}
+                >
+                  {tr("Tyhjennä lista", "Clear list")}
+                </button>
+              </div>
             </details>
           </div>
-          {composingEdit && (
-            <button
-              type="button"
-              className="text"
-              onClick={() => {
-                setFocusTarget(null);
-                noteElement.current?.focus();
-              }}
-            >
-              {tr(
-                "Viimeistele lista tekoälykentässä",
-                "Finish the list in the AI field",
-              )}
-            </button>
-          )}
           {/* Right after clearing, one note with the way back; a list that was never filled shows
               only the empty state below (B6.6). */}
           {!all.length && snapshot.edit?.status === "cleared" && (
@@ -2594,31 +2637,6 @@ export function ShoppingWorkspace({
                 : undefined
             }
           />
-          <label className="product-preference">
-            {tr("Tuotevalinnat", "Product choices")}
-            <select
-              value={state.productPreference}
-              disabled={busy}
-              onChange={(e) =>
-                void save({
-                  ...state,
-                  productPreference: e.target
-                    .value as AppState["productPreference"],
-                  accepted: {},
-                })
-              }
-            >
-              <option value="price">
-                {tr("Edullisin, merkistä riippumatta", "Cheapest, any brand")}
-              </option>
-              <option value="storeBrand">
-                {tr("Suosi kaupan merkkejä", "Prefer store brands")}
-              </option>
-              <option value="avoidStoreBrand">
-                {tr("Vältä kaupan merkkejä", "Avoid store brands")}
-              </option>
-            </select>
-          </label>
           {(missing.length > 0 || reviewRows !== null) && (
             <button
               type="button"
@@ -2899,18 +2917,18 @@ export function ShoppingWorkspace({
                             )}
                           </small>
                         )}
-                        {r.sources.includes("staple") && (
-                          <small>
-                            {tr("Viimeksi ostettu", "Last purchased")}:{" "}
-                            {state.staples.find((s) => s.id === r.id)
-                              ?.lastPurchased
-                              ? new Date(
-                                  state.staples.find((s) => s.id === r.id)!
-                                    .lastPurchased!,
-                                ).toLocaleDateString(fi ? "fi-FI" : "en-FI")
-                              : tr("ei vielä merkitty", "not recorded")}
-                          </small>
-                        )}
+                        {/* B7.1: only a known purchase date gets a line. */}
+                        {r.sources.includes("staple") &&
+                          state.staples.find((s) => s.id === r.id)
+                            ?.lastPurchased && (
+                            <small>
+                              {tr("Viimeksi ostettu", "Last purchased")}:{" "}
+                              {new Date(
+                                state.staples.find((s) => s.id === r.id)!
+                                  .lastPurchased!,
+                              ).toLocaleDateString(fi ? "fi-FI" : "en-FI")}
+                            </small>
+                          )}
                         <small className="row-source">
                           {r.sources
                             .map((s) =>
@@ -2983,46 +3001,53 @@ export function ShoppingWorkspace({
                             />
                           )}
                       </div>
-                      {/* One line under the name: amount, then the row's text actions. */}
-                      <div className="row-actions">
-                        <div
-                          className="quantity-control"
-                          role="group"
-                          aria-label={tr(
-                            `Määrä: ${r.name}`,
-                            `Quantity: ${r.name}`,
-                          )}
+                      {/* B7.1: the amount sits beside the dish line, the text actions on one line
+                          under it. */}
+                      <div
+                        className="quantity-control"
+                        role="group"
+                        aria-label={tr(
+                          `Määrä: ${r.name}`,
+                          `Quantity: ${r.name}`,
+                        )}
+                      >
+                        <button
+                          aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
+                          disabled={busy || r.amount <= step}
+                          onClick={() =>
+                            void changeQuantity(r, r.amount - step)
+                          }
                         >
-                          <button
-                            aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
-                            disabled={busy || r.amount <= step}
-                            onClick={() =>
-                              void changeQuantity(r, r.amount - step)
+                          −
+                        </button>
+                        <output aria-live="polite" aria-atomic="true">
+                          <span>{count}</span>{" "}
+                          <small
+                            className={
+                              line?.product && !line.approximate
+                                ? "pack-word"
+                                : undefined
                             }
                           >
-                            −
-                          </button>
-                          <output aria-live="polite" aria-atomic="true">
-                            <span>{count}</span>{" "}
-                            <small>
-                              {line?.product && !line.approximate
-                                ? tr(
-                                    count === 1 ? "pakkaus" : "pakkausta",
-                                    count === 1 ? "pack" : "packs",
-                                  )
-                                : unitLabel(r.unit, state.language)}
-                            </small>
-                          </output>
-                          <button
-                            aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
-                            disabled={busy || r.amount + step > 10_000_000}
-                            onClick={() =>
-                              void changeQuantity(r, r.amount + step)
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
+                            {line?.product && !line.approximate
+                              ? tr(
+                                  count === 1 ? "pakkaus" : "pakkausta",
+                                  count === 1 ? "pack" : "packs",
+                                )
+                              : unitLabel(r.unit, state.language)}
+                          </small>
+                        </output>
+                        <button
+                          aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
+                          disabled={busy || r.amount + step > 10_000_000}
+                          onClick={() =>
+                            void changeQuantity(r, r.amount + step)
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="row-actions">
                         <button
                           className="text edit-with-instruction"
                           aria-label={`${tr("Muokkaa ohjeella", "Edit with instruction")}: ${r.name}`}
@@ -3332,12 +3357,22 @@ export function ShoppingWorkspace({
             )}
             <div className="total-line">
               <span>
-                {missing.length || snapshot.planningIncomplete
-                  ? tr(
-                      "Tunnettujen hintojen välisumma",
-                      "Subtotal of known prices",
-                    )
-                  : tr("Arvio yhteensä", "Estimated total")}
+                <span>
+                  {missing.length || snapshot.planningIncomplete
+                    ? tr(
+                        "Tunnettujen hintojen välisumma",
+                        "Subtotal of known prices",
+                      )
+                    : tr("Arvio yhteensä", "Estimated total")}
+                </span>
+                {/* B7.1: the budget sits under the label, so the price time keeps one line. */}
+                {snapshot.quotedAt &&
+                  state.household.budget > 0 &&
+                  (prices.exact > 0 || estimated.length > 0) && (
+                    <small className="total-budget">
+                      {tr("budjetti", "budget")} {money(state.household.budget)}
+                    </small>
+                  )}
               </span>
               <strong>
                 {snapshot.quotedAt || !rows.length
@@ -3347,19 +3382,6 @@ export function ShoppingWorkspace({
                   : tr("Ei hinnoiteltu", "Not priced")}
               </strong>
             </div>
-            {estimated.length > 0 && (
-              <p className="muted">
-                {tr(
-                  "Punnittavien tuotteiden hinnat ovat arvioita. Lopullinen paino ja hinta vahvistuvat kaupassa.",
-                  "Weighed prices are estimates. Final weight and price are confirmed by the store.",
-                )}
-                {estimated.some((line) => !transferableLine(line)) &&
-                  tr(
-                    " Lisää kaupassa itse tuotteet, joiden kappalemäärää ei voida varmistaa.",
-                    " Add products in the store yourself when their piece quantity cannot be verified.",
-                  )}
-              </p>
-            )}
             {snapshot.pricingError && (
               <p className="warning" role="alert">
                 {tr(
@@ -3378,10 +3400,6 @@ export function ShoppingWorkspace({
                   fi ? "fi-FI" : "en-FI",
                   { dateStyle: "short", timeStyle: "short" },
                 )}
-                {/* The total is on the line above; the budget sits beside the price time. */}
-                {state.household.budget > 0 &&
-                  (prices.exact > 0 || estimated.length > 0) &&
-                  ` · ${tr("budjetti", "budget")} ${money(state.household.budget)}`}
               </p>
             ) : (
               rows.length > 0 && (
@@ -3427,101 +3445,108 @@ export function ShoppingWorkspace({
               />
             )}
             {!confirming && snapshot.quotedAt && !!rows.length && (
-              <div
-                className="transfer-summary"
-                role="group"
-                aria-label={tr("Ennen siirtoa", "Before the transfer")}
-              >
-                {additions && sendable.length > 0 ? (
-                  <>
-                    {additions.length > 0 ? (
-                      <p>
+              <>
+                {/* B7.1: one line says what is sent; the details open on request, so the
+                    transfer button stays in view. */}
+                <details
+                  className="transfer-summary"
+                  role="group"
+                  aria-label={tr("Ennen siirtoa", "Before the transfer")}
+                >
+                  <summary>
+                    {additions && sendable.length > 0 ? (
+                      additions.length > 0 ? (
+                        <>
+                          <strong>
+                            {tr(
+                              "Lisäykset edellisen siirron jälkeen",
+                              "Added since the last transfer",
+                            )}
+                          </strong>
+                          {" · "}
+                          {additions
+                            .map((item) => `${item.name} × ${item.packs}`)
+                            .join(", ")}
+                        </>
+                      ) : (
+                        tr(
+                          "Listan tuotemäärät eivät ole kasvaneet edellisestä siirrosta.",
+                          "No additional quantities on this list since the last transfer.",
+                        )
+                      )
+                    ) : sendable.length > 0 ? (
+                      <>
                         <strong>
-                          {tr(
-                            "Lisäykset edellisen siirron jälkeen",
-                            "Added since the last transfer",
+                          {count(
+                            sendable.length,
+                            fi,
+                            ["tuote siirretään", "tuotetta siirretään"],
+                            ["product will be sent", "products will be sent"],
                           )}
                         </strong>
                         {" · "}
-                        {additions
-                          .map((item) => `${item.name} × ${item.packs}`)
-                          .join(", ")}
-                      </p>
+                        {packCount(
+                          sendable.reduce((n, line) => n + line.packs, 0),
+                          state.language,
+                        )}
+                      </>
                     ) : (
-                      <p>
+                      <strong>
                         {tr(
-                          "Listan tuotemäärät eivät ole kasvaneet edellisestä siirrosta.",
-                          "No additional quantities on this list since the last transfer.",
+                          "Ei siirrettäviä tuotteita",
+                          "No products ready to transfer",
                         )}
-                      </p>
+                      </strong>
                     )}
-                    {!!followUp?.previouslySent.length && (
-                      <details>
-                        <summary>
-                          {tr(
-                            "Siirretty aiemmin tältä listalta",
-                            "Previously sent from this list",
-                          )}{" "}
-                          · {followUp.previouslySent.length}
-                        </summary>
-                        <ul>
-                          {followUp.previouslySent.map((item) => (
-                            <li key={item.productId}>
-                              {item.name} × {item.packs}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                    {!sameVerifiedBatch && (
-                      <p className="muted">
-                        {tr(
-                          "Kaupassa jäljellä olevat aiemmin siirretyt pakkaukset lasketaan mukaan. Korikone lisää vain puuttuvan määrän.",
-                          "Packs from your previous transfer count toward this list if they’re still at the store. Korikone adds the remaining quantity.",
-                        )}
-                      </p>
-                    )}
-                  </>
-                ) : sendable.length > 0 ? (
-                  <p>
-                    <strong>
-                      {count(
-                        sendable.length,
-                        fi,
-                        ["tuote siirretään", "tuotetta siirretään"],
-                        ["product will be sent", "products will be sent"],
-                      )}
-                    </strong>
-                    {" · "}
-                    {packCount(
-                      sendable.reduce((n, line) => n + line.packs, 0),
-                      state.language,
-                    )}
-                  </p>
-                ) : (
-                  <p>
-                    <strong>
+                    {leftOut.length > 0 &&
+                      ` · ${leftOut.length} ${tr("jää pois", "left out")}`}
+                    {snapshot.merchandise.manual.length > 0 &&
+                      ` · ${snapshot.merchandise.manual.length} ${tr("lisätään itse kaupassa", "to add at the store")}`}
+                  </summary>
+                  {estimated.length > 0 && (
+                    <p className="muted">
                       {tr(
-                        "Ei siirrettäviä tuotteita",
-                        "No products ready to transfer",
+                        "Punnittavien tuotteiden hinnat ovat arvioita. Lopullinen paino ja hinta vahvistuvat kaupassa.",
+                        "Weighed prices are estimates. Final weight and price are confirmed by the store.",
                       )}
-                    </strong>
-                  </p>
-                )}
-                {leftOut.length > 4 ? (
-                  <details className="transfer-omissions">
-                    <summary>
-                      {tr("Jää pois siirrosta", "Left out of transfer")} ·{" "}
-                      {leftOut.length}
-                    </summary>
-                    <ul>
-                      {leftOut.map((name, index) => (
-                        <li key={index}>{name}</li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : (
-                  leftOut.length > 0 && (
+                      {estimated.some((line) => !transferableLine(line)) &&
+                        tr(
+                          " Lisää kaupassa itse tuotteet, joiden kappalemäärää ei voida varmistaa.",
+                          " Add products in the store yourself when their piece quantity cannot be verified.",
+                        )}
+                    </p>
+                  )}
+                  {additions && sendable.length > 0 && (
+                    <>
+                      {!!followUp?.previouslySent.length && (
+                        <details>
+                          <summary>
+                            {tr(
+                              "Siirretty aiemmin tältä listalta",
+                              "Previously sent from this list",
+                            )}{" "}
+                            · {followUp.previouslySent.length}
+                          </summary>
+                          <ul>
+                            {followUp.previouslySent.map((item) => (
+                              <li key={item.productId}>
+                                {item.name} × {item.packs}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {!sameVerifiedBatch && (
+                        <p className="muted">
+                          {tr(
+                            "Kaupassa jäljellä olevat aiemmin siirretyt pakkaukset lasketaan mukaan. Korikone lisää vain puuttuvan määrän.",
+                            "Packs from your previous transfer count toward this list if they’re still at the store. Korikone adds the remaining quantity.",
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {leftOut.length > 0 && (
                     <p className="transfer-omissions">
                       <strong>
                         {tr("Jää pois siirrosta", "Left out of transfer")}
@@ -3529,23 +3554,23 @@ export function ShoppingWorkspace({
                       {" · "}
                       {leftOut.join(", ")}
                     </p>
-                  )
-                )}
-                {snapshot.merchandise.manual.length > 0 && (
-                  <p>
-                    <strong>
-                      {tr("Lisää itse kaupassa", "Add at the store")}
-                    </strong>
-                    {" · "}
-                    {snapshot.merchandise.manual
-                      .map((item) => item.productName)
-                      .join(", ")}
-                  </p>
-                )}
+                  )}
+                  {snapshot.merchandise.manual.length > 0 && (
+                    <p>
+                      <strong>
+                        {tr("Lisää itse kaupassa", "Add at the store")}
+                      </strong>
+                      {" · "}
+                      {snapshot.merchandise.manual
+                        .map((item) => item.productName)
+                        .join(", ")}
+                    </p>
+                  )}
+                </details>
                 {missing.length > 0 && (
                   <button
                     type="button"
-                    className="secondary"
+                    className="text"
                     disabled={busy}
                     onClick={(event) => openReview(event.currentTarget)}
                   >
@@ -3569,7 +3594,7 @@ export function ShoppingWorkspace({
                     )}
                   </p>
                 )}
-              </div>
+              </>
             )}
             {!confirming && !!snapshot.quotedAt && sendable.length > 0 && (
               <button

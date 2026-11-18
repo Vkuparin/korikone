@@ -91,9 +91,12 @@ for (const chain of ["k-ruoka", "s-kaupat"] as const)
       ).toBeFocused();
       await expect(summary).toContainText("Kerma");
       await expect(summary).toContainText("kahvia");
-      const reviewOptions = summary.getByRole("button", {
-        name: tr("Tarkista tuotevaihtoehdot", "Review product options"),
-      });
+      // The review button sits beside the collapsed summary (B7.1).
+      const reviewOptions = page
+        .locator(".shopping-total")
+        .getByRole("button", {
+          name: tr("Tarkista tuotevaihtoehdot", "Review product options"),
+        });
       await reviewOptions.click();
       await page.keyboard.press("Escape");
       await expect(reviewOptions).toBeFocused();

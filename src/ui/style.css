@@ -2567,3 +2567,185 @@ nav .update-notice button {
   font-size: 13px;
   padding: 4px 10px;
 }
+
+/* B7.1: the list panel's header is one line, its menu a dropdown, quick add one row. */
+.shopping-panel .section-heading.compact {
+  align-items: center;
+}
+.list-menu[open] {
+  background: none;
+  padding: 0;
+}
+.list-menu-items {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  min-width: 15rem;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--kk-surface);
+  border: 1px solid var(--kk-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px -8px var(--kk-footer-shadow);
+}
+.list-menu-items .product-preference {
+  margin: 0 0 4px;
+  display: grid;
+  gap: 4px;
+}
+.list-menu-items button {
+  text-align: left;
+}
+.shopping-panel .quick-add > label {
+  flex: 1 1 7rem;
+}
+.shopping-panel .quick-add-options {
+  gap: 6px;
+}
+.shopping-panel .quick-add-options label:first-child {
+  width: 3.2rem;
+}
+.shopping-panel .quick-add-options label:nth-child(2) {
+  width: 4.4rem;
+}
+.shopping-panel .quick-add {
+  margin-bottom: 6px;
+}
+/* B7.1: the footer is the total, one line about the transfer and the button, which stays in
+   view even when the opened details scroll. */
+.shopping-total .transfer-summary > summary {
+  cursor: pointer;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+.shopping-total .transfer-summary[open] > summary {
+  margin-bottom: 6px;
+}
+.shopping-total > p.muted {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.shopping-panel:not([data-flow="true"]) .shopping-total .transfer-button {
+  position: sticky;
+  bottom: 0;
+  box-shadow: 0 -6px 0 var(--kk-surface);
+}
+.shopping-total .total-line > span {
+  display: grid;
+}
+.shopping-total .total-budget {
+  font-size: 12px;
+  color: var(--kk-muted);
+}
+.shopping-total {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+.shopping-panel .transfer-button {
+  margin-top: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+/* B7.1: compact rows in the panel: the amount and both text actions share one line. */
+.shopping-panel .grocery-row {
+  padding: 6px 0;
+  row-gap: 2px;
+}
+.shopping-panel .row-actions {
+  gap: 2px 10px;
+}
+.shopping-panel .row-actions .text,
+.shopping-panel .row-actions .row-correction > .text {
+  font-size: 13px;
+  min-height: 28px;
+  padding: 2px 0;
+}
+.shopping-panel .quantity-control button {
+  min-height: 28px;
+  min-width: 28px;
+  padding: 0 6px;
+}
+.shopping-panel .quantity-control small {
+  font-size: 13px;
+}
+.shopping-panel .grocery-category h3 {
+  margin: 8px 0 2px;
+}
+.shopping-panel .grocery-row .grocery-description {
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+.shopping-panel .grocery-row > .quantity-control {
+  grid-column: 3 / 5;
+  grid-row: 2;
+  justify-self: end;
+  align-self: end;
+}
+.shopping-panel .grocery-row .row-actions {
+  grid-column: 2 / -1;
+  grid-row: 3;
+}
+.shopping-panel .row-actions:empty {
+  display: none;
+}
+/* The transfer button keeps one line; the same total is on the line above it. */
+.shopping-panel .transfer-button .transfer-total {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.shopping-panel .transfer-button {
+  font-size: 14px;
+}
+.shopping-panel .section-heading.compact {
+  gap: 8px;
+}
+.shopping-panel .section-heading.compact h2 {
+  margin-right: auto;
+}
+.shopping-panel .finish-in-composer {
+  font-size: 13px;
+}
+.shopping-panel .grocery-row {
+  padding: 4px 0;
+}
+.shopping-panel .quantity-control button {
+  min-height: 24px;
+  min-width: 26px;
+  font-size: 15px;
+}
+.shopping-panel .row-actions .text,
+.shopping-panel .row-actions .row-correction > .text {
+  min-height: 24px;
+  padding: 0;
+}
+.shopping-panel .grocery-row .home-button,
+.shopping-panel .grocery-row .delete-row {
+  grid-row: 1 / span 2;
+}
+.shopping-panel .grocery-row .row-price {
+  line-height: 1.35;
+}
+/* In the panel the pack count reads "− 2 +"; the word stays for assistive technology. A gram or
+   millilitre amount keeps its unit. */
+.shopping-panel .quantity-control small.pack-word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.shopping-panel .quantity-control output {
+  min-width: 1.6em;
+  text-align: center;
+}
+.shopping-panel .row-name {
+  font-size: 15px;
+}

@@ -68,7 +68,8 @@ for (const language of ["fi", "en"] as const) {
         tr("Jää pois siirrosta", "Left out of transfer"),
       );
       await expect(summary).toContainText("Tuntematon ruoka");
-      await expect(summary).toContainText(
+      // The over-budget warning stays outside the collapsed summary (B7.1).
+      await expect(page.locator(".shopping-total")).toContainText(
         tr("ylittää viikkobudjetin", "over the weekly budget"),
       );
       // Narrow width keeps it reachable without horizontal page scroll.

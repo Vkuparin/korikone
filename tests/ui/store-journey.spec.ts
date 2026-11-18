@@ -120,6 +120,8 @@ for (const [chain, name, destination] of [
       await expect(summary.locator("p").first()).not.toContainText(
         snapshot.journal!.review.targets[0].name,
       );
+      // The details sit in the collapsed transfer summary (B7.1).
+      await summary.locator("> summary").click();
       await summary.getByText(/Siirretty aiemmin tältä listalta/).click();
       await expect(summary.getByRole("listitem")).toHaveText(
         `${snapshot.journal!.review.targets[0].name} × 1`,
