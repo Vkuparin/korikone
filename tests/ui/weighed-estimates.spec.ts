@@ -42,6 +42,8 @@ test("weighed estimates show split totals, requested mass and survive restart wi
     await expect(page.locator(".shopping-total .total-line strong")).toHaveText(
       /1,19.*\+.*noin.*1,25/,
     );
+    // The weighed-price note sits in the transfer details behind one disclosure (B7.1).
+    await page.locator(".shopping-total .transfer-summary > summary").click();
     await expect(
       page.getByText("Punnittavien tuotteiden hinnat ovat arvioita.", {
         exact: false,

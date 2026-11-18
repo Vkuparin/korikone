@@ -66,7 +66,9 @@ export function layoutFindings(page: Page): Promise<LayoutFinding[]> {
           opacityProperty: true,
           visibilityProperty: true,
         }) ||
-        el.closest(".sr-only")
+        el.closest(".sr-only") ||
+        // The same visually hidden pattern applied by a stylesheet rule instead of the class.
+        getComputedStyle(el).clipPath === "inset(50%)"
       )
         return false;
       if (style.visibility !== "visible" || style.display === "none")

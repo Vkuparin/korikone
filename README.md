@@ -6,7 +6,7 @@ The current source includes explicit note updates, product matching, contextual 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.11.5 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.5 verification](docs/release-0.11.5.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.11.6 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.6). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.6 verification](docs/release-0.11.6.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 

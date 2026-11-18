@@ -163,6 +163,10 @@ test("different provenance has distinct identities and survives real service sav
     set: async (key: string, value: unknown) => {
       values.set(key, structuredClone(value));
     },
+    setMany: async (entries: { key: string; value: unknown }[]) => {
+      for (const { key, value } of entries)
+        values.set(key, structuredClone(value));
+    },
   };
   const service = new Service(storage);
   service.developmentMode = true;

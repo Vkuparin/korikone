@@ -2678,8 +2678,9 @@ nav .update-notice button {
   grid-row: 1 / span 2;
   align-self: start;
 }
+/* Under the price only: the delete button spans both lines in the last column. */
 .shopping-panel .grocery-row > .quantity-control {
-  grid-column: 3 / 5;
+  grid-column: 3;
   grid-row: 2;
   justify-self: end;
   align-self: end;
@@ -2747,5 +2748,5 @@ nav .update-notice button {
   text-align: center;
 }
 .shopping-panel .row-name {
-  font-size: 15px;
+  font-size: 16px;
 }

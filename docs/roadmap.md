@@ -1,10 +1,12 @@
 # Korikone roadmap to 1.0.0
 
-Updated on 18 November 2026 for v0.11.5. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
+Updated on 18 November 2026 for v0.11.6. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
 
 ## Current release
 
-[v0.11.5](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5) is the current pre-release. It improves first-time setup, review before transfer, checkout and repeat shopping. Quantity edits reuse prices already on the list. [Release verification](release-0.11.5.md)
+[v0.11.6](https://github.com/Vkuparin/korikone/releases/tag/v0.11.6) is the current pre-release: the eleven polish items B7.1–B7.11 from [the 0.12.0 task list](tasks/0.12.0.md#b7-polish-review-of-v0115) and Claude through Claude Code as an optional AI provider (C1.1). The list panel shows more rows, adding one grocery searches only that row, and long-used profiles stay quick ([verification](release-0.11.6.md)). The Claude provider on Windows, the list panel on the owner's screen and one-row search on a live store remain owner checks.
+
+[v0.11.5](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5) improved first-time setup, review before transfer, checkout and repeat shopping. Quantity edits reuse prices already on the list. [Release verification](release-0.11.5.md)
 
 [v0.11.4](https://github.com/Vkuparin/korikone/releases/tag/v0.11.4) included the eleven polish items B6.1–B6.11 from [the 0.12.0 task list](tasks/0.12.0.md#b6-polish), including a working "new version" banner for pre-releases, compact list rows, a window that comes forward and keeps its place, the diagnostic report in Settings, one receipt import and one way to start a new list ([verification](release-0.11.4.md)).
 

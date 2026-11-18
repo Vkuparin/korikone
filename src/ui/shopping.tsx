@@ -994,13 +994,14 @@ export function ShoppingWorkspace({
         header && box.left < header.right && box.right > header.left
           ? header.bottom
           : 0;
+      // One pixel of slack: a fractional height scrolled to the window edge still counts as shown.
       setProgressVisible(
         box.height > 0 &&
           box.width > 0 &&
-          box.top >= Math.max(0, headerBottom) &&
-          box.bottom <= innerHeight &&
-          box.left >= 0 &&
-          box.right <= innerWidth,
+          box.top >= Math.max(0, headerBottom) - 1 &&
+          box.bottom <= innerHeight + 1 &&
+          box.left >= -1 &&
+          box.right <= innerWidth + 1,
       );
     };
     const intersection = new IntersectionObserver(check, { threshold: [0, 1] });

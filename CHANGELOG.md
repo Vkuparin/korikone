@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.11.6 — pre-release, 18 November 2026
+
+- The list panel shows more groceries, with less-used actions in the "⋯" menu and the transfer button always in view. Add a saved recipe to the list straight from Reseptit.
+- Adding one grocery searches only that row. Quick add remembers the amount you last used and offers one pack when the unit doesn't fit. Clicks and receipt imports stay quick on a long-used profile.
+- Optional: use Claude through your own Claude Code instead of ChatGPT, under Settings > ChatGPT and AI. ChatGPT stays the default.
+- Receipts are grouped by month, the 20-receipt limit is explained, the spending chart has a legend, and the example list names its sample store.
+
+Unsigned Windows x64 installer. Export a backup in Settings before upgrading. [Full list of changes](https://github.com/Vkuparin/korikone/blob/main/docs/release-0.11.6.md#changes-since-v0115)
+
 ## 0.11.5 — pre-release, 18 November 2026
 
 - Start with a blank list or an example, find your store, and connect ChatGPT beside the note. Manual entry gives clearer feedback. Quantity changes reuse prices.
