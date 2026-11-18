@@ -152,10 +152,11 @@ test("opening Kauppa before any store is chosen leaves no way back to a store (B
       page.getByRole("navigation").getByRole("button", { name });
     const store = nav(/^Kauppa/);
     await store.click();
+    // The example list names its sample store instead (B7.8).
     await expect(
-      page.getByText("Valitse ensin kauppa Asetuksista."),
+      page.getByText(/Esimerkkilista käyttää mallikauppaa/),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Avaa Asetukset" }).click();
+    await page.getByRole("button", { name: "Valitse oikea kauppa" }).click();
     // Settings > Kaupat, where a store would be chosen: no return cue to an empty page.
     await expect(store).not.toHaveAttribute("aria-current", "page");
     await expect(store).not.toHaveClass(/store-open/);

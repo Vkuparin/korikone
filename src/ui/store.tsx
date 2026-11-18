@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
-import { liveProviders } from "../stores/provider";
+import { isLive, liveProviders } from "../stores/provider";
 import { omittedReviewItems } from "./transfer-summary";
 import { CheckoutButton, type CheckoutOrder } from "./checkout";
 
@@ -123,6 +123,23 @@ export function StorePage({
   }, [current]);
   useEffect(() => () => void window.korikone.hideStore(), []);
 
+  // The example list runs on a sample store, which has no retailer page to show (B7.8).
+  const sample = !isLive(snapshot.state.context.providerId);
+  if (!current && sample)
+    return (
+      <section className="store-page store-sample">
+        <h1>{tr("Kauppa", "Store")}</h1>
+        <p>
+          {tr(
+            `Esimerkkilista käyttää mallikauppaa (${snapshot.state.context.storeName}), joten tässä ei ole kaupan sivua. Kun valitset oikean kaupan, sen sivu avautuu tähän ja lista siirtyy sinne.`,
+            `The example list uses a sample store (${snapshot.state.context.storeName}), so there is no store page here. Once you choose a real store, its page opens here and the list moves there.`,
+          )}
+        </p>
+        <button onClick={settings}>
+          {tr("Valitse oikea kauppa", "Choose a real store")}
+        </button>
+      </section>
+    );
   if (!current)
     return (
       <section className="store-page">

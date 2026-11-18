@@ -3,6 +3,7 @@ import { chainIdentity } from "../domain/appearance";
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
+import { isLive } from "../stores/provider";
 
 const chains = [
   ["k-ruoka", "K-Ruoka"],
@@ -27,6 +28,13 @@ export function Chains({
   const { state } = snapshot;
   // The chain whose store search is open, and what was searched there.
   const [picking, setPicking] = useState<string | null>(null);
+  // The example list's sample store, named on the chain it stands in for (B7.8).
+  const sample = isLive(state.context.providerId)
+    ? null
+    : {
+        chain: state.context.providerId === "demo-s" ? "s-kaupat" : "k-ruoka",
+        storeName: state.context.storeName,
+      };
   return (
     <ul className="chains">
       {chains
@@ -45,7 +53,13 @@ export function Chains({
               <div>
                 <strong>{name}</strong>
                 {active && <span className="badge">{t("activeStore")}</span>}
-                <p>{store ? store.storeName : t("noStoreChosen")}</p>
+                <p>
+                  {store
+                    ? store.storeName
+                    : sample?.chain === id
+                      ? `${state.language === "fi" ? "Esimerkki käyttää mallikauppaa" : "The example uses a sample store"}: ${sample.storeName}`
+                      : t("noStoreChosen")}
+                </p>
                 <button
                   className="text"
                   disabled={busy}
