@@ -218,7 +218,8 @@ test("purchase evidence, memory, consent, backup, restart and repeat stay local,
       first.actualPurchases.length,
     );
 
-    // A repeated transfer is duplicate-safe: the unchanged list writes nothing a second time.
+    // A New list starts fresh, so a repeated list is sent in full once; sending that
+    // unchanged list again is duplicate-safe and writes nothing more.
     const repeated = await page.evaluate(async () => {
       const api = window.korikone;
       await api.signInAI();
@@ -258,15 +259,23 @@ test("purchase evidence, memory, consent, backup, restart and repeat stay local,
         quotedAt: again.value.quotedAt,
         batchKey: again.value.transferBatchKey,
       });
+      if (!second.ok) throw new Error(second.error);
+      const third = await api.transferDisplayed({
+        revision: second.value.state.revision,
+        quotedAt: second.value.quotedAt,
+        batchKey: second.value.transferBatchKey,
+      });
       return {
         writes,
-        after: second.ok ? second.value.developmentStoreWrites : -1,
+        after: second.value.developmentStoreWrites,
+        again: third.ok ? third.value.developmentStoreWrites : -1,
         requests: again.value.developmentRequests,
         repeat: again.value.repeat?.rows ?? null,
       };
     });
     expect(repeated.repeat).toBe(2);
-    expect(repeated.after).toBe(repeated.writes);
+    expect(repeated.after).toBe(repeated.writes * 2);
+    expect(repeated.again).toBe(repeated.after);
   } finally {
     await app.close();
   }

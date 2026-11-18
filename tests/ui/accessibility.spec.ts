@@ -24,8 +24,23 @@ async function auditTabOrder(page: Page, view: string) {
     const tabIndex = await control.evaluate(
       (node) => (node as HTMLElement).tabIndex,
     );
-    // Section headings are programmatic focus destinations, not controls.
+    // Section headings are programmatic focus destinations, not controls. So are
+    // other non-interactive elements that take focus only from script, such as the
+    // list footer that receives focus when its transfer button is gone.
     if (await control.evaluate((node) => /^H[1-6]$/.test(node.tagName)))
+      continue;
+    if (
+      await control.evaluate(
+        (node) =>
+          (node as HTMLElement).tabIndex === -1 &&
+          !node.matches(
+            'a[href], button, input, select, textarea, summary, [contenteditable="true"]',
+          ) &&
+          !/^(button|link|checkbox|radio|tab|menuitem|option|switch|combobox|textbox)$/.test(
+            node.getAttribute("role") ?? "",
+          ),
+      )
+    )
       continue;
     expect(tabIndex, `${view}: control must be reachable by Tab`).toBe(0);
     await expect(control, `${view}: accessible name`).toHaveAccessibleName(
@@ -99,8 +114,13 @@ for (const language of ["fi", "en"] as const) {
         .click();
       // Clicking starts an async save; audit only after the setup controls have replaced welcome.
       await expect(page.locator(".setup")).toBeVisible();
+      // Store search stays disabled until two characters are typed; the
+      // finish button shares the busy flag that the async save clears.
       await expect(
         page.getByRole("button", { name: t.search, exact: true }),
+      ).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: t.setupDone, exact: true }),
       ).toBeEnabled();
       await auditTabOrder(page, "setup");
       // Populate the ordinary example through the real saved-state boundary.

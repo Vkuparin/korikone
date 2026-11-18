@@ -191,11 +191,16 @@ test("model selectors save one preference without submitting the note and retain
         : {}),
     });
     page = await app.firstWindow();
+    // A restart starts disconnected, and the composer then offers Connect instead of
+    // the model selector; the saved model shows again once connected.
+    await page
+      .getByRole("button", { name: "Yhdistä ChatGPT", exact: true })
+      .click();
     await expect(
       page
         .locator(".planning-pane")
         .getByRole("button", { name: "AI-malli", exact: true }),
-    ).toContainText("fixture-large");
+    ).toContainText("Local large model");
     const results = await page.evaluate(async () => {
       const api = window.korikone;
       await api.signInAI();
