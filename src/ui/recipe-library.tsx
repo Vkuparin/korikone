@@ -9,11 +9,19 @@ export function RecipeLibrary({
   language,
   editing,
   onEdit,
+  onList = new Set(),
+  onAdd,
+  busy = false,
 }: {
   recipes: Recipe[];
   language: string;
   editing: boolean;
   onEdit: (recipe: Recipe) => void;
+  /** Recipes already on this week's list (B7.5). */
+  onList?: ReadonlySet<string>;
+  /** Adds the recipe to this week's list at the household's portions. */
+  onAdd?: (recipe: Recipe) => void;
+  busy?: boolean;
 }) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -90,6 +98,14 @@ export function RecipeLibrary({
                 ["annos", "annosta"],
                 ["serving", "servings"],
               )}
+              {onList.has(recipe.id) && (
+                <>
+                  {" · "}
+                  <span className="recipe-on-list">
+                    {tr("Listalla", "On the list")}
+                  </span>
+                </>
+              )}
             </p>
             <ul>
               {recipe.ingredients.map((item, index) => (
@@ -104,9 +120,21 @@ export function RecipeLibrary({
                 <p>{recipe.instructions}</p>
               </details>
             )}
-            <button className="secondary" onClick={() => onEdit(recipe)}>
-              {tr("Muokkaa", "Edit")}
-            </button>
+            <div className="actions">
+              {onAdd && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label={`${tr("Lisää ostoslistalle", "Add to shopping list")}: ${recipe.name}`}
+                  onClick={() => onAdd(recipe)}
+                >
+                  {tr("Lisää ostoslistalle", "Add to shopping list")}
+                </button>
+              )}
+              <button className="secondary" onClick={() => onEdit(recipe)}>
+                {tr("Muokkaa", "Edit")}
+              </button>
+            </div>
           </article>
         ))}
       </div>

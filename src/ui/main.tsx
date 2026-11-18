@@ -1147,6 +1147,23 @@ function App() {
                   language={state.language}
                   editing={!!editing}
                   onEdit={setEditing}
+                  busy={busy}
+                  onList={new Set(state.meals.map((m) => m.recipeId))}
+                  onAdd={(recipe) =>
+                    void save({
+                      ...state,
+                      meals: [
+                        ...state.meals,
+                        {
+                          id: crypto.randomUUID(),
+                          recipeId: recipe.id,
+                          servings: state.household.servings,
+                          day: 0,
+                          leftovers: false,
+                        },
+                      ],
+                    })
+                  }
                 />
               </div>
             )}

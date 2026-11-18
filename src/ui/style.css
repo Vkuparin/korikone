@@ -2528,3 +2528,9 @@ body:has(.receipt-intake-surface) .app-main {
   gap: 0.5rem;
   align-items: center;
 }
+
+/* A saved recipe already on this week's list (B7.5). */
+.recipe-on-list {
+  color: var(--kk-success, var(--kk-action));
+  font-weight: 600;
+}
