@@ -4,7 +4,11 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## Checkout, shopping history and the next list
 
-In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Make order placement visible after checkout, link to the matching history entry and let the shopper start the next list. Verify with local fixtures.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `7d1af06`. Release pending.
+
+Marking an order as placed opens its shopping history entry. The shopper can review the products and start a fresh list from there. Earlier order marks survive upgrades and backup imports.
+
+Four focused unit cases passed across `service.test.ts`, `purchase-links.test.ts` and `one-click-transfer.test.ts`. Three Electron cases in `checkout-history.spec.ts` passed with local fixtures. They covered marking from the store, transfer result and history, opening the matching entry, cancelling and starting the next list, and checking for extra AI requests or store writes. Build, scoped Prettier and diff checks passed. Owner visual acceptance is pending.
 
 ## Add a forgotten item after store transfer
 
