@@ -1,3 +1,4 @@
+import { appWindow } from "./app-window";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -136,7 +137,7 @@ test("chain identity follows only the committed shopping context, from first pai
     // Restart: the saved context decides the accent before the first frame.
     await app.close();
     app = await electron.launch({ args: ["."], env });
-    page = await app.firstWindow();
+    page = await appWindow(app);
     await page.addInitScript(() => {
       requestAnimationFrame(() => {
         (window as unknown as { firstChain: unknown }).firstChain =

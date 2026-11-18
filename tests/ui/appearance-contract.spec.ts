@@ -1,4 +1,5 @@
 import { composer, startNewList, updateName } from "./composer-helper";
+import { appWindow } from "./app-window";
 import { test, expect, _electron as electron } from "@playwright/test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -42,7 +43,7 @@ test("saved appearance is synchronously available before async snapshots and set
     ).toBe(true);
     await app.close();
     app = await electron.launch(options);
-    page = await app.firstWindow();
+    page = await appWindow(app);
     await page.addInitScript(() => {
       requestAnimationFrame(() => {
         (window as unknown as { firstAppearance: unknown }).firstAppearance = {

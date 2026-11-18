@@ -1,3 +1,4 @@
+import { appWindow } from "./app-window";
 import { composer, updateName } from "./composer-helper";
 import {
   test,
@@ -73,7 +74,7 @@ for (const language of ["fi", "en"] as const) {
         await mkdir(output, { recursive: true });
         const captures: string[] = [];
         try {
-          const page = await app.firstWindow();
+          const page = await appWindow(app);
           await page.setViewportSize(size);
           await page.emulateMedia({ reducedMotion: "reduce" });
           const t = language === "fi" ? fi : en;

@@ -1,3 +1,4 @@
+import { appWindow } from "./app-window";
 import { composer, startNewList, updateName } from "./composer-helper";
 import { settingsCategory } from "./settings-helper";
 import { test, expect, _electron as electron } from "@playwright/test";
@@ -25,7 +26,7 @@ async function launch(testData?: string) {
   });
   // Packaged Windows builds need a visible compositor surface for screenshots.
   if (process.env.KORIKONE_EXECUTABLE) {
-    await (await app.firstWindow()).waitForLoadState("domcontentloaded");
+    await (await appWindow(app)).waitForLoadState("domcontentloaded");
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].show(),
     );
@@ -37,7 +38,7 @@ for (const language of ["fi", "en"] as const) {
   test(`composer layout retains explicit updates and keyboard model focus in ${language}`, async () => {
     const app = await launch();
     try {
-      const page = await app.firstWindow();
+      const page = await appWindow(app);
       const state = initialState();
       state.onboarded = true;
       state.setupComplete = true;
@@ -126,7 +127,7 @@ for (const language of ["fi", "en"] as const) {
 test("manual groceries accept decimal units and merge into quoted ingredient rows", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = true;
     state.setupComplete = true;
@@ -199,7 +200,7 @@ test("manual groceries accept decimal units and merge into quoted ingredient row
 test("quick add keeps the next grocery draft and identifies the field to fix in English", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     await page
       .getByRole("button", { name: "Aloita tyhjästä viikosta" })
       .click();
@@ -261,7 +262,7 @@ test("quick add keeps the next grocery draft and identifies the field to fix in 
 test("shopping workspace adds recipes, marks home items, removes rows, schedules and clears", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     await page.getByRole("button", { name: "Kokeile esimerkkiä" }).click();
     await expect(page.locator(".grocery-row")).toHaveCount(6);
     await expect(page.locator(".shopping-total .warning")).toHaveCount(0);
@@ -340,7 +341,7 @@ test("shopping workspace adds recipes, marks home items, removes rows, schedules
 test("typing, view return and restored edits never submit without an explicit action", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = true;
     state.setupComplete = true;
@@ -431,7 +432,7 @@ test("typing, view return and restored edits never submit without an explicit ac
 test("explicit updates discard an obsolete response until the next requested update", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = true;
     state.setupComplete = true;
@@ -478,7 +479,7 @@ test("explicit updates discard an obsolete response until the next requested upd
 test("PDF receipt import reads locally, an unrecognised layout saves nothing and invalid import preserves typed text", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const directory = await mkdtemp(join(tmpdir(), "korikone-pdf-ui-"));
     const path = join(directory, "receipt.pdf");
     const { writeFile } = await import("node:fs/promises");
@@ -540,7 +541,7 @@ test("PDF receipt import reads locally, an unrecognised layout saves nothing and
 test("explicit multi-dish updates, cancellation and usage failure preserve the saved list", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = true;
     state.setupComplete = true;
@@ -660,7 +661,7 @@ for (const language of ["fi", "en"] as const) {
   test(`update lifecycle preserves the saved list and focus in ${language}`, async () => {
     const app = await launch();
     try {
-      const page = await app.firstWindow();
+      const page = await appWindow(app);
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.setViewportSize({ width: 800, height: 600 });
       const state = initialState();
@@ -790,7 +791,7 @@ for (const language of ["fi", "en"] as const) {
   test(`coordinator composer phases and obsolete search preserve the quote in ${language}`, async () => {
     const app = await launch();
     try {
-      const page = await app.firstWindow();
+      const page = await appWindow(app);
       const state = initialState();
       state.onboarded = state.setupComplete = true;
       state.staples = [];
@@ -906,7 +907,7 @@ for (const language of ["fi", "en"] as const) {
 test("validated preview shows gradual rows and quantity-less requests without transfer actions", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = state.setupComplete = true;
     state.staples = [];
@@ -919,25 +920,25 @@ test("validated preview shows gradual rows and quantity-less requests without tr
     await page.reload();
     const note = composer(page);
     await startNewList(page);
-    await note.fill("200 ml kermaa ja kahvia");
+    await note.fill("200 ml kermaa, 1 l maitoa ja kahvia");
     await note.press("Control+Enter");
     const preview = page.getByRole("region", { name: "Muodostuva lista" });
     // A named section is exposed as a region; it contains only server-validated results.
     await expect(preview).toBeVisible();
     await expect(preview.getByText("Odotetaan tulkintaa.")).toBeVisible();
+    // Rows settle one search at a time: milk is priced while cream is still searched.
+    // The last row's final state shows only while the list is saved, so the run is
+    // cancelled while cream is pending.
+    await expect(
+      preview.locator('[data-preview-status="resolved"]'),
+    ).toHaveCount(1, { timeout: 10000 });
     await expect(
       preview.locator('[data-preview-status="pending"]'),
-    ).toHaveCount(1, { timeout: 10000 });
+    ).toHaveCount(1);
     await expect(
       preview.getByRole("heading", { name: "Ratkaisemattomat pyynnöt" }),
     ).toBeVisible();
     await expect(preview.getByText("kahvia", { exact: true })).toBeVisible();
-    await expect(
-      preview.locator('[data-preview-status="approval-required"]'),
-    ).toHaveCount(1, { timeout: 10000 });
-    await expect(
-      preview.getByText("Vaatii hyväksynnän", { exact: true }),
-    ).toBeVisible();
     await expect(preview.getByRole("button")).toHaveCount(0);
     await expect(preview.locator(".shopping-total")).toHaveCount(0);
     await expect(note).toBeFocused();
@@ -951,7 +952,7 @@ test("validated preview shows gradual rows and quantity-less requests without tr
     expect(saved.state.note).toBe("");
     expect(saved.basket).toEqual([]);
     expect(saved.developmentStoreWrites).toBe(0);
-    await expect(note).toHaveValue("200 ml kermaa ja kahvia");
+    await expect(note).toHaveValue("200 ml kermaa, 1 l maitoa ja kahvia");
     await expect(note).toBeFocused();
   } finally {
     await app.close();
@@ -962,7 +963,7 @@ for (const language of ["fi", "en"] as const) {
   test(`preview selection preserves saved quote and keyboard focus in ${language}`, async () => {
     const app = await launch();
     try {
-      const page = await app.firstWindow();
+      const page = await appWindow(app);
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.setViewportSize({ width: 800, height: 600 });
       const state = initialState();
@@ -1043,7 +1044,7 @@ for (const language of ["fi", "en"] as const) {
 test("committing removes preview controls without losing their keyboard focus and restart has no preview", async () => {
   const app = await launch();
   try {
-    const page = await app.firstWindow();
+    const page = await appWindow(app);
     const state = initialState();
     state.onboarded = state.setupComplete = true;
     state.staples = [];
@@ -1094,7 +1095,7 @@ for (const language of ["fi", "en"] as const) {
     );
     let app = await launch(directory);
     try {
-      let page = await app.firstWindow();
+      let page = await appWindow(app);
       const state = initialState();
       state.onboarded = state.setupComplete = true;
       state.staples = [];
@@ -1199,7 +1200,7 @@ for (const language of ["fi", "en"] as const) {
       await expect(preview).toBeVisible();
       await app.close();
       app = await launch(directory);
-      page = await app.firstWindow();
+      page = await appWindow(app);
       note = composer(page);
       await expect(note).toHaveValue("");
       await expect(
