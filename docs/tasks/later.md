@@ -2,6 +2,10 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## Add a forgotten item after store transfer
+
+In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Make the return to the list and the next transfer clear, show which quantities have already been sent and verify that the store receives only the outstanding items.
+
 ## First-list product review and store transfer
 
 Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `14f4691`. Release pending.
