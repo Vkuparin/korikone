@@ -4,7 +4,11 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## Add a forgotten item after store transfer
 
-In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Make the return to the list and the next transfer clear, show which quantities have already been sent and verify that the store receives only the outstanding items.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `89f3780`. Release pending.
+
+Both store handoffs link back to the grocery field. After an edit, the list shows additional packs and the quantities sent earlier. If the store needs more than the displayed additions, the shopper sees the actual quantities before anything is written.
+
+Six focused unit cases in `one-click-transfer.test.ts` passed. Four focused Electron cases passed across `store-back.spec.ts`, `store-journey.spec.ts` and `confirm.spec.ts`. Both retailers' fixtures verified one extra write for the forgotten grocery, the original quantity credited and zero writes on reopening. Build, type checking, scoped Prettier and diff checks passed. Owner visual acceptance is pending. All checks used local fixtures.
 
 ## First-list product review and store transfer
 
