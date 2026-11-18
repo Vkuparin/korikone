@@ -108,6 +108,12 @@ export const en = {
   invalidCallback: "Sign-in could not be verified. Start a new attempt.",
   authFailed: "ChatGPT sign-in failed. Try again or continue manually.",
   authTimeout: "The sign-in attempt expired. Try again.",
+  claudeCodeMissing:
+    "Claude Code was not found. Install Claude Code, sign in to it with your Claude plan, then try again.",
+  claudeCodeFailed:
+    "Claude Code could not be started. Run claude auth login in a terminal, then try again.",
+  claudeCodeSignedOut:
+    "Claude Code is signed out. Sign in again to keep using Claude.",
   credentialUnavailable:
     "Windows credential encryption is unavailable. Sign in again when it is available.",
   modelsUnavailable:
@@ -429,6 +435,12 @@ export const fi: Record<Key, string> = {
   authFailed:
     "ChatGPT-kirjautuminen epäonnistui. Yritä uudelleen tai jatka käsin.",
   authTimeout: "Kirjautumisyritys vanheni. Yritä uudelleen.",
+  claudeCodeMissing:
+    "Claude Codea ei löytynyt. Asenna Claude Code, kirjaudu siihen Claude-tilauksellasi ja yritä uudelleen.",
+  claudeCodeFailed:
+    "Claude Codea ei voitu käynnistää. Suorita päätteessä claude auth login ja yritä uudelleen.",
+  claudeCodeSignedOut:
+    "Claude Code on kirjautunut ulos. Kirjaudu uudelleen jatkaaksesi Clauden käyttöä.",
   credentialUnavailable:
     "Windowsin tunnistetietojen salaus ei ole käytettävissä. Kirjaudu uudelleen sen palauduttua.",
   modelsUnavailable:

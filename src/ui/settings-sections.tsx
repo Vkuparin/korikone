@@ -358,19 +358,53 @@ export function AISettings({
   aiRequestLimit,
 }: SettingsSectionProps) {
   const state = snapshot.state;
+  const fi = state.language === "fi";
+  const claude = snapshot.ai.provider === "claude-code";
+  const name = claude ? "Claude" : "ChatGPT";
   return (
     <section className="card">
-      <p>{t("aiConnectionInfo")}</p>
+      {!snapshot.developmentMode && (
+        <fieldset className="ai-provider">
+          <legend>{fi ? "Tekoälypalvelu" : "AI provider"}</legend>
+          {field(
+            fi ? "Käytä" : "Use",
+            <select
+              aria-label={fi ? "Tekoälypalvelu" : "AI provider"}
+              value={snapshot.ai.provider ?? "chatgpt"}
+              disabled={busy || snapshot.ai.state === "waiting"}
+              onChange={(e) => void call("setAIProvider", e.target.value)}
+            >
+              <option value="chatgpt">ChatGPT</option>
+              <option value="claude-code">
+                {fi
+                  ? "Claude (Claude Coden kautta)"
+                  : "Claude (through Claude Code)"}
+              </option>
+            </select>,
+          )}
+        </fieldset>
+      )}
+      <p>
+        {claude
+          ? fi
+            ? "Claude toimii tietokoneellesi asennetun Claude Coden kautta. Kirjaudu Claude Codeen omalla Claude-tilauksellasi; Korikone ei näe tunnuksiasi. Pyynnöt käyttävät tilauksesi käyttörajaa."
+            : "Claude runs through Claude Code installed on this computer. Sign in to Claude Code with your own Claude plan; Korikone never sees your credentials. Requests use your plan's limits."
+          : t("aiConnectionInfo")}
+      </p>
       <p role="status">
-        {t(
-          snapshot.ai.state === "connected"
-            ? "signedIn"
-            : snapshot.ai.state === "waiting"
-              ? "waitingAI"
-              : snapshot.ai.state === "permissionMissing"
-                ? "permissionMissing"
-                : "notConnected",
-        )}
+        {claude && snapshot.ai.state === "waiting"
+          ? fi
+            ? "Viimeistele kirjautuminen avautuneessa Claude Code -ikkunassa."
+            : "Finish signing in in the Claude Code window that opened."
+          : t(
+              snapshot.ai.state === "connected"
+                ? "signedIn"
+                : snapshot.ai.state === "waiting"
+                  ? "waitingAI"
+                  : snapshot.ai.state === "permissionMissing"
+                    ? "permissionMissing"
+                    : "notConnected",
+            )}
         {snapshot.ai.email ? ` · ${snapshot.ai.email}` : ""}
       </p>
       {snapshot.ai.error && (
@@ -392,19 +426,31 @@ export function AISettings({
           }
           onClick={() => void call("signInAI")}
         >
-          {snapshot.ai.state === "connected"
-            ? t("signedInChatGPT")
-            : "Continue with ChatGPT"}
+          {claude
+            ? snapshot.ai.state === "connected"
+              ? fi
+                ? "Yhdistetty Claude Codeen"
+                : "Connected to Claude Code"
+              : fi
+                ? "Yhdistä Claude Code"
+                : "Connect Claude Code"
+            : snapshot.ai.state === "connected"
+              ? t("signedInChatGPT")
+              : "Continue with ChatGPT"}
         </button>
         <button
           className="secondary"
           disabled={busy}
           onClick={() => void call("signOutAI")}
         >
-          {t("signOut")}
+          {claude ? (fi ? "Katkaise yhteys" : "Disconnect") : t("signOut")}
         </button>
         <button className="secondary" onClick={() => void call("usageAI")}>
-          {t("manageUsage")}
+          {claude
+            ? fi
+              ? "Avaa Clauden käyttö"
+              : "Open Claude usage"
+            : t("manageUsage")}
         </button>
         {snapshot.ai.state === "waiting" && (
           <button className="text" onClick={() => void call("cancelAI")}>
@@ -414,19 +460,19 @@ export function AISettings({
       </div>
       <ModelSelector snapshot={snapshot} busy={busy} call={call} />
       <p data-testid="ai-allowance" className="muted">
-        {state.language === "fi"
-          ? "Jäljellä oleva ChatGPT-käyttömäärä ja käyttörajan nollausaika eivät ole saatavilla Korikonessa. Tarkista ne ChatGPT:n käyttöasetuksista."
-          : "Remaining ChatGPT allowance and reset time are unavailable in Korikone. Check ChatGPT usage settings."}
+        {fi
+          ? `Jäljellä oleva ${name}-käyttömäärä ja käyttörajan nollausaika eivät ole saatavilla Korikonessa. Tarkista ne ${name}:n käyttöasetuksista.`
+          : `Remaining ${name} allowance and reset time are unavailable in Korikone. Check ${name} usage settings.`}
       </p>
       {aiRequestLimit && (
         <p role="alert">
-          {state.language === "fi"
+          {fi
             ? "Viimeisin pyyntö saavutti käyttö- tai pyyntönopeusrajan. Jäljellä oleva käyttömäärä ja nollausaika eivät ole tiedossa."
             : "The latest request reached a usage or rate limit. Remaining allowance and reset time are unknown."}
         </p>
       )}
       <p className="muted">
-        {state.language === "fi"
+        {fi
           ? "Automaattinen suosii tilillä saatavilla olevaa pientä mallia käytön vähentämiseksi. Mallin nimi kertoo kokoluokasta, mutta ei tarkkaa hintaa. Jos sopivaa pientä mallia ei löydy, valitse malli itse."
           : "Automatic prefers a small model available to your account to reduce usage. Model names indicate size, but do not establish exact prices. If no suitable small model is available, choose a model yourself."}
       </p>

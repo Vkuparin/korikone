@@ -52,7 +52,9 @@ export function ModelSelector({
           disabled={busy || waiting}
           onClick={connect}
         >
-          {tr("Yhdistä ChatGPT", "Connect ChatGPT")}
+          {snapshot.ai.provider === "claude-code"
+            ? tr("Yhdistä Claude Code", "Connect Claude Code")
+            : tr("Yhdistä ChatGPT", "Connect ChatGPT")}
         </button>
         {settings && (
           <button type="button" className="text" onClick={settings}>

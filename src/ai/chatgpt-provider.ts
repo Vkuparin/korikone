@@ -17,9 +17,12 @@ export interface ChatGPTConnection {
     signal: AbortSignal,
   ): Promise<string>;
 }
+/** Also serves Claude Code (`claude-code`): both are one text request per call on the user's plan. */
 export class ChatGPTInferenceProvider implements InferenceProvider {
-  readonly id = "chatgpt";
-  constructor(private connection: ChatGPTConnection) {}
+  constructor(
+    private connection: ChatGPTConnection,
+    readonly id: string = "chatgpt",
+  ) {}
   async discoverModels(signal: AbortSignal): Promise<InferenceModel[]> {
     try {
       return (await this.connection.models(signal)).map((m) => ({

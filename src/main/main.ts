@@ -54,6 +54,13 @@ import {
   sKaupatWorker,
 } from "../stores/s-kaupat";
 import { ChatGPT } from "../ai/chatgpt";
+import { ClaudeCode } from "../ai/claude-code";
+import { claudeCodeRunner, openClaudeLogin } from "../ai/claude-code-runner";
+import {
+  aiProviders,
+  type AIConnection,
+  type AIProviderId,
+} from "../ai/connection";
 import { interpretShopping, extractRecipe } from "../ai/output";
 import { readReceiptDetailed } from "../receipts/read";
 import { intakeFile } from "../receipts/intake-files";
@@ -124,7 +131,7 @@ else
         process.env.KORIKONE_DEVELOPMENT === "1";
       let development =
         forcedDevelopment || (await db.get("development-mode")) === true;
-      const liveAI = new ChatGPT(
+      const chatGPT = new ChatGPT(
         db,
         {
           encrypt: (text) => {
@@ -147,17 +154,39 @@ else
         throw new Error("unsupportedProvider");
       if (!development && fixtureProviderChoice !== "chatgpt")
         throw new Error("developmentRequired");
-      const liveInference = new ChatGPTInferenceProvider(liveAI);
+      // Claude through the user's own signed-in Claude Code (`claude -p`); Korikone never holds
+      // Claude credentials. The owner picks it in Settings beside ChatGPT.
+      const claudeWork = join(app.getPath("userData"), "claude-code");
+      const claudeCode = new ClaudeCode(db, claudeCodeRunner(claudeWork), () =>
+        openClaudeLogin(claudeWork, (path) => shell.openPath(path)),
+      );
+      const liveConnections: Record<AIProviderId, AIConnection> = {
+        chatgpt: chatGPT,
+        "claude-code": claudeCode,
+      };
+      const liveInferences = {
+        chatgpt: new ChatGPTInferenceProvider(chatGPT),
+        "claude-code": new ChatGPTInferenceProvider(claudeCode, "claude-code"),
+      };
+      const savedChoice = await db.get("ai-provider");
+      let aiChoice: AIProviderId = aiProviders.includes(savedChoice)
+        ? savedChoice
+        : "chatgpt";
+      let liveAI: AIConnection = liveConnections[aiChoice];
       const fixtureInference =
         fixtureProviderChoice === "fake-alternative"
           ? new FakeInferenceProvider(fixtureAI, true)
           : new ChatGPTInferenceProvider(fixtureAI);
       const inferenceProvider = () =>
-        development ? fixtureInference : liveInference;
-      let ai = development ? fixtureAI : liveAI;
+        development ? fixtureInference : liveInferences[aiChoice];
+      let ai: AIConnection = development ? fixtureAI : liveAI;
+      const aiStatus = () => ({
+        ...ai.status(),
+        provider: development ? ("chatgpt" as const) : aiChoice,
+      });
       let liveAIInitialized = false;
       if (!development) {
-        await liveAI.init();
+        await Promise.all([chatGPT.init(), claudeCode.init()]);
         liveAIInitialized = true;
       }
       const worker = new KRuokaWorker(
@@ -227,7 +256,7 @@ else
         sKaupatViaTab,
       );
       let service = await createService(db, development, [kRuoka, sKaupat]);
-      service.ai = ai.status();
+      service.ai = aiStatus();
       service.developmentAIProvider = development ? fixtureInference.id : null;
       // start_login waits for the user, so it runs beside the serialized operations.
       let sLogin: Promise<void> | null = null;
@@ -719,7 +748,7 @@ else
             throw new Error("developmentRequired");
           if (!enabled && fixtureProviderChoice !== "chatgpt")
             throw new Error("developmentRequired");
-          if (service.busy || sLogin || ai.status().state === "waiting")
+          if (service.busy || sLogin || aiStatus().state === "waiting")
             throw new Error("busy");
           if (enabled === development) return service.snapshot();
           generationRun++;
@@ -729,7 +758,7 @@ else
           await Promise.all([worker.close(), sWorker.close()]);
           stores.reset();
           if (!enabled && !liveAIInitialized) {
-            await liveAI.init();
+            await Promise.all([chatGPT.init(), claudeCode.init()]);
             liveAIInitialized = true;
           }
           const next = await createService(db, enabled, [kRuoka, sKaupat]);
@@ -754,7 +783,7 @@ else
           ai = enabled ? fixtureAI : liveAI;
           service.developmentScenario = fixtureAI.scenario;
           service.developmentRequests = enabled ? fixtureAI.requestCount : 0;
-          service.ai = ai.status();
+          service.ai = aiStatus();
           service.developmentAIProvider = enabled ? fixtureInference.id : null;
           return service.snapshot();
         },
@@ -797,6 +826,24 @@ else
         setLanguage: (input) => service.setLanguage(input),
         setAppearance: (input) => service.setAppearance(input),
         setAIModel: (input) => service.setAIModel(input),
+        // Switching keeps both sign-ins; the model goes back to Automatic because catalogues differ.
+        setAIProvider: async (input) => {
+          const choice = z.enum(aiProviders).parse(input);
+          if (development) throw new Error("developmentMode");
+          if (service.busy || aiStatus().state === "waiting")
+            throw new Error("busy");
+          if (choice === aiChoice) return service.snapshot();
+          generationRun++;
+          inferenceController?.abort();
+          ai.cancel();
+          ai.cancelRequest();
+          await db.set("ai-provider", choice);
+          aiChoice = choice;
+          liveAI = liveConnections[choice];
+          ai = liveAI;
+          service.planning.invalidate();
+          return service.setAIModel("auto");
+        },
         setPriceBasis: (input) => service.setPriceBasis(input),
         setReviewBeforeTransfer: (input) =>
           service.setReviewBeforeTransfer(input),
@@ -922,7 +969,11 @@ else
         },
         usageAI: async () => {
           if (!development)
-            await shell.openExternal("https://chatgpt.com/settings/usage");
+            await shell.openExternal(
+              aiChoice === "claude-code"
+                ? "https://claude.ai/settings/usage"
+                : "https://chatgpt.com/settings/usage",
+            );
           return service.snapshot();
         },
         generate: async (input) => {
@@ -1529,7 +1580,7 @@ else
               name === "load"
             ) {
               const value = (await handler(input)) as object;
-              service.ai = ai.status();
+              service.ai = aiStatus();
               return name === "getOperationProgress"
                 ? { ok: true, value }
                 : { ok: true, value: { ...value, ai: service.ai } };
@@ -1574,7 +1625,7 @@ else
             });
             queue = pending.catch(() => {});
             const value = (await pending) as object;
-            service.ai = ai.status();
+            service.ai = aiStatus();
             return { ok: true, value: { ...value, ai: service.ai } };
           } catch (error) {
             if (progressId)
@@ -1621,7 +1672,7 @@ else
             .strict()
             .parse(input);
           const value = await intakeReceipts(paths, false);
-          return { ok: true, value: { ...value, ai: ai.status() } };
+          return { ok: true, value: { ...value, ai: aiStatus() } };
         } catch (error) {
           return {
             ok: false,
