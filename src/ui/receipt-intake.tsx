@@ -5,9 +5,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import type { IntakeProgress } from "../application/receipt-intake";
+import {
+  intakeLimits,
+  type IntakeProgress,
+} from "../application/receipt-intake";
 import type { Snapshot } from "../application/service";
 import { count, en, fi as finnish } from "./i18n";
+
+const receiptFilesPerImport = intakeLimits.files;
 
 type Outcome = {
   ok: boolean;
@@ -204,10 +209,13 @@ export function ReceiptIntakeSurface({
   intake,
   language,
   openHistory,
+  onHistory = false,
 }: {
   intake: ReturnType<typeof useReceiptIntake>;
   language: string;
   openHistory: () => void;
+  /** History is already open, so the box does not offer to open it (B7.9). */
+  onHistory?: boolean;
 }) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -225,6 +233,12 @@ export function ReceiptIntakeSurface({
     (f) => f.outcome === "failed" || f.outcome === "cancelled",
   );
   const unsupported = result?.files.filter((f) => f.outcome === "unsupported");
+  // Files over the per-import limit were not read at all; they are fine to import next (B7.9).
+  const limited =
+    result?.files.filter(
+      (f) => f.outcome === "failed" && f.code === "receiptBatchLimit",
+    ).length ?? 0;
+  const overCount = (result?.files.length ?? 0) > receiptFilesPerImport;
   // One picked file that was not saved gets its reason, as the single-file import gave (B6.10).
   const single =
     result?.files.length === 1 &&
@@ -268,8 +282,18 @@ export function ReceiptIntakeSurface({
             `${counts.duplicate} ${tr("oli jo tuotu", "already imported")}`,
           counts.unsupported > 0 &&
             `${counts.unsupported} ${tr("ei tuettu", "not supported")}`,
-          counts.failed > 0 &&
-            `${counts.failed} ${tr("epäonnistui", "failed")}`,
+          counts.failed - limited > 0 &&
+            `${counts.failed - limited} ${tr("epäonnistui", "failed")}`,
+          limited > 0 &&
+            (overCount
+              ? tr(
+                  `${limited} jäi tuomatta: enintään ${receiptFilesPerImport} kuittia kerrallaan`,
+                  `${limited} not imported: at most ${receiptFilesPerImport} receipts at a time`,
+                )
+              : tr(
+                  `${limited} jäi tuomatta: tiedostot olivat yhteensä liian suuria yhdelle tuonnille`,
+                  `${limited} not imported: the files were too large together for one import`,
+                )),
           counts.cancelled > 0 &&
             `${counts.cancelled} ${tr("peruttiin", "cancelled")}`,
         ]
@@ -430,7 +454,7 @@ export function ReceiptIntakeSurface({
           )}
           {!progress && (
             <div className="actions">
-              {saved > 0 && (
+              {saved > 0 && !onHistory && (
                 <button type="button" onClick={openHistory}>
                   {tr("Näytä historia", "View history")}
                 </button>
@@ -441,10 +465,12 @@ export function ReceiptIntakeSurface({
                   type="button"
                   onClick={() => void intake.pick()}
                 >
-                  {tr(
-                    "Yritä epäonnistuneita uudelleen",
-                    "Retry the failed files",
-                  )}
+                  {limited === failed.length
+                    ? tr(`Tuo loput ${limited}`, `Import the other ${limited}`)
+                    : tr(
+                        "Yritä epäonnistuneita uudelleen",
+                        "Retry the failed files",
+                      )}
                 </button>
               )}
               <button

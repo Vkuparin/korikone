@@ -1347,6 +1347,7 @@ function App() {
         intake={receiptIntake}
         language={state.language}
         openHistory={() => setPage("history")}
+        onHistory={page === "history"}
       />
     </>
   );
