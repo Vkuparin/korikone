@@ -4,7 +4,11 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## Review an AI edit before sending a reused list
 
-In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Show what changed after an AI edit, make Undo clear and guide the shopper to the transfer or the items needing review.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ec95c49`. Release pending.
+
+The AI edit result shows quantity changes and lists each part of a multi-item edit. Undo restores the list from before that edit. Shoppers see how many products can be sent and can jump to missing products or the store transfer button.
+
+Three unit cases in `edit-transfer-hint.test.ts` and two Electron journeys in `repeat-list.spec.ts` passed with local fixtures. Checks covered Finnish and English summaries, keyboard focus, omitted products, Undo restoring quantities and prices, and a single store write after the explicit send. Build, scoped Prettier and diff checks passed. Owner visual acceptance is pending.
 
 ## Reuse a previous order and finish the next list
 
