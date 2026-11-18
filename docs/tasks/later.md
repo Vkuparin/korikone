@@ -155,4 +155,8 @@ A 240-recipe fixture rendered 12 cards on entry. In the embedded store, 60 scrol
 
 ## First shopping list and store setup
 
-In progress, 17 November 2026. Codex, main checkout on `main`. Clarify the first-launch choices, give store search actionable feedback and let shoppers try a note and connect ChatGPT from the shopping list. Verify with development fixtures.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `06be2d9`. Release pending.
+
+First launch offers a blank list, guided connections and a filled example. Setup and Settings share store search with feedback for empty results and failures. Shoppers can start with an editable example note, sign in beside it and submit when ready. An existing list offers an example edit.
+
+Build, scoped Prettier and diff checks passed. Four focused Electron checks passed in development mode: all three in `tests/ui/setup.spec.ts` and the second-chain setup and restart case in `tests/ui/chains.spec.ts`. The first-list case also passed after the final keyboard-focus change. It verified zero inference requests before submission, priced rows after creation, an explicit milk edit and zero store writes. Live account sign-in and owner visual acceptance were not exercised.
