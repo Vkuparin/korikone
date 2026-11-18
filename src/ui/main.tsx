@@ -443,6 +443,9 @@ function App() {
     }
   }
   const save = (next: AppState) => call("save", next);
+  const shell = state.onboarded && state.setupComplete;
+  const liveStore =
+    isLive(state.context.providerId) && !snapshot.developmentMode;
   function openOrderHistory(id: string) {
     setHistoryRequest({ id });
     setPage("history");
@@ -670,12 +673,16 @@ function App() {
           )}
         </div>
       )}
-      <div className="demo">
-        {isLive(state.context.providerId) && !snapshot.developmentMode
-          ? `${state.context.storeName} · ${t("liveStore")}`
-          : t("demo")}
-      </div>
-      {snapshot.update && (
+      {/* In the app itself the live store is named once, on the context line, and the update
+          notice sits in the sidebar (B7.7); setup keeps both as banners. */}
+      {!(shell && liveStore) && (
+        <div className="demo">
+          {liveStore
+            ? `${state.context.storeName} · ${t("liveStore")}`
+            : t("demo")}
+        </div>
+      )}
+      {snapshot.update && !shell && (
         <div className="update-banner" role="status">
           {t("updateAvailable")}: {snapshot.update.version}{" "}
           <button className="text" onClick={() => void call("openRelease")}>
@@ -936,9 +943,25 @@ function App() {
                 )}
               </button>
             ))}
+            {snapshot.update && (
+              <div className="update-notice" role="status">
+                <span>
+                  {t("updateAvailable")}: {snapshot.update.version}
+                </span>
+                <button
+                  className="text"
+                  onClick={() => void call("openRelease")}
+                >
+                  {state.language === "fi"
+                    ? "Avaa julkaisusivu"
+                    : "Open release page"}
+                </button>
+              </div>
+            )}
           </nav>
           <main className="app-main">
             <ShoppingContext
+              liveNote={liveStore ? t("liveStore") : null}
               settings={() => openSettings("stores")}
               snapshot={snapshot}
               busy={busy}

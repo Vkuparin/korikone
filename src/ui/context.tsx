@@ -8,7 +8,10 @@ export function ShoppingContext({
   apply,
   setBusy,
   settings,
+  liveNote = null,
 }: {
+  /** "Oikea kauppa · Viimeistelet tilauksen itse" for a live store, shown on this line (B7.7). */
+  liveNote?: string | null;
   snapshot: Snapshot;
   busy: boolean;
   apply: (snapshot: Snapshot) => void;
@@ -186,6 +189,7 @@ export function ShoppingContext({
             : tr("Toimitus", "Delivery")}{" "}
           · {tr("Vaihda toimitustapaa", "Change fulfillment")}
         </button>
+        {liveNote && <span className="context-live muted">{liveNote}</span>}
       </div>
       {opened && (
         <section
