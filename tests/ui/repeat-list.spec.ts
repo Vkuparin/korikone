@@ -154,6 +154,87 @@ test("choose groceries from a placed order, adjust packs and finish in the AI fi
     expect(after.state.listHistory).toEqual(before.state.listHistory);
     expect(after.developmentRequests).toBe(before.developmentRequests + 1);
     expect(after.developmentStoreWrites).toBe(before.developmentStoreWrites);
+    const outcome = page.locator(".edit-outcome");
+    await expect(outcome).toContainText("Added Maito (1000 ml)");
+    await expect(outcome.locator("p").first()).toBeFocused();
+    const transfer = page.locator(".transfer-button");
+    await expect(outcome).toContainText("2 products ready to send");
+    await outcome.getByRole("button", { name: "Go to store transfer" }).click();
+    await expect(transfer).toBeFocused();
+    const undo = outcome.getByRole("button", { name: "Undo", exact: true });
+    await expect(undo).toHaveAccessibleDescription(/before the last edit/);
+    await undo.click();
+    await expect(outcome.locator("p").first()).toBeFocused();
+    await expect(outcome).toContainText(
+      "Your previous shopping list is restored.",
+    );
+    await expect(outcome).toContainText("1 product ready to send");
+    await expect(undo).toHaveCount(0);
+    const restored = await load();
+    expect(restored.basket).toHaveLength(1);
+    expect(restored.basket[0]).toMatchObject({
+      requirement: { id: "coffee" },
+      packs: 2,
+    });
+    expect(restored.state.listHistory).toEqual(before.state.listHistory);
+    expect(restored.developmentRequests).toBe(after.developmentRequests);
+    expect(restored.developmentCatalogueRequests).toBe(
+      after.developmentCatalogueRequests,
+    );
+    expect(restored.developmentStoreWrites).toBe(before.developmentStoreWrites);
+    await outcome.getByRole("button", { name: "Go to store transfer" }).click();
+    await expect(transfer).toBeFocused();
+    await transfer.press("Enter");
+    await expect(page.locator(".transfer-result.verified")).toBeVisible();
+    const sent = await load();
+    expect(sent.state.listHistory[0].sentGroceries).toEqual([
+      expect.objectContaining({ id: "coffee", amount: 1000 }),
+    ]);
+    expect(sent.developmentStoreWrites).toBe(
+      restored.developmentStoreWrites + 1,
+    );
+  });
+});
+
+test("a reused list shows each AI change and the missing product before transfer", async () => {
+  await withTransfer("fi", false, async (page) => {
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    const button = (name: string) =>
+      page.getByRole("button", { name, exact: true });
+    await button("Toista viimeksi kauppaan siirretty lista").click();
+    await expect(page.locator(".repeat-summary")).toBeVisible();
+    const before = await load();
+    await page
+      .getByLabel("Muokkaa nykyistä listaa")
+      .fill("lisää 1 l maitoa ja lisää 50 g sahramia");
+    await button("Taio muutokset").click();
+    const outcome = page.locator(".edit-outcome");
+    const changes = outcome.locator(".edit-changes li");
+    await expect(changes).toHaveCount(2);
+    await expect(changes.first()).toHaveText("Maito: 1000 → 2000 ml");
+    await expect(changes.last()).toContainText(/Lisätty Sahrami.*50 g/);
+    const handoff = outcome.locator(".edit-handoff");
+    await expect(handoff).toContainText("2 tuotetta valmiina siirtoon");
+    await expect(handoff).toContainText(/Jää pois siirrosta · Sahrami/);
+    const review = handoff.getByRole("button", {
+      name: "Tarkista puuttuvat tuotteet",
+    });
+    await review.click();
+    await expect(
+      page.getByRole("heading", { name: "Tarkista tuotevalinnat" }),
+    ).toBeFocused();
+    await expect(page.locator(".review-row")).toHaveCount(1);
+    await expect(page.locator(".review-row")).toContainText(/Sahrami/i);
+    await button("Sulje tarkistus").click();
+    await expect(review).toBeFocused();
+    await outcome.getByRole("button", { name: "Kumoa", exact: true }).click();
+    await expect(outcome).toContainText("Edellinen ostoslista on palautettu.");
+    await expect(review).toHaveCount(0);
+    const restored = await load();
+    expect(restored.basket).toEqual(before.basket);
+    expect(restored.developmentRequests).toBe(before.developmentRequests + 1);
+    expect(restored.developmentStoreWrites).toBe(before.developmentStoreWrites);
   });
 });
 

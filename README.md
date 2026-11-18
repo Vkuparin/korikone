@@ -89,3 +89,5 @@ Forgot something? Choose **Return to the list to add an item** in the store view
 After checkout at the retailer, choose **Mark order as placed** in the store view or the shopping list’s transfer result. Korikone opens that order in **History**, where you can check the transferred products and start the next shopping list. The order stays in history when you clear the current list.
 
 To shop again, open an order in **History**. Pick the groceries you want or repeat the whole list. An empty shopping list also offers the latest entry. Korikone looks up current prices. Use **+** and **−** to adjust quantities, then tell the AI field what to add or remove.
+
+After an edit, check the changed items below the AI field. **Undo** restores the list as it was before that edit. The result shows how many products are ready and names items left out of the transfer. **Go to store transfer** takes you to the send button.

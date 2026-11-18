@@ -2141,6 +2141,25 @@ summary:focus-visible,
 .edit-outcome > :last-child {
   margin-bottom: 0;
 }
+.edit-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-block: 8px;
+}
+.edit-changes {
+  margin: 6px 0;
+  padding-inline-start: 22px;
+}
+.edit-handoff {
+  border-top: 1px solid var(--kk-border);
+  padding-top: 8px;
+}
+.edit-handoff p {
+  margin-bottom: 4px;
+  white-space: pre-line;
+}
 .edit-choices {
   display: flex;
   flex-wrap: wrap;

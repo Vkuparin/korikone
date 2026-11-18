@@ -46,7 +46,11 @@ import { MerchandiseRow } from "./merchandise";
 import { count, packCount, unitLabel } from "./i18n";
 import { ConfirmPanel } from "./confirm";
 import { CheckoutButton, type CheckoutOrder } from "./checkout";
-import { compareSentQuantities, requestWithoutRow } from "./transfer-summary";
+import {
+  compareSentQuantities,
+  editTransferHint,
+  requestWithoutRow,
+} from "./transfer-summary";
 import { earlierListTransfer } from "../domain/changes";
 import { RowDetails } from "./details";
 import { isLive } from "../stores/provider";
@@ -71,8 +75,8 @@ import type { SettingsSection } from "./settings-contract";
 const editUnit = (unit: string | undefined, fi: boolean) =>
   unit === "pcs" ? (fi ? "kpl" : "pcs") : (unit ?? "");
 
-/** One line for the last edit, built from the operations the service applied. */
-function editSummary(
+/** Names and amounts come from the committed operations. */
+function editChanges(
   applied: NonNullable<Snapshot["edit"]> extends infer E
     ? E extends { applied: infer A }
       ? A
@@ -80,55 +84,54 @@ function editSummary(
     : never,
   fi: boolean,
 ) {
-  return applied
-    .map((a) => {
-      const unit = editUnit(a.unit, fi);
-      switch (a.op) {
-        case "addItem":
-          return fi
-            ? `Lisätty ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`
-            : `Added ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`;
-        case "addMeal":
-          return a.before
-            ? fi
-              ? `${a.name}: ${a.before} → ${a.after} annosta`
-              : `${a.name}: ${a.before} → ${a.after} servings`
-            : fi
-              ? `Lisätty ${a.name}`
-              : `Added ${a.name}`;
-        case "setItem":
-          return a.before
-            ? `${a.name}: ${a.before} → ${a.after} ${unit}`
-            : fi
-              ? `Lisätty ${a.name} (${a.after} ${unit})`
-              : `Added ${a.name} (${a.after} ${unit})`;
-        case "specifyItem":
-        case "setAttribute":
-          return `${a.name} → ${a.to}`;
-        case "removeItem":
-        case "removeMeal":
-          return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;
-        case "replaceMeal":
-          return fi
-            ? `Vaihdettu ${a.name} → ${a.to}`
-            : `Replaced ${a.name} with ${a.to}`;
-        case "changeServings":
-          return fi
+  return applied.map((a) => {
+    const unit = editUnit(a.unit, fi);
+    switch (a.op) {
+      case "addItem":
+        if (a.before) return `${a.name}: ${a.before} → ${a.after} ${unit}`;
+        return fi
+          ? `Lisätty ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`
+          : `Added ${a.name}${a.after ? ` (${a.after} ${unit})` : ""}`;
+      case "addMeal":
+        return a.before
+          ? fi
             ? `${a.name}: ${a.before} → ${a.after} annosta`
-            : `${a.name}: ${a.before} → ${a.after} servings`;
-        case "changeQuantity":
-          return `${a.name}: ${a.before} → ${a.after} ${unit}`;
-        case "markAtHome":
-          return a.after
-            ? fi
-              ? `${a.name} ostetaan`
-              : `${a.name} will be bought`
-            : fi
-              ? `${a.name} on kotona`
-              : `${a.name} is at home`;
-      }
-    })
-    .join("; ");
+            : `${a.name}: ${a.before} → ${a.after} servings`
+          : fi
+            ? `Lisätty ${a.name}`
+            : `Added ${a.name}`;
+      case "setItem":
+        return a.before
+          ? `${a.name}: ${a.before} → ${a.after} ${unit}`
+          : fi
+            ? `Lisätty ${a.name} (${a.after} ${unit})`
+            : `Added ${a.name} (${a.after} ${unit})`;
+      case "specifyItem":
+      case "setAttribute":
+        return `${a.name} → ${a.to}`;
+      case "removeItem":
+      case "removeMeal":
+        return fi ? `Poistettu ${a.name}` : `Removed ${a.name}`;
+      case "replaceMeal":
+        return fi
+          ? `Vaihdettu ${a.name} → ${a.to}`
+          : `Replaced ${a.name} with ${a.to}`;
+      case "changeServings":
+        return fi
+          ? `${a.name}: ${a.before} → ${a.after} annosta`
+          : `${a.name}: ${a.before} → ${a.after} servings`;
+      case "changeQuantity":
+        return `${a.name}: ${a.before} → ${a.after} ${unit}`;
+      case "markAtHome":
+        return a.after
+          ? fi
+            ? `${a.name} ostetaan`
+            : `${a.name} will be bought`
+          : fi
+            ? `${a.name} on kotona`
+            : `${a.name} is at home`;
+    }
+  });
 }
 
 type Delta =
@@ -225,7 +228,7 @@ function EditDetails({ delta, fi }: { delta: Delta; fi: boolean }) {
                 )
               : fi
                 ? `Hintaeroa ei voi laskea: ${price.unknownRows} rivin hinta ei ole vertailukelpoinen.`
-                : `No price difference: ${price.unknownRows} ${price.unknownRows === 1 ? "row lacks" : "rows lack"} a comparable price.`}
+                : `Price difference unavailable. ${price.unknownRows} ${price.unknownRows === 1 ? "row lacks" : "rows lack"} a comparable price.`}
         </p>
       )}
     </details>
@@ -242,18 +245,43 @@ function EditOutcome({
   busy,
   call,
   resubmit,
+  children,
 }: {
   snapshot: Snapshot;
   language: string;
   busy: boolean;
   call: (method: string, input?: unknown) => Promise<boolean>;
   resubmit: (targetId: string) => void;
+  children?: React.ReactNode;
 }) {
   const fi = language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
   const edit = snapshot.edit;
+  const summary = useRef<HTMLParagraphElement>(null);
   if (!edit && !snapshot.editUndoAvailable) return null;
-  if (!edit) return null;
+  const undo = snapshot.editUndoAvailable && (
+    <div className="edit-undo">
+      <button
+        className="secondary"
+        type="button"
+        disabled={busy}
+        aria-describedby="edit-undo-help"
+        onClick={async () => {
+          if (await call("undoEdit", { revision: snapshot.state.revision }))
+            requestAnimationFrame(() => summary.current?.focus());
+        }}
+      >
+        {tr("Kumoa", "Undo")}
+      </button>
+      <small id="edit-undo-help">
+        {tr(
+          "Palauttaa ostoslistan viimeisintä muutosta edeltävään tilaan.",
+          "Restores the shopping list to before the last edit.",
+        )}
+      </small>
+    </div>
+  );
+  if (!edit) return <section className="edit-outcome">{undo}</section>;
   if (edit.status === "clarification")
     return (
       <section className="edit-outcome" role="status" aria-live="polite">
@@ -295,11 +323,13 @@ function EditOutcome({
         <p className="muted">
           {tr("Lista ei muuttunut.", "The list did not change.")}
         </p>
+        {undo}
       </section>
     );
+  const changes = editChanges(edit.applied, fi);
   return (
     <section className="edit-outcome" role="status" aria-live="polite">
-      <p>
+      <p id="shopping-edit-result" ref={summary} tabIndex={-1}>
         <strong>
           {edit.status === "undone"
             ? tr("Muutos kumottu: ", "Change undone: ")
@@ -309,11 +339,29 @@ function EditOutcome({
                 ? tr("Talouden koko muutettu: ", "Household size changed: ")
                 : tr("Lista päivitetty: ", "List updated: ")}
         </strong>
-        {edit.status === "cleared" && !edit.applied.length
-          ? tr("kaikki rivit poistettu", "all rows removed")
-          : editSummary(edit.applied, fi)}
+        {edit.status === "undone"
+          ? tr(
+              "Edellinen ostoslista on palautettu.",
+              "Your previous shopping list is restored.",
+            )
+          : edit.status === "cleared" && !edit.applied.length
+            ? tr("kaikki rivit poistettu", "all rows removed")
+            : changes.length > 1
+              ? count(
+                  changes.length,
+                  fi,
+                  ["muutos", "muutosta"],
+                  ["change", "changes"],
+                )
+              : changes[0]}
       </p>
-      <EditDetails delta={edit.delta} fi={fi} />
+      {changes.length > 1 && (
+        <ul className="edit-changes">
+          {changes.map((change, index) => (
+            <li key={index}>{change}</li>
+          ))}
+        </ul>
+      )}
       {edit.status === "applied" && !!edit.unsupported?.length && (
         <p className="muted">
           {tr(
@@ -323,18 +371,9 @@ function EditOutcome({
           {edit.unsupported.join(", ")}
         </p>
       )}
-      {snapshot.editUndoAvailable && (
-        <button
-          className="secondary"
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void call("undoEdit", { revision: snapshot.state.revision })
-          }
-        >
-          {tr("Kumoa", "Undo")}
-        </button>
-      )}
+      {undo}
+      <EditDetails key={edit.revision} delta={edit.delta} fi={fi} />
+      {children}
     </section>
   );
 }
@@ -468,18 +507,16 @@ export function ShoppingWorkspace({
   );
   const [undo, setUndo] = useState<Record<string, string>>({});
   const [reviewRows, setReviewRows] = useState<Requirement[] | null>(null);
-  const reviewOpener = useRef<HTMLButtonElement>(null);
-  const footerReview = useRef<HTMLButtonElement>(null);
-  const openedFromFooter = useRef(false);
+  const reviewOpener = useRef<HTMLButtonElement | null>(null);
   const transferButton = useRef<HTMLButtonElement>(null);
+  const priceButton = useRef<HTMLButtonElement>(null);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const closeReview = () => {
     setReviewRows(null);
     requestAnimationFrame(() =>
-      (
-        (openedFromFooter.current
-          ? footerReview.current
-          : reviewOpener.current) ?? listHeading.current
+      (reviewOpener.current?.isConnected
+        ? reviewOpener.current
+        : listHeading.current
       )?.focus(),
     );
   };
@@ -801,6 +838,7 @@ export function ShoppingWorkspace({
       snapshot.ai.state !== "connected"
     )
       return;
+    const submittedFrom = document.activeElement;
     editRunning.current = true;
     setEditWorking(true);
     setEditFailed(false);
@@ -830,6 +868,13 @@ export function ShoppingWorkspace({
       ) {
         setInstruction("");
         setFocusTarget(null);
+        requestAnimationFrame(() => {
+          if (
+            document.activeElement === submittedFrom ||
+            document.activeElement === document.body
+          )
+            document.getElementById("shopping-edit-result")?.focus();
+        });
       }
     } finally {
       editRunning.current = false;
@@ -1221,10 +1266,84 @@ export function ShoppingWorkspace({
     ...unverified,
     ...unmatchedRequests.map((result) => result.intent.label),
   ];
-  const openReview = (fromFooter: boolean) => {
-    openedFromFooter.current = fromFooter;
+  const openReview = (opener: HTMLButtonElement) => {
+    reviewOpener.current = opener;
+    setReviewRows(missing);
     if (reviewRows) document.getElementById("grouped-review-heading")?.focus();
-    else setReviewRows(missing);
+  };
+  const editHandoff = () => {
+    if (
+      snapshot.edit?.status !== "applied" &&
+      snapshot.edit?.status !== "undone"
+    )
+      return null;
+    const { target, text } = editTransferHint({
+      fi,
+      rows: rows.length,
+      ready: sendable.length,
+      quoted: !!snapshot.quotedAt,
+      needsLogin:
+        isLive(state.context.providerId) && snapshot.storeLogin !== "signedIn",
+      transferStatus:
+        snapshot.journal?.status === "partial"
+          ? "partial"
+          : sameVerifiedBatch
+            ? "sent"
+            : confirming
+              ? "review"
+              : null,
+      additionalPacks: additions?.reduce(
+        (total, item) => total + item.packs,
+        0,
+      ),
+      omitted: leftOut,
+      manual: snapshot.merchandise.manual.map((item) => item.productName),
+      hasMissingProducts: missing.length > 0,
+    });
+    const destinations = {
+      status: [
+        tr("Näytä siirron tiedot", "View transfer details"),
+        () => footer.current?.focus(),
+      ],
+      composer: [
+        tr("Jatka ostoslistaa", "Continue editing"),
+        () => noteElement.current?.focus(),
+      ],
+      prices: [
+        tr("Siirry hintahakuun", "Go to price lookup"),
+        () => priceButton.current?.focus(),
+      ],
+      review: [
+        tr("Tarkista puuttuvat tuotteet", "Review missing products"),
+        openReview,
+      ],
+      settings: [
+        tr("Avaa kauppojen asetukset", "Open store settings"),
+        () => settings("stores"),
+      ],
+      list: [
+        tr("Tarkista ostoslista", "Review shopping list"),
+        () => listHeading.current?.focus(),
+      ],
+      transfer: [
+        tr("Siirry listan siirtoon", "Go to store transfer"),
+        () => transferButton.current?.focus(),
+      ],
+    } as const;
+    const [label, go] = destinations[target];
+    return (
+      <div className="edit-handoff">
+        <p>{text}</p>
+        <button
+          type="button"
+          className="text"
+          disabled={busy || working || editWorking || transferring}
+          onClick={(event) => go(event.currentTarget)}
+        >
+          {label}
+        </button>
+      </div>
+    );
   };
   const groups = state.meals
     .filter((m) => !m.leftovers)
@@ -1815,7 +1934,9 @@ export function ShoppingWorkspace({
             setFocusTarget(targetId);
             void applyEdit(instruction, targetId);
           }}
-        />
+        >
+          {editHandoff()}
+        </EditOutcome>
         <OfferIdeas
           snapshot={snapshot}
           busy={busy || working || editWorking}
@@ -2325,13 +2446,14 @@ export function ShoppingWorkspace({
           </label>
           {(missing.length > 0 || reviewRows !== null) && (
             <button
-              ref={reviewOpener}
               type="button"
               className="text"
               aria-expanded={reviewRows !== null}
               aria-controls="optional-product-review"
               disabled={busy}
-              onClick={() => (reviewRows ? closeReview() : openReview(false))}
+              onClick={(event) =>
+                reviewRows ? closeReview() : openReview(event.currentTarget)
+              }
             >
               {tr("Valitse puuttuvat tuotteet", "Choose missing products")} ·{" "}
               {missing.length}
@@ -3075,6 +3197,7 @@ export function ShoppingWorkspace({
             ) : (
               rows.length > 0 && (
                 <button
+                  ref={priceButton}
                   className="secondary"
                   disabled={busy}
                   onClick={() => void call("buildBasket")}
@@ -3232,11 +3355,10 @@ export function ShoppingWorkspace({
                 )}
                 {missing.length > 0 && (
                   <button
-                    ref={footerReview}
                     type="button"
                     className="secondary"
                     disabled={busy}
-                    onClick={() => openReview(true)}
+                    onClick={(event) => openReview(event.currentTarget)}
                   >
                     {tr("Tarkista tuotevaihtoehdot", "Review product options")}
                   </button>
