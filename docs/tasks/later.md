@@ -4,7 +4,11 @@ Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGE
 
 ## First-list product review and store transfer
 
-In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Clarify which items lack a store product, how to review them and what the shopper can transfer. Verify the affected paths with development fixtures.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `14f4691`. Release pending.
+
+A generated list links to its shopping rows. Shoppers can review missing products, describe an unmatched item in the AI field, or transfer the ready items. The transfer button counts only the products and prices it can send. Both retailer views show the next step and name items to add by hand.
+
+Build, scoped Prettier and diff checks passed. Twelve focused Electron cases passed in development mode across the pass. They covered keyboard focus, product choice, unpriced lists, weighed and manual items, explicit confirmation, and verified handoffs to K-Ruoka and S-kaupat with an omitted request. No live accounts were used. Owner visual acceptance is pending.
 
 ## R2. Live development dashboard
 
