@@ -28,7 +28,11 @@ export function compareSentQuantities(
         packs: item.packs - credited,
       });
   }
-  return { additions, previouslySent };
+  const excess = Object.entries(sent).flatMap(([productId, entry]) => {
+    const packs = entry.sent - (wanted.get(productId)?.packs ?? 0);
+    return packs > 0 ? [{ productId, packs }] : [];
+  });
+  return { additions, previouslySent, excess };
 }
 
 /** Other unresolved requests are already represented by their shopping rows. */

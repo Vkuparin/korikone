@@ -1,10 +1,12 @@
 # Korikone roadmap to 1.0.0
 
-Updated on 2 November 2026 after v0.11.4 publication. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
+Updated on 18 November 2026 for v0.11.5. This page records release goals, sequencing and open decisions. Implementation cards and statuses live in [version task lists](tasks/README.md). Agents implement assigned cards, not the entire release by default.
 
 ## Current release
 
-[v0.11.4](https://github.com/Vkuparin/korikone/releases/tag/v0.11.4) is the current pre-release: the eleven polish items B6.1–B6.11 from [the 0.12.0 task list](tasks/0.12.0.md#b6-polish), including a working "new version" banner for pre-releases, compact list rows, a window that comes forward and keeps its place, the diagnostic report in Settings, one receipt import and one way to start a new list ([verification](release-0.11.4.md)).
+[v0.11.5](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5) is the current pre-release. It improves first-time setup, review before transfer, checkout and repeat shopping. Quantity edits reuse prices already on the list. [Release verification](release-0.11.5.md)
+
+[v0.11.4](https://github.com/Vkuparin/korikone/releases/tag/v0.11.4) included the eleven polish items B6.1–B6.11 from [the 0.12.0 task list](tasks/0.12.0.md#b6-polish), including a working "new version" banner for pre-releases, compact list rows, a window that comes forward and keeps its place, the diagnostic report in Settings, one receipt import and one way to start a new list ([verification](release-0.11.4.md)).
 
 [v0.11.3](https://github.com/Vkuparin/korikone/releases/tag/v0.11.3) was the previous pre-release: the twelve review fixes B5.1–B5.12 from [the 0.12.0 task list](tasks/0.12.0.md#b5-review-fixes), including incremental re-transfer, a total time budget for plans and edits, atomic backup restore, visible startup failures and store-tab permission denial ([verification](release-0.11.3.md)). Live store sign-in under the new permission rule and live ChatGPT flows remain owner checks.
 

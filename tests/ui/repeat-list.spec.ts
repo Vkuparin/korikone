@@ -12,6 +12,7 @@ async function withTransfer(
   language: "en" | "fi",
   placed: boolean,
   run: (page: Page) => Promise<void>,
+  withStaple = false,
 ) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -28,19 +29,33 @@ async function withTransfer(
       .getByRole("button", { name: "Kokeile esimerkkiä", exact: true })
       .click();
     await page.evaluate(
-      async ({ language, placed }) => {
+      async ({ language, placed, withStaple }) => {
         const api = window.korikone;
         await api.setLanguage(language);
         await api.signInAI();
         const state = (await api.load()).value.state;
         const saved = await api.save({
           ...state,
-          staples: [],
+          staples: withStaple
+            ? [
+                {
+                  id: "coffee",
+                  name: "Kahvi",
+                  amount: 500,
+                  unit: "g",
+                  enabled: true,
+                  lastPurchased: null,
+                  everyDays: 7,
+                },
+              ]
+            : [],
           meals: [],
           household: { ...state.household, budget: 1_000_000 },
           extras: [
             { id: "milk", name: "Maito", amount: 1000, unit: "ml" },
-            { id: "coffee", name: "Kahvi", amount: 500, unit: "g" },
+            withStaple
+              ? { id: "saffron", name: "Sahrami", amount: 50, unit: "g" }
+              : { id: "coffee", name: "Kahvi", amount: 500, unit: "g" },
           ],
         });
         if (!saved.ok) throw new Error(saved.error);
@@ -59,7 +74,7 @@ async function withTransfer(
         const next = placed ? await api.confirmPurchase() : await api.newWeek();
         if (!next.ok) throw new Error(next.error);
       },
-      { language, placed },
+      { language, placed, withStaple },
     );
     await page.reload();
     await run(page);
@@ -113,6 +128,7 @@ test("choose groceries from a placed order, adjust packs and finish in the AI fi
       page.getByRole("heading", { name: "Shopping list · 1" }),
     ).toBeFocused();
     const coffee = page.locator('[data-row-key="coffee:g"]');
+    const beforeQuantity = await load();
     await coffee
       .getByRole("button", { name: "Increase: Kahvi", exact: true })
       .click();
@@ -121,6 +137,10 @@ test("choose groceries from a placed order, adjust packs and finish in the AI fi
         .getByRole("group", { name: "Quantity: Kahvi" })
         .getByRole("status"),
     ).toHaveText("2 packs");
+    const afterQuantity = await load();
+    expect(afterQuantity.developmentCatalogueRequests).toBe(
+      beforeQuantity.developmentCatalogueRequests,
+    );
     await coffee
       .getByRole("button", { name: "Decrease: Kahvi", exact: true })
       .click();
@@ -192,6 +212,111 @@ test("choose groceries from a placed order, adjust packs and finish in the AI fi
     ]);
     expect(sent.developmentStoreWrites).toBe(
       restored.developmentStoreWrites + 1,
+    );
+  });
+});
+
+test("search older orders, open their products and repeat ordered groceries in a compact window", async () => {
+  await withTransfer(
+    "en",
+    true,
+    async (page) => {
+      await page.evaluate(async () => {
+        const api = window.korikone;
+        const { state } = (await api.load()).value;
+        const original = { ...state.listHistory[0], storeName: "Old store" };
+        const saved = await api.save({
+          ...state,
+          listHistory: [
+            ...Array.from({ length: 8 }, (_, i) => ({
+              ...original,
+              id: `synthetic-${i}`,
+              storeName: "Recent store",
+              sentGroceries: [],
+              transferred: [
+                {
+                  productId: "fixture",
+                  name: "Banana",
+                  quantity: 1,
+                  price: 100,
+                  unit: "kpl",
+                },
+              ],
+              extras: [],
+            })),
+            original,
+          ],
+        });
+        if (!saved.ok) throw Error(saved.error);
+      });
+      await page.reload();
+      await page.setViewportSize({ width: 800, height: 600 });
+      const button = (name: string) =>
+        page.getByRole("button", { name, exact: true });
+      await button("History").click();
+      const cards = page.locator(".order-history article");
+      await expect(cards).toHaveCount(8);
+      await expect(page.locator(".order-history details li")).toHaveCount(0);
+      await button("Show more lists").click();
+      await expect(cards).toHaveCount(9);
+      const search = page.getByRole("searchbox", {
+        name: "Search by store or grocery",
+      });
+      await search.fill("wrong store");
+      await expect(page.getByText("No matching lists.")).toBeVisible();
+      await search.fill("Old store");
+      await expect(cards).toHaveCount(1);
+      await search.fill("kahvi");
+      await expect(cards).toHaveCount(1);
+      await cards.locator("summary").click();
+      await expect(cards.locator("details li")).toHaveCount(2);
+      await cards.locator("summary").click();
+      await expect(cards.locator("details li")).toHaveCount(0);
+      await expect(
+        cards.getByRole("button", { name: "Reuse original plan" }),
+      ).toBeVisible();
+      await cards
+        .getByRole("button", { name: "Repeat ordered items", exact: true })
+        .click();
+      await cards
+        .getByRole("group", { name: "Repeat ordered items", exact: true })
+        .getByRole("button", { name: "Repeat ordered items", exact: true })
+        .click();
+      await expect(page.locator(".grocery-row")).toHaveCount(2);
+      await expect(page.locator('[data-row-key="coffee:g"]')).toBeVisible();
+      await expect(page.locator('[data-row-key="saffron:g"]')).toHaveCount(0);
+      await button("Shopping list · 2 items").click();
+      await expect(
+        page.getByRole("heading", { name: "Shopping list · 2" }),
+      ).toBeFocused();
+    },
+    true,
+  );
+});
+
+test("undo after a verified send names the extra basket packs and opens the basket", async () => {
+  await withTransfer("en", true, async (page) => {
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    const button = (name: string) =>
+      page.getByRole("button", { name, exact: true });
+    const note = page.getByLabel("Edit current list");
+    await note.fill("add 1 l of milk");
+    await button("Update my shopping list").click();
+    await expect(page.locator(".edit-outcome")).toContainText("1000 → 2000 ml");
+    await page.locator(".transfer-button").click();
+    await expect(page.locator(".transfer-result.verified")).toBeVisible();
+    const sent = await load();
+    await button("Undo").click();
+    const difference = page.locator(".basket-difference");
+    await expect(difference).toContainText("Maito 1 l · 1 pack");
+    await expect(difference).not.toContainText("Kahvi");
+    await difference.getByRole("button", { name: "Open store basket" }).click();
+    await expect
+      .poll(async () => (await load()).developmentHandoffs.length)
+      .toBe(sent.developmentHandoffs.length + 1);
+    expect((await load()).developmentStoreWrites).toBe(
+      sent.developmentStoreWrites,
     );
   });
 });

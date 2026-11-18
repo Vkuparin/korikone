@@ -173,6 +173,7 @@ function App() {
     cheaperProductIds: [],
   });
   const [page, setPage] = useState<Key>("week");
+  const [historyRequest, setHistoryRequest] = useState<{ id: string }>();
   // Where the shopping list was scrolled when the shopper left it, so the Store view's own
   // "Return to shopping list" brings them back to the same place.
   const listScroll = useRef({ window: 0, panel: 0 });
@@ -443,6 +444,7 @@ function App() {
   }
   const save = (next: AppState) => call("save", next);
   function openOrderHistory(id: string) {
+    setHistoryRequest({ id });
     setPage("history");
     requestAnimationFrame(() =>
       document.getElementById(`order-history-${id}`)?.focus(),
@@ -961,6 +963,7 @@ function App() {
                 order={checkoutOrder}
                 openList={() => setPage("week")}
                 openOrderHistory={openOrderHistory}
+                historyRequest={historyRequest}
                 key={String(snapshot.developmentMode)}
                 visible={
                   page === "week" || page === "weekPlan" || page === "history"

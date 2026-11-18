@@ -33,7 +33,7 @@ export function RepeatButton({
 }) {
   const fi = snapshot.state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
-  const [mode, setMode] = useState<"whole" | "items" | null>(null);
+  const [mode, setMode] = useState<"whole" | "items" | "ordered" | null>(null);
   const [keys, setKeys] = useState<string[]>([]);
   const opener = useRef<HTMLButtonElement | null>(null);
   const rows = useMemo(
@@ -52,6 +52,19 @@ export function RepeatButton({
     }
   };
   const placed = isOrder(snapshot, entry);
+  const orderedKeys =
+    placed && entry.sentGroceries?.length
+      ? entry.sentGroceries.map(requirementKey)
+      : null;
+  const orderedLabel = tr("Toista tilatut ostokset", "Repeat ordered items");
+  const planLabel = placed
+    ? tr("Käytä alkuperäistä suunnitelmaa", "Reuse original plan")
+    : latest
+      ? tr(
+          "Toista viimeksi kauppaan siirretty lista",
+          "Repeat the list last transferred to the store",
+        )
+      : tr("Toista koko lista", "Repeat the whole list");
   const choose = placed
     ? latest
       ? tr(
@@ -71,6 +84,19 @@ export function RepeatButton({
   );
   return (
     <>
+      {orderedKeys && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            opener.current = e.currentTarget;
+            if (replacing) setMode("ordered");
+            else void run(orderedKeys);
+          }}
+        >
+          {orderedLabel}
+        </button>
+      )}
       <button
         type="button"
         className="secondary"
@@ -94,12 +120,7 @@ export function RepeatButton({
           else void run();
         }}
       >
-        {latest
-          ? tr(
-              "Toista viimeksi kauppaan siirretty lista",
-              "Repeat the list last transferred to the store",
-            )
-          : tr("Toista koko lista", "Repeat the whole list")}
+        {planLabel}
       </button>
       {mode && (
         <div
@@ -108,7 +129,9 @@ export function RepeatButton({
           aria-label={
             mode === "items"
               ? choose
-              : tr("Toista koko lista", "Repeat the whole list")
+              : mode === "ordered"
+                ? orderedLabel
+                : planLabel
           }
         >
           {mode === "items" && (
@@ -149,8 +172,8 @@ export function RepeatButton({
               {!rows.length && (
                 <p>
                   {tr(
-                    "Yksittäisiä ostoksia ei ole tallennettu. Voit toistaa koko listan.",
-                    "This entry has no saved groceries to choose from. You can repeat the whole list.",
+                    "Yksittäisiä ostoksia ei ole tallennettu. Voit käyttää alkuperäistä suunnitelmaa.",
+                    "This entry has no saved groceries to choose from. You can reuse the original plan.",
                   )}
                 </p>
               )}
@@ -161,14 +184,24 @@ export function RepeatButton({
             <button
               type="button"
               disabled={busy || (mode === "items" && !keys.length)}
-              onClick={() => void run(mode === "items" ? keys : undefined)}
+              onClick={() =>
+                void run(
+                  mode === "items"
+                    ? keys
+                    : mode === "ordered"
+                      ? (orderedKeys ?? undefined)
+                      : undefined,
+                )
+              }
             >
               {mode === "items"
                 ? tr(
                     "Aloita lista valituista",
                     "Start list with selected items",
                   )
-                : tr("Toista lista", "Repeat the list")}
+                : mode === "ordered"
+                  ? orderedLabel
+                  : tr("Toista lista", "Repeat the list")}
             </button>
             <button
               className="secondary"

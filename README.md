@@ -6,7 +6,7 @@ The current source includes explicit note updates, product matching, contextual 
 
 ## Install the pre-release
 
-Download the Windows x64 installer from [the v0.11.1 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.1). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.1 verification](docs/release-0.11.1.md) and [pre-release scope](docs/pre-release.md).
+Download the Windows x64 installer from [the v0.11.5 release](https://github.com/Vkuparin/korikone/releases/tag/v0.11.5). The installer is unsigned. Export a backup in Settings before upgrading an existing profile. See the [release notes](CHANGELOG.md), [v0.11.5 verification](docs/release-0.11.5.md) and [pre-release scope](docs/pre-release.md).
 
 ## Run from source
 
@@ -88,6 +88,6 @@ Forgot something? Choose **Return to the list to add an item** in the store view
 
 After checkout at the retailer, choose **Mark order as placed** in the store view or the shopping list’s transfer result. Korikone opens that order in **History**, where you can check the transferred products and start the next shopping list. The order stays in history when you clear the current list.
 
-To shop again, open an order in **History**. Pick the groceries you want or repeat the whole list. An empty shopping list also offers the latest entry. Korikone looks up current prices. Use **+** and **−** to adjust quantities, then tell the AI field what to add or remove.
+To shop again, find an order in **History** by store or grocery. Choose **Repeat ordered items** to copy the groceries recorded for that order, or use the original plan to bring back the meals and shopping requests. For older entries, the saved plan may be the only available option. Use **+** and **−** to adjust quantities, then tell the AI field what to add or remove.
 
-After an edit, check the changed items below the AI field. **Undo** restores the list as it was before that edit. The result shows how many products are ready and names items left out of the transfer. **Go to store transfer** takes you to the send button.
+After an edit, check the changed items below the AI field. **Undo** restores the list as it was before that edit. If the store basket may still contain packs from an earlier transfer, Korikone names them and lets you open the basket to check. The result shows how many products are ready and names items left out of the transfer.

@@ -18,6 +18,7 @@ import { PlanningPreview, PlanningPreviewFocus } from "./planning-preview";
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -392,6 +393,32 @@ export type ComposerProgress = {
   cancel: () => void;
 };
 
+function HistoryProducts({
+  products,
+  label,
+}: {
+  products: AppState["listHistory"][number]["transferred"];
+  label: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <details onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary>
+        {label} · {products.length}
+      </summary>
+      {expanded && (
+        <ul>
+          {products.map((item) => (
+            <li key={item.productId}>
+              {item.name} × {item.quantity}
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
 export function ShoppingWorkspace({
   snapshot,
   busy,
@@ -405,6 +432,7 @@ export function ShoppingWorkspace({
   onProgress,
   operationProgress,
   historyActions,
+  historyRequest,
   order,
   openList,
   openOrderHistory,
@@ -433,8 +461,23 @@ export function ShoppingWorkspace({
   operationProgress?: OperationProgress | null;
   /** Shown under the History heading, such as the receipt import (B6.7). */
   historyActions?: React.ReactNode;
+  historyRequest?: { id: string };
 }) {
   const state = snapshot.state;
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyLimit, setHistoryLimit] = useState(8);
+  useLayoutEffect(() => {
+    if (!historyRequest) return;
+    setHistorySearch("");
+    setHistoryLimit(
+      Math.max(
+        8,
+        state.listHistory.findIndex((entry) => entry.id === historyRequest.id) +
+          1,
+      ),
+    );
+    // Only a direct jump resets the shopper's History controls.
+  }, [historyRequest]);
   const all = requirements(state, new Date(), true);
   const fi = state.language === "fi";
   const tr = (a: string, b: string) => (fi ? a : b);
@@ -1185,6 +1228,17 @@ export function ShoppingWorkspace({
   };
   const homeKeys = new Set(state.skipped);
   const rows = all.filter((row) => !homeKeys.has(requirementKey(row)));
+  const changeQuantity = (row: Requirement, amount: number) =>
+    call("editLocally", {
+      revision: state.revision,
+      operations: [
+        {
+          op: "changeQuantity",
+          rowKey: requirementKey(row),
+          quantity: { kind: "amount", amount, unit: row.unit },
+        },
+      ],
+    });
   const unmatchedRequests = snapshot.committedIntents.filter(requestWithoutRow);
   const currency = useMemo(
     () =>
@@ -1258,6 +1312,52 @@ export function ShoppingWorkspace({
     return previous ? compareSentQuantities(sendable, previous.listSent) : null;
   }, [snapshot.journal, state.context, sendable]);
   const additions = followUp?.additions;
+  const basketDifference = () => {
+    if (
+      order?.placed ||
+      (!snapshot.quotedAt && rows.length) ||
+      !followUp?.excess.length ||
+      !snapshot.journal
+    )
+      return null;
+    const { review } = snapshot.journal;
+    const names = new Map(
+      state.listHistory
+        .flatMap((entry) =>
+          entry.transferred.map((item) => [item.productId, item.name] as const),
+        )
+        .reverse(),
+    );
+    for (const line of review.quotes) {
+      if (line.product) names.set(line.product.id, line.product.name);
+    }
+    return (
+      <div className="basket-difference">
+        <p className="warning">
+          {tr(
+            "Kaupassa voi olla ylimääräisiä pakkauksia aiemmasta siirrosta. Tarkista ja poista ne tarvittaessa.",
+            "The store basket may still contain these extra packs from an earlier transfer. Check the basket and remove any you no longer want.",
+          )}
+        </p>
+        <ul>
+          {followUp.excess.map(({ productId, packs }) => (
+            <li key={productId}>
+              {names.get(productId) ?? productId} ·{" "}
+              {packCount(packs, state.language)}
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy}
+          onClick={() => void call("openStoreCart")}
+        >
+          {tr("Avaa kaupan ostoskori", "Open store basket")}
+        </button>
+      </div>
+    );
+  };
   const missing = snapshot.quotedAt
     ? rows.filter((r) => !quotesByKey.get(requirementKey(r))?.line.product)
     : [];
@@ -1413,7 +1513,19 @@ export function ShoppingWorkspace({
       }
     />
   );
-  if (view === "history")
+  if (view === "history") {
+    const query = historySearch.trim().toLocaleLowerCase(state.language);
+    const matches = query
+      ? state.listHistory.filter((entry) =>
+          [
+            entry.storeName ?? entry.storeKey,
+            ...entry.transferred.map((item) => item.name),
+            ...(entry.sentGroceries ?? entry.extras).map((item) => item.name),
+          ].some((label) =>
+            label.toLocaleLowerCase(state.language).includes(query),
+          ),
+        )
+      : state.listHistory;
     return (
       <section>
         <h1>{tr("Historia", "History")}</h1>
@@ -1424,8 +1536,26 @@ export function ShoppingWorkspace({
             "Shopping lists sent to the store and orders you marked as placed.",
           )}
         </p>
+        {state.listHistory.length > 0 && (
+          <label className="history-search">
+            {tr("Etsi kaupalla tai tuotteella", "Search by store or grocery")}
+            <input
+              type="search"
+              value={historySearch}
+              onChange={(event) => {
+                setHistorySearch(event.target.value);
+                setHistoryLimit(8);
+              }}
+            />
+          </label>
+        )}
+        {!!query && !matches.length && (
+          <p role="status">
+            {tr("Hakua vastaavia listoja ei löytynyt.", "No matching lists.")}
+          </p>
+        )}
         <div className="order-history">
-          {state.listHistory.map((h) => (
+          {matches.slice(0, historyLimit).map((h) => (
             <article
               className="card"
               key={h.id}
@@ -1482,19 +1612,10 @@ export function ShoppingWorkspace({
                     .join(", ")}
               </p>
               {h.transferred.length > 0 && (
-                <details>
-                  <summary>
-                    {tr("Siirretyt tuotteet", "Transferred products")} ·{" "}
-                    {h.transferred.length}
-                  </summary>
-                  <ul>
-                    {h.transferred.map((item) => (
-                      <li key={item.productId}>
-                        {item.name} × {item.quantity}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
+                <HistoryProducts
+                  products={h.transferred}
+                  label={tr("Siirretyt tuotteet", "Transferred products")}
+                />
               )}
               <div className="actions">
                 {!h.orderPlacedAt && order?.historyId === h.id && (
@@ -1521,6 +1642,15 @@ export function ShoppingWorkspace({
             </article>
           ))}
         </div>
+        {matches.length > historyLimit && (
+          <button
+            type="button"
+            className="secondary history-more"
+            onClick={() => setHistoryLimit(historyLimit + 8)}
+          >
+            {tr("Näytä lisää listoja", "Show more lists")}
+          </button>
+        )}
         {!state.listHistory.length && (
           <p>
             {tr(
@@ -1568,6 +1698,7 @@ export function ShoppingWorkspace({
         )}
       </section>
     );
+  }
   if (view === "schedule")
     return (
       <MealCalendarView
@@ -1580,6 +1711,16 @@ export function ShoppingWorkspace({
   return (
     <div className="shopping-workspace">
       <section className="planning-pane">
+        {all.length > 0 && (
+          <button
+            type="button"
+            className="secondary compact-list-jump"
+            onClick={() => listHeading.current?.focus()}
+          >
+            {tr("Ostoslista", "Shopping list")} ·{" "}
+            {count(all.length, fi, ["tuote", "tuotetta"], ["item", "items"])}
+          </button>
+        )}
         <h1>
           {tr("Mitä tällä viikolla syödään?", "What shall we eat this week?")}
         </h1>
@@ -1937,6 +2078,7 @@ export function ShoppingWorkspace({
         >
           {editHandoff()}
         </EditOutcome>
+        {basketDifference()}
         <OfferIdeas
           snapshot={snapshot}
           busy={busy || working || editWorking}
@@ -2796,13 +2938,7 @@ export function ShoppingWorkspace({
                             aria-label={`${tr("Vähennä", "Decrease")}: ${r.name}`}
                             disabled={busy || r.amount <= step}
                             onClick={() =>
-                              void save({
-                                ...state,
-                                quantities: {
-                                  ...state.quantities,
-                                  [key]: Math.max(1, r.amount - step),
-                                },
-                              })
+                              void changeQuantity(r, r.amount - step)
                             }
                           >
                             −
@@ -2820,15 +2956,9 @@ export function ShoppingWorkspace({
                           </output>
                           <button
                             aria-label={`${tr("Lisää", "Increase")}: ${r.name}`}
-                            disabled={busy}
+                            disabled={busy || r.amount + step > 10_000_000}
                             onClick={() =>
-                              void save({
-                                ...state,
-                                quantities: {
-                                  ...state.quantities,
-                                  [key]: r.amount + step,
-                                },
-                              })
+                              void changeQuantity(r, r.amount + step)
                             }
                           >
                             +

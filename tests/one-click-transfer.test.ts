@@ -341,6 +341,10 @@ test("the additions preview credits a product once across rows and excludes redu
   expect(compareSentQuantities([{ ...milk, packs: 1 }], sent)).toEqual({
     additions: [],
     previouslySent: [{ productId: "milk", name: milk.product!.name, packs: 1 }],
+    excess: [
+      { productId: "milk", packs: 1 },
+      { productId: "pasta", packs: 1 },
+    ],
   });
 });
 

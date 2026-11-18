@@ -1,5 +1,13 @@
 # Release notes
 
+## 0.11.5 — pre-release, 18 November 2026
+
+- Start your first list more easily. Review missing products before sending, add forgotten items, and mark orders as placed in History.
+- Repeat ordered groceries, search past orders by store or item, and jump straight to the shopping list in a compact window.
+- Change quantities using the prices already on the list. Korikone shows what an AI edit changed and flags extra packs to check in the store basket after Undo.
+
+Unsigned Windows x64 installer. Export a backup in Settings before upgrading.
+
 ## 0.11.1 — pre-release, 25 October 2026
 
 - Show one progress and Cancel surface for long actions, with the real stage, row counts where known and long-wait feedback. AI model discovery, list generation and repair, pricing, checks before transfer and store opening all report through it. Completion messages expire instead of lingering.

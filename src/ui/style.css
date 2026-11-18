@@ -1587,7 +1587,14 @@ body:has(.app-main) .demo {
     margin-left: 168px;
   }
 }
+.compact-list-jump {
+  display: none;
+}
 @media (max-width: 900px) {
+  .compact-list-jump {
+    display: inline-block;
+    margin-bottom: 12px;
+  }
   .planning-pane > h1 {
     font-size: 24px;
   }
@@ -2159,6 +2166,27 @@ summary:focus-visible,
 .edit-handoff p {
   margin-bottom: 4px;
   white-space: pre-line;
+}
+.basket-difference {
+  margin-block: 12px;
+  padding: 12px;
+  border: 1px solid var(--kk-border);
+  border-radius: 8px;
+}
+.basket-difference p {
+  margin-top: 0;
+}
+.history-search {
+  display: block;
+  max-width: 360px;
+  margin-block: 12px;
+}
+.history-search input {
+  display: block;
+  width: 100%;
+}
+.history-more {
+  margin-block: 12px;
 }
 .edit-choices {
   display: flex;
