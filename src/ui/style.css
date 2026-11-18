@@ -2503,3 +2503,15 @@ body:has(.receipt-intake-surface) .app-main {
   align-items: center;
   margin: 0 0 10px;
 }
+
+/* Chart legend: one line per mark, small swatches (B7.10). */
+.spending-legend {
+  list-style: none;
+  margin: 0.25rem 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+.spending-legend svg {
+  vertical-align: -1px;
+}

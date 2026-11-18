@@ -168,25 +168,64 @@ export function SpendingChart({
                   strokeWidth="2"
                   strokeDasharray="8 4"
                 />
+                {/* The label sits in the strip above the tallest bar, with a sample of its line,
+                    so it never crosses a bar wherever the budget line falls (B7.10). */}
+                <line
+                  x1={left}
+                  x2={left + 24}
+                  y1={head - 11}
+                  y2={head - 11}
+                  stroke="var(--kk-warning)"
+                  strokeWidth="2"
+                  strokeDasharray="8 4"
+                />
                 <text
-                  x={width - left}
-                  y={y(budget) - 4}
-                  textAnchor="end"
+                  x={left + 30}
+                  y={head - 7}
+                  textAnchor="start"
                   fontSize="12"
                   fill="var(--kk-warning)"
+                  className="spending-budget-label"
                 >
                   {tr("Viikkobudjetti", "Weekly budget")} {money(budget)}
                 </text>
               </g>
             )}
           </svg>
-          <p className="muted">
-            <span aria-hidden="true">▨</span>{" "}
-            {tr(
-              "Raidoitettu viikko: kaikkien ostosten summa ei ole tiedossa, joten summa on alaraja.",
-              "Hatched week: not every purchase total is known, so the amount is a lower bound.",
+          <ul className="spending-legend muted">
+            <li>
+              <svg width="14" height="12" aria-hidden="true">
+                <rect width="14" height="12" fill="var(--kk-action)" />
+              </svg>{" "}
+              {tr("Toteutuneet ostot", "Actual purchases")}
+            </li>
+            {spending.weeks.some((w) => w.transferEstimate.amount > 0) && (
+              <li className="spending-legend-estimate">
+                <svg width="14" height="12" aria-hidden="true">
+                  <rect
+                    x="1"
+                    y="1"
+                    width="12"
+                    height="10"
+                    fill="none"
+                    stroke="var(--kk-muted)"
+                    strokeDasharray="4 3"
+                  />
+                </svg>{" "}
+                {tr(
+                  "Katkoviivalaatikko: arvio siirretyistä ostoslistoista, ei toteutunut ostos.",
+                  "Dashed box: an estimate from transferred lists, not an actual purchase.",
+                )}
+              </li>
             )}
-          </p>
+            <li>
+              <span aria-hidden="true">▨</span>{" "}
+              {tr(
+                "Raidoitettu viikko: kaikkien ostosten summa ei ole tiedossa, joten summa on alaraja.",
+                "Hatched week: not every purchase total is known, so the amount is a lower bound.",
+              )}
+            </li>
+          </ul>
           <table className="spending-table">
             <caption className="sr-only">
               {tr("Viikoittaiset menot", "Weekly spending")}
