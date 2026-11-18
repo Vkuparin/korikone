@@ -965,10 +965,15 @@ export function ShoppingWorkspace({
                   : livePlanning &&
                       ["committed", "obsolete"].includes(livePlanning.phase)
                     ? planningPhaseLabel(livePlanning.phase, state.language)
-                    : tr(
-                        "Ctrl + Enter päivittää listan",
-                        "Ctrl + Enter to update the list",
-                      );
+                    : snapshot.ai.state !== "connected"
+                      ? tr(
+                          "Listan päivitys vaatii ChatGPT-yhteyden.",
+                          "Connect ChatGPT to update the list.",
+                        )
+                      : tr(
+                          "Ctrl + Enter päivittää listan",
+                          "Ctrl + Enter to update the list",
+                        );
   const cancelProgressRef = useRef(() => {});
   cancelProgressRef.current = () => {
     if (!progressCancellable || progressCancelling) return;
@@ -1367,14 +1372,6 @@ export function ShoppingWorkspace({
             />
           </p>
         )}
-        {!groups.length && !state.extras.length && (
-          <p className="muted">
-            {tr(
-              "Kirjoita kuin jääkaapin oven lappuun. Ruoat, raaka-aineet tai toiveet.",
-              "Write a note: meals, groceries or ideas for the week.",
-            )}
-          </p>
-        )}
         {hasList && (
           <div
             className="composer-mode"
@@ -1490,10 +1487,47 @@ export function ShoppingWorkspace({
           className={`note-box ${progressActive && progressVisible ? "is-working" : ""}`}
         >
           {!hasList && (
-            <label className="sr-only" htmlFor="shopping-note">
+            <label className="first-note-label" htmlFor="shopping-note">
               {tr("Mitä haluaisit valmistaa?", "What would you like to cook?")}
             </label>
           )}
+          {!(composingEdit ? instruction : note) &&
+            !focusTarget &&
+            !progressActive && (
+              <div className="note-examples">
+                <button
+                  type="button"
+                  className="text"
+                  onClick={() => {
+                    if (composingEdit)
+                      setInstruction(tr("Lisää 1 l maitoa", "Add 1 l of milk"));
+                    else
+                      changeNote(
+                        tr(
+                          "Tomaattipasta, 500 g kahvia",
+                          "Tomato pasta, 500 g coffee",
+                        ),
+                      );
+                    noteElement.current?.focus();
+                  }}
+                >
+                  {composingEdit
+                    ? tr("Kokeile esimerkkimuutosta", "Try an example edit")
+                    : tr("Kokeile esimerkkitoivetta", "Try an example note")}
+                </button>
+                {!hasList && (
+                  <button
+                    type="button"
+                    className="text"
+                    onClick={() =>
+                      document.getElementById("quick-add-item")?.focus()
+                    }
+                  >
+                    {tr("Lisää tuote käsin", "Add a grocery by hand")}
+                  </button>
+                )}
+              </div>
+            )}
           <textarea
             ref={noteElement}
             id="shopping-note"
@@ -1557,6 +1591,10 @@ export function ShoppingWorkspace({
               busy={busy}
               call={call}
               settings={() => settings("ai")}
+              connect={() => {
+                noteElement.current?.focus({ preventScroll: true });
+                void call("signInAI");
+              }}
             />
             <div className="note-actions" ref={progressAnchor}>
               <span
@@ -1713,36 +1751,25 @@ export function ShoppingWorkspace({
           </p>
         )}
         <p className="input-notice">
-          {snapshot.developmentMode ? (
-            tr(
-              "Kehitystila käyttää paikallista testiaineistoa. Muistiinpanoa tai kuitteja ei lähetetä ChatGPT:lle.",
-              "Development mode uses local fixtures. Your note and receipts are not sent to ChatGPT.",
-            )
-          ) : snapshot.ai.state === "connected" ? (
-            composingEdit ? (
-              tr(
-                "Taio muutokset lähettää muutosohjeen, nykyisen listan ja talouden toiveet ChatGPT:lle.",
-                "Update my shopping list sends your instruction, current list and household preferences to ChatGPT.",
+          {snapshot.developmentMode
+            ? tr(
+                "Kehitystila käyttää paikallista testiaineistoa. Muistiinpanoa tai kuitteja ei lähetetä ChatGPT:lle.",
+                "Development mode uses local fixtures. Your note and receipts are not sent to ChatGPT.",
               )
-            ) : (
-              tr(
-                "Taio ostoslista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle.",
-                "Create my shopping list sends your note, relevant recipes and household preferences to ChatGPT.",
-              )
-            )
-          ) : (
-            <>
-              <span>
-                {tr(
-                  "Yhdistä ChatGPT, jotta muistiinpano muuttuu listaksi. Voit myös lisätä reseptejä ja tuotteita käsin.",
-                  "Connect ChatGPT to turn your note into a list, or add recipes and groceries manually.",
+            : snapshot.ai.state === "connected"
+              ? composingEdit
+                ? tr(
+                    "Taio muutokset lähettää muutosohjeen, nykyisen listan ja talouden toiveet ChatGPT:lle.",
+                    "Update my shopping list sends your instruction, current list and household preferences to ChatGPT.",
+                  )
+                : tr(
+                    "Taio ostoslista lähettää muistiinpanon, siihen liittyvät reseptit ja talouden toiveet ChatGPT:lle.",
+                    "Create my shopping list sends your note, relevant recipes and household preferences to ChatGPT.",
+                  )
+              : tr(
+                  "Voit kirjoittaa muistiinpanon ennen kirjautumista. Lähetä se, kun olet valmis.",
+                  "You can write your note before signing in. Submit it when you’re ready.",
                 )}
-              </span>{" "}
-              <button className="text" onClick={() => settings("ai")}>
-                {tr("Yhdistä", "Connect")}
-              </button>
-            </>
-          )}
         </p>
         {working &&
           !["failed", "cancelled", "obsolete", "committed"].includes(

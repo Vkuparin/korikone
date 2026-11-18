@@ -75,6 +75,7 @@ export function QuickAdd({
         {tr("Lisää tuote", "Add grocery")}
         <input
           ref={item}
+          id="quick-add-item"
           name="item"
           placeholder={tr("Esim. kahvi", "e.g. coffee")}
           required

@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "../application/service";
 import { Choice } from "./choice";
+import { en, fi, type Key } from "./i18n";
 
 export function ModelSelector({
   snapshot,
   busy,
   call,
   settings,
+  connect,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -16,6 +18,7 @@ export function ModelSelector({
     options?: { preserveError?: boolean },
   ) => Promise<boolean>;
   settings?: () => void;
+  connect?: () => void;
 }) {
   const [error, setError] = useState(false);
   const tr = (fi: string, en: string) =>
@@ -38,6 +41,48 @@ export function ModelSelector({
   }, [connected, busy, models.length]);
   const missing =
     selected !== "auto" && !models.some((model) => model.slug === selected);
+  if (connect && !connected) {
+    const waiting = snapshot.ai.state === "waiting";
+    const t = (key: Key) => (snapshot.state.language === "fi" ? fi : en)[key];
+    return (
+      <div className="composer-connect">
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy || waiting}
+          onClick={connect}
+        >
+          {tr("Yhdistä ChatGPT", "Connect ChatGPT")}
+        </button>
+        {settings && (
+          <button type="button" className="text" onClick={settings}>
+            {tr("Avaa ChatGPT ja tekoäly", "Open ChatGPT and AI")}
+          </button>
+        )}
+        {waiting && <span role="status">{t("waitingAI")}</span>}
+        {waiting && (
+          <button
+            type="button"
+            className="text"
+            disabled={busy}
+            onClick={() => void call("cancelAI")}
+          >
+            {t("cancel")}
+          </button>
+        )}
+        {!waiting &&
+          (snapshot.ai.error || snapshot.ai.state === "permissionMissing") && (
+            <span role="alert">
+              {t(
+                snapshot.ai.state === "permissionMissing"
+                  ? "permissionMissing"
+                  : "authFailed",
+              )}
+            </span>
+          )}
+      </div>
+    );
+  }
   return (
     <div className="model-control">
       <div className="model-selector">
@@ -65,11 +110,6 @@ export function ModelSelector({
           ]}
         />
       </div>
-      {!connected && (
-        <small>
-          {tr("Yhdistä ChatGPT asetuksissa.", "Connect ChatGPT in Settings.")}
-        </small>
-      )}
       {connected && !models.length && (
         <small>
           {tr("Malleja ei ole saatavilla.", "No models available.")}

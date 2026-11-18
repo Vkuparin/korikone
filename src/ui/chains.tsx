@@ -1,3 +1,4 @@
+import { StoreSearch } from "./store-search";
 import { chainIdentity } from "../domain/appearance";
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
@@ -26,7 +27,6 @@ export function Chains({
   const { state } = snapshot;
   // The chain whose store search is open, and what was searched there.
   const [picking, setPicking] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
   return (
     <ul className="chains">
       {chains
@@ -53,7 +53,6 @@ export function Chains({
                   aria-label={`${name}: ${t(store ? "repickStore" : "pickStore")}`}
                   onClick={() => {
                     setPicking(picking === id ? null : id);
-                    setSearched(false);
                   }}
                 >
                   {t(store ? "repickStore" : "pickStore")}
@@ -125,56 +124,25 @@ export function Chains({
               </div>
               {picking === id && (
                 <div className="store-picker">
-                  <form
-                    className="inline"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const query = String(
-                        new FormData(e.currentTarget).get("query"),
+                  <StoreSearch
+                    visible
+                    busy={busy}
+                    language={state.language}
+                    chain={id}
+                    t={t}
+                    choose={async (result) => {
+                      const saved = await call(
+                        "save",
+                        active
+                          ? { ...state, context: result }
+                          : {
+                              ...state,
+                              stores: { ...state.stores, [id]: result },
+                            },
                       );
-                      if (await call("searchStores", query)) setSearched(true);
+                      if (saved) setPicking(null);
                     }}
-                  >
-                    <label>
-                      {`${name}: ${t("searchStore")}`}
-                      <input
-                        name="query"
-                        minLength={2}
-                        required
-                        placeholder="Herttoniemi"
-                        autoFocus
-                      />
-                    </label>
-                    <button disabled={busy}>{t("search")}</button>
-                  </form>
-                  {searched &&
-                    !snapshot.storeResults.some((s) => s.providerId === id) && (
-                      <p className="muted">{t("noStoresFound")}</p>
-                    )}
-                  {snapshot.storeResults
-                    .filter((s) => s.providerId === id)
-                    .map((result) => (
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        key={result.storeId}
-                        onClick={async () => {
-                          // The active chain switches store; the other chain only remembers it.
-                          const saved = await call(
-                            "save",
-                            active
-                              ? { ...state, context: result }
-                              : {
-                                  ...state,
-                                  stores: { ...state.stores, [id]: result },
-                                },
-                          );
-                          if (saved) setPicking(null);
-                        }}
-                      >
-                        {result.storeName}
-                      </button>
-                    ))}
+                  />
                 </div>
               )}
             </li>

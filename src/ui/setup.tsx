@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { Snapshot } from "../application/service";
 import type { Key } from "./i18n";
+import { StoreSearch } from "./store-search";
 import { isLive } from "../stores/provider";
 
 export function Setup({
@@ -23,49 +24,31 @@ export function Setup({
   return (
     <main className="setup">
       <h1>{t("setupProgress")}</h1>
+      <p className="setup-intro">{t("setupOptional")}</p>
       <div className="setup-grid">
         <section className="card form" aria-labelledby="setup-store">
           <h2 id="setup-store">{t("setupStore")}</h2>
           <p>{t("setupStoreInfo")}</p>
-          {choosingStore ? (
-            <>
-              <form
-                className="inline"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void call(
-                    "searchStores",
-                    String(new FormData(event.currentTarget).get("query")),
-                  );
-                }}
-              >
-                <label>
-                  {t("searchStores")}
-                  <input
-                    name="query"
-                    minLength={2}
-                    required
-                    placeholder="Helsinki"
-                    autoFocus
-                  />
-                </label>
-                <button disabled={busy}>{t("search")}</button>
-              </form>
-              {snapshot.storeResults.map((store) => (
-                <button
-                  key={store.storeId}
-                  className="secondary"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (await call("save", { ...state, context: store }))
-                      setChoosingStore(false);
-                  }}
-                >
-                  {store.storeName}
-                </button>
-              ))}
-            </>
-          ) : (
+          <StoreSearch
+            visible={choosingStore}
+            busy={busy}
+            language={state.language}
+            t={t}
+            choose={async (store) => {
+              if (await call("save", { ...state, context: store }))
+                setChoosingStore(false);
+            }}
+          />
+          {choosingStore && isLive(state.context.providerId) && (
+            <button
+              className="text"
+              disabled={busy}
+              onClick={() => setChoosingStore(false)}
+            >
+              {t("cancel")}
+            </button>
+          )}
+          {!choosingStore && (
             <>
               <strong>{state.context.storeName}</strong>
               <button
@@ -83,7 +66,9 @@ export function Setup({
                     {t(
                       snapshot.storeLogin === "waiting"
                         ? "waitingLogin"
-                        : "setupLoginInfo",
+                        : snapshot.storeLogin === "failed"
+                          ? "loginFailed"
+                          : "setupLoginInfo",
                     )}
                   </p>
                   <button

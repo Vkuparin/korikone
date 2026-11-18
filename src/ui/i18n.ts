@@ -63,14 +63,16 @@ export const en = {
   dataManagement: "Backups and data",
   setupStart: "Set up my shopping",
   setupProgress: "Getting started",
+  setupOptional:
+    "Both connections are optional. Select Done to open your list. You can connect either account later in Settings.",
   setupStore: "Where do you shop?",
   setupStoreInfo:
-    "Connect K-Ruoka or S-kaupat to review real products and prices and send your shopping list to the store. Search by town or store name. You can also plan without connecting a store.",
+    "Search by town or store name. Your branch determines which products and prices you see.",
   setupLoginInfo:
     "Sign in in the store view that opens, then come back here. Korikone checks the connection when you do.",
   setupAI: "Get help planning meals",
   setupAIInfo:
-    "Connect ChatGPT to describe what you want to cook. Korikone chooses a suitable small model automatically. You can always plan manually.",
+    "Connect ChatGPT to turn a note about meals and groceries into a shopping list.",
   setupDone: "Done",
   restartSetup: "Show the setup screen again",
   setupBackToSetup: "Back to setup",
@@ -181,8 +183,11 @@ export const en = {
   basket: "Basket",
   tagline: "Meals planned. Shopping reviewed.",
   welcome: "What shall we eat this week?",
-  intro:
-    "Plan your meals, review the products, and transfer them to your grocery cart. You complete checkout yourself.",
+  intro: "Start your first shopping list with meals or individual groceries.",
+  welcomeBlank:
+    "Open your own list. Add groceries by hand or connect ChatGPT to use a note.",
+  welcomeSetup: "Choose your K-Ruoka or S-kaupat store and set up sign-in.",
+  welcomeDemo: "Explore a filled list with sample products and prices.",
   start: "Try the example",
   manual: "Start with an empty week",
   demo: "Demo · All products and prices are sample data",
@@ -378,14 +383,16 @@ export const fi: Record<Key, string> = {
   dataManagement: "Varmuuskopiot ja tiedot",
   setupStart: "Ota käyttöön",
   setupProgress: "Aloitetaan",
+  setupOptional:
+    "Voit valita yhteydet nyt tai myöhemmin asetuksissa. Valmis avaa ostoslistan.",
   setupStore: "Missä teet ruokaostokset?",
   setupStoreInfo:
-    "Yhdistä K-Ruoka tai S-kaupat, niin voit tarkistaa oikeat tuotteet ja hinnat ja siirtää ostoslistan kauppaan. Hae paikkakunnalla tai kaupan nimellä. Voit myös suunnitella ilman kauppayhteyttä.",
+    "Hae paikkakunnalla tai kaupan nimellä. Valitsemasi myymälä määrää valikoiman ja hinnat.",
   setupLoginInfo:
     "Kirjaudu avautuvassa kauppanäkymässä ja palaa tänne. Korikone tarkistaa yhteyden, kun palaat.",
   setupAI: "Apua aterioiden suunnitteluun",
   setupAIInfo:
-    "Yhdistä ChatGPT ja kerro, mitä haluaisit valmistaa. Korikone valitsee sopivan pienen mallin automaattisesti. Voit aina suunnitella myös itse.",
+    "Yhdistä ChatGPT, niin voit tehdä ostoslistan kirjoittamalla ateriat ja ostokset muistiinpanoon.",
   setupDone: "Valmis",
   restartSetup: "Näytä aloitusnäyttö uudelleen",
   setupBackToSetup: "Takaisin aloitukseen",
@@ -489,7 +496,13 @@ export const fi: Record<Key, string> = {
   tagline: "Ateriat suunniteltu. Ostokset tarkistettu.",
   welcome: "Mitä tällä viikolla syödään?",
   intro:
-    "Suunnittele ateriat, tarkista tuotteet ja siirrä ne kaupan ostoskoriin. Viimeistelet tilauksen itse.",
+    "Aloita ensimmäinen ostoslistasi aterioista tai yksittäisistä tuotteista.",
+  welcomeBlank:
+    "Avaa oma lista. Lisää tuotteita käsin tai yhdistä ChatGPT ja kirjoita ostostoiveesi.",
+  welcomeSetup:
+    "Valitse K-Ruoka- tai S-kaupat-myymäläsi ja kirjaudu palveluihin.",
+  welcomeDemo:
+    "Tutustu valmiiseen listaan, jolla on esimerkkituotteet ja hinnat.",
   start: "Kokeile esimerkkiä",
   manual: "Aloita tyhjästä viikosta",
   demo: "Esimerkki · Kaikki tuotteet ja hinnat ovat esimerkkitietoja",

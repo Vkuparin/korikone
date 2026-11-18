@@ -19,7 +19,7 @@ npm run build
 npm start
 ```
 
-Use **Ota käyttöön** for guided store and ChatGPT connections, or **Kokeile esimerkkiä** to try the demo. Either connection can be skipped. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. Retailer sign-in uses the embedded store tabs. Korikone never imports your usual browser cookies.
+Choose **Start with an empty week** to open your own list immediately. **Set up my shopping** lets you find a store by town or name and connect your accounts. **Try the example** opens a filled list with sample prices. Both connections are optional. Language selection stays available in the sidebar. Choose an AI model below the note or in Settings. Automatic prefers an available small model to reduce usage; names indicate size but do not establish exact prices. If no suitable small model is available, choose a model explicitly. Changing the preference saves it for future note and recipe requests without submitting anything. Retailer sign-in uses the embedded store tabs. Korikone never imports your usual browser cookies.
 
 The store search includes both chains. Each retailer opens in the Kauppa view with its own persistent session. Sign in once in each tab. K-Ruoka uses the site's API in that session; S-kaupat uses the pinned v1.3.0 shared library with calls from the signed-in tab. Setup connects one chain. The hint under the shopping total leads to Settings to connect the second chain.
 
@@ -28,6 +28,8 @@ Settings is divided into General, Household, Stores, ChatGPT and AI, Data, Advan
 ## Shopping and receipts
 
 Write meals and groceries in one note. In the current source, press **Taio ostoslista** / **Create my shopping list** (or **Taio muutokset** / **Update my shopping list** for edits), or Ctrl+Enter to interpret it and select products. Typing leaves the saved meals, shopping rows and prices unchanged. A hint identifies note edits that have not been applied to the list. Adjust portions, mark items already at home, remove rows or choose alternatives. A normal transfer opens the verified retailer destination. Counts, missing rows and budget information are visible before transfer. Normal transfers send and open the store in one action; Review before transfer is optional in Advanced settings. New list confirms once and clears the entire current shopping workspace.
+
+On an empty list, **Try an example note** fills the AI field with an editable meal and grocery request. You can connect ChatGPT beside the field and review the text before pressing **Create my shopping list**. On an existing list, **Try an example edit** shows how to ask for a change.
 
 To add groceries one at a time, enter a name, amount and unit under **Add grocery** and press Enter. The form confirms the addition and returns focus to the name field for the next item. Use whole numbers for pieces, grams and millilitres. For kilograms and litres, you can enter up to three decimal places with a comma or a point.
 

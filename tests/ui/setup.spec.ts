@@ -105,7 +105,18 @@ test("setup can change branch and detects completed sign-in without a check butt
     await page
       .getByRole("button", { name: "Ota käyttöön", exact: true })
       .click();
-    await page.getByRole("textbox").fill("Helsinki");
+    const field = page.getByRole("textbox");
+    await field.fill("no-results");
+    await field.press("Enter");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Kauppoja ei löytynyt" }),
+    ).toBeVisible();
+    await field.fill("search-error");
+    await field.press("Enter");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Haku epäonnistui" }),
+    ).toBeVisible();
+    await field.fill("Helsinki");
     await page.getByRole("button", { name: "Etsi", exact: true }).click();
     await page
       .getByRole("button", {
@@ -114,6 +125,12 @@ test("setup can change branch and detects completed sign-in without a check butt
       })
       .click();
     await page.getByRole("button", { name: "Valitse toinen kauppa" }).click();
+    await expect(field).toHaveValue("Helsinki");
+    await field.fill("alternate");
+    await expect(
+      page.getByRole("button", { name: "S-kaupat · Helsinki (fixture)" }),
+    ).toHaveCount(0);
+    await field.fill("Helsinki");
     await page
       .getByRole("button", {
         name: "S-kaupat · Helsinki (fixture)",
@@ -138,6 +155,73 @@ test("setup can change branch and detects completed sign-in without a check butt
     );
     await expect(page.getByLabel("Mitä haluaisit valmistaa?")).toBeEnabled();
     await expect(page.locator('select[name="model"]')).not.toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("a first-time shopper can try a note, connect and create a priced list without leaving it", async () => {
+  const { ELECTRON_RUN_AS_NODE, ...env } = process.env;
+  const app = await electron.launch({
+    args: ["."],
+    env: {
+      ...env,
+      KORIKONE_TEST_HIDDEN: "1",
+      KORIKONE_TEST_DATA: await mkdtemp(join(tmpdir(), "korikone-first-note-")),
+    },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel("Kieli", { exact: true }).click();
+    await page.getByRole("option", { name: "English", exact: true }).click();
+    const start = page.getByRole("button", {
+      name: "Start with an empty week",
+    });
+    await expect(start).toHaveAccessibleDescription(/Add groceries by hand/);
+    await start.click();
+    const note = page.locator("#shopping-note");
+    await expect(note).toBeFocused();
+    await page.getByRole("button", { name: "Add a grocery by hand" }).click();
+    await expect(page.getByLabel("Add grocery", { exact: true })).toBeFocused();
+    await page.getByRole("button", { name: "Try an example note" }).click();
+    await expect(note).toBeFocused();
+    const example = await note.inputValue();
+    expect(example).toContain("Tomato pasta");
+    await page
+      .getByRole("button", { name: "Connect ChatGPT", exact: true })
+      .click();
+    const create = page.getByRole("button", {
+      name: "Create my shopping list",
+    });
+    await expect(create).toBeEnabled();
+    await expect(note).toBeFocused();
+    await expect(note).toHaveValue(example);
+    const load = () =>
+      page.evaluate(async () => (await window.korikone.load()).value);
+    expect((await load()).developmentRequests).toBe(0);
+    await expect(page.locator(".grocery-row")).toHaveCount(0);
+    await create.click();
+    const edit = page.getByRole("button", { name: "Try an example edit" });
+    await expect(edit).toBeEnabled();
+    const first = await load();
+    expect(first.state.note).toBe(example);
+    expect(first.basket.length).toBeGreaterThan(0);
+    expect(first.basket.every((row) => row.product && row.total !== null)).toBe(
+      true,
+    );
+    await edit.click();
+    await expect(note).toHaveValue("Add 1 l of milk");
+    expect((await load()).developmentRequests).toBe(first.developmentRequests);
+    await note.press("Control+Enter");
+    await expect
+      .poll(async () =>
+        (await load()).basket.some(
+          (row) =>
+            row.requirement.name === "Maito" && row.requirement.amount === 1000,
+        ),
+      )
+      .toBe(true);
+    expect((await load()).developmentStoreWrites).toBe(0);
   } finally {
     await app.close();
   }

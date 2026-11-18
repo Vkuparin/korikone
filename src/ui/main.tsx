@@ -435,6 +435,14 @@ function App() {
     }
   }
   const save = (next: AppState) => call("save", next);
+  async function openFirstList(next: AppState) {
+    if (!(await save(next))) return false;
+    setPage("week");
+    requestAnimationFrame(() =>
+      document.getElementById("shopping-note")?.focus({ preventScroll: true }),
+    );
+    return true;
+  }
   async function changeLanguage(language: "fi" | "en") {
     setSnapshot((current) => ({
       ...current,
@@ -768,7 +776,7 @@ function App() {
           busy={busy}
           call={call}
           finish={() =>
-            save({
+            openFirstList({
               ...state,
               setupComplete: true,
               staples: state.meals.length
@@ -779,62 +787,76 @@ function App() {
         />
       ) : !state.onboarded ? (
         <main className="welcome">
-          <div className="eyebrow">KORIKONE / 01</div>
           <h1>{t("welcome")}</h1>
           <p>{t("intro")}</p>
-          <div className="actions">
-            <button
-              disabled={busy}
-              onClick={() =>
-                void save({ ...state, onboarded: true, setupComplete: false })
-              }
-            >
-              {t("setupStart")}
-            </button>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                void save({
-                  ...state,
-                  onboarded: true,
-                  setupComplete: true,
-                  note: "Tomaattipasta ja peruna-porkkanakeitto. Kahvia.",
-                  meals: [
-                    {
-                      id: crypto.randomUUID(),
-                      day: 0,
-                      recipeId: "pasta",
-                      servings: 4,
-                      leftovers: false,
-                    },
-                    {
-                      id: crypto.randomUUID(),
-                      day: 2,
-                      recipeId: "soup",
-                      servings: 4,
-                      leftovers: false,
-                    },
-                  ],
-                })
-              }
-            >
-              {t("start")}
-            </button>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                void save({
-                  ...state,
-                  onboarded: true,
-                  setupComplete: true,
-                  staples: state.staples.map((s) => ({ ...s, enabled: false })),
-                })
-              }
-            >
-              {t("manual")}
-            </button>
+          <div className="welcome-paths">
+            <div className="welcome-path">
+              <button
+                aria-describedby="welcome-blank"
+                disabled={busy}
+                onClick={() =>
+                  void openFirstList({
+                    ...state,
+                    onboarded: true,
+                    setupComplete: true,
+                    staples: state.staples.map((s) => ({
+                      ...s,
+                      enabled: false,
+                    })),
+                  })
+                }
+              >
+                {t("manual")}
+              </button>
+              <p id="welcome-blank">{t("welcomeBlank")}</p>
+            </div>
+            <div className="welcome-path">
+              <button
+                className="secondary"
+                aria-describedby="welcome-setup"
+                disabled={busy}
+                onClick={() =>
+                  void save({ ...state, onboarded: true, setupComplete: false })
+                }
+              >
+                {t("setupStart")}
+              </button>
+              <p id="welcome-setup">{t("welcomeSetup")}</p>
+            </div>
+            <div className="welcome-path">
+              <button
+                className="secondary"
+                aria-describedby="welcome-demo"
+                disabled={busy}
+                onClick={() =>
+                  void save({
+                    ...state,
+                    onboarded: true,
+                    setupComplete: true,
+                    note: "Tomaattipasta ja peruna-porkkanakeitto. Kahvia.",
+                    meals: [
+                      {
+                        id: crypto.randomUUID(),
+                        day: 0,
+                        recipeId: "pasta",
+                        servings: 4,
+                        leftovers: false,
+                      },
+                      {
+                        id: crypto.randomUUID(),
+                        day: 2,
+                        recipeId: "soup",
+                        servings: 4,
+                        leftovers: false,
+                      },
+                    ],
+                  })
+                }
+              >
+                {t("start")}
+              </button>
+              <p id="welcome-demo">{t("welcomeDemo")}</p>
+            </div>
           </div>
         </main>
       ) : (
