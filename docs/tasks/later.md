@@ -10,7 +10,7 @@ One focused unit test and four focused Electron cases passed. Build, changed-fil
 
 ## Review an AI edit before sending a reused list
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ec95c49`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ec95c49`. Released in v0.11.5.
 
 The AI edit result shows quantity changes and lists each part of a multi-item edit. Undo restores the list from before that edit. Shoppers see how many products can be sent and can jump to missing products or the store transfer button.
 
@@ -18,7 +18,7 @@ Three unit cases in `edit-transfer-hint.test.ts` and two Electron journeys in `r
 
 ## Reuse a previous order and finish the next list
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ae6f77b`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `ae6f77b`. Released in v0.11.5.
 
 Shoppers can start a list with selected groceries from an order or repeat the whole list. The new list opens with current prices and keyboard access to quantities and the AI field. Older entries offer the groceries available in the saved plan.
 
@@ -26,7 +26,7 @@ Three focused unit cases in `repeat.test.ts` passed, covering saved quantities, 
 
 ## Checkout, shopping history and the next list
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `7d1af06`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `7d1af06`. Released in v0.11.5.
 
 Marking an order as placed opens its shopping history entry. The shopper can review the products and start a fresh list from there. Earlier order marks survive upgrades and backup imports.
 
@@ -34,7 +34,7 @@ Four focused unit cases passed across `service.test.ts`, `purchase-links.test.ts
 
 ## Add a forgotten item after store transfer
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `89f3780`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `89f3780`. Released in v0.11.5.
 
 Both store handoffs link back to the grocery field. After an edit, the list shows additional packs and the quantities sent earlier. If the store needs more than the displayed additions, the shopper sees the actual quantities before anything is written.
 
@@ -42,7 +42,7 @@ Six focused unit cases in `one-click-transfer.test.ts` passed. Four focused Elec
 
 ## First-list product review and store transfer
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `14f4691`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `14f4691`. Released in v0.11.5.
 
 A generated list links to its shopping rows. Shoppers can review missing products, describe an unmatched item in the AI field, or transfer the ready items. The transfer button counts only the products and prices it can send. Both retailer views show the next step and name items to add by hand.
 
@@ -178,7 +178,7 @@ Done: Codex, branch codex/planning-recovery-and-upgrade-sessions, local checkout
 
 ## Shopping list entry and rendering polish
 
-Done, 17 November 2026. Codex, chat "Generic polish run", branch `codex/shopping-list-polish` in the main checkout. Implementation `a88fc54` is on GitHub in [PR #12](https://github.com/Vkuparin/korikone/pull/12). Merged to main in `25f7820`. Release pending.
+Done, 17 November 2026. Codex, chat "Generic polish run", branch `codex/shopping-list-polish` in the main checkout. Implementation `a88fc54` is on GitHub in [PR #12](https://github.com/Vkuparin/korikone/pull/12). Merged to main in `25f7820`. Released in v0.11.5.
 
 Manual grocery entry labels each field, identifies invalid names and amounts, confirms additions and keeps the next draft if a save is still running. The shopping list reuses quoted product comparisons and its currency formatter while the note changes.
 
@@ -191,7 +191,7 @@ Verification on local development fixtures:
 
 ## Recipe, schedule, receipt and store polish
 
-Done, 17 November 2026. Codex, chat "Generic polish run". Published directly to main in `bb7ca9d`. Release pending.
+Done, 17 November 2026. Codex, chat "Generic polish run". Published directly to main in `bb7ca9d`. Released in v0.11.5.
 
 Recipes can be searched by name or ingredient and read without opening the editor. Selecting a calendar meal opens a day picker. History links directly to saved receipts. Data opens receipt rows on demand and pauses its receipt reads while hidden. The Store view sends new bounds when its position or size changes.
 
@@ -201,7 +201,7 @@ A 240-recipe fixture rendered 12 cards on entry. In the embedded store, 60 scrol
 
 ## First shopping list and store setup
 
-Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `06be2d9`. Release pending.
+Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `06be2d9`. Released in v0.11.5.
 
 First launch offers a blank list, guided connections and a filled example. Setup and Settings share store search with feedback for empty results and failures. Shoppers can start with an editable example note, sign in beside it and submit when ready. An existing list offers an example edit.
 
