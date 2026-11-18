@@ -72,8 +72,19 @@ test("a catalogue failure after an explicit edit shows the saved list without in
   const { service, storage } = await ready();
   const provider = service.registry.get("demo-k") as DemoProvider;
   provider.failSearch = true;
+  // A new row has to be read from the catalogue; an amount change alone would not (B7.2).
+  const potato = {
+    id: "potato",
+    name: "Peruna",
+    amount: 800,
+    unit: "g" as const,
+  };
   const result = await service.refreshAfterChange(() =>
-    service.save({ ...service.state, quantities: { "coffee:g": 1000 } }),
+    service.save({
+      ...service.state,
+      quantities: { "coffee:g": 1000 },
+      extras: [...service.state.extras, potato],
+    }),
   );
   expect(result.state.quantities).toEqual({ "coffee:g": 1000 });
   expect(result.basket).toEqual([]);
@@ -84,12 +95,76 @@ test("a catalogue failure after an explicit edit shows the saved list without in
   ).toEqual({ "coffee:g": 1000 });
   provider.failSearch = false;
   await service.buildBasket();
-  expect(service.basket[0].packs).toBe(2);
+  expect(
+    service.basket.find((line) => line.requirement.id === "coffee")!.packs,
+  ).toBe(2);
   expect(service.pricingError).toBeNull();
 });
 
+test("an ordinary change searches only new or changed rows and re-ranks the rest locally (B7.2)", async () => {
+  const { service } = await ready();
+  const provider = service.registry.get("demo-k") as DemoProvider;
+  const quotedAt = service.quotedAt;
+  const searches = () => provider.searchRequests;
+  // An amount change and a product preference change read nothing.
+  let before = searches();
+  await service.refreshAfterChange(() =>
+    service.save({ ...service.state, quantities: { "coffee:g": 1000 } }),
+  );
+  expect(searches()).toBe(before);
+  expect(service.quotedAt).toBe(quotedAt);
+  expect(
+    service.basket.find((line) => line.requirement.id === "coffee")!.packs,
+  ).toBe(2);
+  before = searches();
+  await service.refreshAfterChange(() =>
+    service.save({ ...service.state, productPreference: "storeBrand" }),
+  );
+  expect(searches()).toBe(before);
+  expect(service.snapshot().pricingState).toBe("quoted");
+  // A new grocery is the only row read.
+  const rows = service.basket.length;
+  before = searches();
+  await service.refreshAfterChange(() =>
+    service.save({
+      ...service.state,
+      extras: [
+        ...service.state.extras,
+        { id: "potato", name: "Peruna", amount: 800, unit: "g" },
+      ],
+    }),
+  );
+  expect(service.basket).toHaveLength(rows + 1);
+  const added = searches() - before;
+  expect(added).toBeGreaterThan(0);
+  // The full refresh reads every row again.
+  before = searches();
+  await service.buildBasket();
+  expect(searches() - before).toBeGreaterThan(added);
+  // The result is the one a full read gives for the same list.
+  const full = service.basket.map((line) => [
+    line.requirement.id,
+    line.product?.id,
+    line.packs,
+  ]);
+  const local = await service.refreshAfterChange(() =>
+    service.save({ ...service.state, productPreference: "price" }),
+  );
+  await service.refreshAfterChange(() =>
+    service.save({ ...service.state, productPreference: "storeBrand" }),
+  );
+  expect(
+    service.basket.map((line) => [
+      line.requirement.id,
+      line.product?.id,
+      line.packs,
+    ]),
+  ).toEqual(full);
+  expect(local.pricingState).toBe("quoted");
+});
+
 test.each(["accept", "omit"] as const)(
-  "%s retains its saved edit when the subsequent catalogue request fails",
+  "%s retains its saved edit and its prices while the catalogue fails",
   async (operation) => {
     const { service, storage } = await ready();
     await service.save({
@@ -108,9 +183,11 @@ test.each(["accept", "omit"] as const)(
             productId: line.product!.id,
           })
         : await service.omit("coffee:g");
-    expect(result.pricingError).toBe("storeBusy");
-    expect(result.basket).toEqual([]);
-    expect(result.quotedAt).toBeNull();
+    // The rows stay as read: the choice is matched again from its own candidates and nothing
+    // has to be searched, so the failing catalogue is not asked (B7.2).
+    expect(result.pricingError).toBeNull();
+    expect(result.quotedAt).not.toBeNull();
+    expect(result.basket.length).toBeGreaterThan(0);
     const saved = (await storage.get("state")) as typeof service.state;
     if (operation === "accept")
       expect(Object.values(saved.accepted)).toContainEqual([line.product!.id]);

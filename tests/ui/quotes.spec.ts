@@ -124,9 +124,21 @@ test("view return and restart retain quotes without searches, while explicit edi
       switched.developmentCatalogueRequests + 3,
     );
     expect((await load()).developmentRequests).toBe(1);
-    await page.evaluate(() => window.korikone.scenario("catalogue"));
+    // An amount change is matched locally from the rows already read (B7.2); a new grocery
+    // has to be read, and that read fails here.
+    const unchanged = (await load()).developmentCatalogueRequests;
     await page
       .getByRole("button", { name: "Increase: Peruna", exact: true })
+      .click();
+    await expect
+      .poll(async () => (await load()).state.quantities["potato:g"])
+      .toBeGreaterThan(800);
+    expect((await load()).developmentCatalogueRequests).toBe(unchanged);
+    expect((await load()).basket).toHaveLength(3);
+    await page.evaluate(() => window.korikone.scenario("catalogue"));
+    await page.getByLabel("Add grocery", { exact: true }).fill("Rusinat");
+    await page
+      .getByRole("button", { name: "Add grocery to list", exact: true })
       .click();
     await expect(page.getByRole("alert")).toContainText(
       "Could not retrieve products and prices",
@@ -141,7 +153,9 @@ test("view return and restart retain quotes without searches, while explicit edi
       page.locator(".grocery-row.unresolved, .transfer-button"),
     ).toHaveCount(0);
     expect((await load()).basket).toEqual([]);
-    expect((await load()).state.quantities["potato:g"]).toBeGreaterThan(800);
+    expect(
+      (await load()).state.extras.some((item) => item.name === "Rusinat"),
+    ).toBe(true);
     expect((await load()).developmentRequests).toBe(1);
     await page.evaluate(() => window.korikone.scenario("catalogue"));
     await page
@@ -149,7 +163,7 @@ test("view return and restart retain quotes without searches, while explicit edi
       .click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByText(/Last quoted prices/)).toBeVisible();
-    expect((await load()).basket).toHaveLength(3);
+    expect((await load()).basket).toHaveLength(4);
   } finally {
     await app.close();
   }

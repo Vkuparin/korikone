@@ -191,6 +191,8 @@ export interface Storage {
   set(key: string, value: unknown): Promise<any>;
   setMany?(entries: { key: string; value: unknown }[]): Promise<any>;
 }
+/** How long rows of a quote are reused when the list changes (B7.2). */
+const reuseQuoteForMs = 6 * 60 * 60_000;
 export class Service {
   private metricWrites: Promise<void> = Promise.resolve();
   async operationMetrics() {
@@ -2151,9 +2153,11 @@ export class Service {
     context: StoreContext,
     basket: BasketLine[],
     pickupFee: FeeRange | null,
+    /** Kept when the quote retains rows read earlier: it is as old as its oldest row. */
+    readAt?: string,
   ) {
     if (key !== pricingKey(this.state)) throw new Error("draftStale");
-    const quotedAt = new Date().toISOString();
+    const quotedAt = readAt ?? new Date().toISOString();
     await this.db.set("last-quote", {
       key,
       context,
@@ -2175,6 +2179,16 @@ export class Service {
     const key = pricingKey(this.state);
     const before = this.state.context;
     const hadQuote = this.quotedAt !== null;
+    // The quote on screen before the change; its rows are reused where the change left them (B7.2).
+    const previous =
+      hadQuote && this.basket.length
+        ? {
+            state: this.state,
+            basket: this.basket,
+            quotedAt: this.quotedAt!,
+            pickupFee: this.pickupFee,
+          }
+        : null;
     await operation();
     // Choosing or connecting a store is not a request for prices. A list that was never priced
     // stays unpriced through it, until the shopper asks; a priced list follows its store.
@@ -2184,6 +2198,10 @@ export class Service {
     if (storeOnly && !hadQuote && !options.explicit) return this.snapshot();
     if (key !== pricingKey(this.state)) {
       try {
+        if (previous && !options.explicit) {
+          const changed = await this.priceChangedRows(previous);
+          if (changed) return changed;
+        }
         return await this.buildBasket();
       } catch (error) {
         // The list operation was already saved; show that list with unpriced rows.
@@ -2194,6 +2212,139 @@ export class Service {
       }
     }
     return this.snapshot();
+  }
+  /**
+   * B7.2: after an ordinary list change, only rows whose catalogue read would differ are searched:
+   * a new row, a row that was left unsearched, or one whose name, kind, category rule, correction
+   * or the household exclusions changed. Every other row is matched again locally from the
+   * candidates it was read with, so an amount, a product choice or "Tuotevalinnat" re-ranks
+   * without searching.
+   * Returns null when nothing can be reused or the result does not verify; the caller then reads
+   * the whole list as before, as it also does for a quote older than six hours. "Päivitä
+   * tuotteet ja hinnat" always reads everything.
+   */
+  private async priceChangedRows(previous: {
+    state: AppState;
+    basket: BasketLine[];
+    quotedAt: string;
+    pickupFee: FeeRange | null;
+  }) {
+    if (this.busy || this.transferPending) throw new Error("busy");
+    const state = this.state;
+    const context = state.context;
+    if (JSON.stringify(previous.state.context) !== JSON.stringify(context))
+      return null;
+    // Prices read hours ago are read again with the change, as before.
+    if (!(Date.now() - Date.parse(previous.quotedAt) < reuseQuoteForMs))
+      return null;
+    this.transferException = null;
+    this.review = null;
+    const key = pricingKey(state);
+    const rowKey = (r: { id: string; unit: string }) => `${r.id}:${r.unit}`;
+    const options = (s: AppState, requirement: Requirement) => ({
+      accepted:
+        s.accepted[
+          `${context.providerId}:${context.storeId}:${requirement.id}`
+        ] ?? [],
+      preferences: s.categoryPreferences,
+      holds: s.correctionHolds,
+      exclusions: exclusionTerms(s.household.exclusions),
+      productPreference: s.productPreference,
+      priceBasis: s.priceBasis,
+      context,
+    });
+    // What a row's read asks the catalogue and keeps from it: the stored candidates already
+    // leave out products its category rules, corrections or household exclusions reject.
+    const asked = (s: AppState, requirement: Requirement) => {
+      const { amount: _amount, sources: _sources, ...row } = requirement;
+      const rowOptions = options(s, requirement);
+      return JSON.stringify([
+        row,
+        requirementQueryHints(requirement, rowOptions),
+        matchingPolicy(requirement, rowOptions),
+        rowOptions.exclusions,
+        s.correctionHolds,
+      ]);
+    };
+    const old = new Map(
+      previous.basket.map((line) => [rowKey(line.requirement), line]),
+    );
+    const wanted = requirements(state);
+    const fresh = wanted.filter((requirement) => {
+      const line = old.get(rowKey(requirement));
+      return (
+        !line ||
+        line.matching?.reason === "bounded-out" ||
+        asked(previous.state, line.requirement) !== asked(state, requirement)
+      );
+    });
+    if (fresh.length === wanted.length) return null;
+    const failures: unknown[] = [];
+    const read = await this.measureOperation("pricing", async (metrics) => {
+      const provider = this.registry.get(context.providerId);
+      let completed = 0;
+      if (fresh.length)
+        this.onActivity?.({
+          stage: "searching",
+          completed: 0,
+          total: fresh.length,
+        });
+      return mapConcurrent(fresh, async (requirement) => {
+        this.activitySignal?.throwIfAborted();
+        const line = await this.quoteRequirementOrLeave(
+          provider,
+          context,
+          state,
+          requirement,
+          metrics,
+          false,
+          failures,
+        );
+        this.onActivity?.({
+          stage: "searching",
+          completed: ++completed,
+          total: fresh.length,
+        });
+        return line;
+      });
+    });
+    // A store that answers none of the rows it was asked is reported as itself, as in a full read.
+    if (fresh.length && failures.length === fresh.length) throw failures[0];
+    const basket = wanted.map((requirement) => {
+      const index = fresh.indexOf(requirement);
+      if (index >= 0) return read[index];
+      return matchRequirement(
+        requirement,
+        applyPackSizes(
+          structuredClone(old.get(rowKey(requirement))!.candidates),
+          state.packSizes,
+        ),
+        options(state, requirement),
+      );
+    });
+    if (
+      !restoredQuote(
+        {
+          key,
+          context,
+          basket,
+          quotedAt: previous.quotedAt,
+          pickupFee: previous.pickupFee,
+        },
+        state,
+      )
+    )
+      return null;
+    await this.recordPrices(read.flatMap((line) => line.candidates));
+    return this.writeState(() =>
+      this.storeQuote(
+        key,
+        context,
+        basket,
+        basket.length ? previous.pickupFee : null,
+        previous.quotedAt,
+      ),
+    );
   }
   /** Fees change with the time of day, so a reading is reused for 15 minutes at most. A failed read is unknown. */
   private async readFee(context: StoreContext) {
