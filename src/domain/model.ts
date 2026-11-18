@@ -264,6 +264,8 @@ export type BasketLine = {
   /** Products hidden because their name contains a household exclusion. */
   excluded?: number;
   matching?: import("./matching").MatchingSummary;
+  /** An unmatched row's product sold in another unit, offered as "take one pack" (B7.3). */
+  packOffer?: Product;
 };
 export type CartLine = {
   productId: string;

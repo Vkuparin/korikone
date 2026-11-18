@@ -83,6 +83,7 @@ import {
   selectableCandidate,
   matchingPolicy,
   requirementQueryHints,
+  storedProducts,
 } from "../domain/matching";
 import {
   rememberCategoryPreferenceSchema,
@@ -2316,7 +2317,7 @@ export class Service {
       return matchRequirement(
         requirement,
         applyPackSizes(
-          structuredClone(old.get(rowKey(requirement))!.candidates),
+          structuredClone(storedProducts(old.get(rowKey(requirement))!)),
           state.packSizes,
         ),
         options(state, requirement),
@@ -2627,7 +2628,7 @@ export class Service {
         if (key !== rowKey) return structuredClone(previous);
         return matchRequirement(
           requirement,
-          applyPackSizes(previous.candidates, next.packSizes),
+          applyPackSizes(storedProducts(previous), next.packSizes),
           {
             context: next.context,
             sourceNote: next.note,
@@ -2758,7 +2759,7 @@ export class Service {
           if (!affected.has(key)) return structuredClone(previous);
           return matchRequirement(
             requirement,
-            applyPackSizes(previous.candidates, validated.packSizes),
+            applyPackSizes(storedProducts(previous), validated.packSizes),
             {
               context: validated.context,
               sourceNote: validated.note,
@@ -3373,7 +3374,7 @@ export class Service {
         return changed.has(key(requirement))
           ? matchRequirement(
               requirement,
-              applyPackSizes(old.candidates, next.packSizes),
+              applyPackSizes(storedProducts(old), next.packSizes),
               options(requirement),
             )
           : { ...structuredClone(old), requirement };

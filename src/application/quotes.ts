@@ -14,7 +14,11 @@ import {
   exclusionTerms,
   applyPackSizes,
 } from "../domain/planner";
-import { matchingSummarySchema, matchRequirement } from "../domain/matching";
+import {
+  matchingSummarySchema,
+  matchRequirement,
+  storedProducts,
+} from "../domain/matching";
 import {
   cataloguePricingSchema,
   productEvidenceSchema,
@@ -102,6 +106,7 @@ export const persistedQuoteSchema = z.object({
       candidates: z.array(productSchema),
       excluded: z.number().int().nonnegative().optional(),
       matching: matchingSummarySchema.optional(),
+      packOffer: productSchema.optional(),
     }),
   ),
 });
@@ -136,7 +141,7 @@ export function restoredQuote(input: unknown, state: AppState) {
     const requirement = wanted[index];
     const matched = matchRequirement(
       requirement,
-      applyPackSizes(line.candidates, state.packSizes),
+      applyPackSizes(storedProducts(line), state.packSizes),
       {
         context: state.context,
         sourceNote: state.note,

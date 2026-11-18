@@ -2553,3 +2553,17 @@ nav .update-notice button {
 .context .context-live {
   align-self: center;
 }
+
+/* One-pack offer on an unmatched hand-added row (B7.3). */
+.pack-offer {
+  margin: 0 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+.pack-offer button {
+  font-size: 13px;
+  padding: 4px 10px;
+}

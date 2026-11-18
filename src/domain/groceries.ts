@@ -52,3 +52,32 @@ export function addGrocery(
     quantities,
   };
 }
+
+/**
+ * The amount and unit last used for a grocery of this name: from the latest transferred lists,
+ * then the current list and regular items (B7.3). Quick add starts from it instead of "1 kpl",
+ * so milk typed after an earlier "1 l" is asked for in litres. Null when the name is new.
+ */
+export function lastGroceryAmount(
+  state: AppState,
+  name: string,
+): { amount: string; unit: Unit | "kg" | "l" } | null {
+  const identity = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLocaleLowerCase("fi");
+  const wanted = identity(name);
+  if (!wanted) return null;
+  const found = [
+    ...state.listHistory.flatMap(
+      (entry) => entry.sentGroceries ?? entry.extras,
+    ),
+    ...state.extras,
+    ...state.staples,
+  ].find((item) => identity(item.name) === wanted);
+  if (!found) return null;
+  const whole = (n: number) => String(n).replace(".", ",");
+  if (found.unit === "ml" && found.amount % 100 === 0 && found.amount >= 1000)
+    return { amount: whole(found.amount / 1000), unit: "l" };
+  if (found.unit === "g" && found.amount % 100 === 0 && found.amount >= 1000)
+    return { amount: whole(found.amount / 1000), unit: "kg" };
+  return { amount: whole(found.amount), unit: found.unit };
+}

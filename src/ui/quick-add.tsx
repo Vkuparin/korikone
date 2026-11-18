@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { addGrocery } from "../domain/groceries";
+import { addGrocery, lastGroceryAmount } from "../domain/groceries";
 import type { AppState, Unit } from "../domain/model";
 
 export function QuickAdd({
@@ -17,6 +17,9 @@ export function QuickAdd({
   const tr = (a: string, b: string) => (fi ? a : b);
   const item = useRef<HTMLInputElement>(null);
   const amount = useRef<HTMLInputElement>(null);
+  const unitField = useRef<HTMLSelectElement>(null);
+  // Set once the shopper edits the amount or unit; a typed name then never overrides them.
+  const amountTouched = useRef(false);
   const draftVersion = useRef(0);
   const [error, setError] = useState<
     "missingName" | "longName" | "wholeAmount" | "decimalAmount" | null
@@ -57,6 +60,7 @@ export function QuickAdd({
       submitted === draftVersion.current
     ) {
       form.reset();
+      amountTouched.current = false;
       setAdded(name);
     }
   }
@@ -69,6 +73,17 @@ export function QuickAdd({
       onChange={(event) => {
         draftVersion.current++;
         const editingName = item.current?.isSameNode(event.target);
+        if (!editingName) amountTouched.current = true;
+        else if (
+          !amountTouched.current &&
+          amount.current &&
+          unitField.current
+        ) {
+          // B7.3: the amount last used for this name, or the plain default.
+          const last = lastGroceryAmount(state, item.current!.value);
+          amount.current.value = last?.amount ?? "1";
+          unitField.current.value = last?.unit ?? "pcs";
+        }
         if (nameError === editingName) setError(null);
         setAdded("");
       }}
@@ -103,6 +118,7 @@ export function QuickAdd({
         <label>
           {tr("Yksikkö", "Unit")}
           <select
+            ref={unitField}
             name="unit"
             aria-label={tr("Tuotteen yksikkö", "Grocery unit")}
           >

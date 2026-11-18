@@ -563,11 +563,34 @@ export function matchRequirement(
     defaulted: policy.defaulted,
     decisions,
   };
+  // B7.3: a product turned down only because it is sold in another unit ("1 kpl" of milk sold by
+  // the litre) is kept as a one-pack offer. It is never chosen here: only the shopper's click
+  // changes the row's amount to that pack.
+  if (!chosen) {
+    const offer = products
+      .filter(
+        (p, i) =>
+          decisions[i].status === "rejected" &&
+          decisions[i].reason === "unit" &&
+          p.packAmount > 0 &&
+          p.price !== null &&
+          p.available !== false &&
+          assess(
+            { ...requirement, amount: p.packAmount, unit: p.unit },
+            p,
+            policy,
+            options,
+          ).status === "eligible",
+      )
+      .sort((a, b) => a.price! - b.price!)[0];
+    if (offer) line.packOffer = offer;
+  }
   if (
     options.context &&
     options.holds?.includes(correctionKey(options.context, requirement))
   ) {
     line.product = null;
+    delete line.packOffer;
     line.total = null;
     line.packs = 0;
     delete line.approximate;
@@ -605,4 +628,17 @@ export function priceAlternatives(
     ),
     basis,
   );
+}
+
+/** The products a stored row is matched again from, with its one-pack offer (B7.3). */
+export function storedProducts(line: {
+  candidates: Product[];
+  packOffer?: Product;
+}): Product[] {
+  const offer = line.packOffer;
+  return offer &&
+    line.candidates.length < 60 &&
+    !line.candidates.some((c) => c.id === offer.id)
+    ? [...line.candidates, offer]
+    : line.candidates;
 }

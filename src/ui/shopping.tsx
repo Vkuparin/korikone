@@ -1249,6 +1249,39 @@ export function ShoppingWorkspace({
     [fi],
   );
   const money = (cents: number) => currency.format(cents / 100);
+  // B7.3: a hand-added grocery whose products are sold in another unit takes one pack on the
+  // shopper's click, with that product chosen. Nothing changes until then.
+  const packOfferRow = (row: Requirement) =>
+    row.sources.length > 0 && row.sources.every((s) => s === "extra");
+  const takePack = (row: Requirement, offer: Product) =>
+    save({
+      ...state,
+      extras: [
+        ...state.extras.filter(
+          (item) =>
+            item.id !== row.id ||
+            (item.unit !== row.unit && item.unit !== offer.unit),
+        ),
+        {
+          ...state.extras.find(
+            (item) => item.id === row.id && item.unit === row.unit,
+          )!,
+          // One pack, added to any amount already listed in the pack's unit.
+          amount:
+            offer.packAmount +
+            (state.extras.find(
+              (item) => item.id === row.id && item.unit === offer.unit,
+            )?.amount ?? 0),
+          unit: offer.unit,
+        },
+      ],
+      accepted: {
+        ...state.accepted,
+        [`${state.context.providerId}:${state.context.storeId}:${row.id}`]: [
+          offer.id,
+        ],
+      },
+    });
   const quotesByKey = useMemo(() => {
     const exclusions = exclusionTerms(state.household.exclusions);
     return new Map(
@@ -2799,12 +2832,38 @@ export function ShoppingWorkspace({
                               )}
                         </small>
                         {line?.matching &&
-                          line.matching.status !== "resolved" && (
+                          line.matching.status !== "resolved" &&
+                          !(line.packOffer && packOfferRow(r)) && (
                             <p className="warning">
                               {matchingReasonLabel(
                                 line.matching.reason,
                                 state.language,
                               )}
+                            </p>
+                          )}
+                        {line?.packOffer &&
+                          !line.product &&
+                          !home &&
+                          packOfferRow(r) && (
+                            <p className="pack-offer">
+                              <span className="muted">
+                                {tr(
+                                  `Määrä ${r.amount} ${unitLabel(r.unit, state.language)} ei sovi kaupan pakkauksiin.`,
+                                  `${r.amount} ${unitLabel(r.unit, state.language)} does not fit the store's packs.`,
+                                )}
+                              </span>{" "}
+                              <button
+                                type="button"
+                                className="secondary"
+                                disabled={busy}
+                                onClick={() =>
+                                  void takePack(r, line.packOffer!)
+                                }
+                              >
+                                {tr("Ota 1 pakkaus", "Take 1 pack")}:{" "}
+                                {line.packOffer.name} ·{" "}
+                                {money(line.packOffer.price ?? 0)}
+                              </button>
                             </p>
                           )}
                         {line ? (
