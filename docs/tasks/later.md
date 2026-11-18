@@ -2,6 +2,10 @@
 
 Canonical task list. Read [the roadmap](../roadmap.md) and [AGENTS.md](../../AGENTS.md), then load only the assigned card and its dependencies. Existing IDs and status evidence are preserved.
 
+## Checkout, shopping history and the next list
+
+In progress, 18 November 2026. Codex, chat "Generic polish run", main checkout on `main`. Make order placement visible after checkout, link to the matching history entry and let the shopper start the next list. Verify with local fixtures.
+
 ## Add a forgotten item after store transfer
 
 Done, 18 November 2026. Codex, main checkout. Pushed directly to `main` in `89f3780`. Release pending.
