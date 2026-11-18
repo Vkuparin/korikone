@@ -52,6 +52,8 @@ export function ReceiptsPanel({
   const [view, setView] = useState<ReceiptsView | null>(null);
   const [keepOriginal, setKeepOriginal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // The latest receipts first, a page at a time, so a year of receipts stays browsable (B7.6).
+  const [shownCount, setShownCount] = useState(receiptPage);
   const refresh = useCallback(async () => {
     const result = await window.korikone.listPurchases();
     if (result.ok)
@@ -79,6 +81,46 @@ export function ReceiptsPanel({
     [locale],
   );
   const dates = useMemo(() => new Intl.DateTimeFormat(locale), [locale]);
+  const months = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+    [locale],
+  );
+  const groups = useMemo(() => {
+    const sorted = [...(view?.purchases ?? [])].sort((a, b) =>
+      a.purchasedAt === b.purchasedAt
+        ? 0
+        : !a.purchasedAt
+          ? 1
+          : !b.purchasedAt
+            ? -1
+            : b.purchasedAt.localeCompare(a.purchasedAt),
+    );
+    const result: { key: string; label: string; purchases: Purchase[] }[] = [];
+    for (const purchase of sorted.slice(0, shownCount)) {
+      const key = purchase.purchasedAt?.slice(0, 7) ?? "undated";
+      let group = result.at(-1);
+      if (group?.key !== key) {
+        const label =
+          key === "undated"
+            ? tr("Ilman päiväystä", "Undated")
+            : months.format(new Date(`${key}-15T12:00:00Z`));
+        group = {
+          key,
+          label: label.charAt(0).toUpperCase() + label.slice(1),
+          purchases: [],
+        };
+        result.push(group);
+      }
+      group.purchases.push(purchase);
+    }
+    return result;
+  }, [view, shownCount, months, fi]);
+  const total = view?.purchases.length ?? 0;
   const money = (cents: number | null) =>
     cents === null ? tr("tuntematon", "unknown") : currency.format(cents / 100);
   const date = (purchase: Purchase) =>
@@ -343,28 +385,56 @@ export function ReceiptsPanel({
           {tr("Ei tuotuja kuitteja vielä.", "No imported receipts yet.")}
         </p>
       )}
-      {view?.purchases.map((purchase) => (
-        <ReceiptCard
-          key={purchase.eventId}
-          fi={fi}
-          purchase={purchase}
-          busy={busy}
-          act={act}
-          money={money}
-          date={date}
-          balance={balance}
-          reason={reason}
-          ocrNotice={ocrNotice}
-          aiReady={aiReady}
-          providerName={providerName}
-          providerId={providerId}
-          scopeOf={scopeOf}
-          enrichment={enrichment}
-        />
+      {groups.map((group) => (
+        <section
+          key={group.key}
+          className="receipt-month"
+          aria-label={group.label}
+        >
+          <h5>{group.label}</h5>
+          {group.purchases.map((purchase) => (
+            <ReceiptCard
+              key={purchase.eventId}
+              fi={fi}
+              purchase={purchase}
+              busy={busy}
+              act={act}
+              money={money}
+              date={date}
+              balance={balance}
+              reason={reason}
+              ocrNotice={ocrNotice}
+              aiReady={aiReady}
+              providerName={providerName}
+              providerId={providerId}
+              scopeOf={scopeOf}
+              enrichment={enrichment}
+            />
+          ))}
+        </section>
       ))}
+      {total > shownCount && (
+        <p className="receipt-more">
+          <span className="muted">
+            {tr(
+              `Näytetään ${shownCount} uusinta ${total} kuitista.`,
+              `Showing the latest ${shownCount} of ${total} receipts.`,
+            )}
+          </span>{" "}
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setShownCount((n) => n + receiptPage)}
+          >
+            {tr("Näytä lisää", "Show more")}
+          </button>
+        </p>
+      )}
     </section>
   );
 }
+
+const receiptPage = 10;
 
 type CardProps = {
   fi: boolean;

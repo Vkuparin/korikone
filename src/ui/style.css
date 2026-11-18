@@ -2515,3 +2515,16 @@ body:has(.receipt-intake-surface) .app-main {
 .spending-legend svg {
   vertical-align: -1px;
 }
+
+/* Saved receipts grouped by month (B7.6). */
+.receipt-month > h5 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.9rem;
+  color: var(--kk-muted);
+}
+.receipt-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}

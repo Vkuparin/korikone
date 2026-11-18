@@ -261,6 +261,27 @@ export function DataSettings({
     editBase.current = state.receiptText;
   return (
     <>
+      {/* Backups sit above the receipt list, which grows with every import (B7.6). */}
+      <details className="card">
+        <summary>{t("dataManagement")}</summary>
+        <p>{t("localData")}</p>
+        <div className="actions">
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void call("exportData")}
+          >
+            {t("backup")}
+          </button>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void call("importData")}
+          >
+            {t("restore")}
+          </button>
+        </div>
+      </details>
       <section className="card form">
         <h3>{fi ? "Aiemmat kuitit" : "Previous receipts"}</h3>
         <ReceiptsPanel
@@ -325,26 +346,6 @@ export function DataSettings({
           <button disabled={busy}>{t("save")}</button>
         </form>
       </section>
-      <details className="card">
-        <summary>{t("dataManagement")}</summary>
-        <p>{t("localData")}</p>
-        <div className="actions">
-          <button
-            className="secondary"
-            disabled={busy}
-            onClick={() => void call("exportData")}
-          >
-            {t("backup")}
-          </button>
-          <button
-            className="secondary"
-            disabled={busy}
-            onClick={() => void call("importData")}
-          >
-            {t("restore")}
-          </button>
-        </div>
-      </details>
     </>
   );
 }
