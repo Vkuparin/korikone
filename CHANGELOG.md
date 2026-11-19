@@ -1,5 +1,12 @@
 # Release notes
 
+## 0.11.7 — pre-release, 19 November 2026
+
+- The grocery name in quick add is typed at the 16 px reading size again.
+- The desktop UI tests match the current views, so a release run no longer reports old failures.
+
+Unsigned Windows x64 installer. Export a backup in Settings before upgrading. [Details](https://github.com/Vkuparin/korikone/blob/main/docs/release-0.11.7.md)
+
 ## 0.11.6 — pre-release, 18 November 2026
 
 - The list panel shows more groceries, with less-used actions in the "⋯" menu and the transfer button always in view. Add a saved recipe to the list straight from Reseptit.
